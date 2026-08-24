@@ -28,7 +28,7 @@ A shared situational-awareness tool that lets the control room select the active
 - `MET-A-023` Append-only incident event log with actor and timestamp
 - `MET-A-025` Authentication and role-based interface routing
 
-**3 items are blocked** on an answer from Metro Service, down from five before Metro's August answers. They are not dead: read them, and bring the question to the next sprint review. Filter the issues by `needs:metro` to see them.
+**2 items are blocked** on an answer from Metro Service, down from five before Metro's August answers. They are not dead: read them, and bring the question to the next sprint review. Filter the issues by `status:blocked` to see them, and by `needs:metro` for everything that still carries a question for Metro.
 
 ## Getting it running
 
