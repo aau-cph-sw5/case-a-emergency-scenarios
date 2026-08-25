@@ -13,6 +13,8 @@ A shared situational-awareness tool that lets the control room select the active
 
 28 backlog items across 10 epics, one GitHub issue each. [Board](https://github.com/orgs/aau-cph-sw5/projects) · [Full backlog](https://github.com/aau-cph-sw5/semester-docs/blob/main/backlog/case-a-emergency-scenarios.md)
 
+This case now carries the semester's machine-intelligence work: `MET-A-019`, scenario suggestion from a free-text incident description, and `MET-A-020`, its measured evaluation against expert-labelled examples, were raised to Must in August. Neither is in the starting set below, but the team that builds them should know from week one that they are coming in sprints 4 and 5.
+
 **Start with the minimum demonstrable product**, the 12 items proposed for sprints 1 to 3:
 
 - `MET-A-001` Derive the scenario domain model from the Metro alternative-operation presentations
