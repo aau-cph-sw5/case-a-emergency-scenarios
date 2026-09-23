@@ -1,0 +1,59 @@
+name: Defect Report
+description: Rapportér en fejl i case-A løsningen
+title: "[Bug]: "
+labels: ["case:A", "type:tech"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Beskrivelse
+      description: Hvad sker der, og hvad havde du forventet?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Trin til at reproducere
+      placeholder: |
+        1. Gå til ...
+        2. Klik på ...
+        3. Se fejl
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Forventet adfærd
+    validations:
+      required: true
+  - type: dropdown
+    id: track
+    attributes:
+      label: Track (hvor hører fejlen hjemme)
+      options: [frontend, backend, mobile, cross-team]
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Alvorlighed
+      options:
+        - "Kritisk (blokerer demo/sprint)"
+        - "Høj (kernefunktionalitet påvirket)"
+        - "Mellem (workaround findes)"
+        - "Lav (kosmetisk)"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Miljø
+      description: Browser/OS/enhed, branch eller commit-hash, hvis relevant.
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+    validations:
+      required: false
