@@ -1,103 +1,52 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "scenario-state.schema.json",
   "title": "Scenario State",
   "type": "object",
   "required": [
-    "contractVersion",
-    "scenario",
-    "activation",
-    "requiredStations"
+    "activationId",
+    "scenarioId",
+    "startedAt",
+    "status",
+    "actor",
+    "deployments"
   ],
   "properties": {
-    "contractVersion": {
+    "activationId": {
       "type": "string"
     },
-
-    "scenario": {
-      "type": "object",
-      "required": [
-        "scenarioId",
-        "name",
-        "version"
-      ],
-      "properties": {
-        "scenarioId": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "version": {
-          "type": "string"
-        }
-      }
+    "scenarioId": {
+      "type": "string"
     },
-
-    "activation": {
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "endedAt": {
       "type": [
-        "object",
+        "string",
         "null"
       ],
-      "required": [
-        "activationId",
-        "status",
-        "startedAt",
-        "actor"
-      ],
-      "properties": {
-        "activationId": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "ACTIVE",
-            "CLOSED"
-          ]
-        },
-        "startedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "endedAt": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "format": "date-time"
-        },
-        "actor": {
-          "type": "string"
-        }
-      }
+      "format": "date-time"
     },
-
-    "requiredStations": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "CLOSED"
+      ]
+    },
+    "actor": {
+      "type": "string"
+    },
+    "deployments": {
       "type": "array",
       "items": {
         "type": "object",
         "required": [
-          "stationId",
-          "name",
-          "minimumStaffing",
           "status",
-          "assignedStewards"
+          "fulfills"
         ],
         "properties": {
-          "stationId": {
-            "type": "string"
-          },
-
-          "name": {
-            "type": "string"
-          },
-
-          "minimumStaffing": {
-            "type": "integer",
-            "minimum": 0
-          },
-
           "status": {
             "type": "string",
             "enum": [
@@ -106,64 +55,28 @@
               "MANNED"
             ]
           },
-
-          "staffingWindows": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "dayPattern",
-                "startTime",
-                "endTime"
-              ],
-              "properties": {
-                "dayPattern": {
-                  "type": "string"
-                },
-                "startTime": {
-                  "type": "string",
-                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                },
-                "endTime": {
-                  "type": "string",
-                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                }
-              },
-              "additionalProperties": false
-            }
+          "reportedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           },
-
-          "assignedStewards": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": [
-                "staffId",
-                "name"
-              ],
-              "properties": {
-                "staffId": {
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                },
-                "reportedAt": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "date-time"
-                },
-                "arrivedAt": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "format": "date-time"
-                }
-              }
-            }
+          "arrivedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "staff": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fulfills": {
+            "type": "string"
           }
         }
       }

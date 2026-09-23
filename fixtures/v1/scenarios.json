@@ -2,11 +2,15 @@
   {
     "scenarioId": "DEMO-001",
     "name": "Synthetic fallback scenario",
-    "currentVersion": "1"
+    "currentVersion": "1",
+    "covers": [],
+    "versions": []
   },
   {
     "scenarioId": "DEMO-002",
     "name": "Synthetic partial closure",
-    "currentVersion": "2"
+    "currentVersion": "2",
+    "covers": [],
+    "versions": []
   }
 ]

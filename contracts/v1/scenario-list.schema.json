@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "scenario-list.schema.json",
   "title": "Scenario List",
   "type": "array",
@@ -8,19 +7,28 @@
     "required": [
       "scenarioId",
       "name",
-      "currentVersion"
+      "currentVersion",
+      "covers",
+      "versions"
     ],
     "properties": {
       "scenarioId": {
         "type": "string"
       },
-
       "name": {
         "type": "string"
       },
-
       "currentVersion": {
         "type": "string"
+      },
+      "covers": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "versions": {
+        "type": "array"
       }
     }
   }

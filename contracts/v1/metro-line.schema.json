@@ -1,22 +1,15 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "metro-line.schema.json",
   "title": "Metro Line",
   "type": "object",
   "required": [
-    "lineId",
     "name",
     "stops"
   ],
   "properties": {
-    "lineId": {
-      "type": "string"
-    },
-
     "name": {
       "type": "string"
     },
-
     "stops": {
       "type": "array",
       "items": {
@@ -30,22 +23,8 @@
             "type": "integer",
             "minimum": 1
           },
-
           "station": {
-            "type": "object",
-            "required": [
-              "stationId",
-              "name"
-            ],
-            "properties": {
-              "stationId": {
-                "type": "string"
-              },
-
-              "name": {
-                "type": "string"
-              }
-            }
+            "type": "string"
           }
         }
       }

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "scenario.schema.json",
   "title": "Scenario",
   "type": "object",
@@ -7,199 +6,182 @@
     "scenarioId",
     "name",
     "currentVersion",
-    "version"
+    "versions"
   ],
   "properties": {
     "scenarioId": {
       "type": "string"
     },
-
     "name": {
       "type": "string"
     },
-
     "currentVersion": {
       "type": "string"
     },
-
     "covers": {
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-
-    "version": {
-      "type": "object",
-      "required": [
-        "version",
-        "revision",
-        "operatingPlan",
-        "stationAssignments"
-      ],
-      "properties": {
-        "version": {
-          "type": "string"
-        },
-
-        "revision": {
-          "type": "string"
-        },
-
-        "operatingPlan": {
-          "type": "object",
-          "required": [
-            "name",
-            "patterns"
-          ],
-          "properties": {
-            "name": {
-              "type": "string"
-            },
-
-            "patterns": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": [
-                  "operationType",
-                  "routeCode",
-                  "track",
-                  "maximumTrains",
-                  "did"
-                ],
-                "properties": {
-                  "operationType": {
-                    "type": "string",
-                    "enum": [
-                      "PENDULUM",
-                      "ROUNDTRIP"
-                    ]
-                  },
-
-                  "routeCode": {
-                    "type": "string"
-                  },
-
-                  "track": {
-                    "type": "string"
-                  },
-
-                  "maximumTrains": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-
-                  "did": {
-                    "type": "string"
-                  },
-
-                  "description": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-
-        "stationAssignments": {
-          "type": "array",
-          "items": {
+    "versions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "version",
+          "revision",
+          "operatingPlan",
+          "stationRequirements"
+        ],
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "operatingPlan": {
             "type": "object",
             "required": [
-              "stationId",
               "name",
-              "minimumStaffing"
+              "patterns"
             ],
             "properties": {
-              "stationId": {
-                "type": "string"
-              },
-
               "name": {
                 "type": "string"
               },
-
-              "minimumStaffing": {
-                "type": "integer",
-                "minimum": 0
-              },
-
-              "staffingWindows": {
+              "patterns": {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "required": [
-                    "dayPattern",
-                    "startTime",
-                    "endTime"
+                    "operationType",
+                    "routeCode",
+                    "track",
+                    "maximumTrains",
+                    "did",
+                    "route"
                   ],
                   "properties": {
-                    "dayPattern": {
+                    "operationType": {
+                      "type": "string",
+                      "enum": [
+                        "PENDULUM",
+                        "ROUNDTRIP"
+                      ]
+                    },
+                    "routeCode": {
                       "type": "string"
                     },
-
-                    "startTime": {
-                      "type": "string",
-                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                    },
-
-                    "endTime": {
-                      "type": "string",
-                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                    }
-                  }
-                }
-              },
-
-              "actions": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "required": [
-                    "sequence",
-                    "instruction"
-                  ],
-                  "properties": {
-                    "sequence": {
-                      "type": "integer"
-                    },
-
-                    "instruction": {
+                    "track": {
                       "type": "string"
+                    },
+                    "maximumTrains": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "did": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "route": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
                     }
                   }
                 }
               }
             }
-          }
-        },
-
-        "passengerInformation": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "channel",
-              "language",
-              "message"
-            ],
-            "properties": {
-              "channel": {
-                "type": "string",
-                "enum": [
-                  "PA",
-                  "PID"
-                ]
-              },
-
-              "language": {
-                "type": "string"
-              },
-
-              "message": {
-                "type": "string"
+          },
+          "stationRequirements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "station",
+                "minimumStaffing"
+              ],
+              "properties": {
+                "station": {
+                  "type": "string"
+                },
+                "minimumStaffing": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "activeDuring": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "dayPattern",
+                      "startTime",
+                      "endTime"
+                    ],
+                    "properties": {
+                      "dayPattern": {
+                        "type": "string"
+                      },
+                      "startTime": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$"
+                      },
+                      "endTime": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$"
+                      }
+                    }
+                  }
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "sequence",
+                      "instruction"
+                    ],
+                    "properties": {
+                      "sequence": {
+                        "type": "integer"
+                      },
+                      "instruction": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "passengerInformation": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "channel",
+                "language",
+                "message"
+              ],
+              "properties": {
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "PA",
+                    "PID"
+                  ]
+                },
+                "language": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
               }
             }
           }

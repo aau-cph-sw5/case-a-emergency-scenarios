@@ -1,81 +1,29 @@
 {
-  "contractVersion": "1.0.0",
-
-  "scenario": {
-    "scenarioId": "DEMO-001",
-    "name": "Synthetic fallback scenario",
-    "version": "1"
-  },
-
-  "activation": {
-    "activationId": "ACT-DEMO-001",
-    "status": "ACTIVE",
-    "startedAt": "2026-09-23T08:00:00Z",
-    "endedAt": null,
-    "actor": "operator-001"
-  },
-
-  "requiredStations": [
+  "activationId": "ACT-DEMO-001",
+  "scenarioId": "DEMO-001",
+  "startedAt": "2026-09-23T08:00:00Z",
+  "endedAt": null,
+  "status": "ACTIVE",
+  "actor": "operator-001",
+  "deployments": [
     {
-      "stationId": "ST-A",
-      "name": "Station A",
-      "minimumStaffing": 1,
       "status": "MANNED",
-      "assignedStewards": [
-        {
-          "staffId": "steward-001",
-          "name": "Example Steward",
-          "reportedAt": "2026-09-23T08:02:00Z",
-          "arrivedAt": "2026-09-23T08:02:00Z"
-        }
-      ]
+      "reportedAt": "2026-09-23T08:02:00Z",
+      "arrivedAt": "2026-09-23T08:02:00Z",
+      "staff": "Example Steward",
+      "fulfills": "Station A"
     },
-
     {
-        "stationId": "ST-B",
-        "name": "Station B",
-        "minimumStaffing": 1,
-        "status": "PENDING",
-
-        "staffingWindows": [
-            {
-            "dayPattern": "MON-THU",
-            "startTime": "07:00",
-            "endTime": "09:00"
-            },
-            {
-            "dayPattern": "MON-THU",
-            "startTime": "14:00",
-            "endTime": "18:00"
-            },
-            {
-            "dayPattern": "FRI",
-            "startTime": "07:00",
-            "endTime": "09:00"
-            },
-            {
-            "dayPattern": "FRI",
-            "startTime": "13:00",
-            "endTime": "19:00"
-            }
-        ],
-
-        "assignedStewards": [
-            {
-            "staffId": "steward-002",
-            "name": "Example Steward 2",
-            "reportedAt": "2026-09-23T08:04:00Z",
-            "arrivedAt": null
-            }
-        ]
+      "status": "PENDING",
+      "reportedAt": "2026-09-23T08:04:00Z",
+      "arrivedAt": null,
+      "staff": "Example Steward 2",
+      "fulfills": "Station B"
     },
-
     {
-      "stationId": "ST-C",
-      "name": "Station C",
-      "minimumStaffing": 1,
       "status": "UNMANNED",
-      "assignedStewards": []
+      "staff": null,
+      "fulfills": "Station C"
     }
   ]
 }

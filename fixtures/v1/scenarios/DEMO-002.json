@@ -2,50 +2,46 @@
   "scenarioId": "DEMO-002",
   "name": "Synthetic fallback scenario 2",
   "currentVersion": "2",
-
   "covers": [
     "TRACK-F-G"
   ],
-
-  "version": {
-    "version": "2",
-    "revision": "Changed instructions",
-
-    "operatingPlan": {
-      "name": "Fallback operation",
-      "patterns": [
-        {
-          "operationType": "PENDULUM",
-          "routeCode": "F-G",
-          "track": "2",
-          "maximumTrains": 1,
-          "did": "DEMO",
-          "description": "Synthetic pendulum service"
-        }
-      ]
-    },
-
-    "stationAssignments": [
-      {
-        "stationId": "ST-G",
-        "name": "Station G",
-        "minimumStaffing": 1,
-
-        "staffingWindows": [
+  "versions": [
+    {
+      "version": "2",
+      "revision": "Changed instructions",
+      "operatingPlan": {
+        "name": "Fallback operation",
+        "patterns": [
           {
-            "dayPattern": "MON-THU",
-            "startTime": "07:00",
-            "endTime": "09:00"
-          }
-        ],
-
-        "actions": [
-          {
-            "sequence": 1,
-            "instruction": "Synthetic example instruction"
+            "operationType": "PENDULUM",
+            "routeCode": "F-G",
+            "track": "2",
+            "maximumTrains": 1,
+            "did": "DEMO",
+            "description": "Synthetic pendulum service",
+            "route": []
           }
         ]
-      }
-    ]
-  }
+      },
+      "stationRequirements": [
+        {
+          "station": "Station G",
+          "minimumStaffing": 1,
+          "activeDuring": [
+            {
+              "dayPattern": "MON-THU",
+              "startTime": "07:00:00",
+              "endTime": "09:00:00"
+            }
+          ],
+          "actions": [
+            {
+              "sequence": 1,
+              "instruction": "Synthetic example instruction"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
