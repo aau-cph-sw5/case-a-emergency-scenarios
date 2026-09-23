@@ -6,53 +6,52 @@ The Mermaid diagram is kept focused on the data model; source references, assump
 ---
 
 ## Entity model
-
 ```mermaid
 classDiagram
-
+ 
 %% ============================================
 %% PERMANENT METRO NETWORK
 %% ============================================
-
+ 
 class M1M2:::entity {
   name : String
 }
-
+ 
 class MetroLine:::entity {
   name : String
 }
-
+ 
 class LineStop:::entity {
   sequence : Int
 }
-
+ 
 class Station:::entity {
   name : String
 }
-
+ 
 class TrackSegment:::entity {
   trackLabel : String
 }
-
-
+ 
+ 
 %% ============================================
 %% SCENARIO DEFINITION
 %% ============================================
-
+ 
 class Scenario:::entity {
   scenarioId : String
   name : String
 }
-
+ 
 class ScenarioVersion:::entity {
   version : String
   revision : String
 }
-
+ 
 class OperatingPlan:::entity {
   name : String
 }
-
+ 
 class OperatingPattern:::entity {
   operationType : OperationType
   routeCode : String
@@ -61,46 +60,49 @@ class OperatingPattern:::entity {
   did : String
   description : String
 }
-
+ 
 class OperationType:::enum {
   PENDULUM
   ROUNDTRIP
 }
-
-class StationAssignment:::entity {
+ 
+class StationRequirement:::entity {
+  minimumStaffing : Int
+}
+ 
+class StationDeployment:::entity {
   status : DeploymentStatus
   reportedAt : DateTime
   arrivedAt : DateTime
-  minimumStaffing : Int
 }
-
+ 
 class StaffingWindow:::entity {
   dayPattern : String
   startTime : Time
   endTime : Time
 }
-
+ 
 class Action:::entity {
   sequence : Int
   instruction : String
 }
-
+ 
 class PassengerInformation:::entity {
   channel : PassengerInfoChannel
   language : String
   message : String
 }
-
+ 
 class PassengerInfoChannel:::enum {
   PA
   PID
 }
-
-
+ 
+ 
 %% ============================================
 %% LIVE SCENARIO ACTIVATION
 %% ============================================
-
+ 
 class ScenarioActivation:::entity {
   activationId : String
   startedAt : DateTime
@@ -108,104 +110,106 @@ class ScenarioActivation:::entity {
   status : ActivationStatus
   actor : String
 }
-
+ 
 class ActivationStatus:::enum {
   ACTIVE
   CLOSED
 }
-
+ 
 class StaffMember:::entity {
   name : String
 }
-
+ 
 class DeploymentStatus:::enum {
   UNMANNED
   PENDING
   MANNED
 }
-
-
+ 
+ 
 %% ============================================
 %% PERMANENT NETWORK STRUCTURE
 %% ============================================
-
+ 
 M1M2 "1" *-- "1..*" MetroLine : contains
-
+ 
 MetroLine "1" *-- "2..*" LineStop : stops
-
+ 
 M1M2 "1" *-- "0..*" Scenario : scenarios
-
+ 
 LineStop "0..*" --> "1" Station : station
-
+ 
 MetroLine "1..*" -- "1..*" TrackSegment : uses
-
+ 
 TrackSegment "0..*" --> "1" Station : stationA
-
+ 
 TrackSegment "0..*" --> "1" Station : stationB
-
-
+ 
+ 
 %% ============================================
 %% SCENARIO
 %% ============================================
-
+ 
 Scenario "1" -- "1..*" TrackSegment : covers
-
+ 
 Scenario "1" *-- "1..*" ScenarioVersion : versions
-
+ 
 Scenario "1" --> "0..1" ScenarioVersion : currentVersion
-
-
+ 
+ 
 %% ============================================
 %% SCENARIO VERSION CONTENT
 %% ============================================
-
+ 
 ScenarioVersion "1" *-- "1" OperatingPlan : operatingPlan
-
-ScenarioVersion "1" *-- "1..*" StationAssignment : stationAssignment
-
+ 
+ScenarioVersion "1" *-- "1..*" StationRequirement : stationRequirements
+ 
 ScenarioVersion "1" *-- "0..*" PassengerInformation : passengerInformation
-
-
+ 
+ 
 %% ============================================
 %% OPERATING PLAN
 %% ============================================
-
+ 
 OperatingPlan "1" *-- "1..*" OperatingPattern : patterns
-
+ 
 OperatingPattern "1" *-- "1..*" LineStop : route
-
-
+ 
+ 
 %% ============================================
-%% STATION ASSIGNMENTS
+%% STATION REQUIREMENTS
 %% ============================================
-
-StationAssignment "0..*" --> "1" Station : station
-
-StationAssignment "1" *-- "0..*" Action : actions
-
-
+ 
+StationRequirement "0..*" --> "1" Station : station
+ 
+StationRequirement "1" *-- "0..*" Action : actions
+ 
+ 
 %% ============================================
 %% STAFFING WINDOWS
 %% ============================================
-
-StationAssignment "1" *-- "0..*" StaffingWindow : activeDuring
-
-
+ 
+StationRequirement "1" *-- "0..*" StaffingWindow : activeDuring
+ 
+ 
 %% ============================================
 %% LIVE SCENARIO ACTIVATION
 %% ============================================
-
+ 
 ScenarioActivation "0..*" --> "1" Scenario : uses
-
-ScenarioActivation "1" *-- "0..*" StationAssignment : deployments
-
-StationAssignment "0..*" --> "1" StaffMember : staff
-
-
+ 
+ScenarioActivation "1" *-- "0..*" StationDeployment : deployments
+ 
+StationDeployment "0..*" --> "1" StationRequirement : fulfills
+ 
+StationDeployment "0..*" --> "1" StaffMember : staff
+ 
+ 
 %% ============================================
 %% STYLING
 %% ============================================
-
+ 
 classDef entity fill:#FFE86D,stroke:#A28E26,color:#574900
 classDef enum fill:#E8E8E8,stroke:#777777,color:#333333
 ```
@@ -549,40 +553,7 @@ TrackSegment --> Station : stationB
 
 ---
 
-# Traceability overview
-
-| Entity / enum | Source or assumption | Status |
-|---|---|---|
-| `M1M2` | Scope/domain structure | Needs explicit source reference if required by acceptance criteria |
-| `MetroLine` | Metro network structure | Needs explicit source reference |
-| `LineStop` | Ordered station structure | Model decision / needs source confirmation |
-| `Station` | Metro network structure | Domain entity |
-| `TrackSegment` | FBS 1 VAN-FB-CCR; Case A PowerPoint | Source-supported |
-| `Scenario` | Fallback scenario material | Source-supported |
-| `ScenarioVersion` | Stakeholder presentation | Assumption — confirm |
-| `OperatingPlan` | Grouping of the scenario operating solution | Model abstraction |
-| `OperatingPattern` | FBS 1 VAN-FB-CCR | Source-supported |
-| `OperationType.PENDULUM` | FBS 1 VAN-FB material | Source-supported |
-| `OperationType.ROUNDTRIP` | Not yet tied to a specific M1/M2 source | Needs confirmation |
-| `StationAssignment` | FBS 1 VAN-FB-CCR; FBS 1 VAN-FB-CCR-STW; Case A | Source-supported, with some live fields inferred |
-| `StaffingWindow` | FBS 1 VAN-FB-CCR-STW | Source-supported |
-| `Action` | FBS 1 VAN-FB-CCR-STW | Source-supported |
-| `PassengerInformation` | FBS 1 VAN-FB-CCR | Source-supported |
-| `PassengerInfoChannel` | PA/PID in CCR material | Source-supported |
-| `ScenarioActivation` | MET-A-007 | Partly source-supported; `endedAt` needs confirmation |
-| `ActivationStatus` | Activation lifecycle model | Model decision |
-| `StaffMember` | Stakeholder presentation | Assumption — confirm |
-| `DeploymentStatus` | Case A visual staffing state / workflow interpretation | Needs stakeholder confirmation |
-
----
-
 # Open questions for stakeholder review
 
 1. Is scenario versioning and rollback a required system feature, and what exactly constitutes a new `ScenarioVersion`?
-2. Should activation closure be logged as a separate event so that `endedAt` can be derived from the incident log?
-3. Should the activating operator be stored by work ID, name, or another personnel identifier?
-4. Should steward identity be stored for each staffed station, and which identifier/contact details are allowed?
-5. Are `UNMANNED`, `PENDING`, and `MANNED` the correct terms for station staffing state?
-6. Is `ROUNDTRIP` a term used in the M1/M2 scenario material, or is it only needed elsewhere?
-7. Does `maximumTrains` always represent a maximum, or should train quantities support a minimum/maximum range?
-8. Should live staffing state remain on `StationAssignment`, or should it be separated from the predefined station requirement so each activation has independent history?
+2. Should live staffing state remain on `StationAssignment`, or should it be separated from the predefined station requirement so each activation has independent history?
