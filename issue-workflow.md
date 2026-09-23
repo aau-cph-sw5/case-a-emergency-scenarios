@@ -41,16 +41,25 @@ Brug altid "New issue" eller "Create sub-issue" og vælg en template. Så får d
 <tr><td>Skrives <code>Som &lt;rolle&gt; vil jeg &lt;mål&gt; så &lt;værdi&gt;</code>. Fx <code>Som steward vil jeg se min egen position på kortet, så jeg kan navigere til hændelsen uden radiokontakt</code>.</td></tr>
 <tr><td><b>Acceptance criteria (PBI)</b></td></tr>
 <tr><td>Hvert kriterium skal kunne testes og kunne fejle.
-
 <code>Givet ... når ... så ...</code> er en god form til adfærdskriterier.
-
 Målbare krav skal angive tærskel og betingelser/miljø.
 Bruger- eller usabilitykrav kan i stedet beskrives som en testprotokol med opgave,
 sample/deltagere og en tydelig success condition.
-
 Undgå vage formuleringer som "hurtig", "brugervenlig" eller "tydelig", medmindre det
 er gjort målbart.
 </td></tr>
+<tr><td><b>Størrelse</b></td></tr>
+<tr><td>XL og XXL må ikke trækkes ind i en sprint, før de er splittet. Split dem op i sub-issues før sprintet. Hvis det stadig er ét samlet produkt-outcome, kan parent-PBI'et blive stående som
+overordnet item, mens arbejdet opdeles i mindre sub-issues med tydeligt ansvar.</td></tr>
+<tr><td><b>Done</b></td></tr>
+<tr><td>Et sub issue kan lukkes, når dets egne "Færdig når"-betingelser er opfyldt.
+
+Et parent-PBI er først Done, når dets acceptance criteria er demonstreret og den
+fælles Definition of Done er opfyldt.
+
+At alle sub-issues er lukket gør ikke automatisk parent-PBI'et Done.
+</td></tr>
+</table>
 
 ### Brug tjeklister
 
@@ -137,7 +146,7 @@ direction LR
 
 <table>
 <tr><td><b>Hvorfor</b></td></tr>
-<tr><td>Når en pull request linkes til det issue eller sub-issue, den løser (fx via <code>Closes #123</code> i PR-beskrivelsen), kan reviewer med det samme se user story og acceptance criteria uden at spørge - og issuet flyttes automatisk til Done, når PR'en merges.</td></tr>
+<tr><td>Når en pull request linkes til det issue eller sub-issue, den løser (fx via <code>Closes #123</code> i PR-beskrivelsen), kan reviewer med det samme se user story og acceptance criteria uden at spørge - og issuet flyttes automatisk til Done, når PR'en merges.  Kontrollér stadig Project-status bagefter. Et issue må kun stå som Done, når den relevante Definition of Done faktisk er opfyldt</td></tr>
 </table>
 
 
