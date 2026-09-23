@@ -1,18 +1,23 @@
 name: Sub-issue / Task
 description: Opret en mindre opgave under et eksisterende PBI (en delopgave, ikke et selvstændigt backlog-item)
-title: "Sub-issue of: "
+title: "Sub-issue of "
 labels: ["case:A"]
 body:
   - type: markdown
     attributes:
       value: |
-        Guidelines: (https://github.com/aau-cph-sw5/case-a-emergency-scenarios/blob/main/issue-workflow.md)
-        Eksempel på godt navn: Sub-issue of MEM-A-001
+        [Issue Guidelines](https://github.com/aau-cph-sw5/case-a-emergency-scenarios/blob/main/issue-workflow.md), før du opretter en sub-issue.
+        Husk at vælge sprint under **Milestone** nederst i formularen.
   - type: textarea
     id: done-when
     attributes:
-      label: Færdig når
-      description: Én eller flere konkrete betingelser for at lukke opgaven.
+      label: Beskrivelse
+      description: Kort kontekst og én eller flere konkrete betingelser for at lukke opgaven. Kryds punkterne af, efterhånden som de er opfyldt.
+      value: |
+        ## Context
+
+        ## Acceptance criteria
+        - [ ] 
     validations:
       required: true
   - type: dropdown
