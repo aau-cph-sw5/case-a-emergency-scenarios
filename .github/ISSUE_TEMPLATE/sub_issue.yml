@@ -7,14 +7,6 @@ body:
     attributes:
       value: |
         Eksempel på godt navn: Sub-issue of MEM-A-001
-  - type: input
-    id: sub-issue-of
-    attributes:
-      label: Sub-issue of
-      description: Reference til det overordnede PBI.
-      placeholder: "#42"
-    validations:
-      required: true
   - type: textarea
     id: done-when
     attributes:
