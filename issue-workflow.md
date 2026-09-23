@@ -18,7 +18,11 @@ Vi bruger to fælles boards på tværs af alle tre teams, der bygger Case A.
 
 <table>
 <tr><td><b>Kort og specifik</b></td></tr>
-<tr><td>Beskriver hvad der skal ske, ikke hvordan. Fx <code>Vis aktive hændelser på kort</code> frem for <code>Kort-feature</code> eller <code>Fix kort</code>.</td>
+<tr><td>Beskriver hvad der skal ske, ikke hvordan. Fx <code>Vis aktive hændelser på kort</code> frem for <code>Kort-feature</code> eller <code>Fix kort</code>.</td></tr>
+<tr><td><b>Issues</b></td></tr>
+<tr><td>Starter med backlog-nummeret efterfulgt af titlen. Fx <code>MET-A-003 Scenario state contract published and versioned</code>.</td></tr>
+<tr><td><b>Sub-issues</b></td></tr>
+<tr><td>Navngives <code>Sub-issue of MET-A-xxx (kort beskrivelse)</code>. Fx <code>Sub-issue of MET-A-003 (Stub server)</code>. Så kan man altid se, hvilket parent-issue en sub-issue hører til, også uden for boardet.</td></tr>
 </table>
 
 ### Hvad er en god beskrivelse med success-kriterier? og hvorfor
