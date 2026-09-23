@@ -9,6 +9,8 @@ https://github.com/orgs/aau-cph-sw5/projects/3/views/2
 For the feature backlog: the MET-A-xxx items that make up the product itself.
 
 ![Case A board](case-a-board-screenshot.png)
+<img width="2606" height="1426" alt="image" src="https://github.com/user-attachments/assets/c13e7b8a-5f9a-4067-92a0-4e8fb053e623" />
+
 
 Statuses, in the order an item normally moves through them:
 
