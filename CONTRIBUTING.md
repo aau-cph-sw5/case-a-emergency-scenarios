@@ -1,5 +1,5 @@
 # Contributing
-- [Guidelines til issues og sub issues der til](https://github.com/aau-cph-sw5/case-a-emergency-scenarios/blob/main/issue-workflow.md)
+- [Guidelines til issues og sub-issues dertil](https://github.com/aau-cph-sw5/case-a-emergency-scenarios/blob/main/issue-workflow.md)
 
 
 
