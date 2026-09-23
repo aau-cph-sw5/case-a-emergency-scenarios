@@ -1,64 +1,116 @@
-# Issue workflow
+# Issue Guidelines
 
-We use two shared boards across all three teams building Case A. This is how an issue moves through each one, so everyone works with issues the same way regardless of team.
+Vi bruger to fælles boards på tværs af alle tre teams, der bygger Case A.
 
-## Case A board: product backlog
+<table>
+<tr><td><b>Project: Case A. Emergency Scenarios</b></td><td></td></tr>
+<tr><td>Produktets backlog. Her ligger MET-A-xxx-issues: de features, der udgør selve produktet, samt de sub-issues vi opretter til givens items, med gode og korrekte parent/children relationer.</td><td>https://github.com/orgs/aau-cph-sw5/projects/3</td></tr>
+</table>
 
-https://github.com/orgs/aau-cph-sw5/projects/3/views/2
+<table>
+<tr><td><b>Project: Management</b></td><td></td></tr>
+<tr><td>Til administrative opgaver: alt der handler om at drive projektet i sig selv frem for produktet, fx repo/tooling-opsætning, mødenoter og præsentationer.</td><td>https://github.com/orgs/aau-cph-sw5/projects/10</td></tr>
+</table>
 
-For the feature backlog: the MET-A-xxx items that make up the product itself.
+## Hvordan ser en god issue ud?
 
-Case A board
-<img width="2606" height="1426" alt="image" src="https://github.com/user-attachments/assets/c13e7b8a-5f9a-4067-92a0-4e8fb053e623" />
+### Hvad er en god title?
 
+<table>
+<tr><td><b>Kort og specifik</b></td></tr>
+<tr><td>Beskriver hvad der skal ske, ikke hvordan. Fx <code>Vis aktive hændelser på kort</code> frem for <code>Kort-feature</code> eller <code>Fix kort</code>.</td>
+</table>
 
-Statuses, in the order an item normally moves through them:
+### Hvad er en god beskrivelse med success-kriterier? og hvorfor
 
-| Status | Meaning | Who moves it here |
-|---|---|---|
-| No Status | Just added, not yet triaged | Whoever files the issue |
-| Backlog | Queued; not yet ready to pull into a sprint | Product Owner / refinement |
-| Ready | Meets Definition of Ready: user story, acceptance criteria that can each fail, size at most L, named dependencies, no unanswered blocking question (semester-docs/02-ways-of-working.md) | Whoever refines it |
-| In progress | Pulled into the current sprint and being actively worked | The team/person picking it up, at sprint planning or when they start |
-| Blocked | Waiting on an unanswered question (often Metro Service, relayed through the Product Owner) or a dependency on another PBI | Whoever hits the blocker |
-| In review | A pull request is open against `development` for this item | Whoever opens the PR |
-| Done | Merged to `development`, every acceptance criterion demonstrated, CI green (Definition of Done) | Whoever merges, or the Product Owner at sprint review |
-
-No automation is configured on this board (only "auto-add sub-issues to project" is on), so every move above is a manual step you make yourself as part of doing the work.
-
-That one automation matters if you break a backlog item into sub-issues: each sub-issue gets added to this project automatically. It moves through the same statuses as everything else, but it's tracked on the separate "Sub-issues" view rather than the main "Kanban - Items" view you'd normally look at, so breaking an item down doesn't clutter the top-level board. The parent card also shows a small count like `0 / 3`: that's how many of its sub-issues are done out of the total.
-
-The parent card's progress count on the board
-
-<img width="596" height="242" alt="image" src="https://github.com/user-attachments/assets/83edf5a6-cae3-490b-a73b-66f139c0ab71" />
-
-
-A parent issue's sub-issues list
-<img width="1624" height="346" alt="image" src="https://github.com/user-attachments/assets/2c9a45f4-ec4b-4c21-954e-afde527307c9" />
+<table>
+<tr><td><b>User story</b></td>
+<tr><td>Hvem får gavn af det, og hvorfor.</td>
+<tr><td><b>Acceptance criteria</b></td>
+<tr><td>Konkrete punkter, der hver kan testes og fejle isoleret - ikke vage formuleringer.</td>
+<tr><td><b>Done</b></td>
+<tr><td>Når alle kriterier er opfyldt, er issuet Done.</td>
+</table>
 
 
-To create one, open the parent MET-A issue and scroll down to the "Create sub-issue" button under its Sub-issues section.
+### Husk nu
 
-Labels, independent of status:
-- `status:blocked`: flag alongside whatever column the card is actually in
-- `needs:metro`: carries an open question for Metro Service; stays on until the Product Owner brings back an answer
+<table>
+<tr><td>
+<ul>
+<li>Husk at oprette sub-issues under det relevante parent-issue, så de kobles rigtigt og tælles med i parent-kortets fremdrift.</li>
+<li>Husk selv at rykke status aktivt - der er ingen automatik ud over at sub-issues auto-tilføjes til boardet.</li>
+<li>Husk at sætte <code>status:blocked</code> og/eller <code>needs:metro</code>, hvis issuet venter på noget.</li>
+<li>Husk at flytte til "In review" når PR'en åbnes, og til "Done" når den er merget og alle acceptance criteria er demonstreret.</li>
+<li>Husk at PR'en skal linkes til det relevante issue eller sub-issue.</li>
+</ul>
+</td><td></td></tr>
+</table>
 
-Because three teams share this one board and one codebase, a status has to mean the same thing regardless of which team owns the card. Don't invent per-team shortcuts here.
+## Issue og Sub-issue livs cyklus
 
-## Management board: setup and logistics
+Sådan bevæger et issue sig gennem de forskellige statusser, fra det oprettes til det er Done.
 
-https://github.com/orgs/aau-cph-sw5/projects/10/views/2
+```mermaid
+classDiagram
+direction LR
+    class Backlog {
+        Oprettet
+        Mangler refinement
+    }
+    class Ready {
+        Definition of Ready opfyldt
+        Kan trækkes ind i sprint
+    }
+    class InProgress["In progress"] {
+        Trukket ind i sprint
+        Aktivt arbejde igang
+    }
+    class InReview["In review"] {
+        Pull request åbnet
+        Linket til issuet
+        Acceptance criteria tjekkes
+    }
+    class Done {
+        Merget til development
+        Definition of Done opfyldt
+        Acceptance criteria opfyldt
+    }
+    class Blocked {
+        Venter på svar
+        Afhænger af andet issue
+    }
+    Backlog --> Ready
+    Ready --> InProgress
+    InProgress --> InReview
+    InReview --> Done
+    Backlog ..> Blocked
+    Blocked ..> Backlog
+    InProgress ..> Blocked
+    Blocked ..> InProgress
+```
 
-For cross-team management and setup work that isn't itself a product feature: repo/tooling setup, meeting notes, presentations, and similar coordination tasks.
+### Pull requests skal linkes til deres issue
 
-Management board
-<img width="2774" height="1336" alt="image" src="https://github.com/user-attachments/assets/d0d46579-c2a4-4d14-8a22-a02b528d0c34" />
+<table>
+<tr><td><b>Hvorfor</b></td></tr>
+<tr><td>Når en pull request linkes til det issue eller sub-issue, den løser (fx via <code>Closes #123</code> i PR-beskrivelsen), kan reviewer med det samme se user story og acceptance criteria uden at spørge - og issuet flyttes automatisk til Done, når PR'en merges.</td></tr>
+</table>
 
+## Views
 
-Columns: MØDER (meeting-note items), Todo, In progress, Done.
+**Case A: Emergency Scenarios**
 
-Movement here is manual, the same as on the Case A board.
+<table>
+<tr><td><b>All Items</b></td><td><b>Overview - parent/child</b></td><td><b>Kanban - Items</b></td><td><b>Sub-issues</b></td><td><b>My items</b></td></tr>
+<tr><td>Fuld liste over alle top-level issues med status, assignees, linkede pull requests og sub-issues progress.</td><td>Viser parent/child-hierarkiet mellem issues og deres sub-issues.</td><td>Selve Kanban-visningen, grupperet efter status: Backlog, Ready, In progress, Blocked, In review, Done.</td><td>Separat visning for sub-issues, holdt væk fra hovedoversigten - de bevæger sig gennem de samme statusser.</td><td>Kun de items, der er tildelt dig selv.</td></tr>
+</table>
 
-## Which board for which issue
+Derudover findes der gruppe-visninger (fx <code>group-7</code>, <code>group-9</code>, <code>group-10</code>) - én pr. team. Det er ikke sikkert, at alle fra ens gruppe er sat på endnu, så det kan være nødvendigt selv at oprette eller justere sin gruppes visning løbende.
 
-If the issue is a MET-A-xxx backlog item (something Metro or the Product Owner would recognize as a product feature), it goes on the Case A board and follows the manual statuses above. If it's about running the project itself (setting something up, preparing a ceremony, an internal task with no user-facing acceptance criteria), it goes on the Management board, moved by hand through Todo, In progress, and Done, the same manual process as the Case A board.
+**Management**
+
+<table>
+<tr><td><b>Backlog</b></td><td><b>Board</b></td><td><b>Current iteration</b></td><td><b>Roadmap</b></td><td><b>My items</b></td></tr>
+<tr><td>Holder møde-issues (status MØDER) som parent-issues, med sub-issues oprettet ud fra aftaler fra de pågældende møder.</td><td>Selve Kanban-visningen med kolonnerne MØDER, Todo, In progress og Done.</td><td>Kun det, der er aktivt i den nuværende iteration/sprint.</td><td>Tidslinje-visning af items over tid.</td><td>Kun de items, der er tildelt dig selv.</td></tr>
+</table>
