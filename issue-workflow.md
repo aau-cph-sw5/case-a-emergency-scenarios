@@ -29,6 +29,7 @@ No automation is configured on this board (only "auto-add sub-issues to project"
 That one automation matters if you break a backlog item into sub-issues: each sub-issue gets added to this project automatically. It moves through the same statuses as everything else, but it's tracked on the separate "Sub-issues" view rather than the main "Kanban - Items" view you'd normally look at, so breaking an item down doesn't clutter the top-level board. The parent card also shows a small count like `0 / 4`: that's how many of its sub-issues are done out of the total.
 
 The parent card's progress count on the board
+
 <img width="596" height="242" alt="image" src="https://github.com/user-attachments/assets/83edf5a6-cae3-490b-a73b-66f139c0ab71" />
 
 
