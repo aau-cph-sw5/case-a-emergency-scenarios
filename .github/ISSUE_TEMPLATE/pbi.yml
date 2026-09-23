@@ -1,0 +1,99 @@
+name: Product Backlog Item
+description: Foreslå eller registrer et nyt PBI (feature, tech-arbejde, spike osv.)
+title: "[PBI]: "
+labels: ["case:A"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Se CONVENTIONS.md i semester-docs for definitioner af size, readiness og priority, før du udfylder.
+  - type: input
+    id: source-id
+    attributes:
+      label: Backlog-ID (hvis kendt)
+      description: Fx MET-A-013. Lad stå tomt hvis det er et nyt item uden kilde.
+      placeholder: MET-A-XXX
+    validations:
+      required: false
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User story
+      description: "Som <rolle> vil jeg <mål> så <værdi>."
+      placeholder: |
+        Som steward vil jeg se min egen position på kortet,
+        så jeg kan navigere til hændelsen uden radiokontakt.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptkriterier
+      description: Hvert kriterium skal kunne fejle og angive en målbar tærskel (jf. CONVENTIONS.md).
+      placeholder: |
+        - Givet ... når ... så ...
+    validations:
+      required: true
+  - type: dropdown
+    id: epic
+    attributes:
+      label: Epic
+      options:
+        - A-EP1 Foundation and scenario domain model
+        - A-EP2 Scenario selection and activation
+        - A-EP3 Shared situational overview
+        - A-EP4 Steward self-localization and status
+        - A-EP5 Low-radio dispatch
+        - A-EP6 Decision support: classification and checklists
+        - A-EP7 Incident log and post-incident analysis
+        - A-EP8 Access, roles and identity
+        - A-EP9 Offline and degraded operation
+        - A-EP10 Inheritance and handover
+    validations:
+      required: true
+  - type: dropdown
+    id: track
+    attributes:
+      label: Track (ejerskab)
+      options: [frontend, backend, mobile, cross-team]
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options: [feature, contract, tech, data, compliance, evaluation, spike]
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: Størrelse
+      description: XL/XXL må ikke pulles ind i en sprint før de er splittet, jf. CONVENTIONS.md.
+      options: [S, M, L, XL, XXL]
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioritet (MoSCoW)
+      options: [Must, Should, Could, "Won't"]
+    validations:
+      required: true
+  - type: dropdown
+    id: provenance
+    attributes:
+      label: Herkomst
+      options:
+        - "Metro (kilde-story fra Metro Service)"
+        - "AAU-tilføjet (ingen kilde-story)"
+        - "Rekonstrueret (afventer Metro-bekræftelse)"
+    validations:
+      required: true
+  - type: input
+    id: dependencies
+    attributes:
+      label: Afhængigheder
+      description: Andre PBI'er eller kontrakter dette item afhænger af, fx MET-A-003.
+    validations:
+      required: false
