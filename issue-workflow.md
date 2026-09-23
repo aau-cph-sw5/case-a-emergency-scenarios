@@ -40,14 +40,17 @@ Brug altid "New issue" eller "Create sub-issue" og vælg en template. Så får d
 <tr><td><b>User story (PBI)</b></td></tr>
 <tr><td>Skrives <code>Som &lt;rolle&gt; vil jeg &lt;mål&gt; så &lt;værdi&gt;</code>. Fx <code>Som steward vil jeg se min egen position på kortet, så jeg kan navigere til hændelsen uden radiokontakt</code>.</td></tr>
 <tr><td><b>Acceptance criteria (PBI)</b></td></tr>
-<tr><td>Skrives <code>Givet ... når ... så ...</code>. Hvert kriterium skal kunne testes, fejle isoleret og have en målbar tærskel. Ikke vage formuleringer.</td></tr>
-<tr><td><b>Færdig når (sub-issue)</b></td></tr>
-<tr><td>Sub-issues har ikke brug for en user story. Skriv i stedet én eller flere konkrete betingelser for, hvornår opgaven kan lukkes.</td></tr>
-<tr><td><b>Størrelse</b></td></tr>
-<tr><td>XL og XXL må ikke trækkes ind i en sprint, før de er splittet. Split dem op i sub-issues.</td></tr>
-<tr><td><b>Done</b></td></tr>
-<tr><td>Når alle kriterier er opfyldt, er issuet Done.</td></tr>
-</table>
+<tr><td>Hvert kriterium skal kunne testes og kunne fejle.
+
+<code>Givet ... når ... så ...</code> er en god form til adfærdskriterier.
+
+Målbare krav skal angive tærskel og betingelser/miljø.
+Bruger- eller usabilitykrav kan i stedet beskrives som en testprotokol med opgave,
+sample/deltagere og en tydelig success condition.
+
+Undgå vage formuleringer som "hurtig", "brugervenlig" eller "tydelig", medmindre det
+er gjort målbart.
+</td></tr>
 
 ### Brug tjeklister
 
