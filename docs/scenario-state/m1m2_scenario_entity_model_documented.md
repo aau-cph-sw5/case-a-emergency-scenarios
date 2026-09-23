@@ -349,34 +349,71 @@ This needs confirmation with the stakeholder before it is treated as a confirmed
 
 ---
 
-## StationAssignment
-
+## StationRequirement
+ 
 ### Purpose
-
-Represents the station-specific staffing requirement and task list for a scenario version.
-
+ 
+Represents the station-specific staffing requirement and task list defined by a scenario version. This is definition-time data: it describes what a station *should* look like whenever the scenario is activated, independent of any particular activation.
+ 
 ### Sources
-
+ 
 **FBS 1 VAN-FB-CCR, page 1**
-
+ 
 Shows which stations must be manned during the fallback scenario.
-
+ 
 **FBS 1 VAN-FB-CCR-STW**
-
+ 
 Provides the staffing requirement for individual stations and the steward tasks associated with those stations.
-
-**Case A PowerPoint, slides 5–7**
-
-Shows station manning visually, including stations that are unmanned, pending, or manned.
-
+ 
 ### Attributes
-
+ 
+| Attribute | Meaning | Traceability |
+|---|---|---|
+| `minimumStaffing : Int` | Minimum number of stewards needed at the station. | Supported by station staffing requirements in the scenario material. |
+ 
+### Split note
+ 
+This entity previously also carried `status`, `reportedAt`, and `arrivedAt` as a combined `StationAssignment` entity. Those fields have been moved to the new `StationDeployment` entity (below), because they are per-activation live data, not part of the scenario definition.
+ 
+Splitting them resolves a structural problem in the earlier model: the combined entity was shown as a composition child of both `ScenarioVersion` and `ScenarioActivation` at once, which is inconsistent (a composed part cannot belong to two owners simultaneously) and meant re-activating the same scenario would overwrite the previous activation's live staffing state instead of preserving it as history.
+ 
+`StationRequirement` now belongs only to `ScenarioVersion`, and is referenced — not owned — by each `StationDeployment` via the `fulfills` relationship.
+ 
+---
+ 
+## StationDeployment
+ 
+### Purpose
+ 
+Represents the live staffing state of one station during one specific `ScenarioActivation`. Each activation gets its own set of `StationDeployment` records, so staffing history is preserved independently across repeated activations of the same scenario.
+ 
+### Sources
+ 
+**Case A PowerPoint, slides 5–7**
+ 
+Shows station manning visually, including stations that are unmanned, pending, or manned.
+ 
+**Model decision**
+ 
+The split from the combined `StationAssignment` entity is a modelling decision made to keep live activation state independent per activation; it should be confirmed with the stakeholder alongside open question 8.
+ 
+### Attributes
+ 
 | Attribute | Meaning | Traceability |
 |---|---|---|
 | `status : DeploymentStatus` | Current station staffing state. | Based on the live manning state shown in Case A. |
-| `reportedAt : DateTime` | Time at which a steward reports/checks in for the assignment. | Assumption from the proposed digital workflow. |
+| `reportedAt : DateTime` | Time at which a steward reports/checks in for the deployment. | Assumption from the proposed digital workflow. |
 | `arrivedAt : DateTime` | Time at which a steward arrives and the station becomes manned. | Assumption from the proposed digital workflow. |
-| `minimumStaffing : Int` | Minimum number of stewards needed at the station. | Supported by station staffing requirements in the scenario material. |
+ 
+### Relationships
+ 
+```text
+StationDeployment --> StationRequirement : fulfills
+StationDeployment --> StaffMember : staff
+```
+ 
+`fulfills` links each live deployment record back to the predefined requirement it is satisfying, so `minimumStaffing`, `StaffingWindow`, and `Action` data can still be looked up from a deployment without duplicating them per activation.
+ 
 
 ### DeploymentStatus
 
