@@ -45,6 +45,10 @@ while IFS=$'\t' read -r kase repo; do
            "$HUB/.github/ISSUE_TEMPLATE/pbi.yml" \
            "Add the product backlog item template"
 
+  put_file "$repo" ".github/SUB_ISSUE_TEMPLATE/pbi.yml" \
+           "$HUB/.github/SUB_ISSUE_TEMPLATE/pbi.yml" \
+           "Add the sub item template"
+           
   put_file "$repo" ".github/ISSUE_TEMPLATE/bug_report.yml" \
            "$HUB/.github/ISSUE_TEMPLATE/bug_report.yml" \
            "Add the defect report template"
