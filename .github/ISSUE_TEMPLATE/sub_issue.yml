@@ -6,6 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
+        Guidelines: (https://github.com/aau-cph-sw5/case-a-emergency-scenarios/blob/main/issue-workflow.md)
         Eksempel på godt navn: Sub-issue of MEM-A-001
   - type: textarea
     id: done-when
