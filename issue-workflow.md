@@ -49,6 +49,30 @@ Brug altid "New issue" eller "Create sub-issue" og vælg en template. Så får d
 <tr><td>Når alle kriterier er opfyldt, er issuet Done.</td></tr>
 </table>
 
+### Brug tjeklister
+
+Del arbejdet op i punkter, du kan krydse af. Så kan du og andre se, hvor langt et issue er, uden at åbne koden eller spørge.
+
+<table>
+<tr><td><b>Hvorfor</b></td></tr>
+<tr><td>Du kan se med det samme, hvad der mangler. Andre kan følge med i fremdriften. Og GitHub viser fx <code>2 of 5 tasks</code> ved issuet i oversigten.</td></tr>
+<tr><td><b>Hvor</b></td></tr>
+<tr><td>I beskrivelsen af et issue eller sub-issue, fx under acceptance criteria eller "Færdig når". Det virker også i pull requests og kommentarer.</td></tr>
+<tr><td><b>Sådan laver du en</b></td></tr>
+<tr><td>Skriv <code>- [ ]</code> foran hvert punkt. Når punktet er klaret, klikker du bare på boksen i issuet, så bliver den til <code>- [x]</code>.</td></tr>
+<tr><td><b>Fra punkt til sub-issue</b></td></tr>
+<tr><td>Viser et punkt sig at være større end forventet, kan du holde musen over det og vælge "Convert to sub-issue". Så bliver det en sub-issue under det nuværende issue.</td></tr>
+</table>
+
+Eksempel på "Færdig når" i en sub-issue:
+
+```markdown
+- [ ] Stub serveren svarer på GET /scenarios
+- [ ] Svaret følger scenario state contract v1
+- [ ] README beskriver, hvordan serveren startes
+```
+
+
 ### Husk nu
 
 <table>
