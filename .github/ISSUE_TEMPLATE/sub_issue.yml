@@ -1,29 +1,18 @@
 name: Sub-issue / Task
 description: Opret en mindre opgave under et eksisterende PBI (en delopgave, ikke et selvstændigt backlog-item)
-title: "[Task]: "
+title: "Sub-issue of: "
 labels: ["case:A"]
 body:
   - type: markdown
     attributes:
       value: |
-        Brug denne til afgrænsede opgaver under en dag, som hører under et PBI
-        (jf. CONVENTIONS.md: arbejde under én dag er en opgave inde i et item,
-        ikke et selvstændigt backlog-item). Efter oprettelse skal du selv knytte
-        dette issue som sub-issue til PBI'et via "Create sub-issue" / "Add sub-issue"
-        i PBI'ets sidebar — GitHub sætter ikke parent-forholdet fra formularen her.
+        Eksempel på godt navn: Sub-issue of MEM-A-001
   - type: input
-    id: parent-pbi
+    id: sub-issue-of
     attributes:
-      label: Tilhører PBI
-      description: ID eller #-nummer på det overordnede PBI.
-      placeholder: "MET-A-013 eller #42"
-    validations:
-      required: true
-  - type: textarea
-    id: task
-    attributes:
-      label: Hvad skal gøres
-      description: Konkret, afgrænset opgave — skal kunne udføres uden yderligere fortolkning.
+      label: Sub-issue of
+      description: Reference til det overordnede PBI.
+      placeholder: "#42"
     validations:
       required: true
   - type: textarea
@@ -37,6 +26,6 @@ body:
     id: track
     attributes:
       label: Track
-      options: [frontend, backend, mobile, cross-team]
+      options: [frontend, backend, mobile, cross-team, other]
     validations:
       required: true
