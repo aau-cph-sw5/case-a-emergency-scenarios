@@ -26,7 +26,7 @@ Statuses, in the order an item normally moves through them:
 
 No automation is configured on this board (only "auto-add sub-issues to project" is on), so every move above is a manual step you make yourself as part of doing the work.
 
-That one automation matters if you break a backlog item into sub-issues: each sub-issue gets added to this project automatically. It moves through the same statuses as everything else, but it's tracked on the separate "Sub-issues" view rather than the main "Kanban - Items" view you'd normally look at, so breaking an item down doesn't clutter the top-level board. The parent card also shows a small count like `0 / 4`: that's how many of its sub-issues are done out of the total.
+That one automation matters if you break a backlog item into sub-issues: each sub-issue gets added to this project automatically. It moves through the same statuses as everything else, but it's tracked on the separate "Sub-issues" view rather than the main "Kanban - Items" view you'd normally look at, so breaking an item down doesn't clutter the top-level board. The parent card also shows a small count like `0 / 3`: that's how many of its sub-issues are done out of the total.
 
 The parent card's progress count on the board
 
@@ -43,11 +43,11 @@ Labels, independent of status:
 - `status:blocked`: flag alongside whatever column the card is actually in
 - `needs:metro`: carries an open question for Metro Service; stays on until the Product Owner brings back an answer
 
-Because three teams share this one board and one codebase, a status has to mean the same thing regardless of which team owns the card. Don't invent per-team shortcuts here. A team needing finer-grained tracking handles that on the Management board instead.
+Because three teams share this one board and one codebase, a status has to mean the same thing regardless of which team owns the card. Don't invent per-team shortcuts here.
 
 ## Management board: setup and logistics
 
-https://github.com/orgs/aau-cph-sw5/projects/10
+https://github.com/orgs/aau-cph-sw5/projects/10/views/2
 
 For cross-team management and setup work that isn't itself a product feature: repo/tooling setup, meeting notes, presentations, and similar coordination tasks.
 
