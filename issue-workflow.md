@@ -4,12 +4,21 @@ Vi bruger to fælles boards på tværs af alle tre teams, der bygger Case A.
 
 <table>
 <tr><td><b>Project: Case A. Emergency Scenarios</b></td><td></td></tr>
-<tr><td>Produktets backlog. Her ligger MET-A-xxx-issues: de features, der udgør selve produktet, samt de sub-issues vi opretter til givens items, med gode og korrekte parent/children relationer.</td><td>https://github.com/orgs/aau-cph-sw5/projects/3</td></tr>
+<tr><td>Produktets backlog. Her ligger MET-A-xxx-issues: de features, der udgør selve produktet, samt de sub-issues vi opretter til givne items, med gode og korrekte parent/children relationer.</td><td>https://github.com/orgs/aau-cph-sw5/projects/3</td></tr>
 </table>
 
 <table>
 <tr><td><b>Project: Management</b></td><td></td></tr>
 <tr><td>Til administrative opgaver: alt der handler om at drive projektet i sig selv frem for produktet, fx repo/tooling-opsætning, mødenoter og præsentationer.</td><td>https://github.com/orgs/aau-cph-sw5/projects/10</td></tr>
+</table>
+
+## Opret issues via templates
+
+Brug altid "New issue" eller "Create sub-issue" og vælg en template. Så får du de rigtige felter, og labelen <code>case:A</code> sættes automatisk. Læs CONVENTIONS.md i semester-docs, før du opretter et issue.
+
+<table>
+<tr><td><b>Product Backlog Item</b></td><td><b>Sub-issue / Task</b></td><td><b>Defect Report</b></td></tr>
+<tr><td>Et nyt PBI: feature, tech-arbejde, spike osv. Kræver user story, acceptance criteria, epic, track, type, størrelse, prioritet og herkomst.</td><td>En mindre delopgave under et eksisterende PBI, ikke et selvstændigt backlog-item. Kræver kun "Færdig når" og track.</td><td>Rapportér en fejl i Case A-løsningen.</td></tr>
 </table>
 
 ## Hvordan ser en god issue ud?
@@ -22,20 +31,23 @@ Vi bruger to fælles boards på tværs af alle tre teams, der bygger Case A.
 <tr><td><b>Issues</b></td></tr>
 <tr><td>Starter med backlog-nummeret efterfulgt af titlen. Fx <code>MET-A-003 Scenario state contract published and versioned</code>.</td></tr>
 <tr><td><b>Sub-issues</b></td></tr>
-<tr><td>Navngives <code>Sub-issue of MET-A-xxx (kort beskrivelse)</code>. Fx <code>Sub-issue of MET-A-003 (Stub server)</code>. Så kan man altid se, hvilket parent-issue en sub-issue hører til, også uden for boardet.</td></tr>
+<tr><td>Templaten udfylder <code>Sub-issue of:</code> for dig. Skriv parent-issuets nummer og en kort beskrivelse i parentes efter. Fx <code>Sub-issue of MET-A-003 (Stub server)</code>. Så kan man altid se, hvilket parent-issue en sub-issue hører til, også uden for boardet.</td></tr>
 </table>
 
 ### Hvad er en god beskrivelse med success-kriterier? og hvorfor
 
 <table>
-<tr><td><b>User story</b></td>
-<tr><td>Hvem får gavn af det, og hvorfor.</td>
-<tr><td><b>Acceptance criteria</b></td>
-<tr><td>Konkrete punkter, der hver kan testes og fejle isoleret - ikke vage formuleringer.</td>
-<tr><td><b>Done</b></td>
-<tr><td>Når alle kriterier er opfyldt, er issuet Done.</td>
+<tr><td><b>User story (PBI)</b></td></tr>
+<tr><td>Skrives <code>Som &lt;rolle&gt; vil jeg &lt;mål&gt; så &lt;værdi&gt;</code>. Fx <code>Som steward vil jeg se min egen position på kortet, så jeg kan navigere til hændelsen uden radiokontakt</code>.</td></tr>
+<tr><td><b>Acceptance criteria (PBI)</b></td></tr>
+<tr><td>Skrives <code>Givet ... når ... så ...</code>. Hvert kriterium skal kunne testes, fejle isoleret og have en målbar tærskel. Ikke vage formuleringer.</td></tr>
+<tr><td><b>Færdig når (sub-issue)</b></td></tr>
+<tr><td>Sub-issues har ikke brug for en user story. Skriv i stedet én eller flere konkrete betingelser for, hvornår opgaven kan lukkes.</td></tr>
+<tr><td><b>Størrelse</b></td></tr>
+<tr><td>XL og XXL må ikke trækkes ind i en sprint, før de er splittet. Split dem op i sub-issues.</td></tr>
+<tr><td><b>Done</b></td></tr>
+<tr><td>Når alle kriterier er opfyldt, er issuet Done.</td></tr>
 </table>
-
 
 ### Husk nu
 
@@ -43,10 +55,10 @@ Vi bruger to fælles boards på tværs af alle tre teams, der bygger Case A.
 <tr><td>
 <ul>
 <li>Husk at oprette sub-issues under det relevante parent-issue, så de kobles rigtigt og tælles med i parent-kortets fremdrift.</li>
-<li>Husk selv at rykke status aktivt - der er ingen automatik ud over at sub-issues auto-tilføjes til boardet.</li>
+<li>Husk selv at rykke status aktivt. Nye issues sættes automatisk til Backlog, men resten af vejen skal du selv flytte dem.</li>
 <li>Husk at sætte <code>status:blocked</code> og/eller <code>needs:metro</code>, hvis issuet venter på noget.</li>
-<li>Husk at flytte til "In review" når PR'en åbnes, og til "Done" når den er merget og alle acceptance criteria er demonstreret.</li>
-<li>Husk at PR'en skal linkes til det relevante issue eller sub-issue.</li>
+<li>Husk at flytte til "In review" når pull requesten åbnes, og til "Done" når den er merget og alle acceptance criteria er demonstreret.</li>
+<li>Husk at pull requesten skal linkes til det relevante issue eller sub-issue.</li>
 </ul>
 </td><td></td></tr>
 </table>
@@ -94,11 +106,15 @@ direction LR
     Blocked ..> InProgress
 ```
 
-### Pull requests skal linkes til deres issue
+### Branches og pull requests
 
 <table>
-<tr><td><b>Hvorfor</b></td></tr>
-<tr><td>Når en pull request linkes til det issue eller sub-issue, den løser (fx via <code>Closes #123</code> i PR-beskrivelsen), kan reviewer med det samme se user story og acceptance criteria uden at spørge - og issuet flyttes automatisk til Done, når PR'en merges.</td></tr>
+<tr><td><b>Én branch pr. item</b></td></tr>
+<tr><td>Hvert issue eller sub-issue får sin egen feature branch, navngivet efter det. Fx <code>MET-A-003-stub-server</code>.</td></tr>
+<tr><td><b>Pull requests går til development</b></td></tr>
+<tr><td><code>development</code> er den fælles arbejdsbranch. <code>staging</code> er integration og skal altid kunne køre. <code>main</code> er beskyttet og indeholder kun det, der er demonstreret ved et review.</td></tr>
+<tr><td><b>Link pull requesten til issuet</b></td></tr>
+<tr><td>Skriv fx <code>Closes #123</code> i beskrivelsen. Så kan reviewer med det samme se user story og acceptance criteria uden at spørge, og issuet lukkes, når pull requesten merges.</td></tr>
 </table>
 
 ## Views
@@ -107,10 +123,10 @@ direction LR
 
 <table>
 <tr><td><b>All Items</b></td><td><b>Overview - parent/child</b></td><td><b>Kanban - Items</b></td><td><b>Sub-issues</b></td><td><b>My items</b></td></tr>
-<tr><td>Fuld liste over alle top-level issues med status, assignees, linkede pull requests og sub-issues progress.</td><td>Viser parent/child-hierarkiet mellem issues og deres sub-issues.</td><td>Selve Kanban-visningen, grupperet efter status: Backlog, Ready, In progress, Blocked, In review, Done.</td><td>Separat visning for sub-issues, holdt væk fra hovedoversigten - de bevæger sig gennem de samme statusser.</td><td>Kun de items, der er tildelt dig selv.</td></tr>
+<tr><td>Fuld liste over alle top-level issues med status, assignees, linkede pull requests og sub-issues progress.</td><td>Viser parent/child-hierarkiet mellem issues og deres sub-issues.</td><td>Selve Kanban-visningen, grupperet efter status: Backlog, Ready, In progress, Blocked, In review, Done.</td><td>Separat visning for sub-issues, holdt væk fra hovedoversigten. De bevæger sig gennem de samme statusser.</td><td>Kun de items, der er tildelt dig selv.</td></tr>
 </table>
 
-Derudover findes der gruppe-visninger (fx <code>group-7</code>, <code>group-9</code>, <code>group-10</code>) - én pr. team. Det er ikke sikkert, at alle fra ens gruppe er sat på endnu, så det kan være nødvendigt selv at oprette eller justere sin gruppes visning løbende.
+Derudover findes der gruppe-visninger (fx <code>group-7</code>, <code>group-9</code>, <code>group-10</code>), én pr. team. Det er ikke sikkert, at alle fra ens gruppe er sat på endnu, så det kan være nødvendigt selv at oprette eller justere sin gruppes visning løbende.
 
 **Management**
 
