@@ -106,16 +106,13 @@ direction LR
     Blocked ..> InProgress
 ```
 
-### Branches og pull requests
+### Pull requests skal linkes til deres issue
 
 <table>
-<tr><td><b>Én branch pr. item</b></td></tr>
-<tr><td>Hvert issue eller sub-issue får sin egen feature branch, navngivet efter det. Fx <code>MET-A-003-stub-server</code>.</td></tr>
-<tr><td><b>Pull requests går til development</b></td></tr>
-<tr><td><code>development</code> er den fælles arbejdsbranch. <code>staging</code> er integration og skal altid kunne køre. <code>main</code> er beskyttet og indeholder kun det, der er demonstreret ved et review.</td></tr>
-<tr><td><b>Link pull requesten til issuet</b></td></tr>
-<tr><td>Skriv fx <code>Closes #123</code> i beskrivelsen. Så kan reviewer med det samme se user story og acceptance criteria uden at spørge, og issuet lukkes, når pull requesten merges.</td></tr>
+<tr><td><b>Hvorfor</b></td></tr>
+<tr><td>Når en pull request linkes til det issue eller sub-issue, den løser (fx via <code>Closes #123</code> i PR-beskrivelsen), kan reviewer med det samme se user story og acceptance criteria uden at spørge - og issuet flyttes automatisk til Done, når PR'en merges.</td></tr>
 </table>
+
 
 ## Views
 
