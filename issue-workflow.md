@@ -8,7 +8,7 @@ https://github.com/orgs/aau-cph-sw5/projects/3/views/2
 
 For the feature backlog: the MET-A-xxx items that make up the product itself.
 
-![Case A board](case-a-board-screenshot.png)
+Case A board
 <img width="2606" height="1426" alt="image" src="https://github.com/user-attachments/assets/c13e7b8a-5f9a-4067-92a0-4e8fb053e623" />
 
 
@@ -28,9 +28,13 @@ No automation is configured on this board (only "auto-add sub-issues to project"
 
 That one automation matters if you break a backlog item into sub-issues: each sub-issue gets added to this project automatically. It moves through the same statuses as everything else, but it's tracked on the separate "Sub-issues" view rather than the main "Kanban - Items" view you'd normally look at, so breaking an item down doesn't clutter the top-level board. The parent card also shows a small count like `0 / 4`: that's how many of its sub-issues are done out of the total.
 
-![The parent card's progress count on the board](parent-card-progress-example.png)
+The parent card's progress count on the board
+<img width="596" height="242" alt="image" src="https://github.com/user-attachments/assets/83edf5a6-cae3-490b-a73b-66f139c0ab71" />
 
-![A parent issue's sub-issues list](sub-issues-list-example.png)
+
+A parent issue's sub-issues list
+<img width="1624" height="346" alt="image" src="https://github.com/user-attachments/assets/2c9a45f4-ec4b-4c21-954e-afde527307c9" />
+
 
 To create one, open the parent MET-A issue and scroll down to the "Create sub-issue" button under its Sub-issues section.
 
@@ -46,7 +50,9 @@ https://github.com/orgs/aau-cph-sw5/projects/10
 
 For cross-team management and setup work that isn't itself a product feature: repo/tooling setup, meeting notes, presentations, and similar coordination tasks.
 
-![Management board](management-board-screenshot.png)
+Management board
+<img width="2774" height="1336" alt="image" src="https://github.com/user-attachments/assets/d0d46579-c2a4-4d14-8a22-a02b528d0c34" />
+
 
 Columns: MØDER (meeting-note items), Todo, In progress, Done.
 
