@@ -1,0 +1,12 @@
+[
+  {
+    "scenarioId": "DEMO-001",
+    "name": "Synthetic fallback scenario",
+    "currentVersion": "1"
+  },
+  {
+    "scenarioId": "DEMO-002",
+    "name": "Synthetic partial closure",
+    "currentVersion": "2"
+  }
+]

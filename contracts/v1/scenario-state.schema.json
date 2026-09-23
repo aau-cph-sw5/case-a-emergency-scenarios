@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scenario-state.schema.json",
+  "title": "Scenario State",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "scenario",
+    "activation",
+    "requiredStations"
+  ],
+  "properties": {
+    "contractVersion": {
+      "type": "string"
+    },
+
+    "scenario": {
+      "type": "object",
+      "required": [
+        "scenarioId",
+        "name",
+        "version"
+      ],
+      "properties": {
+        "scenarioId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+
+    "activation": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "activationId",
+        "status",
+        "startedAt",
+        "actor"
+      ],
+      "properties": {
+        "activationId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "CLOSED"
+          ]
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "actor": {
+          "type": "string"
+        }
+      }
+    },
+
+    "requiredStations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "stationId",
+          "name",
+          "minimumStaffing",
+          "status",
+          "assignedStewards"
+        ],
+        "properties": {
+          "stationId": {
+            "type": "string"
+          },
+
+          "name": {
+            "type": "string"
+          },
+
+          "minimumStaffing": {
+            "type": "integer",
+            "minimum": 0
+          },
+
+          "status": {
+            "type": "string",
+            "enum": [
+              "UNMANNED",
+              "PENDING",
+              "MANNED"
+            ]
+          },
+
+          "staffingWindows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "dayPattern",
+                "startTime",
+                "endTime"
+              ],
+              "properties": {
+                "dayPattern": {
+                  "type": "string"
+                },
+                "startTime": {
+                  "type": "string",
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                },
+                "endTime": {
+                  "type": "string",
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+
+          "assignedStewards": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "staffId",
+                "name"
+              ],
+              "properties": {
+                "staffId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "reportedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "arrivedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,89 @@
+openapi: 3.1.0
+
+info:
+  title: Emergency Scenario State API
+  version: 1.0.0
+  description: >
+    Shared scenario-state contract used by the control-room
+    and steward clients.
+
+servers:
+  - url: http://localhost:4010
+
+paths:
+
+  /api/v1/scenario-state:
+    get:
+      summary: Get current scenario state
+
+      responses:
+        "200":
+          description: Current scenario state
+
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-state.schema.json"
+
+  /api/v1/scenarios:
+    get:
+      summary: Get all scenarios
+
+      responses:
+        "200":
+          description: List of scenarios
+
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./scenario.schema.json"
+
+  /api/v1/metro-lines/M1:
+    get:
+      summary: Get metro line M1
+
+      responses:
+        "200":
+          description: Metro line M1
+
+          content:
+            application/json:
+              schema:
+                $ref: "./metro-line.schema.json"
+
+  /api/v1/position-reports:
+    post:
+      summary: Report a steward position
+
+      requestBody:
+        required: true
+
+        content:
+          application/json:
+            schema:
+              $ref: "./position-report.schema.json"
+
+            example:
+              staffId: "steward-002"
+              stationId: "ST-B"
+              reportedAt: "2026-09-23T08:10:00Z"
+
+      responses:
+        "202":
+          description: Position report accepted
+
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - accepted
+
+                properties:
+                  accepted:
+                    type: boolean
+
+              example:
+                accepted: true

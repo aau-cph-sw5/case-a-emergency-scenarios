@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "position-report.schema.json",
+  "title": "Position Report",
+  "type": "object",
+  "required": [
+    "staffId",
+    "stationId",
+    "reportedAt"
+  ],
+  "properties": {
+    "staffId": {
+      "type": "string"
+    },
+    "stationId": {
+      "type": "string"
+    },
+    "reportedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "lineId": "M2",
+  "name": "M2",
+
+  "stops": [
+    {
+      "sequence": 1,
+      "station": {
+        "stationId": "ST-F",
+        "name": "Station F"
+      }
+    },
+    {
+      "sequence": 2,
+      "station": {
+        "stationId": "ST-G",
+        "name": "Station G"
+      }
+    },
+    {
+      "sequence": 3,
+      "station": {
+        "stationId": "ST-H",
+        "name": "Station H"
+      }
+    }
+  ]
+}
