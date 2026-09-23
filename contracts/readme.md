@@ -17,4 +17,10 @@ http://localhost:4010
 ### Endpoints:
 GET  /api/v1/scenario-state
 
+GET  /api/v1/scenarios
+
+GET  /api/v1/scenarios/{scenarioId}
+
+GET  /api/v1/metro-lines/{lineId}
+
 POST /api/v1/position-reports
