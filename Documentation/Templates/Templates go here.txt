@@ -1,0 +1,2 @@
+Delete this file when a template is added. 
+Git only shows folders if they are not empty :)
