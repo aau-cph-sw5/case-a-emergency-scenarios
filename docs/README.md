@@ -13,22 +13,40 @@ https://github.com/aau-cph-sw5/semester-docs
 
 ---
 
-## Current structure
+## Intended Structure
 
 ```text
 docs/
 ├── README.md
 │
 ├── adr/
-│   └── README.md
+│   ├── README.md
+│   └── 0001-{decision}.md
 │
-└── templates/
-    ├── README.md
-    │
-    └── management/
-        ├── sprint-planning.md
-        ├── integration-meeting.md
-        ├── sprint-review.md
-        ├── retrospective.md
-        ├── PO-clarification.md
-        └── project-decision.md
+├── templates/
+│   ├── README.md
+│   └── management/
+│       ├── sprint-planning.md
+│       ├── integration-meeting.md
+│       ├── sprint-review.md
+│       ├── retrospective.md
+│       ├── PO-clarification.md
+│       └── project-decision.md
+│
+├── sprints/
+│   └── sprint-{N}/
+│       ├── planning-group-7.md
+│       ├── planning-group-9.md
+│       ├── planning-group-10.md
+│       ├── review.md
+│       └── retrospectives/
+│           ├── group-7.md
+│           ├── group-9.md
+│           └── group-10.md
+│
+├── integration/
+│   └── sprint-{N}.md
+│
+└── project-management/
+    └── decisions/
+        └── {DD-MM-YYYY}-{short-title}.md
