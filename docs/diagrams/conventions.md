@@ -1,18 +1,18 @@
-# Common diagram conventions
+# Diagram conventions
 
 These rules apply to all Case A diagrams.
 
-Each diagram-type guide may add more specific rules.
+Each diagram guide may add rules specific to that notation.
 
 ## 1. Use project terminology
 
 Use the names already established in:
 
 - the Case A backlog
-- the current entity/domain model
+- existing approved models
 - shared contracts
 - accepted ADRs
-- the project glossary when it exists
+- the project glossary
 
 Do not use two different names for the same concept without explaining the difference.
 
@@ -24,16 +24,16 @@ Group 9 / G9
 Group 10 / G10
 ```
 
-Use `group`, not `team`, when referring to these groups.
+Use `group`, not `team`, when referring to Groups 7, 9 and 10.
 
-## 2. One diagram, one main question
+## 2. One diagram should have one main purpose
 
-A diagram should have a clear purpose.
+A diagram should answer a clear question.
 
 Good:
 
 ```text
-M1/M2 planned scenario entity model
+M1/M2 entity model
 Scenario activation state machine
 Scenario activation sequence
 Sprint evolution and cross-group dependencies
@@ -47,44 +47,58 @@ Model 2
 Final diagram
 ```
 
-If one diagram is trying to explain several unrelated questions, split it into focused views.
+If one diagram is trying to explain several unrelated things, split it into focused views.
 
-The existing M1/M2 entity model is a good example of this approach. It has one overall model plus smaller views for different parts of the domain.
+## 3. Use the notation defined in the relevant guide
 
-## 3. Meaning comes from notation, not colour
+Do not invent new arrow types or symbols when the project already has a convention.
 
-Colour may make a diagram easier to scan, but colour must not be the only way meaning is communicated.
+Current standards:
+
+| Diagram | Notation |
+|---|---|
+| Entity / Domain Model | UML class diagram notation |
+| Relational Data Model | Crow's Foot ER notation |
+| State Machine | UML state machine |
+| Sequence Diagram | UML sequence diagram |
+| Integration Blooming | Case A project notation |
+
+## 4. Meaning must not depend on colour
+
+Colour can help make a diagram easier to scan.
+
+It must not be the only thing that communicates meaning.
 
 Use:
 
 - labels
-- line types
 - UML symbols
+- line types
 - multiplicities
+- group names
 - stereotypes
-- group labels
-- a legend when needed
+- legends
 
-For example, an enumeration may be grey in Draw.io, but it should still be identifiable as an enumeration from its contents or stereotype.
+For example, an enumeration may use a grey fill, but it should still be identifiable as an enumeration from the notation.
 
-## 4. Use arrows carefully
+## 5. Arrows must have a defined meaning
 
 An arrow is not decoration.
 
-The meaning depends on the diagram type.
+Its meaning depends on the diagram type.
 
 Examples:
 
-- UML class model arrow: navigability or another defined UML relationship
-- state machine arrow: a valid state transition
-- sequence diagram arrow: a message
-- integration blooming arrow: a project-specific relationship defined in that guide
+- entity model arrow: navigable UML association
+- state machine arrow: valid state transition
+- sequence diagram arrow: message
+- blooming diagram arrow: relationship defined in the blooming guide
 
-Do not reuse one arrow style for different meanings in the same diagram.
+Do not use the same arrow style for two different meanings in the same diagram.
 
-## 5. Label relationships
+## 6. Label relationships
 
-Relationship labels should explain the meaning.
+Use labels that explain the relationship.
 
 Good:
 
@@ -92,12 +106,13 @@ Good:
 contains
 covers
 uses
-currentVersion
 versions
+currentVersion
+station
 assignedTo
 ```
 
-Avoid vague labels such as:
+Avoid:
 
 ```text
 related
@@ -106,11 +121,9 @@ data
 connection
 ```
 
-For conceptual/entity models, prefer a verb or role name that makes the relationship readable as a sentence.
+## 7. Show multiplicity or cardinality where it matters
 
-## 6. Show multiplicity/cardinality where it matters
-
-Do not use a bare line if the number of related instances is part of the model.
+Do not use a plain line if the number of related instances is important to the model.
 
 Examples:
 
@@ -122,43 +135,50 @@ Examples:
 2..*
 ```
 
-If the multiplicity is not known, do not guess. Record it as an open modelling question instead.
+If the correct multiplicity is not known, do not guess.
 
-## 7. Keep diagrams aligned with the source
+Record it as an open question.
 
-A diagram is documentation, not a separate truth.
+## 8. Keep diagrams aligned with the source
+
+A diagram is documentation.
 
 If a PR changes something represented by a diagram, update the diagram in the same PR.
 
 Examples:
 
-- a new persisted relationship changes the ERD
-- a state transition changes the state machine
-- a contract interaction changes a sequence diagram
-- cross-group ownership/dependency changes the sprint evolution diagram
+- persisted relationship changes, update the relational model
+- state transition changes, update the state machine
+- contract interaction changes, update the sequence diagram
+- cross-group dependency changes, update the blooming diagram
 
+## 9. Keep confidential Metro material out
 
-## 8. Keep editable sources
+Do not reproduce confidential Metro slides, station layouts, operational screenshots or other non-public material in the public repository.
 
-For Mermaid, the Mermaid code in Markdown is the editable source.
+The diagram may document the model derived from approved project understanding without reproducing the confidential source.
+
+## 10. Keep editable sources
+
+For Mermaid, the Mermaid code in the Markdown document is the editable source.
 
 For Draw.io, commit:
 
 ```text
-name.drawio
-name.svg
+diagram-name.drawio
+diagram-name.svg
 ```
 
-Do not commit only a PNG or screenshot if the diagram is intended to evolve.
+Do not keep only a screenshot or PNG for a diagram that is expected to change.
 
-## 9. File naming
+## 11. File names
 
 Use lowercase and hyphens.
 
 Good:
 
 ```text
-m1m2-entity-model.drawio
+m1m2-entity-model.md
 scenario-reference-data.md
 scenario-activation-state.md
 scenario-activation-sequence.md
@@ -173,27 +193,28 @@ newmodel.png
 model_latest_latest.drawio
 ```
 
-## 10. Add context around the diagram
+## 12. Add context around the diagram
 
-A diagram file or Markdown page should state:
+A diagram document should state:
 
 - what it models
 - what it does not model
-- source/PBI when relevant
-- assumptions or unresolved questions
+- the relevant source or PBI
+- assumptions
+- unresolved questions where needed
 
-A diagram should not require somebody to ask its author what it is supposed to mean.
+Someone from another group should be able to understand the diagram without asking its author what it means.
 
-## 11. Review checklist
+## Review checklist
 
-Before merging:
+Before merging a diagram:
 
 - [ ] The purpose is clear
 - [ ] Terminology matches the project
 - [ ] The correct notation is used
 - [ ] Relationship meanings are clear
-- [ ] Multiplicities/cardinalities are shown where needed
-- [ ] Assumptions are not presented as confirmed facts
+- [ ] Multiplicities or cardinalities are shown where needed
+- [ ] Assumptions are identified
 - [ ] No confidential Metro material is included
 - [ ] The editable source is committed
-- [ ] Another group can understand it without an oral explanation
+- [ ] Another group can understand the diagram without an oral explanation
