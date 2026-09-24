@@ -14,33 +14,50 @@ https://github.com/aau-cph-sw5/semester-docs
 ---
 
 ##  Structure
-
 ```text
 docs/
 ├── README.md
+│
 ├── adr/
 │   └── README.md
-│ 
+│
 ├── diagrams/
-│   └── README.md
-│ 
+│   ├── README.md
+│   ├── conventions.md
+│   │
+│   ├── guides/
+│   │   ├── entity-domain-model.md
+│   │   ├── integration-evolving-model.md
+│   │   ├── relational-data-model.md
+│   │   ├── sequence-diagram.md
+│   │   └── state-machine.md
+│   │
+│   └── templates/
+│       ├── entity-domain-model.md
+│       ├── integration-evolving-model.md
+│       ├── relational-data-model.md
+│       ├── sequence-diagram.md
+│       └── state-machine.md
+│
 ├── integration/
 │   └── sprint-1.md
-│ 
+│
 ├── sprints/
 │   ├── sprint-1/
 │   │   ├── planningALL.md
 │   │   ├── review.md
+│   │   │
 │   │   └── retrospectives/
 │   │       ├── group-7.md
 │   │       ├── group-9.md
 │   │       └── group-10.md
-│   │ 
+│   │
 │   └── sprint-2/
 │       └── review.md
-│ 
+│
 └── templates/
     ├── README.md
+    │
     └── management/
         ├── PO-clarification.md
         ├── integration-meeting.md
@@ -48,3 +65,4 @@ docs/
         ├── retrospective.md
         ├── sprint-planning.md
         └── sprint-review.md
+```
