@@ -13,7 +13,7 @@ classDiagram
 %% PERMANENT METRO NETWORK
 %% ============================================
  
-class M1M2:::entity {
+class MetroNetwork:::entity {
   name : String
 }
  
@@ -67,6 +67,7 @@ class OperationType:::enum {
 }
  
 class StationRequirement:::entity {
+  placement : String
   minimumStaffing : Int
 }
  
@@ -131,11 +132,11 @@ class DeploymentStatus:::enum {
 %% PERMANENT NETWORK STRUCTURE
 %% ============================================
  
-M1M2 "1" *-- "1..*" MetroLine : contains
+MetroNetwork "1" *-- "1..*" MetroLine : contains
  
 MetroLine "1" *-- "2..*" LineStop : stops
  
-M1M2 "1" *-- "0..*" Scenario : scenarios
+MetroNetwork "1" *-- "0..*" Scenario : scenarios
  
 LineStop "0..*" --> "1" Station : station
  
@@ -174,7 +175,7 @@ ScenarioVersion "1" *-- "0..*" PassengerInformation : passengerInformation
  
 OperatingPlan "1" *-- "1..*" OperatingPattern : patterns
  
-OperatingPattern "1" *-- "1..*" LineStop : route
+OperatingPattern "1" --> "1..*" LineStop : route
  
  
 %% ============================================
@@ -233,6 +234,18 @@ Metro stakeholder presentation for Case A.
 [Operator selects and activates a scenario from the predefined list](https://github.com/aau-cph-sw5/semester-docs/blob/main/backlog/case-a-emergency-scenarios.md#met-a-007--operator-selects-and-activates-a-scenario-from-the-predefined-list)
 
 ---
+## Scenario
+
+Scenarios are version controlled with [ScenarioVersion](##ScenarioVersion)
+
+| Attribute | Meaning | Traceability |
+|---|---|---|
+| `ScenarioId : String` | Unique identifier for this particular Scenario. | Model decision. |
+| `Name : String` | Display name for the the scenario. | Model decision. |
+
+The reason we separated the identifier and name is to avoid using the display name as the stable identifier for a scenario. 
+The ScenarioId remains unchanged even if the scenario is renamed, allowing references to the scenario to remain stable across versions.
+
 
 ## ScenarioActivation
 
@@ -371,14 +384,6 @@ Provides the staffing requirement for individual stations and the steward tasks 
 |---|---|---|
 | `minimumStaffing : Int` | Minimum number of stewards needed at the station. | Supported by station staffing requirements in the scenario material. |
  
-### Split note
- 
-This entity previously also carried `status`, `reportedAt`, and `arrivedAt` as a combined `StationAssignment` entity. Those fields have been moved to the new `StationDeployment` entity (below), because they are per-activation live data, not part of the scenario definition.
- 
-Splitting them resolves a structural problem in the earlier model: the combined entity was shown as a composition child of both `ScenarioVersion` and `ScenarioActivation` at once, which is inconsistent (a composed part cannot belong to two owners simultaneously) and meant re-activating the same scenario would overwrite the previous activation's live staffing state instead of preserving it as history.
- 
-`StationRequirement` now belongs only to `ScenarioVersion`, and is referenced — not owned — by each `StationDeployment` via the `fulfills` relationship.
- 
 ---
  
 ## StationDeployment
@@ -392,10 +397,6 @@ Represents the live staffing state of one station during one specific `ScenarioA
 **Case A PowerPoint, slides 5–7**
  
 Shows station manning visually, including stations that are unmanned, pending, or manned.
- 
-**Model decision**
- 
-The split from the combined `StationAssignment` entity is a modelling decision made to keep live activation state independent per activation; it should be confirmed with the stakeholder alongside open question 8.
  
 ### Attributes
  
@@ -424,12 +425,6 @@ MANNED
 ```
 
 These values represent the live staffing state shown in the proposed workflow.
-
-### Modelling note
-
-`minimumStaffing` is scenario-definition data, while `status`, `reportedAt`, `arrivedAt`, and assigned `StaffMember` are live activation data.
-
-The current model keeps them together for simplicity. If the same scenario can be activated multiple times and historical activation state must be preserved, these live fields should later be moved to a separate activation/deployment entity.
 
 ---
 
@@ -593,4 +588,3 @@ TrackSegment --> Station : stationB
 # Open questions for stakeholder review
 
 1. Is scenario versioning and rollback a required system feature, and what exactly constitutes a new `ScenarioVersion`?
-2. Should live staffing state remain on `StationAssignment`, or should it be separated from the predefined station requirement so each activation has independent history?
