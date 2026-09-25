@@ -1,0 +1,35 @@
+{
+  "$id": "scenario-list.schema.json",
+  "title": "Scenario List",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "scenarioId",
+      "name",
+      "currentVersion",
+      "covers",
+      "versions"
+    ],
+    "properties": {
+      "scenarioId": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "currentVersion": {
+        "type": "string"
+      },
+      "covers": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "versions": {
+        "type": "array"
+      }
+    }
+  }
+}

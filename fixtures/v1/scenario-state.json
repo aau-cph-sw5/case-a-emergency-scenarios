@@ -1,0 +1,29 @@
+{
+  "activationId": "ACT-DEMO-001",
+  "scenarioId": "DEMO-001",
+  "startedAt": "2026-09-23T08:00:00Z",
+  "endedAt": null,
+  "status": "ACTIVE",
+  "actor": "operator-001",
+  "deployments": [
+    {
+      "status": "MANNED",
+      "reportedAt": "2026-09-23T08:02:00Z",
+      "arrivedAt": "2026-09-23T08:02:00Z",
+      "staff": "Example Steward",
+      "fulfills": "Station A"
+    },
+    {
+      "status": "PENDING",
+      "reportedAt": "2026-09-23T08:04:00Z",
+      "arrivedAt": null,
+      "staff": "Example Steward 2",
+      "fulfills": "Station B"
+    },
+    {
+      "status": "UNMANNED",
+      "staff": null,
+      "fulfills": "Station C"
+    }
+  ]
+}

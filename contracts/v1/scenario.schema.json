@@ -1,0 +1,196 @@
+{
+  "$id": "scenario.schema.json",
+  "title": "Scenario",
+  "type": "object",
+  "required": [
+    "scenarioId",
+    "name",
+    "currentVersion",
+    "versions"
+  ],
+  "properties": {
+    "scenarioId": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "currentVersion": {
+      "type": "string"
+    },
+    "covers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "versions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "version",
+          "revision",
+          "operatingPlan",
+          "stationRequirements"
+        ],
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "operatingPlan": {
+            "type": "object",
+            "required": [
+              "name",
+              "patterns"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "patterns": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "operationType",
+                    "routeCode",
+                    "track",
+                    "maximumTrains",
+                    "did",
+                    "route"
+                  ],
+                  "properties": {
+                    "operationType": {
+                      "type": "string",
+                      "enum": [
+                        "PENDULUM",
+                        "ROUNDTRIP"
+                      ]
+                    },
+                    "routeCode": {
+                      "type": "string"
+                    },
+                    "track": {
+                      "type": "string"
+                    },
+                    "maximumTrains": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "did": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "route": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "stationRequirements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "station",
+                "placement",
+                "minimumStaffing"
+              ],
+              "properties": {
+                "station": {
+                  "type": "string"
+                },
+                "placement": {
+                  "type": "string"
+                },
+                "minimumStaffing": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "activeDuring": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "dayPattern",
+                      "startTime",
+                      "endTime"
+                    ],
+                    "properties": {
+                      "dayPattern": {
+                        "type": "string"
+                      },
+                      "startTime": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$"
+                      },
+                      "endTime": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$"
+                      }
+                    }
+                  }
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "sequence",
+                      "instruction"
+                    ],
+                    "properties": {
+                      "sequence": {
+                        "type": "integer"
+                      },
+                      "instruction": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "passengerInformation": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "channel",
+                "language",
+                "message"
+              ],
+              "properties": {
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "PA",
+                    "PID"
+                  ]
+                },
+                "language": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,366 @@
+{
+  "title": "Metro Scenario Entity Model Schema (M1/M2 & M3/M4)",
+  "type": "object",
+  "properties": {
+    "network": {
+      "$ref": "#/definitions/MetroNetwork"
+    },
+    "activations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ScenarioActivation"
+      }
+    }
+  },
+  "definitions": {
+    "MetroNetwork": {
+      "type": "object",
+      "required": ["systemId", "name"],
+      "properties": {
+        "systemId": {
+          "type": "string",
+          "enum": ["M1M2", "M3M4"],
+          "description": "Identifier for the metro system being modeled."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the permanent metro network."
+        },
+        "lines": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/MetroLine" },
+          "description": "Contains metro lines."
+        },
+        "scenarios": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Scenario" },
+          "description": "Contains predefined scenarios."
+        }
+      }
+    },
+    "MetroLine": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the metro line."
+        },
+        "stops": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LineStop" },
+          "description": "Ordered station stops contained in this metro line."
+        },
+        "trackSegments": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TrackSegment" },
+          "description": "Track segments used by this line."
+        }
+      }
+    },
+    "LineStop": {
+      "type": "object",
+      "required": ["sequence", "station"],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "description": "Defines the order/sequence of the stop."
+        },
+        "station": {
+          "type": "string",
+          "description": "Reference to the Station name."
+        }
+      }
+    },
+    "Station": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the station."
+        }
+      }
+    },
+    "TrackSegment": {
+      "type": "object",
+      "required": ["trackLabel", "stationA", "stationB"],
+      "properties": {
+        "trackLabel": {
+          "type": "string",
+          "description": "Identifier/label for the physical track."
+        },
+        "stationA": {
+          "type": "string",
+          "description": "Reference to the first Station's name."
+        },
+        "stationB": {
+          "type": "string",
+          "description": "Reference to the second Station's name."
+        }
+      }
+    },
+    "Scenario": {
+      "type": "object",
+      "required": ["scenarioId", "name", "versions"],
+      "properties": {
+        "scenarioId": {
+          "type": "string",
+          "description": "Unique identifier for the scenario."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the predefined scenario."
+        },
+        "covers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "References to TrackSegment labels covered by the scenario."
+        },
+        "versions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ScenarioVersion" },
+          "description": "Versions contained in this scenario definition."
+        },
+        "currentVersion": {
+          "type": "string",
+          "description": "Reference to the version string of the current ScenarioVersion."
+        }
+      }
+    },
+    "ScenarioVersion": {
+      "type": "object",
+      "required": ["version", "revision", "operatingPlan", "stationRequirements"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Version number."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Description of what changed in this version."
+        },
+        "operatingPlan": {
+          "$ref": "#/definitions/OperatingPlan",
+          "description": "The complete operating solution for a scenario version."
+        },
+        "stationRequirements": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/StationRequirement" },
+          "description": "Station-specific staffing requirements and task lists."
+        },
+        "passengerInformation": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PassengerInformation" },
+          "description": "Passenger-facing information belonging to the scenario version."
+        }
+      }
+    },
+    "OperatingPlan": {
+      "type": "object",
+      "required": ["name", "patterns"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the complete operating solution."
+        },
+        "patterns": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/OperatingPattern" },
+          "description": "Individual train-operation patterns within the plan."
+        }
+      }
+    },
+    "OperatingPattern": {
+      "type": "object",
+      "required": ["operationType", "routeCode", "track", "maximumTrains", "did", "route"],
+      "properties": {
+        "operationType": {
+          "type": "string",
+          "enum": ["PENDULUM", "ROUNDTRIP"],
+          "description": "Type of service, e.g. pendulum."
+        },
+        "routeCode": {
+          "type": "string",
+          "description": "Route/section, e.g. VAN-FB."
+        },
+        "track": {
+          "type": "string",
+          "description": "Track used by the operating pattern."
+        },
+        "maximumTrains": {
+          "type": "integer",
+          "description": "Maximum number of trains for the pattern."
+        },
+        "did": {
+          "type": "string",
+          "description": "Destination ID used for the train operation."
+        },
+        "description": {
+          "type": "string",
+          "description": "Additional explanation of the operating pattern."
+        },
+        "route": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LineStop" },
+          "description": "Line stops contained in the operating route."
+        }
+      }
+    },
+    "StationRequirement": {
+      "type": "object",
+      "properties": {
+        "minimumStaffing": {
+          "placement": {
+          "type": "string",
+          "description": "Specific location instructions for the steward at the station."
+        },
+          "type": "integer",
+          "description": "Minimum number of stewards needed at the station."
+        },
+        "station": {
+          "type": "string",
+          "description": "Reference to the assigned Station's name."
+        },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Action" },
+          "description": "Station-specific tasks that a steward/operator must carry out."
+        },
+        "activeDuring": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/StaffingWindow" },
+          "description": "Periods in which a particular station staffing requirement applies."
+        }
+      }
+    },
+    "StationDeployment": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["UNMANNED", "PENDING", "MANNED"],
+          "description": "Current station staffing state."
+        },
+        "reportedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Time at which a steward reports/checks in for the assignment."
+        },
+        "arrivedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Time at which a steward arrives and the station becomes manned."
+        },
+        "staff": {
+          "type": "string",
+          "description": "Reference to the StaffMember name currently assigned to a station."
+        },
+        "fulfills": {
+          "type": "string",
+          "description": "Reference to the predefined StationRequirement that this deployment fulfills."
+        }
+      }
+    },
+    "StaffingWindow": {
+      "type": "object",
+      "properties": {
+        "dayPattern": {
+          "type": "string",
+          "description": "Day or day range, for example Man-tor."
+        },
+        "startTime": {
+          "type": "string",
+          "format": "time",
+          "description": "Start of the staffing interval."
+        },
+        "endTime": {
+          "type": "string",
+          "format": "time",
+          "description": "End of the staffing interval."
+        }
+      }
+    },
+    "Action": {
+      "type": "object",
+      "required": ["sequence", "instruction"],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "description": "Defines the order/prioritisation of the task."
+        },
+        "instruction": {
+          "type": "string",
+          "description": "The instruction to carry out."
+        }
+      }
+    },
+    "PassengerInformation": {
+      "type": "object",
+      "required": ["channel", "language", "message"],
+      "properties": {
+        "channel": {
+          "type": "string",
+          "enum": ["PA", "PID"],
+          "description": "Where the information is presented."
+        },
+        "language": {
+          "type": "string",
+          "description": "Language of the message, e.g. Danish or English."
+        },
+        "message": {
+          "type": "string",
+          "description": "The actual passenger-information text."
+        }
+      }
+    },
+    "ScenarioActivation": {
+      "type": "object",
+      "required": ["activationId", "scenarioId", "startedAt", "status", "actor"],
+      "properties": {
+        "activationId": {
+          "type": "string",
+          "description": "Unique identifier for this particular activation."
+        },
+        "scenarioId": {
+          "type": "string",
+          "description": "Reference to the scenarioId identifying which predefined scenario was activated."
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp for when the scenario was activated."
+        },
+        "endedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp for when the activation was closed."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "CLOSED"],
+          "description": "Whether the activation is currently active or closed."
+        },
+        "actor": {
+          "type": "string",
+          "description": "Work ID of the operator who activated the scenario."
+        },
+        "deployments": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/StationDeployment" },
+          "description": "Live deployments tying station assignments to this activation."
+        }
+      }
+    },
+    "StaffMember": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the steward."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "case-a-emergency-scenarios",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "stub": "node stub-server/server.js",
+    "stub:prism": "prism mock contracts/v1/openapi.yaml"
+  },
+  "dependencies": {
+    "express": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aau-cph-sw5/case-a-emergency-scenarios.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aau-cph-sw5/case-a-emergency-scenarios/issues"
+  },
+  "homepage": "https://github.com/aau-cph-sw5/case-a-emergency-scenarios#readme",
+  "devDependencies": {
+    "@stoplight/prism-cli": "^5.14.2"
+  }
+}

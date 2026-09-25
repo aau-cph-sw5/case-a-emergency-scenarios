@@ -1,0 +1,48 @@
+{
+  "scenarioId": "DEMO-001",
+  "name": "Synthetic fallback scenario",
+  "currentVersion": "1",
+  "covers": [
+    "TRACK-A-B"
+  ],
+  "versions": [
+    {
+      "version": "1",
+      "revision": "Initial version",
+      "operatingPlan": {
+        "name": "Fallback operation",
+        "patterns": [
+          {
+            "operationType": "PENDULUM",
+            "routeCode": "A-B",
+            "track": "1",
+            "maximumTrains": 1,
+            "did": "DEMO",
+            "description": "Synthetic pendulum service",
+            "route": []
+          }
+        ]
+      },
+      "stationRequirements": [
+        {
+          "station": "Station B",
+          "placement": "Platform 1, near the elevators",
+          "minimumStaffing": 1,
+          "activeDuring": [
+            {
+              "dayPattern": "MON-THU",
+              "startTime": "07:00:00",
+              "endTime": "09:00:00"
+            }
+          ],
+          "actions": [
+            {
+              "sequence": 1,
+              "instruction": "Synthetic example instruction"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

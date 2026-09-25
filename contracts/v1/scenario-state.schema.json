@@ -1,0 +1,85 @@
+{
+  "$id": "scenario-state.schema.json",
+  "title": "Scenario State",
+  "type": "object",
+  "required": [
+    "activationId",
+    "scenarioId",
+    "startedAt",
+    "status",
+    "actor",
+    "deployments"
+  ],
+  "properties": {
+    "activationId": {
+      "type": "string"
+    },
+    "scenarioId": {
+      "type": "string"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "endedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "CLOSED"
+      ]
+    },
+    "actor": {
+      "type": "string"
+    },
+    "deployments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "status",
+          "fulfills"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "UNMANNED",
+              "PENDING",
+              "MANNED"
+            ]
+          },
+          "reportedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "arrivedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "staff": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fulfills": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

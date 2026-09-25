@@ -1,0 +1,17 @@
+{
+  "name": "M2",
+  "stops": [
+    {
+      "sequence": 1,
+      "station": "Station F"
+    },
+    {
+      "sequence": 2,
+      "station": "Station G"
+    },
+    {
+      "sequence": 3,
+      "station": "Station H"
+    }
+  ]
+}
