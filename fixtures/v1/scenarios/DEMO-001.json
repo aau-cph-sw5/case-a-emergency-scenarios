@@ -26,6 +26,7 @@
       "stationRequirements": [
         {
           "station": "Station B",
+          "placement": "Platform 1, near the elevators",
           "minimumStaffing": 1,
           "activeDuring": [
             {

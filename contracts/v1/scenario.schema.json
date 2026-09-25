@@ -104,10 +104,14 @@
               "type": "object",
               "required": [
                 "station",
+                "placement",
                 "minimumStaffing"
               ],
               "properties": {
                 "station": {
+                  "type": "string"
+                },
+                "placement": {
                   "type": "string"
                 },
                 "minimumStaffing": {

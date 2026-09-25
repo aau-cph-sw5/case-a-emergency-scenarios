@@ -3,7 +3,7 @@
   "type": "object",
   "properties": {
     "network": {
-      "$ref": "#/definitions/MetroSystem"
+      "$ref": "#/definitions/MetroNetwork"
     },
     "activations": {
       "type": "array",
@@ -13,7 +13,7 @@
     }
   },
   "definitions": {
-    "MetroSystem": {
+    "MetroNetwork": {
       "type": "object",
       "required": ["systemId", "name"],
       "properties": {
@@ -211,6 +211,10 @@
       "type": "object",
       "properties": {
         "minimumStaffing": {
+          "placement": {
+          "type": "string",
+          "description": "Specific location instructions for the steward at the station."
+        },
           "type": "integer",
           "description": "Minimum number of stewards needed at the station."
         },
