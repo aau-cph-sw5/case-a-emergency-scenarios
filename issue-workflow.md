@@ -79,10 +79,10 @@ Eksempel på "Færdig når" i en sub-issue:
 <tr><td>
 <ul>
 <li>Husk at oprette sub-issues under det relevante parent-issue, så de kobles rigtigt og tælles med i parent-kortets fremdrift.</li>
-<li>Husk selv at rykke status aktivt. Nye issues sættes automatisk til Backlog, men resten af vejen skal du selv flytte dem.</li>
+<li>Husk selv at flytte til Ready og In progress. Det er teamets beslutninger. Backlog og In review sætter boardet selv (se "Hvem flytter issuet?").</li>
 <li>Husk at sætte <code>status:blocked</code> og/eller <code>needs:metro</code>, hvis issuet venter på noget.</li>
-<li>Husk at flytte til "In review" når pull requesten åbnes, og til "Done" når den er merget og alle acceptance criteria er demonstreret.</li>
-<li>Husk at pull requesten skal linkes til det relevante issue eller sub-issue.</li>
+<li>Husk at trække issuet til "Done", når pull requesten er merget og alle acceptance criteria er demonstreret. "In review" sætter boardet selv, når pull requesten linkes.</li>
+<li>Husk at linke pull requesten til issuet under <b>Development</b> i højre side af pull requesten (se eksemplet under "Pull requests skal linkes til deres issue").</li>
 </ul>
 </td><td></td></tr>
 </table>
@@ -128,14 +128,42 @@ direction LR
     Blocked ..> Backlog
     InProgress ..> Blocked
     Blocked ..> InProgress
+    InReview --> InProgress : Ændringer ønsket
+    Done ..> InProgress : Genåbnet
 ```
+  
+### Hvem flytter issuet?
+
+Boardet flytter selv et issue, når der sker noget i GitHub. Ready og In progress er teamets beslutninger og flyttes i hånden. Done flytter du også selv indtil videre (se eksemplet nedenfor).
+
+<table>
+<tr><td><b>Status</b></td><td><b>Hvordan issuet kommer dertil</b></td><td><b>Hvem</b></td></tr>
+<tr><td>Backlog</td><td>Et nyt issue oprettes eller tilføjes boardet</td><td>Automatisk</td></tr>
+<tr><td>Ready</td><td>Ved refinement er teamet enige om, at Definition of Ready er opfyldt</td><td>I hånden</td></tr>
+<tr><td>In progress</td><td>Ved sprint planning trækkes det ind i sprinten. Flyttes også automatisk hertil, når en reviewer beder om ændringer, eller issuet genåbnes.</td><td>I hånden</td></tr>
+<tr><td>In review</td><td>Du linker din pull request til issuet under <b>Development</b> (i højre side af pull requesten)</td><td>Automatisk</td></tr>
+<tr><td>Done</td><td>Når pull requesten er merget, trækker du issuet til Done. Så lukkes issuet automatisk.</td><td>I hånden (indtil videre)</td></tr>
+<tr><td>Blocked</td><td>Issuet venter på Metro eller et andet issue. Sæt også labelen <code>status:blocked</code>.</td><td>I hånden</td></tr>
+</table>
+
 
 ### Pull requests skal linkes til deres issue
 
+Når pull requesten er linket til issuet, kan reviewer med det samme se user story og acceptance criteria, og boardet flytter issuet til In review.
+
 <table>
-<tr><td><b>Hvorfor</b></td></tr>
-<tr><td>Når en pull request linkes til det issue eller sub-issue, den løser (fx via <code>Closes #123</code> i PR-beskrivelsen), kan reviewer med det samme se user story og acceptance criteria uden at spørge - og issuet flyttes automatisk til Done, når PR'en merges.</td></tr>
+<tr><td><b>Eksempel: issue #42, pull request til <code>dev</code></b></td></tr>
+<tr><td>
+<ol>
+<li>Åbn pull requesten. I højre side under <b>Development</b>: vælg #42. → #42 flytter selv til <b>In review</b>.</li>
+<li>Pull requesten bliver merget. → #42 bliver stående i In review. Den flytter <b>ikke</b> selv til Done.</li>
+<li>Træk #42 til <b>Done</b> på boardet. → #42 lukkes automatisk.</li>
+</ol>
+</td></tr>
+<tr><td><b>Hvorfor ikke bare skrive <code>Closes #42</code>?</b></td></tr>
+<tr><td>Det virker kun for pull requests til <code>main</code>. Vores går til <code>dev</code>, så GitHub ignorerer det. Når <code>dev</code> bliver repoets standard-branch, virker <code>Closes #42</code>, og så sker trin 1 og 3 af sig selv.</td></tr>
 </table>
+
 
 
 ## Views
@@ -155,3 +183,4 @@ Derudover findes der gruppe-visninger (fx <code>group-7</code>, <code>group-9</c
 <tr><td><b>Backlog</b></td><td><b>Board</b></td><td><b>Current iteration</b></td><td><b>Roadmap</b></td><td><b>My items</b></td></tr>
 <tr><td>Holder møde-issues (status MØDER) som parent-issues, med sub-issues oprettet ud fra aftaler fra de pågældende møder.</td><td>Selve Kanban-visningen med kolonnerne MØDER, Todo, In progress og Done.</td><td>Kun det, der er aktivt i den nuværende iteration/sprint.</td><td>Tidslinje-visning af items over tid.</td><td>Kun de items, der er tildelt dig selv.</td></tr>
 </table>
+
