@@ -1,4 +1,4 @@
-# M1/M2 Scenario Entity Model
+# Scenario Entity Model
 
 This document contains the Mermaid entity model together with traceability and notes for each entity.  
 The Mermaid diagram is kept focused on the data model; source references, assumptions, and open questions are documented below it instead of being stored as fake class attributes.
