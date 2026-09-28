@@ -28,9 +28,6 @@ docs/
 │   ├── guides/
 │   │   ├── entity-domain-model.md
 │   │   ├── integration-evolving-model.md
-│   │   ├── relational-data-model.md
-│   │   ├── sequence-diagram.md
-│   │   └── state-machine.md
 │   │
 │   └── templates/
 │       ├── entity-domain-model.md
