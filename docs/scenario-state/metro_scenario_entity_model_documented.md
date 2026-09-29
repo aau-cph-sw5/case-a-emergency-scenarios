@@ -221,17 +221,30 @@ classDef enum fill:#E8E8E8,stroke:#777777,color:#333333
 
 ## Source naming used in this document
 
-**FBS 1 VAN-FB-CCR**  
+**FBS 1 VAN-FB-CCR** (M1/M2)  
 *Fallbackscenarie 1: VAN-FB - CCR - Fallbackscenarier.*
 
-**FBS 1 VAN-FB-CCR-STW**  
+**FBS 1 VAN-FB-CCR-STW** (M1/M2)  
 *Fallbackscenarie 1: VAN-FB - CCR - Fallbackscenarier STW placering / STW opgaver.*
+
+**ATD - Alternativ TogDrift M3-M4 v2.1** (M3/M4)  
+*Contains both CCR and STW material.*
 
 **Case A PowerPoint**  
 Metro stakeholder presentation for Case A.
 
 **MET-A-007**  
 [Operator selects and activates a scenario from the predefined list](https://github.com/aau-cph-sw5/semester-docs/blob/main/backlog/case-a-emergency-scenarios.md#met-a-007--operator-selects-and-activates-a-scenario-from-the-predefined-list)
+
+---
+## MetroNetwork, MetroLine, Station and LineStop
+
+| Entity | Description | Source |
+|---|---|---|
+| `MetroNetwork` | The whole metro system; top-level container for all lines and scenarios. | FBS 1 VAN-FB-CCR (M1/M2), ATD - Alternativ TogDrift M3-M4 v2.1 (M3/M4) |
+| `MetroLine` | A single metro line (e.g. M1, M3) made up of an ordered list of stops. | FBS 1 VAN-FB-CCR (M1/M2), ATD - Alternativ TogDrift M3-M4 v2.1 (M3/M4) |
+| `Station` | A physical station, which can be shared by several lines. | FBS 1 VAN-FB-CCR-STW (M1/M2), ATD - Alternativ TogDrift M3-M4 v2.1 (M3/M4) |
+| `LineStop` | A station's position (`sequence`) on a specific line. | FBS 1 VAN-FB-CCR-STW (M1/M2), ATD - Alternativ TogDrift M3-M4 v2.1 (M3/M4) |
 
 ---
 ## Scenario
@@ -303,11 +316,13 @@ The exact format is an implementation decision. It could instead be a UUID or da
 
 Stores passenger-facing information belonging to a scenario version.
 
-### Source
+### Sources
 
-**FBS 1 VAN-FB-CCR, pages 3–4**
+**M1/M2 — FBS 1 VAN-FB-CCR, pages 3–4**
 
 The material contains passenger announcements, for example a PA message informing passengers that they must change trains at Frederiksberg and that travel time between VAN and FB may be longer.
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1, page 6**
 
 ### Attributes
 
@@ -370,12 +385,20 @@ Represents the station-specific staffing requirement and task list defined by a 
  
 ### Sources
  
-**FBS 1 VAN-FB-CCR, page 1**
+**M1/M2 — FBS 1 VAN-FB-CCR, page 1**
  
 Shows which stations must be manned during the fallback scenario.
  
-**FBS 1 VAN-FB-CCR-STW**
+**M1/M2 — FBS 1 VAN-FB-CCR-STW**
  
+Provides the staffing requirement for individual stations and the steward tasks associated with those stations.
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1**
+
+Shows which stations must be manned during the fallback scenario.
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1 (boxes containing STW information)**
+
 Provides the staffing requirement for individual stations and the steward tasks associated with those stations.
  
 ### Attributes
@@ -394,9 +417,15 @@ Represents the live staffing state of one station during one specific `ScenarioA
  
 ### Sources
  
-**Case A PowerPoint, slides 5–7**
+**M1/M2 — Case A PowerPoint, slides 5–7**
  
 Shows station manning visually, including stations that are unmanned, pending, or manned.
+
+**M3/M4 — Assumption based on M1/M2 - Case A PowerPoint, slides 5–7**
+
+Since M1/M2 have to show live StationDeployment we assume M3/M4 have the same requirement.
+
+
  
 ### Attributes
  
@@ -436,7 +465,7 @@ Defines periods in which a particular station staffing requirement applies.
 
 ### Source
 
-**FBS 1 VAN-FB-CCR-STW**
+**M1/M2 — FBS 1 VAN-FB-CCR-STW**
 
 Some stations are only required to be manned during specific periods, for example:
 
@@ -444,6 +473,9 @@ Some stations are only required to be manned during specific periods, for exampl
 Man-tor: 7-9 og 14-18
 Fre:     7-9 og 13-19
 ```
+**M3/M4 — Assumption based on M1/M2 — FBS 1 VAN-FB-CCR-STW**
+
+Since M1/M2 have a Staffingwindow we assume M3/M4 have the same requirement
 
 ### Attributes
 
@@ -465,7 +497,7 @@ Identifies the steward currently assigned to a station.
 
 ### Source status
 
-**Assumption based on the Metro stakeholder presentation.**
+M1/M2 and M3/M4 - **Assumption based on the Metro stakeholder presentation.**
 
 The stakeholder briefly mentioned that it would be useful to know which steward is manning a station so that the person can be contacted.
 
@@ -487,11 +519,18 @@ A future version may require a work ID or another contact identifier instead of,
 
 Stores the station-specific tasks that a steward/operator must carry out.
 
-### Source
+### Sources
 
-**FBS 1 VAN-FB-CCR-STW**
+**M1/M2 — FBS 1 VAN-FB-CCR-STW**
 
 Each staffed station contains a list of instructions/tasks.
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1**
+
+Each staffed station contains a list of instructions and solution suggestions, however not as extensive as M1/M2.
+
+**Have to confirm with metro if there is more material with instructions/tasks 
+for the M3/M4**
 
 ### Attributes
 
@@ -514,7 +553,7 @@ An `OperatingPlan` contains one or more `OperatingPattern` entries.
 
 ### Source status
 
-The operating solution is present in **FBS 1 VAN-FB-CCR**.
+The operating solution is present in **FBS 1 VAN-FB-CCR** (M1/M2) and **ATD - Alternativ TogDrift M3-M4 v2.1** (M3/M4).
 
 `OperatingPlan` itself is a modelling abstraction used to group the individual operating patterns into one scenario solution.
 
@@ -528,19 +567,21 @@ Represents one train-operation pattern within an operating plan.
 
 For example, one pattern may describe a pendulum operation between two points while another pattern describes the remaining train service.
 
-### Source
+### Sources
 
-**FBS 1 VAN-FB-CCR**
+**M1/M2 — FBS 1 VAN-FB-CCR**
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1**
 
 ### Attributes
 
 | Attribute | Meaning | Traceability |
 |---|---|---|
-| `operationType : OperationType` | Type of service, e.g. pendulum. | Pendulum operation is explicitly present in the VAN-FB material. |
-| `routeCode : String` | Route/section, e.g. `VAN-FB`. | Derived from the operating-plan material. |
+| `operationType : OperationType` | Type of service, e.g. pendulum. | Pendulum operation is explicitly present in the VAN-FB material (M1/M2) and the ATD - Alternativ TogDrift M3-M4 v2.1 PowerPoint (M3/M4). |
+| `routeCode : String` | Route/section, e.g. `VAN-FB` (M1/M2) or `STK-OSO` (M3/M4). | Derived from the operating-plan material. |
 | `track : String` | Track used by the operating pattern. | Present in the operational material. |
 | `maximumTrains : Int` | Maximum number of trains for the pattern. | Present in the operational material; exact interpretation should be confirmed where the source gives a range. |
-| `did : String` | Destination ID used for the train operation. | Present in the CCR operating material. |
+| `did : String` | Destination ID used for the train operation. | Present in the CCR operating material (M1/M2) and the ATD - Alternativ TogDrift M3-M4 v2.1 PowerPoint (M3/M4). |
 | `description : String` | Additional explanation of the operating pattern. | Model field; optional unless required by the source. |
 
 ### OperationType
@@ -550,9 +591,9 @@ PENDULUM
 ROUNDTRIP
 ```
 
-`PENDULUM` is supported by the VAN-FB fallback material.
+`PENDULUM` is supported by the VAN-FB fallback material (M1/M2) and the ATD - Alternativ TogDrift M3-M4 v2.1 PowerPoint/fallback material (M3/M4).
 
-`ROUNDTRIP` should remain marked for confirmation unless a specific M1/M2 source explicitly uses that term.
+`ROUNDTRIP` should remain marked for confirmation unless a specific M1/M2 or M3/M4 source explicitly uses that term.
 
 ---
 
@@ -566,9 +607,11 @@ A scenario can cover one or more track segments.
 
 ### Sources
 
-**FBS 1 VAN-FB-CCR, page 3**
+**M1/M2 — FBS 1 VAN-FB-CCR, page 3**
 
-**Case A PowerPoint, page/slide 7**
+**M1/M2 — Case A PowerPoint, page/slide 7**
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1, page 1**
 
 ### Attributes
 
@@ -585,6 +628,14 @@ TrackSegment --> Station : stationB
 
 ---
 
-# Open questions for stakeholder review
+# Open questions for stakeholder
 
-1. Is scenario versioning and rollback a required system feature, and what exactly constitutes a new `ScenarioVersion`?
+1. **ScenarioVersion:** Whether scenario versioning and rollback is a required system feature, and what exactly constitutes a new `ScenarioVersion`.
+2. **ScenarioActivation:** Whether there is a requirement for closing/deactivating a scenario, which would make `endedAt` and the `CLOSED` status necessary.
+3. **StationDeployment (M3/M4):** Whether M3/M4 has the same need as M1/M2 to show live station manning (unmanned, pending, manned).
+4. **StationDeployment:** Whether `reportedAt` (steward reports/checks in) and `arrivedAt` (steward arrives, station becomes manned) are the right points in time to record in the digital workflow.
+5. **StaffingWindow (M3/M4):** Whether M3/M4 stations also have staffing windows where they only need to be manned in certain periods, as in M1/M2.
+6. **StaffMember:** Whether it is required to see which steward is manning a station, and whether stewards should be identified by name, work ID or another contact identifier.
+7. **Action (M3/M4):** Is there more material with steward instructions/tasks for M3/M4 than what is in the ATD PowerPoint?
+8. **OperatingPattern:** How `maximumTrains` should be interpreted where the source gives a range for the number of trains.
+9. **OperationType:** Whether `ROUNDTRIP` is a term Metro actually uses in M1/M2 or M3/M4, or whether it should be removed or renamed.
