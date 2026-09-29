@@ -1,0 +1,25 @@
+# Node dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# macOS
+.DS_Store
+
+# Environment files
+.env
+.env.*
+
+# Editor/project files
+.vscode/
+.idea/
+
+# Coverage/build output if added later
+coverage/
+dist/
+build/
+package-lock.json
