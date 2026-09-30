@@ -7,7 +7,9 @@ The Mermaid diagram is kept focused on the data model; source references, assump
 
 ## Entity model
 ```mermaid
+%%{init: {"nodeSpacing": 80, "rankSpacing": 90, "flowchart": {"curve": "linear", "nodeSpacing": 80, "rankSpacing": 90}}}%%
 classDiagram
+direction TB
  
 %% ============================================
 %% PERMANENT METRO NETWORK
@@ -128,89 +130,49 @@ class DeploymentStatus:::enum {
 }
  
  
-%% ============================================
-%% PERMANENT NETWORK STRUCTURE
-%% ============================================
- 
-MetroNetwork "1" *-- "1..*" MetroLine : contains
- 
-MetroLine "1" *-- "2..*" LineStop : stops
- 
-MetroNetwork "1" *-- "0..*" Scenario : scenarios
- 
-LineStop "0..*" --> "1" Station : station
- 
-MetroLine "1..*" -- "1..*" TrackSegment : uses
- 
-TrackSegment "0..*" --> "1" Station : stationA
- 
-TrackSegment "0..*" --> "1" Station : stationB
- 
- 
+
+
 %% ============================================
 %% SCENARIO
 %% ============================================
- 
-Scenario "1" -- "1..*" TrackSegment : covers
- 
-Scenario "1" *-- "1..*" ScenarioVersion : versions
- 
-Scenario "1" --> "0..1" ScenarioVersion : currentVersion
- 
- 
-%% ============================================
-%% SCENARIO VERSION CONTENT
-%% ============================================
- 
-ScenarioVersion "1" *-- "1" OperatingPlan : operatingPlan
- 
-ScenarioVersion "1" *-- "1..*" StationRequirement : stationRequirements
- 
-ScenarioVersion "1" *-- "0..*" PassengerInformation : passengerInformation
- 
- 
-%% ============================================
-%% OPERATING PLAN
-%% ============================================
- 
-OperatingPlan "1" *-- "1..*" OperatingPattern : patterns
- 
-OperatingPattern "1" --> "1..*" LineStop : route
- 
- 
-%% ============================================
-%% STATION REQUIREMENTS
-%% ============================================
- 
-StationRequirement "0..*" --> "1" Station : station
- 
-StationRequirement "1" *-- "0..*" Action : actions
- 
- 
-%% ============================================
-%% STAFFING WINDOWS
-%% ============================================
- 
-StationRequirement "1" *-- "0..*" StaffingWindow : activeDuring
- 
- 
+MetroNetwork "1" *-- "0..*" Scenario : scenarios
+
 %% ============================================
 %% LIVE SCENARIO ACTIVATION
 %% ============================================
- 
 ScenarioActivation "0..*" --> "1" Scenario : uses
- 
+Scenario "1" *-- "1..*" ScenarioVersion : versions
+Scenario "1" --> "0..1" ScenarioVersion : currentVersion
 ScenarioActivation "1" *-- "0..*" StationDeployment : deployments
- 
-StationDeployment "0..*" --> "1" StationRequirement : fulfills
- 
 StationDeployment "0..*" --> "1" StaffMember : staff
- 
- 
+StationDeployment "0..*" --> "1" StationRequirement : fulfills
+
+%% ============================================
+%% SCENARIO VERSION CONTENT
+%% ============================================
+ScenarioVersion "1" *-- "0..*" PassengerInformation : passengerInformation
+ScenarioVersion "1" *-- "1" OperatingPlan : operatingPlan
+ScenarioVersion "1" *-- "1..*" StationRequirement : stationRequirements
+StationRequirement "1" *-- "0..*" Action : actions
+StationRequirement "1" *-- "0..*" StaffingWindow : activeDuring
+OperatingPlan "1" *-- "1..*" OperatingPattern : patterns
+
+%% ============================================
+%% PERMANENT NETWORK STRUCTURE
+%% ============================================
+MetroNetwork "1" *-- "1..*" MetroLine : contains
+MetroLine "1" *-- "2..*" LineStop : stops
+MetroLine "1..*" -- "1..*" TrackSegment : uses
+Scenario "1" -- "1..*" TrackSegment : covers
+OperatingPattern "1" --> "1..*" LineStop : route
+LineStop "0..*" --> "1" Station : station
+TrackSegment "0..*" --> "2" Station : endpoints
+StationRequirement "0..*" --> "1" Station : station
+
+
 %% ============================================
 %% STYLING
 %% ============================================
- 
 classDef entity fill:#FFE86D,stroke:#A28E26,color:#574900
 classDef enum fill:#E8E8E8,stroke:#777777,color:#333333
 ```
@@ -619,11 +581,10 @@ A scenario can cover one or more track segments.
 |---|---|
 | `trackLabel : String` | Identifier/label for the physical track. |
 
-The endpoints are represented through the relationships:
+The two stations at either end of the track are represented through a single relationship with multiplicity 2:
 
 ```text
-TrackSegment --> Station : stationA
-TrackSegment --> Station : stationB
+TrackSegment "0..*" --> "2" Station : endpoints
 ```
 
 ---
