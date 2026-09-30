@@ -22,18 +22,12 @@
       "format": "date-time"
     },
     "endedAt": {
-      "type": [
-        "string",
-        "null"
-      ],
+      "type": ["string", "null"],
       "format": "date-time"
     },
     "status": {
       "type": "string",
-      "enum": [
-        "ACTIVE",
-        "CLOSED"
-      ]
+      "enum": ["ACTIVE", "CLOSED"]
     },
     "actor": {
       "type": "string"
@@ -42,38 +36,22 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "status",
-          "fulfills"
-        ],
+        "required": ["status", "fulfills"],
         "properties": {
           "status": {
             "type": "string",
-            "enum": [
-              "UNMANNED",
-              "PENDING",
-              "MANNED"
-            ]
+            "enum": ["UNMANNED", "PENDING", "MANNED"]
           },
           "reportedAt": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "arrivedAt": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "staff": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "fulfills": {
             "type": "string"

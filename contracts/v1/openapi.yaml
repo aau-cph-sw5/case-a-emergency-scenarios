@@ -11,7 +11,6 @@ servers:
   - url: http://localhost:4010
 
 paths:
-
   /api/v1/scenario-state:
     get:
       summary: Get current scenario state
@@ -35,7 +34,7 @@ paths:
                 type: array
                 items:
                   $ref: "./scenario.schema.json"
-  
+
   /api/v1/scenarios/{scenarioId}:
     get:
       summary: Get a single scenario

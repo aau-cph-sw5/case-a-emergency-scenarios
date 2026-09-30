@@ -1,28 +1,30 @@
 {
   "name": "case-a-emergency-scenarios",
-  "version": "1.0.0",
+  "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "stub": "node stub-server/server.js",
-    "stub:prism": "prism mock contracts/v1/openapi.yaml"
+    "stub:prism": "prism mock contracts/v1/openapi.yaml",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
+    "check": "node scripts/check.mjs"
   },
   "dependencies": {
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "express": "^5.0.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/aau-cph-sw5/case-a-emergency-scenarios.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/aau-cph-sw5/case-a-emergency-scenarios/issues"
-  },
-  "homepage": "https://github.com/aau-cph-sw5/case-a-emergency-scenarios#readme",
   "devDependencies": {
-    "@stoplight/prism-cli": "^5.14.2"
+    "@eslint-react/eslint-plugin": "^5.23.1",
+    "@eslint/js": "^10.0.1",
+    "@stoplight/prism-cli": "^5.14.2",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-n": "^18.4.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9"
   }
 }

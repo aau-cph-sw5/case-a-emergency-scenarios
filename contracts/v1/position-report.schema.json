@@ -2,11 +2,7 @@
   "$id": "position-report.schema.json",
   "title": "Position Report",
   "type": "object",
-  "required": [
-    "staff",
-    "station",
-    "reportedAt"
-  ],
+  "required": ["staff", "station", "reportedAt"],
   "properties": {
     "staff": {
       "type": "string"

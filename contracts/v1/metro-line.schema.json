@@ -2,10 +2,7 @@
   "$id": "metro-line.schema.json",
   "title": "Metro Line",
   "type": "object",
-  "required": [
-    "name",
-    "stops"
-  ],
+  "required": ["name", "stops"],
   "properties": {
     "name": {
       "type": "string"
@@ -14,10 +11,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "sequence",
-          "station"
-        ],
+        "required": ["sequence", "station"],
         "properties": {
           "sequence": {
             "type": "integer",

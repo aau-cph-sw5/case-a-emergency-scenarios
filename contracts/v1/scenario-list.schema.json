@@ -4,13 +4,7 @@
   "type": "array",
   "items": {
     "type": "object",
-    "required": [
-      "scenarioId",
-      "name",
-      "currentVersion",
-      "covers",
-      "versions"
-    ],
+    "required": ["scenarioId", "name", "currentVersion", "covers", "versions"],
     "properties": {
       "scenarioId": {
         "type": "string"

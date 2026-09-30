@@ -2,12 +2,7 @@
   "$id": "scenario.schema.json",
   "title": "Scenario",
   "type": "object",
-  "required": [
-    "scenarioId",
-    "name",
-    "currentVersion",
-    "versions"
-  ],
+  "required": ["scenarioId", "name", "currentVersion", "versions"],
   "properties": {
     "scenarioId": {
       "type": "string"
@@ -43,10 +38,7 @@
           },
           "operatingPlan": {
             "type": "object",
-            "required": [
-              "name",
-              "patterns"
-            ],
+            "required": ["name", "patterns"],
             "properties": {
               "name": {
                 "type": "string"
@@ -66,10 +58,7 @@
                   "properties": {
                     "operationType": {
                       "type": "string",
-                      "enum": [
-                        "PENDULUM",
-                        "ROUNDTRIP"
-                      ]
+                      "enum": ["PENDULUM", "ROUNDTRIP"]
                     },
                     "routeCode": {
                       "type": "string"
@@ -102,11 +91,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": [
-                "station",
-                "placement",
-                "minimumStaffing"
-              ],
+              "required": ["station", "placement", "minimumStaffing"],
               "properties": {
                 "station": {
                   "type": "string"
@@ -122,11 +107,7 @@
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "required": [
-                      "dayPattern",
-                      "startTime",
-                      "endTime"
-                    ],
+                    "required": ["dayPattern", "startTime", "endTime"],
                     "properties": {
                       "dayPattern": {
                         "type": "string"
@@ -146,10 +127,7 @@
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "required": [
-                      "sequence",
-                      "instruction"
-                    ],
+                    "required": ["sequence", "instruction"],
                     "properties": {
                       "sequence": {
                         "type": "integer"
@@ -167,18 +145,11 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": [
-                "channel",
-                "language",
-                "message"
-              ],
+              "required": ["channel", "language", "message"],
               "properties": {
                 "channel": {
                   "type": "string",
-                  "enum": [
-                    "PA",
-                    "PID"
-                  ]
+                  "enum": ["PA", "PID"]
                 },
                 "language": {
                   "type": "string"

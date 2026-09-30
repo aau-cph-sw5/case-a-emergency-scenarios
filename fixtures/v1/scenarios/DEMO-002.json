@@ -2,9 +2,7 @@
   "scenarioId": "DEMO-002",
   "name": "Synthetic fallback scenario 2",
   "currentVersion": "2",
-  "covers": [
-    "TRACK-F-G"
-  ],
+  "covers": ["TRACK-F-G"],
   "versions": [
     {
       "version": "2",

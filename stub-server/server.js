@@ -182,26 +182,20 @@ app.get("/", (req, res) => {
 // ============================================
 
 app.get("/api/v1/scenario-state", (req, res) => {
-  const data = readJson(
-    path.join(fixtures, "scenario-state.json")
-  );
+  const data = readJson(path.join(fixtures, "scenario-state.json"));
 
   res.json(data);
 });
-
 
 // ============================================
 // SCENARIO LIST
 // ============================================
 
 app.get("/api/v1/scenarios", (req, res) => {
-  const data = readJson(
-    path.join(fixtures, "scenarios.json")
-  );
+  const data = readJson(path.join(fixtures, "scenarios.json"));
 
   res.json(data);
 });
-
 
 // ============================================
 // SPECIFIC SCENARIO
@@ -210,21 +204,16 @@ app.get("/api/v1/scenarios", (req, res) => {
 app.get("/api/v1/scenarios/:scenarioId", (req, res) => {
   const { scenarioId } = req.params;
 
-  const filePath = path.join(
-    fixtures,
-    "scenarios",
-    `${scenarioId}.json`
-  );
+  const filePath = path.join(fixtures, "scenarios", `${scenarioId}.json`);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({
-      error: "Scenario not found"
+      error: "Scenario not found",
     });
   }
 
   res.json(readJson(filePath));
 });
-
 
 // ============================================
 // METRO LINE
@@ -233,27 +222,24 @@ app.get("/api/v1/scenarios/:scenarioId", (req, res) => {
 app.get("/api/v1/metro-lines/:lineId", (req, res) => {
   const { lineId } = req.params;
 
-  const filePath = path.join(
-    fixtures,
-    "metro-lines",
-    `${lineId}.json`
-  );
+  const filePath = path.join(fixtures, "metro-lines", `${lineId}.json`);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({
-      error: "Metro line not found"
+      error: "Metro line not found",
     });
   }
 
   res.json(readJson(filePath));
 });
 
-
 // ============================================
 // POSITION REPORT
 // ============================================
 
-const positionReportSchema = readJson(path.join(__dirname, "../contracts/v1/position-report.schema.json"));
+const positionReportSchema = readJson(
+  path.join(__dirname, "../contracts/v1/position-report.schema.json"),
+);
 const validatePositionReport = ajv.compile(positionReportSchema);
 
 app.post("/api/v1/position-reports", (req, res) => {
@@ -264,15 +250,14 @@ app.post("/api/v1/position-reports", (req, res) => {
   if (!isValid) {
     return res.status(400).json({
       error: "Bad Request: Schema validation failed",
-      details: validatePositionReport.errors
+      details: validatePositionReport.errors,
     });
   }
 
   res.status(202).json({
-    accepted: true
+    accepted: true,
   });
 });
-
 
 app.listen(PORT, () => {
   console.log(`Stub server running at http://localhost:${PORT}`);

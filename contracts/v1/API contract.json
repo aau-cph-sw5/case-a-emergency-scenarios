@@ -130,7 +130,12 @@
     },
     "ScenarioVersion": {
       "type": "object",
-      "required": ["version", "revision", "operatingPlan", "stationRequirements"],
+      "required": [
+        "version",
+        "revision",
+        "operatingPlan",
+        "stationRequirements"
+      ],
       "properties": {
         "version": {
           "type": "string",
@@ -173,7 +178,14 @@
     },
     "OperatingPattern": {
       "type": "object",
-      "required": ["operationType", "routeCode", "track", "maximumTrains", "did", "route"],
+      "required": [
+        "operationType",
+        "routeCode",
+        "track",
+        "maximumTrains",
+        "did",
+        "route"
+      ],
       "properties": {
         "operationType": {
           "type": "string",
@@ -316,7 +328,13 @@
     },
     "ScenarioActivation": {
       "type": "object",
-      "required": ["activationId", "scenarioId", "startedAt", "status", "actor"],
+      "required": [
+        "activationId",
+        "scenarioId",
+        "startedAt",
+        "status",
+        "actor"
+      ],
       "properties": {
         "activationId": {
           "type": "string",
