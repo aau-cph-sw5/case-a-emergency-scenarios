@@ -16,7 +16,7 @@ installation.
 
 ## Code-quality checks
 
-Run every code-quality check used by GitHub Actions:
+Run all code-quality checks locally with one command:
 
 ```bash
 npm run check
@@ -25,6 +25,9 @@ npm run check
 This runs ESLint and then checks formatting with Prettier. A summary at the end
 shows whether each check passed. The command fails if either check finds a
 problem.
+
+GitHub Actions runs the same checks as two independent jobs so pull requests
+show separate **ESLint** and **Prettier** statuses.
 
 Run ESLint only:
 
