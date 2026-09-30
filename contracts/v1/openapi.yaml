@@ -35,13 +35,38 @@ paths:
                 type: array
                 items:
                   $ref: "./scenario.schema.json"
-
-  /api/v1/metro-lines/M1:
+  
+  /api/v1/scenarios/{scenarioId}:
     get:
-      summary: Get metro line M1
+      summary: Get a single scenario
+      parameters:
+        - name: scenarioId
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
         "200":
-          description: Metro line M1
+          description: Scenario
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario.schema.json"
+        "404":
+          description: Scenario not found
+
+  /api/v1/metro-lines/{lineId}:
+    get:
+      summary: Get metro line by ID
+      parameters:
+        - name: lineId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Metro line details
           content:
             application/json:
               schema:

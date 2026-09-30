@@ -2,6 +2,8 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import Ajv from "ajv";
+import addFormats from "ajv-formats";
 
 const app = express();
 const PORT = 4010;
@@ -12,6 +14,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const fixtures = path.join(__dirname, "../fixtures/v1");
+
+const ajv = new Ajv({ allErrors: true });
+addFormats(ajv);
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -248,8 +253,20 @@ app.get("/api/v1/metro-lines/:lineId", (req, res) => {
 // POSITION REPORT
 // ============================================
 
+const positionReportSchema = readJson(path.join(__dirname, "../contracts/v1/position-report.schema.json"));
+const validatePositionReport = ajv.compile(positionReportSchema);
+
 app.post("/api/v1/position-reports", (req, res) => {
   console.log("Position report received:", req.body);
+
+  const isValid = validatePositionReport(req.body);
+
+  if (!isValid) {
+    return res.status(400).json({
+      error: "Bad Request: Schema validation failed",
+      details: validatePositionReport.errors
+    });
+  }
 
   res.status(202).json({
     accepted: true
