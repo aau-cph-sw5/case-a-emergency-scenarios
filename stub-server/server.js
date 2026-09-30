@@ -2,6 +2,7 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validate } from "./contract-validator.js";
 
 const app = express();
 const PORT = 4010;
@@ -15,6 +16,23 @@ const fixtures = path.join(__dirname, "../fixtures/v1");
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+// Sends the body only if it matches the contract; otherwise responds 500
+// so a broken fixture is noticed instead of silently served to clients.
+function sendValidated(req, res, data, schemaIds) {
+  const errors = validate(data, schemaIds);
+
+  if (errors.length > 0) {
+    console.error(`Response for ${req.method} ${req.path} violates contract:`, errors);
+
+    return res.status(500).json({
+      error: "Response does not match contract schema",
+      details: errors
+    });
+  }
+
+  res.json(data);
 }
 
 // ============================================
@@ -181,7 +199,7 @@ app.get("/api/v1/scenario-state", (req, res) => {
     path.join(fixtures, "scenario-state.json")
   );
 
-  res.json(data);
+  sendValidated(req, res, data, ["scenario-state.schema.json"]);
 });
 
 
@@ -194,7 +212,10 @@ app.get("/api/v1/scenarios", (req, res) => {
     path.join(fixtures, "scenarios.json")
   );
 
-  res.json(data);
+  sendValidated(req, res, data, [
+    "scenario-list.schema.json",
+    "openapi-scenarios-response"
+  ]);
 });
 
 
@@ -217,7 +238,7 @@ app.get("/api/v1/scenarios/:scenarioId", (req, res) => {
     });
   }
 
-  res.json(readJson(filePath));
+  sendValidated(req, res, readJson(filePath), ["scenario.schema.json"]);
 });
 
 
@@ -240,7 +261,7 @@ app.get("/api/v1/metro-lines/:lineId", (req, res) => {
     });
   }
 
-  res.json(readJson(filePath));
+  sendValidated(req, res, readJson(filePath), ["metro-line.schema.json"]);
 });
 
 
@@ -249,6 +270,15 @@ app.get("/api/v1/metro-lines/:lineId", (req, res) => {
 // ============================================
 
 app.post("/api/v1/position-reports", (req, res) => {
+  const errors = validate(req.body, ["position-report.schema.json"]);
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      error: "Request body does not match contract schema",
+      details: errors
+    });
+  }
+
   console.log("Position report received:", req.body);
 
   res.status(202).json({

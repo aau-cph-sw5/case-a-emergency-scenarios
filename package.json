@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "stub": "node stub-server/server.js",
-    "stub:prism": "prism mock contracts/v1/openapi.yaml"
+    "stub:prism": "prism mock contracts/v1/openapi.yaml",
+    "validate": "node scripts/validate-fixtures.js"
   },
   "dependencies": {
     "express": "^5.0.0"
@@ -21,6 +22,8 @@
   },
   "homepage": "https://github.com/aau-cph-sw5/case-a-emergency-scenarios#readme",
   "devDependencies": {
-    "@stoplight/prism-cli": "^5.14.2"
+    "@stoplight/prism-cli": "^5.14.2",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
   }
 }
