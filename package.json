@@ -6,6 +6,7 @@
   "scripts": {
     "stub": "node stub-server/server.js",
     "stub:prism": "prism mock contracts/v1/openapi.yaml",
+    "validate": "node scripts/validate-fixtures.js",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
