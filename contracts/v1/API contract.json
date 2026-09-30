@@ -210,27 +210,27 @@
     "StationRequirement": {
       "type": "object",
       "properties": {
-        "minimumStaffing": {
-          "placement": {
-          "type": "string",
-          "description": "Specific location instructions for the steward at the station."
-        },
-          "type": "integer",
-          "description": "Minimum number of stewards needed at the station."
-        },
         "station": {
           "type": "string",
           "description": "Reference to the assigned Station's name."
         },
-        "actions": {
-          "type": "array",
-          "items": { "$ref": "#/definitions/Action" },
-          "description": "Station-specific tasks that a steward/operator must carry out."
+        "placement": {
+          "type": "string",
+          "description": "Specific location instructions for the steward at the station."
+        },
+        "minimumStaffing": {
+          "type": "integer",
+          "description": "Minimum number of stewards needed at the station."
         },
         "activeDuring": {
           "type": "array",
           "items": { "$ref": "#/definitions/StaffingWindow" },
           "description": "Periods in which a particular station staffing requirement applies."
+        },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Action" },
+          "description": "Station-specific tasks that a steward/operator must carry out."
         }
       }
     },
