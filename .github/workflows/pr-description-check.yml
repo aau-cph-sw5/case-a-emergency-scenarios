@@ -1,0 +1,61 @@
+check-pr-description:
+  name: Check PR description
+  runs-on: ubuntu-latest
+
+  steps:
+    - name: Validate PR description
+      env:
+        PR_BODY: ${{ github.event.pull_request.body }}
+      run: |
+        set -e
+
+        if [[ -z "$PR_BODY" ]]; then
+          echo "❌ PR description cannot be empty."
+          exit 1
+        fi
+
+        extract_section() {
+          local section="$1"
+          local next_section="$2"
+
+          awk -v start="## $section" -v end="## $next_section" '
+            $0 == start { inside=1; next }
+            $0 == end { inside=0 }
+            inside { print }
+          ' <<< "$PR_BODY" \
+          | sed '/<!--/,/-->/d' \
+          | sed '/^[[:space:]]*$/d'
+        }
+
+        DESCRIPTION=$(extract_section "Description" "Context")
+        CONTEXT=$(extract_section "Context" "Testing")
+        TESTING=$(extract_section "Testing" "Type of change")
+
+        if [[ -z "$DESCRIPTION" ]]; then
+          echo "❌ Description must be filled in."
+          exit 1
+        fi
+
+        if [[ -z "$CONTEXT" ]]; then
+          echo "❌ Context must contain a related GitHub issue."
+          exit 1
+        fi
+
+        if [[ ! "$CONTEXT" =~ \#[0-9]+ ]] && \
+           [[ ! "$CONTEXT" =~ github\.com/.*/issues/[0-9]+ ]] && \
+           [[ ! "$CONTEXT" =~ NO-PBI ]]; then
+          echo "❌ Context must contain an issue reference (#123), GitHub issue URL, or NO-PBI."
+          exit 1
+        fi
+
+        if [[ -z "$TESTING" ]]; then
+          echo "❌ Testing must be filled in."
+          exit 1
+        fi
+
+        if ! grep -Eq '^- \[[xX]\] (Bug fix|New feature|Refactor|Tests|Documentation|Chore)$' <<< "$PR_BODY"; then
+          echo "❌ Select at least one Type of change."
+          exit 1
+        fi
+
+        echo "✅ PR description is valid."

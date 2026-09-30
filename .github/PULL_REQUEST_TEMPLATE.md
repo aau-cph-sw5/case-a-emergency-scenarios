@@ -1,29 +1,22 @@
-# READY FOR REVIEW/NOT READY
-- (Edit the above to reflect status)
+## Description
 
-# Summary
-- TL;DR - what's this PR for?
+<!-- Briefly describe what this PR changes and why. -->
 
-# Needed By (Date)
-- When does this need to be merged by?
+## Context
 
-# Urgency
-- How critical is this PR?
+<!-- Link to the related GitHub issue. -->
 
-# Steps to Test
+## Testing
 
-1. Do this
-1. Then this
-2. Then this
+<!-- Describe how the changes were tested. Include relevant test cases, commands, or manual testing. -->
 
-# Affected Projects or Products
-- Does this PR impact any particular projects, products, or modules?
+## Type of change
 
-# Associated Issues and/or People
-- Other PRs
-- Any other contextual information that might be helpful (e.g., description of a bug that this PR fixes, new functionality that it adds, etc.)
-- Anyone who should be notified? (`@mention` them here)
+<!-- Select the option(s) that apply. -->
 
-## Review
-- [ ] Minimum 2 reviews
-- [ ] Minimum 1 review from another group 
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Refactor
+- [ ] Tests
+- [ ] Documentation
+- [ ] Chore
