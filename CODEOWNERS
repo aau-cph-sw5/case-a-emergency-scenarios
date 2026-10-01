@@ -1,1 +1,16 @@
-/contracts/ @Simon-Klarlund
+# global fallback if no pattern is matched below:
+* @aau-cph-sw5/CaseA-Group-7 @aau-cph-sw5/CaseA-Group-9 @aau-cph-sw5/CaseA-Group-10
+
+# group 7:
+/scripts/   @aau-cph-sw5/CaseA-Group-7
+/docs/      @aau-cph-sw5/CaseA-Group-7
+
+# group 9:
+/fixtures/  @aau-cph-sw5/CaseA-Group-9
+/.github/   @aau-cph-sw5/CaseA-Group-9
+*.json      @aau-cph-sw5/CaseA-Group-10
+
+# group 10:
+/contracts/ @aau-cph-sw5/CaseA-Group-10
+*.js        @aau-cph-sw5/CaseA-Group-10
+*.md        @aau-cph-sw5/CaseA-Group-10
