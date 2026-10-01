@@ -81,7 +81,19 @@
                         {"dayPattern": "MON-THU", "startTime": "14:00", "endTime": "18:00"},
                         {"dayPattern": "FRI", "startTime": "07:00", "endTime": "09:00"},
                         {"dayPattern": "FRI", "startTime": "13:00", "endTime": "19:00"}
-                    ],
+                    ]
+                }
+            ],
+            "passengerInformation": [
+                {
+                    "channel": "PA",
+                    "language": "DA",
+                    "message": "Alle passagerer skal skifte tog på FB. Dette skyldes **. Forvent længere rejsetid ml. VAN-FB, da vi kun kører med ét tog på strækningen (/da vi kører med færre tog på strækningen). Alternativt kan S-tog linje C benyttes som forbinder VAN+FL+KN."
+                },
+                {
+                    "channel": "PA",
+                    "language": "EN",
+                    "message": "All passengers must change trains at FB. This is due to **. Expect longer travel time between VAN-FB, as we only operate one train on the route (/as we operate fewer trains on the route). Alternatively, S-train line C can be used, which connects VAN+FL+KN."
                 }
             ]
         }
