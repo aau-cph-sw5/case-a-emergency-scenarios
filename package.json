@@ -6,7 +6,6 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  
   "scripts": {
     "stub": "node stub-server/server.js",
     "stub:prism": "prism mock contracts/v1/openapi.yaml",
