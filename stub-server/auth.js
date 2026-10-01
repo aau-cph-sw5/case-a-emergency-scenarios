@@ -8,7 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const accountsPath = path.join(__dirname, "../fixtures/v1/test-accounts.json");
 
 // Local-dev only. Revisit as a real secret before anything resembling production exists.
-const JWT_SECRET = process.env.JWT_SECRET || "local-dev-secret-not-for-production";
+const JWT_SECRET =
+  process.env.JWT_SECRET || "local-dev-secret-not-for-production";
 
 // PLACEHOLDER — owned by #89 (AC1: "session lifetime, refresh and expiry
 // behaviour are specified and documented before implementation"). 1h is a

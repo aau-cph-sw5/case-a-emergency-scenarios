@@ -100,7 +100,6 @@ paths:
               example:
                 accepted: true
 
-
   /api/v1/auth/login:
     post:
       summary: Sign in and receive a role-bound token

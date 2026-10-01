@@ -7,17 +7,29 @@ const SECRET = process.env.JWT_SECRET || "local-dev-secret-not-for-production";
 
 function mockReqRes(token) {
   const req = { headers: { authorization: token ? `Bearer ${token}` : "" } };
-  let statusCode, body, nextCalled = false;
+  let statusCode,
+    body,
+    nextCalled = false;
   const res = {
-    status(code) { statusCode = code; return this; },
-    json(payload) { body = payload; return this; },
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(payload) {
+      body = payload;
+      return this;
+    },
   };
-  const next = () => { nextCalled = true; };
+  const next = () => {
+    nextCalled = true;
+  };
   return { req, res, next, result: () => ({ statusCode, body, nextCalled }) };
 }
 
 test("a token with a forged role claim is rejected", () => {
-  const valid = jwt.sign({ userId: "steward-test", role: "STEWARD" }, SECRET, { expiresIn: "1h" });
+  const valid = jwt.sign({ userId: "steward-test", role: "STEWARD" }, SECRET, {
+    expiresIn: "1h",
+  });
   const [header, , signature] = valid.split(".");
   const forgedPayload = Buffer.from(
     JSON.stringify({ userId: "steward-test", role: "OPERATOR" }),
@@ -32,7 +44,11 @@ test("a token with a forged role claim is rejected", () => {
 });
 
 test("a valid token resolves the role server-side", () => {
-  const token = jwt.sign({ userId: "operator-test", role: "OPERATOR" }, SECRET, { expiresIn: "1h" });
+  const token = jwt.sign(
+    { userId: "operator-test", role: "OPERATOR" },
+    SECRET,
+    { expiresIn: "1h" },
+  );
   const { req, res, next } = mockReqRes(token);
   requireAuth(req, res, next);
 

@@ -12,8 +12,18 @@ const outPath = path.join(__dirname, "../fixtures/v1/test-accounts.json");
 const SALT_ROUNDS = 10;
 
 const accounts = [
-  { userId: "steward-test", username: "steward-test", password: "steward-test-pw", role: "STEWARD" },
-  { userId: "operator-test", username: "operator-test", password: "operator-test-pw", role: "OPERATOR" },
+  {
+    userId: "steward-test",
+    username: "steward-test",
+    password: "steward-test-pw",
+    role: "STEWARD",
+  },
+  {
+    userId: "operator-test",
+    username: "operator-test",
+    password: "operator-test-pw",
+    role: "OPERATOR",
+  },
 ];
 
 const seeded = accounts.map(({ password, ...rest }) => ({
@@ -25,5 +35,7 @@ fs.writeFileSync(outPath, JSON.stringify(seeded, null, 2) + "\n");
 
 console.log(`Seeded ${seeded.length} test account(s) to ${outPath}`);
 for (const account of accounts) {
-  console.log(`  ${account.role.padEnd(10)} username=${account.username}  password=${account.password}`);
+  console.log(
+    `  ${account.role.padEnd(10)} username=${account.username}  password=${account.password}`,
+  );
 }
