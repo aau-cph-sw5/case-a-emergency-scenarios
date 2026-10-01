@@ -99,3 +99,48 @@ paths:
                     type: boolean
               example:
                 accepted: true
+
+
+  /api/v1/auth/login:
+    post:
+      summary: Sign in and receive a role-bound token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./login-request.schema.json"
+            example:
+              username: "steward-test"
+              password: "steward-test-pw"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "./login-response.schema.json"
+        "401":
+          description: Invalid credentials
+
+  /api/v1/me:
+    get:
+      summary: Get the signed-in user's identity and role
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "./me.schema.json"
+        "401":
+          description: Missing or invalid token
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
