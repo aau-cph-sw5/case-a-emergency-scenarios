@@ -1,0 +1,89 @@
+{
+    "scenarioId" : "VAN-FB",
+    "name" : "fallbackscenarie 1",
+    "currentVersion" : "1.0",
+    "covers" : [ "VAN", "FL", "LIT", "FB", "SOT", "VEA", "CPH"],
+    "versions" : [
+        {
+            "version" : "1.0",
+            "revision" : "no changes",
+            "operatingPlan" : {
+                "name": "VAN_FB_begge_perroner_v1.0",
+                "patterns" : [
+                    {
+                        "operationType" : "PENDULUM",
+                        "routeCode" : "VAN-FB",
+                        "track" : "1",
+                        "maximumTrains" : "1",
+                        "did" : "234",
+                        "description" : "PENDULUM from VAN to FB",
+                        "route" : [
+                            {}
+                        ]
+                    }
+                ]
+        },
+            "stationRequirements" : [
+                {
+                    "station" : "VAN",
+                    "placement" : "",
+                    "minimumStaffing" : "1"
+                }
+            ]
+        },
+        {
+            "version" : "1.0",
+            "revision" : "no changes",
+            "operatingPlan" : {
+                "name" : "VAN_FB_begge_perroner_v1.0",
+                "patterns" : [
+                    {
+                        "operationType" : "PENDULUM",
+                        "routeCode" : "VAN-FB",
+                        "track" : "1",
+                        "maximumTrains" : "1",
+                        "did" : "234",
+                        "description" : "PENDULUM from VAN to FB",
+                        "route" : [
+                            {}
+                        ]
+            },
+            {
+                "operationType" : "PENDULUM",
+                "routeCode" : "VAN-FB",
+                "track" : "2",
+                "maximumTrains" : "1",
+                "did" : "234",
+                "route":[
+                    {}
+                ]
+            }
+        ]
+        },
+            "stationRequirements" : [
+                {
+                    "station" : "VAN",
+                    "placement" : "",
+                    "minimumStaffing" : "1",
+                    "activeDuring" : [
+                        {"dayPattern" : "MON-FRI", "startTime" : "06:00", "endTime": "18:00"}
+                    ],
+                    "actions" : [
+                        {"sequence": "1", "instructions": "Informer PAX om eventuel pendulstamme, samt hvordan de kommer videre"}
+                    ]
+                },
+                {
+                    "station": "FLI",
+                    "placement": "", 
+                    "minimumStaffing": "1",
+                    "activeDuring": [
+                        {"dayPattern": "MON-THU", "startTime": "07:00", "endTime": "09:00"},
+                        {"dayPattern": "MON-THU", "startTime": "14:00", "endTime": "18:00"},
+                        {"dayPattern": "FRI", "startTime": "07:00", "endTime": "09:00"},
+                        {"dayPattern": "FRI", "startTime": "13:00", "endTime": "19:00"}
+                    ],
+                }
+            ]
+        }
+    ]
+}
