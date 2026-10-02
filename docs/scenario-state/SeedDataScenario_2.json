@@ -29,7 +29,7 @@
                 "stationRequirements" : [
                     {
                         "station" : "FOR",
-                        "placement" : "",
+                        "placement" : "platform",
                         "minimumStaffing" : 1
                     }
             ]
@@ -79,7 +79,7 @@
                 },
                 {
                     "station" : "KN",
-                    "placement" : "",
+                    "placement" : "platform",
                     "minimumStaffing" : 1,
                     "activeDuring" : [
                         {"dayPattern" : "MON-FRI", "startTime" : "06:00", "endTime": "18:00"}
