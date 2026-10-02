@@ -31,18 +31,13 @@ docs/
 │   │
 │   └── templates/
 │       ├── entity-domain-model.md
-│       ├── integration-evolving-model.md
-│       ├── relational-data-model.md
-│       ├── sequence-diagram.md
-│       └── state-machine.md
-│
-├── integration/
-│   └── sprint-1.md
+│       └── integration-evolving-model.md
 │
 ├── sprints/
 │   ├── sprint-1/
 │   │   ├── planningALL.md
 │   │   ├── review.md
+│   │   ├── sprint-1-integration.md
 │   │   │
 │   │   └── retrospectives/
 │   │       ├── group-7.md
@@ -56,7 +51,6 @@ docs/
     ├── README.md
     │
     └── management/
-        ├── PO-clarification.md
         ├── integration-meeting.md
         ├── project-decision.md
         ├── retrospective.md
