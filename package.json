@@ -3,19 +3,24 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "npm@10.9.4",
+  "workspaces": [
+    "contracts",
+    "fixtures",
+    "stub-server",
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "stub": "node stub-server/server.js",
+    "stub": "turbo run dev --filter=@case-a/stub-server",
     "stub:prism": "prism mock contracts/v1/openapi.yaml",
-    "validate": "node scripts/validate-fixtures.js",
+    "validate": "turbo run validate",
+    "build": "turbo run build",
+    "test": "turbo run test",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
     "check": "node scripts/check.mjs"
-  },
-  "dependencies": {
-    "ajv": "^8.20.0",
-    "ajv-formats": "^3.0.1",
-    "express": "^5.0.0"
   },
   "devDependencies": {
     "@eslint-react/eslint-plugin": "^5.23.1",
@@ -26,6 +31,7 @@
     "eslint-plugin-n": "^18.4.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.12.0",
-    "prettier": "^3.9.9"
+    "prettier": "^3.9.9",
+    "turbo": "^2"
   }
 }

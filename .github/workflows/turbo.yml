@@ -1,0 +1,46 @@
+name: Affected packages
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - staging
+      - main
+  push:
+    branches:
+      - dev
+      - staging
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: turbo-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  affected:
+    name: Validate, build and test affected packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          # Full history so Turborepo can diff against the base branch.
+          # A shallow clone makes every package look changed.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run affected tasks
+        run: npx turbo run validate build test --affected

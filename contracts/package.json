@@ -1,0 +1,18 @@
+{
+  "name": "@case-a/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Published API contracts (JSON Schema + OpenAPI) and the shared validator.",
+  "exports": {
+    "./validator": "./validator.js",
+    "./v1/*": "./v1/*"
+  },
+  "scripts": {
+    "validate": "node check-schemas.js"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  }
+}

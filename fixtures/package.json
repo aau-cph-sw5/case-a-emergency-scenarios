@@ -1,0 +1,13 @@
+{
+  "name": "@case-a/fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Synthetic test data, validated against @case-a/contracts.",
+  "scripts": {
+    "validate": "node validate.js"
+  },
+  "dependencies": {
+    "@case-a/contracts": "*"
+  }
+}

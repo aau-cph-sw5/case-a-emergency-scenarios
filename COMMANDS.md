@@ -79,3 +79,51 @@ To see all scripts currently defined in `package.json`, run:
 ```bash
 npm run
 ```
+
+## Monorepo (Turborepo)
+
+The repository is split into packages (`contracts`, `fixtures`, `stub-server`,
+and later `apps/*` and `packages/*`). Turborepo runs tasks across them in
+dependency order and caches the results.
+
+Validate the contracts, then every fixture against them:
+
+```bash
+npm run validate
+```
+
+Build or test every package that has a `build` or `test` script:
+
+```bash
+npm run build
+npm test
+```
+
+Run only what your branch changed (compared with `main`), plus everything
+that depends on it:
+
+```bash
+npx turbo run validate build test --affected
+```
+
+Preview what would run without running it:
+
+```bash
+npx turbo run validate build test --affected --dry
+```
+
+See how the packages depend on each other (opens in a browser):
+
+```bash
+npx turbo run validate --graph=graph.html
+```
+
+### Adding a new app or package
+
+1. Create a folder in `apps/` (deployable) or `packages/` (shared code).
+2. Give it a `package.json` with `"name": "@case-a/<name>"`, `"private": true`,
+   and the scripts it supports (`build`, `test`, `validate`, `dev`). Use the
+   same script names as the other packages, since Turborepo finds tasks by name.
+3. List the internal packages it uses under `dependencies`, for example
+   `"@case-a/contracts": "*"`.
+4. Run `npm install` from the repository root.

@@ -48,10 +48,15 @@ This case now carries the semester's machine-intelligence work: `MET-A-019`, sce
 ## Layout
 
 ```
-contracts/     published interfaces other teams build against, versioned
+contracts/     @case-a/contracts: published interfaces other teams build against, versioned, plus the shared validator
+fixtures/      @case-a/fixtures: synthetic test data. Never anything Metro supplied.
+stub-server/   @case-a/stub-server: mock API serving the fixtures
+apps/          deployable apps (frontend, backend) go here, one folder each
+packages/      shared code used by more than one app goes here
 docs/adr/      architecture decision records
-fixtures/      synthetic test data. Never anything Metro supplied.
 ```
+
+The repository is an npm workspaces monorepo run by [Turborepo](https://turborepo.dev). Each folder above with a `package.json` is a package. Declare what a package uses in its own `package.json` (for example `"@case-a/contracts": "*"`), and Turborepo works out the build order and, in CI, runs only the packages affected by a change. See [COMMANDS.md](COMMANDS.md#monorepo-turborepo).
 
 ## Branches
 

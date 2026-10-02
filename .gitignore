@@ -22,3 +22,6 @@ pnpm-debug.log*
 coverage/
 dist/
 build/
+
+# Turborepo cache
+.turbo/

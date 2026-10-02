@@ -2,7 +2,7 @@ import express from "express";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validate } from "./contract-validator.js";
+import { validate } from "@case-a/contracts/validator";
 
 const app = express();
 const PORT = 4010;

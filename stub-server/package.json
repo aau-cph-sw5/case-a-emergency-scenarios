@@ -1,0 +1,15 @@
+{
+  "name": "@case-a/stub-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Mock API serving fixtures, validated against the contracts.",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@case-a/contracts": "*",
+    "@case-a/fixtures": "*",
+    "express": "^5.0.0"
+  }
+}

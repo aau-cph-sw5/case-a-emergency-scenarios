@@ -1,13 +1,13 @@
 // Validates every fixture served by the stub server against its contract schema.
-// Run with: npm run validate
+// Run with: npm run validate (from the repo root)
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validate } from "../stub-server/contract-validator.js";
+import { validate } from "@case-a/contracts/validator";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const fixtures = path.join(__dirname, "../fixtures/v1");
+const fixtures = path.join(__dirname, "v1");
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
