@@ -10,6 +10,8 @@
     "stub": "node stub-server/server.js",
     "stub:prism": "prism mock contracts/v1/openapi.yaml",
     "validate": "node scripts/validate-fixtures.js",
+    "seed:accounts": "node scripts/seed-test-accounts.js",
+    "test": "node --test",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
@@ -21,7 +23,9 @@
   "dependencies": {
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "express": "^5.0.0"
+    "bcryptjs": "^3.0.3",
+    "express": "^5.0.0",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "@eslint-react/eslint-plugin": "^5.23.1",
