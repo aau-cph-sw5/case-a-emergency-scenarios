@@ -11,6 +11,7 @@ on:
       - dev
       - staging
       - main
+      - feat/dependencyTracker
 
 permissions:
   contents: read
