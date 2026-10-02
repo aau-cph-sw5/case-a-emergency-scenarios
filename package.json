@@ -15,7 +15,10 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node --test \"tests/unit/**/*.test.{js,mjs}\"",
+    "test:integration": "node --test \"tests/integration/**/*.test.{js,mjs}\""
   },
   "dependencies": {
     "ajv": "^8.20.0",
