@@ -2,11 +2,11 @@ services:
   db:
     image: postgres:17
     environment:
-      POSTGRES_USER: metro
-      POSTGRES_PASSWORD: metro
-      POSTGRES_DB: metro
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
