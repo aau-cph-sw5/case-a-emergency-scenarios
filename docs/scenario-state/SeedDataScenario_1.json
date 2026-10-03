@@ -1,0 +1,113 @@
+{
+    "scenarioId" : "VAN-FB",
+    "name" : "fallbackscenarie 1",
+    "currentVersion" : "1.1",
+    "covers" : [ "VAN", "FLI", "LIT", "FB", "SOT", "VEA", "CPH"],
+    "versions" : [
+        {
+            "version" : "1.0",
+            "revision" : "initial version",
+            "operatingPlan" : {
+                "name": "VAN_FB_begge_perroner_v1.0",
+                "patterns" : [
+                    {
+                        "operationType" : "PENDULUM",
+                        "routeCode" : "VAN-FB",
+                        "track" : "1",
+                        "maximumTrains" : 1,
+                        "did" : "234",
+                        "description" : "PENDULUM from VAN to FB",
+                        "route" : [
+                            { "sequence": 1, "station": "VAN" },
+                            { "sequence": 2, "station": "FLI" },
+                            { "sequence": 3, "station": "LIT" },
+                            { "sequence": 4, "station": "SOT" },
+                            { "sequence": 5, "station": "FB" }
+                        ]
+                    }
+                ]
+        },
+            "stationRequirements" : [
+                {
+                    "station" : "VAN",
+                    "placement" : "platform",
+                    "minimumStaffing" : 1
+                }
+            ]
+        },
+        {
+            "version" : "1.1",
+            "revision" : "reduced train frequency",
+            "operatingPlan" : {
+                "name" : "VAN_FB_begge_perroner_v1.0",
+                "patterns" : [
+                    {
+                        "operationType" : "PENDULUM",
+                        "routeCode" : "VAN-FB",
+                        "track" : "1",
+                        "maximumTrains" : 1,
+                        "did" : "234",
+                        "description" : "PENDULUM from VAN to FB",
+                        "route" : [
+                            { "sequence": 1, "station": "VAN" },
+                            { "sequence": 2, "station": "FLI" },
+                            { "sequence": 3, "station": "LIT" },
+                            { "sequence": 4, "station": "SOT" },
+                            { "sequence": 5, "station": "FB" }
+                        ]
+            },
+            {
+                "operationType" : "PENDULUM",
+                "routeCode" : "VAN-FB",
+                "track" : "2",
+                "maximumTrains" : 1,
+                "did" : "234",
+                "route":[
+                    { "sequence": 1, "station": "VAN" },
+                    { "sequence": 2, "station": "FLI" },
+                    { "sequence": 3, "station": "LIT" },
+                    { "sequence": 4, "station": "SOT" },
+                    { "sequence": 5, "station": "FB" }
+                ]
+            }
+        ]
+        },
+            "stationRequirements" : [
+                {
+                    "station" : "VAN",
+                    "placement" : "platform",
+                    "minimumStaffing" : 1,
+                    "activeDuring" : [
+                        {"dayPattern" : "MON-FRI", "startTime" : "06:00", "endTime": "18:00"}
+                    ],
+                    "actions" : [
+                        {"sequence": "1", "instruction": "Informer PAX om eventuel pendulstamme, samt hvordan de kommer videre"}
+                    ]
+                },
+                {
+                    "station": "FLI",
+                    "placement": "platform", 
+                    "minimumStaffing": 1,
+                    "activeDuring": [
+                        {"dayPattern": "MON-THU", "startTime": "07:00", "endTime": "09:00"},
+                        {"dayPattern": "MON-THU", "startTime": "14:00", "endTime": "18:00"},
+                        {"dayPattern": "FRI", "startTime": "07:00", "endTime": "09:00"},
+                        {"dayPattern": "FRI", "startTime": "13:00", "endTime": "19:00"}
+                    ]
+                }
+            ],
+            "passengerInformation": [
+                {
+                    "channel": "PA",
+                    "language": "DA",
+                    "message": "Alle passagerer skal skifte tog på FB. Dette skyldes **. Forvent længere rejsetid ml. VAN-FB, da vi kun kører med ét tog på strækningen (/da vi kører med færre tog på strækningen). Alternativt kan S-tog linje C benyttes som forbinder VAN+FL+KN."
+                },
+                {
+                    "channel": "PA",
+                    "language": "EN",
+                    "message": "All passengers must change trains at FB. This is due to **. Expect longer travel time between VAN-FB, as we only operate one train on the route (/as we operate fewer trains on the route). Alternatively, S-train line C can be used, which connects VAN+FL+KN."
+                }
+            ]
+        }
+    ]
+}
