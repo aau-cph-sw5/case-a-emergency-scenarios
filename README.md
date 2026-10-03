@@ -57,6 +57,46 @@ fixtures/      synthetic test data. Never anything Metro supplied.
 
 `main` protected, only what has been demonstrated at a review. `staging` integration, should always run. `development` the shared working branch. One feature branch per item, named for it.
 
+## Pull requests
+
+All pull requests must follow the naming convention and use the provided PR description template. GitHub Actions automatically validates both the title and description.
+
+### PR title
+
+Titles must use the following format:
+
+`<type>: <description> [<ticket>]`
+
+**Allowed types:**
+- `feat` — New feature
+- `fix` — Bug fix
+- `docs` — Documentation changes
+- `refactor` — Code changes that do not alter functionality
+- `test` — Adding or updating tests
+- `chore` — Maintenance, dependencies, configuration and CI changes
+
+The ticket must be either `MET-A-<number>` or `NO-PBI` if there is no related backlog item.
+
+**Examples:**
+
+```text
+feat: add emergency scenario endpoint [MET-A-025]
+fix: handle invalid station data [MET-A-003]
+test: add contract tests [MET-A-003]
+chore: update dependencies [NO-PBI]
+```
+
+### PR description
+
+All pull requests must use the repository's PR template and complete the following sections:
+
+- **Description:** Explain what was changed and why.
+- **Context:** Link to the related GitHub issue, or specify `NO-PBI` if there is no related issue.
+- **Testing:** Explain how the changes were tested. Use `N/A` with an explanation if testing is not applicable.
+- **Type of change:** Select at least one checkbox that describes the changes.
+
+The automated description checker verifies that the required sections are completed, that Context contains an issue reference or `NO-PBI`, and that at least one change type is selected.
+
 ## AI assistants
 
 > Record here which assistants this team used and for what, per [the semester policy](https://github.com/aau-cph-sw5/semester-docs/blob/main/docs/11-ai-use.md). Two lines is enough.

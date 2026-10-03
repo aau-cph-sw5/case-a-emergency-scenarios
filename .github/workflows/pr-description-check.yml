@@ -1,0 +1,91 @@
+name: PR Description Check
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  check-pr-description:
+    name: Check PR description
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate PR description
+        shell: bash
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -e
+
+          if [[ -z "$PR_BODY" ]]; then
+            echo "❌ PR description cannot be empty."
+            exit 1
+          fi
+
+          # Normalize Windows line endings (CRLF) to Unix (LF).
+          PR_BODY="${PR_BODY//$'\r'/}"
+
+          # Extract a section between two Markdown headings.
+          # Remove template comments and empty lines.
+          extract_section() {
+            local section="$1"
+            local next_section="$2"
+
+            awk -v start="## $section" -v end="## $next_section" '
+              $0 == start { inside=1; found=1; next }
+              $0 == end { inside=0 }
+              inside { print }
+            ' <<< "$PR_BODY" \
+            | sed '/<!--/,/-->/d' \
+            | sed '/^[[:space:]]*$/d'
+          }
+
+          DESCRIPTION=$(extract_section "Description" "Context")
+          CONTEXT=$(extract_section "Context" "Testing")
+          TESTING=$(extract_section "Testing" "Type of change")
+          CHANGE_TYPES=$(extract_section "Type of change" "")
+
+          # Validate Description.
+          if [[ -z "$DESCRIPTION" ]]; then
+            echo "❌ Description must be filled in."
+            exit 1
+          fi
+
+          echo "✅ Description is filled in."
+
+          # Validate Context.
+          if [[ -z "$CONTEXT" ]]; then
+            echo "❌ Context must be filled in."
+            exit 1
+          fi
+
+          if [[ ! "$CONTEXT" =~ \#[0-9]+ ]] && \
+             [[ ! "$CONTEXT" =~ github\.com/[^[:space:]]+/[^[:space:]]+/issues/[0-9]+ ]] && \
+             [[ ! "$CONTEXT" =~ NO-PBI ]]; then
+            echo "❌ Context must contain:"
+            echo "   - An issue reference (#123)"
+            echo "   - A GitHub issue URL"
+            echo "   - Or NO-PBI"
+            exit 1
+          fi
+
+          echo "✅ Context is valid."
+
+          # Validate Testing.
+          if [[ -z "$TESTING" ]]; then
+            echo "❌ Testing must be filled in."
+            echo "   Describe testing or explain why it is N/A."
+            exit 1
+          fi
+
+          echo "✅ Testing is filled in."
+
+          # Validate Type of change.
+          if ! grep -Eq '^- \[[xX]\] (Bug fix|New feature|Refactor|Tests|Documentation|Chore)$' <<< "$CHANGE_TYPES"; then
+            echo "❌ Select at least one Type of change."
+            exit 1
+          fi
+
+          echo "✅ Type of change selected."
+          echo ""
+          echo "✅ PR description is valid."

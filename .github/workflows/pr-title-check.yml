@@ -1,0 +1,43 @@
+name: PR Title Check
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  check-pr-title:
+    name: Check PR title
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "Checking PR title: $PR_TITLE"
+
+          REGEX='^(feat|fix|docs|refactor|test|chore): .+ \[(NO-PBI|MET-A-[0-9]+)\]$'
+
+          if [[ ! "$PR_TITLE" =~ $REGEX ]]; then
+            echo "❌ Invalid PR title"
+            echo ""
+            echo "Expected format:"
+            echo "<type>: <description> [<ticket>]"
+            echo ""
+            echo "Allowed types:"
+            echo "feat, fix, docs, refactor, test, chore"
+            echo ""
+            echo "Ticket must be:"
+            echo "NO-PBI"
+            echo "or"
+            echo "MET-A-<number>"
+            echo ""
+            echo "Examples:"
+            echo "feat: add emergency scenario endpoint [MET-A-025]"
+            echo "fix: handle missing station data [MET-A-104]"
+            echo "test: add contract tests [MET-A-025]"
+            echo "chore: update GitHub workflow [NO-PBI]"
+            exit 1
+          fi
+
+          echo "✅ PR title is valid"
