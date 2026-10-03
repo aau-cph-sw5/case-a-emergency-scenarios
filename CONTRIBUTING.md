@@ -1,18 +1,35 @@
-# Contributing
-- [Guidelines til issues og sub-issues dertil](https://github.com/aau-cph-sw5/case-a-emergency-scenarios/blob/main/issue-workflow.md)
+# Sådan arbejder vi i dette repo
 
+## Konventioner
 
+- Altid PR til `dev`.
+- Opret branch fra issuet: åbn issuet → højre sidebar → **Create a branch**.
+- Merge `dev` ind i din branch, lige før du åbner PR'en: `git fetch origin && git merge origin/dev`.
+- Del PR'en op, hvis den overstiger 400 ændrede linjer.
+- Tjek for reviews dagligt. `CODEOWNERS` sætter automatisk folk på.
+- Skriv issue-titlen, så den kan forstås uden at åbne issuet.
+- Flyt dit issue til **In progress**, når du starter. Til **In review**, når du åbner en PR. Til **Done**, når PR'en er merget og hvert acceptkriterium er opfyldt.
 
-The contribution process for this semester is shared across all four products and
-lives in the documentation hub, not here.
+## Hvis du skal
 
-**[Read it there](https://github.com/aau-cph-sw5/semester-docs/blob/main/CONTRIBUTING.md).**
+| … | Åbn |
+|---|---|
+| oprette eller flytte et issue | [`docs/issue-workflow.md`](docs/issue-workflow.md) |
+| forstå hvorfor et tjek er rødt, eller har en idé til automatisering | [`docs/automation.md`](docs/automation.md) |
+| tegne et diagram | [`docs/diagrams.md`](docs/diagrams.md) |
+| vide hvad et felt i et scenarie betyder | [`docs/domain-model.md`](docs/domain-model.md) |
+| vide hvorfor noget er, som det er | [`docs/adr/`](docs/adr/) |
+| skrive et sprint- eller mødedokument | [`docs/templates/`](docs/templates/) |
 
-The parts you will need first:
-- [Onboarding, the first week](https://github.com/aau-cph-sw5/semester-docs/blob/main/docs/01-onboarding.md)
-- [Ways of working, sprints and ceremonies](https://github.com/aau-cph-sw5/semester-docs/blob/main/docs/02-ways-of-working.md)
-- [Pull request process](https://github.com/aau-cph-sw5/semester-docs/blob/main/docs/03-pull-request-process.md)
-- [Handling Metro Service material](https://github.com/aau-cph-sw5/semester-docs/blob/main/docs/10-data-handling.md)
-- [Using AI assistants](https://github.com/aau-cph-sw5/semester-docs/blob/main/docs/11-ai-use.md)
+## Hvor du lægger nye filer
 
-Nothing Metro Service supplied is ever committed to this repository. It is public.
+```text
+contracts/      grænseflader, andre hold bygger imod. Versioneret
+fixtures/       opdigtede test-data. Aldrig noget fra Metro Service
+docs/sprints/   udfyldte referater, ét sæt per sprint
+.github/        PR-skabelon og automatiske tjek
+```
+
+## Semester-processen
+
+[Semester-dokumentationen](https://github.com/aau-cph-sw5/semester-docs).

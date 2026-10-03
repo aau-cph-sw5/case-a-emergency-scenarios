@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        [Issue Guidelines](https://github.com/aau-cph-sw5/case-a-emergency-scenarios/blob/main/issue-workflow.md), før du opretter en sub-issue.
+        [Issue Guidelines](https://github.com/aau-cph-sw5/case-a-emergency-scenarios/blob/dev/docs/issue-workflow.md), før du opretter en sub-issue.
         Husk at vælge sprint under **Milestone** nederst i formularen.
   - type: textarea
     id: done-when
