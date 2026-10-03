@@ -6,7 +6,7 @@
     "versions" : [
         {
             "version" : "1.0",
-            "revision" : "no changes",
+            "revision" : "Initial version",
             "operatingPlan" : {
                 "name" : "VAN.FOR-KN.CPH.VEA_v1.0",
                 "patterns" : [
