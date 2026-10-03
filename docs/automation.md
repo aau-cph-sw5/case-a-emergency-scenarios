@@ -1,4 +1,34 @@
-# Automatic pull request labels
+# Automation
+
+Five workflows run on pull requests. `pr-title-check.yml` and
+`pr-description-check.yml` validate the title and the body against
+`.github/PULL_REQUEST_TEMPLATE.md`; both print what they expect in their error
+message. `code-quality.yml` runs lint and formatting. The two below are
+documented here.
+
+## Tests in CI
+
+The workflow `.github/workflows/tests.yml` runs the tests automatically on every
+pull request into `dev`, `staging` and `main`, and on every push to those branches.
+
+| Check on the PR | Runs | Folder |
+|---|---|---|
+| Unit tests | `npm run test:unit` | `tests/unit/` |
+| Integration tests | `npm run test:integration` | `tests/integration/` |
+
+### Adding a test
+
+Put a file named `*.test.js` or `*.test.mjs` in the right folder. It is picked up
+automatically, with no change to the workflow. Tests use Node's built-in test
+runner (`node:test`).
+
+A folder with no tests reports 0 tests and passes. A green check therefore means
+"nothing failed", not "this is tested".
+
+### Not set up yet
+
+End-to-end tests (`tests/e2e/`) wait until the control-room and steward apps exist.
+## Automatic pull request labels
 
 The `Pull request labels` workflow labels pull requests targeting `dev`,
 `staging`, or `main`. It runs when a pull request is opened, reopened, or
@@ -7,7 +37,7 @@ updated with new commits.
 The workflow only applies existing repository labels. Create the labels under
 **GitHub repository → Issues → Labels** before relying on the workflow.
 
-## Required labels
+### Required labels
 
 | Label | Suggested color | Applied when |
 | --- | --- | --- |
