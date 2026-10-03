@@ -2,10 +2,9 @@
 
 ## Konventioner
 
-Ingen tjek fanger disse for dig.
-
 - Altid PR til `dev`.
 - Opret branch fra issuet: åbn issuet → højre sidebar → **Create a branch**.
+- Merge `dev` ind i din branch, lige før du åbner PR'en: `git fetch origin && git merge origin/dev`.
 - Del PR'en op, hvis den overstiger 400 ændrede linjer.
 - Tjek for reviews dagligt. `CODEOWNERS` sætter automatisk folk på.
 - Skriv issue-titlen, så den kan forstås uden at åbne issuet.
