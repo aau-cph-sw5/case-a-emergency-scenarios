@@ -1,0 +1,104 @@
+{
+    "scenarioId" : "FOR-KN",
+    "name" : "fallbackScenario 2",
+    "currentVersion" : "1.0",
+    "covers" : ["VAN", "FL", "LIT", "SOT", "FB", "FOR", "KN", "VEA", "CPH"],
+    "versions" : [
+        {
+            "version" : "1.0",
+            "revision" : "Initial version",
+            "operatingPlan" : {
+                "name" : "VAN.FOR-KN.CPH.VEA_v1.0",
+                "patterns" : [
+                    {
+                        "operationType" : "PENDULUM",
+                        "routeCode" : "FOR-KN",
+                        "track" : "1",
+                        "maximumTrains" : 1,
+                        "did" : "123",
+                        "description" : "PENDELUM from FOR-KN",
+                        "route" : [
+                            {"sequence" : 1, "station" : "FOR"},
+                            {"sequence" : 2, "station" : "KN"}
+                        ]
+                    }
+                ]
+
+            },
+
+                "stationRequirements" : [
+                    {
+                        "station" : "FOR",
+                        "placement" : "platform",
+                        "minimumStaffing" : 1
+                    }
+            ]
+        },
+        {
+            "version" : "1.0",
+            "revision" : "no changes",
+            "operatingPlan" : {
+                "name" : "VAN.FOR-KN.CPH.VEA_v1.0",
+                "patterns" : [
+                    {
+                        "operationType" : "PENDULUM",
+                        "routeCode" : "FOR-KN",
+                        "track" : "1",
+                        "maximumTrains" : 1,
+                        "did" : "123",
+                        "description" : "PENDELUM from FOR-KN",
+                        "route" : [
+                            {"sequence" : 1, "station" : "FOR"},
+                            {"sequence" : 2, "station" : "KN"}
+                        ]
+                    },
+                    {
+                        "operationType": "PENDULUM",
+                        "routeCode": "FOR-KN",
+                        "track" : "2",
+                        "maximumTrains" : "1",
+                        "did" : "123",
+                        "route" : [
+                            {"sequence" : 1, "station" : "FOR"},
+                            {"sequence" : 2, "station" : "KN"}
+                        ]
+                    }
+                ]
+            },
+            "stationRequirements" : [
+                {
+                    "station" : "FOR",
+                    "placement" : "platform",
+                    "minimumStaffing" : 1,
+                    "activeDuring" : [
+                        {"dayPattern" : "MON-FRI", "startTime" : "06:00", "endTime": "18:00"}
+                    ],
+                    "actions" : [
+                        {"sequence" : "1", "instructions" : "Informer PAX om eventuel pendulstamme, samt hvordan de kommer videre"}
+                    ]
+                },
+                {
+                    "station" : "KN",
+                    "placement" : "platform",
+                    "minimumStaffing" : 1,
+                    "activeDuring" : [
+                        {"dayPattern" : "MON-FRI", "startTime" : "06:00", "endTime": "18:00"}
+                    ]
+                }
+            ],
+            "passengerInformation" : [
+                {
+                    "channel" : "PA",
+                    "language" : "DA",
+                    "message" : "Alle passagerer skal skifte tog på Forum og Nørreport. Dette skyldes ***. Forvent længere rejsetid. Alternativ transport kan også findes på Rejseplanen.dk. F.eks. S-tog linje C som forbinder VAN, FL og KN eller Linje M3 Cityringen som forbinder KGN og FB."
+                },
+                {
+                    "channel" : "PA",
+                    "language" : "EN",
+                    "message" : "All passengers must change trains at Forum and Nørreport. This is due to ***. Expect longer travel time. You can also find alternative travel suggestions on journeyplanner.dk. For instance, S-train line C connecting VAN, FL and KN or the M3 Metro line connecting KGN and FB."
+                }
+            ]
+            
+        }
+    ]  
+}
