@@ -2,7 +2,7 @@
 
 This document contains the Mermaid ER diagram for the scenario data model.
 
-The domain concepts themselves are documented in the [Scenario Entity Model](https://github.com/aau-cph-sw5/case-a-emergency-scenarios/blob/diagramStructuring/docs/diagrams/scenario-state-diagram/metro_scenario_entity_model_documented.md?plain=1).
+The domain concepts themselves are documented in the [Scenario Entity Model](/docs/diagrams/scenario-state-diagram/metro_scenario_entity_model_documented.md).
 
 This document only describes what is added by the relational representation: **primary keys, foreign keys, uniqueness constraints, and how the relationships are implemented in the database**.
 
@@ -24,7 +24,7 @@ erDiagram
     }
     stations {
         int id PK
-        text name
+        text name UK
     }
     operating_plans {
         int id PK
@@ -46,7 +46,7 @@ erDiagram
         int operating_pattern_id FK
         int station_id FK
         int sequence "unique per pattern"
-        text station_role "TERMINUS, TURNAROUND or STOP"
+        text station_role "TURNAROUND or STOP"
     }
     station_requirements {
         int id PK
@@ -76,16 +76,16 @@ erDiagram
         text message
     }
 
-    scenarios ||--|{ scenario_versions : "versions"
-    scenario_versions ||--|| operating_plans : "operating plan"
-    operating_plans ||--|{ operating_patterns : "patterns"
-    operating_patterns ||--|{ line_stops : "route"
-    stations ||--o{ line_stops : "stopped at"
-    scenario_versions ||--|{ station_requirements : "requires"
-    stations ||--o{ station_requirements : "required at"
-    station_requirements ||--o{ staffing_windows : "active during"
-    station_requirements ||--o{ actions : "actions"
-    scenario_versions ||--o{ passenger_information : "passenger info"
+    scenarios ||--|{ scenario_versions : "versions (1 : 1..*)"
+    scenario_versions ||--|| operating_plans : "operating plan (1 : 1)"
+    operating_plans ||--|{ operating_patterns : "patterns (1 : 1..*)"
+    operating_patterns ||--|{ line_stops : "route (1 : 1..*)"
+    stations ||--o{ line_stops : "stopped at (1 : 0..*)"
+    scenario_versions ||--|{ station_requirements : "requires (1 : 1..*)"
+    stations ||--o{ station_requirements : "required at (1 : 0..*)"
+    station_requirements ||--o{ staffing_windows : "active during (1 : 0..*)"
+    station_requirements ||--o{ actions : "actions (1 : 0..*)"
+    scenario_versions ||--o{ passenger_information : "passenger info (1 : 0..*)"
 ```
 
 ---
@@ -94,9 +94,9 @@ erDiagram
 
 ## Keys
 
-The ER model adds database identifiers and references that are not needed in the conceptual entity model
+The ER model adds database identifiers and references that are not needed in the conceptual entity model.
 
-- `PK` marks the primary key used to uniquely identify a row
+- `PK` marks the primary key used to uniquely identify a row.
 - `FK` marks a foreign key used to connect rows between tables.
 - `UK` marks a unique key used to enforce a one-to-one relationship or another uniqueness rule.
 
@@ -105,6 +105,16 @@ The ER model adds database identifiers and references that are not needed in the
 `scenarios` is a central table in this part of the model. All other scenario-related entities connect back to a scenario either **directly or indirectly** through the relationship chain. For example, `scenario_versions` references `scenarios` directly, while `operating_patterns`, `line_stops`, `actions`, and `staffing_windows` are connected through their parent entities. This makes the stable `scenario_id` important because it anchors the rest of the stored scenario definition.
 
 The remaining tables use integer `id` primary keys.
+
+---
+
+## Versioning
+
+All scenario **content** belongs to a `scenario_versions` row, not to the scenario itself. The operating plan, station requirements and passenger information reference the version directly, and everything below them (patterns, line stops, staffing windows, actions) reaches the version through its parent.
+
+When a scenario is revised, a new version is created with its own copy of the content. Older versions are never changed, so it is always possible to see exactly what a given version contained.
+
+`stations` is the exception: a station is a permanent, physical place and is shared by all versions. A version only records *which* stations it uses.
 
 ---
 
@@ -126,6 +136,7 @@ The relationships from the entity model are implemented through foreign keys.
 | ScenarioVersion → PassengerInformation | `passenger_information.scenario_version_id` → `scenario_versions.id` |
 
 The foreign keys turn the conceptual associations from the entity model into enforceable database relationships.
+
 
 ---
 
@@ -156,7 +167,7 @@ station_id FK
 
 This allows the same station to be reused across several operating patterns without duplicating the station itself.
 
-The `sequence` field defines the order of stops inside a pattern and should be unique within that pattern:
+The `sequence` field defines the order of stops inside a pattern and is unique within that pattern:
 
 ```sql
 UNIQUE (operating_pattern_id, sequence)
@@ -167,14 +178,20 @@ UNIQUE (operating_pattern_id, sequence)
 `station_role` is explicitly stored on `line_stops`:
 
 ```text
-station_role "TERMINUS, TURNAROUND or STOP"
+station_role "TURNAROUND or STOP"
 ```
 
 The role belongs to the **station's occurrence in a specific operating pattern**, not to the station itself.
 
-This is important because the same physical station can have different roles in different routes. For example, a station may be a normal `STOP` in one operating pattern and a `TURNAROUND` or `TERMINUS` in another.
+This is important because the same physical station can have different roles in different routes. For example, a station may be a normal `STOP` in one operating pattern and a `TURNAROUND` in another.
 
 Keeping `station_role` in `line_stops` therefore preserves route-specific behaviour without changing the shared `stations` record.
+
+---
+
+## Steward placement and steward tasks
+
+Steward placement is stored as a column (`station_requirements.placement`), while steward tasks are stored in a separate table (`actions`).
 
 ---
 
@@ -217,10 +234,12 @@ station_requirements.station_id
 
 This keeps the physical station as one shared record while route-specific information, including `station_role`, stays in `line_stops`, and scenario-specific staffing information stays in `station_requirements`.
 
+Station names are unique, so the same station cannot be registered twice.
+
 ---
 
 # Current scope
 
 This ER diagram currently focuses on the persisted **scenario definition**.
 
-It does not yet include all concepts from the Scenario Entity Model, such as the live activation/deployment part of the model. Those can be added later when the persistence requirements for that part of the system are defined.
+It does not yet include all concepts from the Scenario Entity Model, such as the live activation/deployment and staffmember part of the model. Those can be added later when the persistence requirements for that part of the system are defined.
