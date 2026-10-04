@@ -25,6 +25,19 @@
 - Ét issue per PR. Finder du en fejl undervejs, bliver den et sub-issue eller sit eget issue.
 - Tjek for reviews dagligt. `CODEOWNERS` sætter automatisk folk på.
 
+### Stacked or no stacked PR
+
+- Venter du på, at en anden PR merges, før du kan begynde på dit issue? Brug en stak.
+- Er dit arbejde uafhængigt af PR'en, altså rører det ikke de samme filer? Brug ikke en stak. Åbn to PR'er mod `dev` ved siden af hinanden.
+- Stabl højst tre, fordi hver gang base-PR'en ændres, skal de stablede PR'er ovenover ændres.
+
+Sådan gør du:
+
+1. Forgren fra den anden PR's branch i stedet for fra `dev`: `git fetch origin && git checkout -b <dit-issue> origin/<den-anden-branch>`
+2. Åbn PR'en med den branch som base: `gh pr create --base <den-anden-branch>`
+3. Når bunden er merget: skift din PR's base til `dev` — **Edit** ved titlen → vælg `dev`.
+4. Merge altid nedefra. Bunden først.
+
 ### Docs
 
 - Filnavne: små bogstaver og bindestreger. `scenario-reference-data.md`, ikke `Diagram FINAL 3.drawio`.
