@@ -1,70 +1,70 @@
-# Sådan arbejder vi i dette repo
+# How we work in this repo
 
-## Konventioner
+## Conventions
 
 ### Issues
 
-- Navngiv issuet `MET-A-<nr>` for produktet og `MAN-A-<nr>` for driften af projektet. Nummeret står først i titlen.
-- Skriv issue-titlen, så den kan forstås uden at åbne issuet.
-- Opret branch fra issuet: åbn issuet → højre sidebar → **Create a branch**. Branchen beholder issuets nummer og titel.
-- Flyt dit issue til **In progress**, når du starter, og til **Done**, når PR'en er merget og hvert acceptkriterium er opfyldt. Boardet flytter selv til **In review**.
+- Name the issue `MET-A-<nr>` for the product and `MAN-A-<nr>` for managing the project. The number comes first in the title.
+- Write the issue title so it can be understood without opening the issue.
+- Create the branch from the issue: open the issue → right sidebar → **Create a branch**. The branch keeps the issue's number and title.
+- Move your issue to **In progress** when you start, and to **Done** once the pull request is merged and every acceptance criterion is met. The board moves it to **In review** on its own.
 
 ### Splitting issues
 
-- Træk ikke et issue ind i en sprint, hvis det er større end `L`. Split det først.
-- Kan ingen vurdere issuet til under `L`, er det ikke forstået. Lav research med en aftalt deadline, der klarlægger problemet, før du estimerer igen.
-- Afhænger ét acceptkriterium af, at et andet er færdigt, er der tale om to issues.
-- Har din branch været åben i mere end en uge, var issuet for stort.
+- Don't pull an issue into a sprint when it is larger than `L`. Split it first.
+- When nobody can size the issue below `L`, it is not understood. Run research with an agreed deadline that clarifies the problem, then size it again.
+- When one acceptance criterion depends on another being finished, you have two issues.
+- When your branch has been open for more than a week, the issue was too large.
 
-### PR's
+### Pull requests
 
-- Titel: `<type>: <beskrivelse> [<nr>]`, fx `feat: afvis rapporter uden tidsstempel [MET-A-13]`. Typer: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
-- Altid PR til `dev`.
-- Merge `dev` ind i din branch, lige før du åbner PR'en: `git fetch origin && git merge origin/dev`.
-- Del PR'en op, hvis den overstiger 400 ændrede linjer.
-- Ét issue per PR. Finder du en fejl undervejs, bliver den et sub-issue eller sit eget issue.
-- Tjek for reviews dagligt. `CODEOWNERS` sætter automatisk folk på.
+- Title: `<type>: <description> [<nr>]`, for example `feat: reject reports without a timestamp [MET-A-13]`. Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
+- Always open the pull request against `dev`.
+- Merge `dev` into your branch right before you open the pull request: `git fetch origin && git merge origin/dev`.
+- Split the pull request when it exceeds 400 changed lines.
+- One issue per pull request. When you find a defect along the way, it becomes a sub-issue or an issue of its own.
+- Check for reviews daily. `CODEOWNERS` assigns reviewers automatically.
 
-### Stacked or no stacked PR
+### Stacked pull requests
 
-- Venter du på, at en anden PR merges, før du kan begynde på dit issue? Brug en stak.
-- Er dit arbejde uafhængigt af PR'en, altså rører det ikke de samme filer? Brug ikke en stak. Åbn to PR'er mod `dev` ved siden af hinanden.
-- Stabl højst tre, fordi hver gang base-PR'en ændres, skal de stablede PR'er ovenover ændres.
+- Waiting for another pull request to merge before you can start your issue? Use a stack.
+- Is your work independent of that pull request, meaning it touches none of the same files? Don't stack. Open two pull requests against `dev` side by side.
+- Stack at most three, because every change to the base pull request has to be carried into the stacked ones above it.
 
-Sådan gør du:
+Do it like this:
 
-1. Forgren fra den anden PR's branch i stedet for fra `dev`: `git fetch origin && git checkout -b <dit-issue> origin/<den-anden-branch>`
-2. Åbn PR'en med den branch som base: `gh pr create --base <den-anden-branch>`
-3. Når bunden er merget: skift din PR's base til `dev` — **Edit** ved titlen → vælg `dev`.
-4. Merge altid nedefra. Bunden først.
+1. Branch from the other pull request's branch instead of from `dev`: `git fetch origin && git checkout -b <your-issue> origin/<the-other-branch>`
+2. Open the pull request with that branch as its base: `gh pr create --base <the-other-branch>`
+3. Once the bottom is merged, change your pull request's base to `dev`: **Edit** next to the title → select `dev`.
+4. Always merge from the bottom up. The bottom first.
 
 ### Docs
 
-- Filnavne: små bogstaver og bindestreger. `scenario-reference-data.md`, ikke `Diagram FINAL 3.drawio`.
-- Opret et issue, før du udfylder en sprint-skabelon.
-- Opret ikke en fil ud fra en skabelon, før du har noget at skrive i den.
-- Opret ikke en mappe til én fil.
+- Filenames: lower case and hyphens. `scenario-reference-data.md`, not `Diagram FINAL 3.drawio`.
+- Open an issue before you fill in a sprint template.
+- Don't create a file from a template before you have something to write in it.
+- Don't create a directory for a single file.
 
-## Hvis du skal
+## Where to look something up
 
-| … | Åbn |
+| What you need | Open |
 |---|---|
-| oprette eller flytte et issue | [`docs/issue-workflow.md`](docs/issue-workflow.md) |
-| forstå hvorfor et tjek er rødt, eller har en idé til automatisering | [`docs/automation.md`](docs/automation.md) |
-| tegne et diagram | [`docs/diagrams.md`](docs/diagrams.md) |
-| vide hvad et felt i et scenarie betyder | [`docs/domain-model.md`](docs/domain-model.md) |
-| vide hvorfor noget er, som det er | [`docs/adr/`](docs/adr/) |
-| skrive et sprint- eller mødedokument | [`docs/templates/`](docs/templates/) |
+| How to create or move an issue | [`docs/issue-workflow.md`](docs/issue-workflow.md) |
+| Why a check is red, or an idea for automation | [`docs/automation.md`](docs/automation.md) |
+| How to draw a diagram | [`docs/diagrams.md`](docs/diagrams.md) |
+| What a field in a scenario means | [`docs/domain-model.md`](docs/domain-model.md) |
+| Why something is the way it is | [`docs/adr/`](docs/adr/) |
+| A sprint or meeting template | [`docs/templates/`](docs/templates/) |
 
-## Hvor du lægger nye filer
+## Where new files go
 
 ```text
-contracts/      grænseflader, andre hold bygger imod. Versioneret
-fixtures/       opdigtede test-data. Aldrig noget fra Metro Service
-docs/sprints/   udfyldte referater, ét sæt per sprint
-.github/        PR-skabelon og automatiske tjek
+contracts/      interfaces other teams build against. Versioned
+fixtures/       invented test data. Never anything from Metro Service
+docs/sprints/   filled-in sprint documents, one set per sprint
+.github/        pull request template and automated checks
 ```
 
-## Semester-processen
+## The semester process
 
-[Semester-dokumentationen](https://github.com/aau-cph-sw5/semester-docs).
+[The semester documentation](https://github.com/aau-cph-sw5/semester-docs).
