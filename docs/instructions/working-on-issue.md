@@ -1,7 +1,7 @@
 # Work on an issue
 
 Creating an issue is covered in [`create-issue.md`](create-issue.md).
-Branches, pull request titles and the review rules live in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+Branches, pull request titles and the review rules live in [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 ## How to
 
@@ -29,7 +29,7 @@ gh pr create --base dev
 
 GitHub links the pull request to issue 42, because the branch already is. The board Case A. Emergency Scenarios then sets `In review`.
 
-**When the pull request is stacked:** GitHub links nothing while the base is another branch than `dev`. [`CONTRIBUTING.md`](../CONTRIBUTING.md) says when you change the base to `dev`.
+**When the pull request is stacked:** GitHub links nothing while the base is another branch than `dev`. [`CONTRIBUTING.md`](../../CONTRIBUTING.md) says when you change the base to `dev`.
 
 ### Get the issue to `Done`
 

@@ -1,6 +1,6 @@
 # Create an issue
 
-Naming and titles live in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+Naming and titles live in [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 Statuses and the link to a pull request live in [`working-on-issue.md`](working-on-issue.md).
 
 ## How to
@@ -84,7 +84,7 @@ The sizes come from the hub's [`CONVENTIONS.md`](https://github.com/aau-cph-sw5/
 2. Click `...` to the right of the point.
 3. Select **Convert to sub-issue**.
 
-![The menu behind ... on a checklist point: Move up, Move down, Convert to issue, Convert to sub-issue](images/convert-to-sub-issue.png)
+![The menu behind ... on a checklist point: Move up, Move down, Convert to issue, Convert to sub-issue](../images/convert-to-sub-issue.png)
 
 ## What things mean
 
