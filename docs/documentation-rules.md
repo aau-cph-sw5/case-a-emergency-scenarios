@@ -59,7 +59,7 @@ The table gives each field its meaning, its source, and how certain it is.
 
 Prose says why the choice was made.
 
-Actions in sequence are a numbered list. A command is a fenced code block with the language named. Definition lists do not work in GitHub's markdown, so use `**name**: meaning`.
+Actions in sequence are a numbered list. A command is a fenced code block with the language named. Definition lists do not work in GitHub's markdown. Use one bullet per entry, `- **name**: meaning`, because plain lines next to each other run together into a single paragraph.
 
 ## Prose
 
@@ -173,7 +173,7 @@ Documentation is read to be **reminded** of something, not to learn it. Write fo
 
 ## What things mean
 
-**<the known name>**: <the meaning>
+- **<the known name>**: <the meaning>
 
 | <the known> | <the new> | <the new> |
 |---|---|---|
