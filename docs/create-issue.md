@@ -43,29 +43,30 @@ The templates are YAML forms, so they cannot be filled in from the terminal. The
 
 ## What things mean
 
-### Acceptance criteria
+### Acceptkriterier: what goes in the field
 
-A criterion takes one of two shapes, and which one you need depends on whether a machine or a person is being measured.
+One checkbox per criterion. Copy a line and fill in the angle brackets:
 
-**A threshold criterion** states the number and the environment it is measured in. `MET-A-004`:
+```text
+- [ ] <what happens>, <threshold with a number>, measured <where, and under what load>.
+- [ ] <number> participants <do the task>, and <what is measured> is reported.
+```
 
-> A scenario activated by an operator is reflected on a connected steward client **within 3 seconds at the 95th percentile**, measured **on staging with 25 simulated clients connected**.
+Use the first line when a machine is measured, and the second when a person is.
 
-Leave out the environment and the number says nothing, because 3 seconds with one client is a different claim from 3 seconds with 25.
+**Before you move on:** name an input or an outcome where the criterion is not met. When you cannot name one, it is not a criterion yet. That is what rules out `clearly marked`, `visually distinct`, `within a few seconds` and `user-friendly`, because no delivered software fails them.
 
-**A test protocol** states the task, how many people take it, and what counts as success. `MET-A-027`:
+**When you cannot name one:** the requirement is about a person rather than the machine. Move it to the second line above. When the number of participants is not yours to pick, bring it to refinement.
 
-> At least eight participants are tested, and the population is stated honestly including where students stood in for stewards. Time to correct answer and error rate are reported with the number of participants.
+Both lines filled in, from the backlog:
 
-Use this shape when the thing measured is a person: finding an assignment, or reacting in time.
+> `MET-A-004`: A scenario activated by an operator is reflected on a connected steward client **within 3 seconds at the 95th percentile**, measured **on staging with 25 simulated clients connected**.
 
-**The test for either shape:** name an input or an outcome where the criterion is not met. When you cannot name one, you have written a description rather than a criterion.
+> `MET-A-027`: At least eight participants are tested, and the population is stated honestly including where students stood in for stewards. Time to correct answer and error rate are reported with the number of participants.
 
-That is what rules out `clearly marked`, `visually distinct`, `within a few seconds` and `user-friendly`. No delivered software fails them.
+### Størrelse: which size to pick
 
-Such a phrase is converted, not deleted. Source story A2.1 asked that required stations be identifiable `within a few seconds`, and the hub turned it into `MET-A-027` above: the same intent, now eight participants and a measured time to the correct answer.
-
-### Sizes
+`XL` and `XXL` cannot enter a sprint, so split the item before you pick either one.
 
 | Size | Corresponds to |
 |---|---|
@@ -76,4 +77,4 @@ Such a phrase is converted, not deleted. Source story A2.1 asked that required s
 | `XL` | A whole sprint for the whole team |
 | `XXL` | Larger than a sprint |
 
-`XL` and `XXL` must not be pulled into a sprint. Split them first.
+**When nobody can size it below `L`:** the item is not understood yet. Open a research item with an agreed deadline that clarifies the problem, then size it again.

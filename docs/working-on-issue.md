@@ -30,7 +30,7 @@ Drag the card on the board once the pull request is merged. `gh project item-edi
 
 ## What things mean
 
-### Statuses
+### Status: who sets each value, and when
 
 | Status | Who sets it | When |
 |---|---|---|
@@ -41,6 +41,6 @@ Drag the card on the board once the pull request is merged. `gh project item-edi
 | `In review` | The board | When the pull request is linked to the issue |
 | `Done` | You | When the pull request is merged and every acceptance criterion has been demonstrated |
 
-### Keywords that do not work here
+### `Closes #42` does not work here
 
 **`Closes #42`**: not interpreted. GitHub reads the keyword only in a pull request against the repo's default branch, and that is `main`, while our pull requests point at `dev`. So the issue has to be dragged to **Done** by hand.
