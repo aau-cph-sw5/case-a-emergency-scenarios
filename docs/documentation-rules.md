@@ -2,7 +2,7 @@
 
 Paste this whole file in as a prompt when you use a language model to write or fix documentation here, and ask for a draft.
 
-27 rules in six groups. Every rule has the same four lines: when the rule applies, the check to run, what passes, and the repair.
+30 rules in six groups. Every rule has the same four lines: when the rule applies, the check to run, what passes, and the repair.
 
 When a rule does not work in practice, propose a change in an issue, and follow the rule until the issue is settled. The structure works only when it is the same across the files.
 
@@ -12,7 +12,7 @@ When a rule does not work in practice, propose a change in an issue, and follow 
 
 **The groups are in priority order.** When two rules collide, the rule in the earlier group wins.
 
-1. **Understood**: the writer can carry out what the text says.
+1. **Understood**: the writer can carry out what the text says, and the reader can act on it.
 2. **Complete**: everything the reader looks up is there.
 3. **Concrete**: every claim holds a name, a number or an example.
 4. **Placed**: each fact sits where the reader looks for it.
@@ -23,13 +23,13 @@ A line marked `Bad:` is exempt from every rule, because the line shows the fault
 
 ## 1. Understood
 
-The writer can carry out what the text says.
+The writer can carry out what the text says, and the reader can act on it.
 
 ### 1.1 Show every instruction done once
 
 A sentence built from kind-words (`an input`, `an outcome`) can be written and read without being understood. An example of something else in the same paragraph hides the gap.
 
-- **Applies when:** a sentence tells the reader to name, choose, write, size or judge something.
+- **Applies when:** a sentence tells the reader to do something, in any wording: `use`, `keep`, `show`, `name`, `choose`, `must`, `should`, `do not`.
 - **Check:** carry out the instruction yourself on one real item from this repo. Then look for your result in the paragraph.
 - **Passes when:** the paragraph shows one finished result of the instruction, and every noun after `a`, `an` or `any` has one named member beside it.
 - **Repair:** put your result in place of the kind-word. When you cannot carry out the instruction, mark the sentence `[?]` and ask the author.
@@ -45,6 +45,47 @@ Good: Describe one test run that the line fails. "Within 3 seconds" fails when t
 - **Check:** for each sentence you added, point at the place that states the fact: the code, the hub, the issue or the old text.
 - **Passes when:** every added sentence has such a place, and you added no caveat, no recommendation, no summary section and no table.
 - **Repair:** delete what you added. When the rewrite needs a fact the source lacks, mark the gap `[?]` and leave it for the author.
+
+### 1.3 Make every requirement failable
+
+A requirement that no diagram, file or text can break gives the reader nothing to do.
+
+- **Applies when:** a sentence tells the reader to do something, in any wording: `use`, `keep`, `show`, `must`, `should`, `do not`.
+- **Check:** describe one diagram, file or text that breaks the requirement. Then ask whether two reviewers would agree on it without asking the author.
+- **Passes when:** you can describe the breaking case, and the judgement is a count, a name or a presence.
+- **Repair:** replace `clear`, `relevant`, `where it matters` and `where needed` with the thing a reviewer can see. When the team has not decided it, mark the sentence `[?]`.
+
+```text
+Bad:  Show multiplicity where it matters.
+Good: Write a multiplicity at both ends of every association.
+```
+
+### 1.4 State a choice made here
+
+A sentence that is true in every project records no decision of ours.
+
+- **Applies when:** every instruction in a conventions file.
+- **Check:** would the sentence be true in another project's documentation?
+- **Passes when:** it would be false there, because it names a notation, a tool, a folder, a name or a number we chose.
+- **Repair:** write the choice. When no choice exists, cut the sentence or mark it `[?]` as an open decision.
+
+```text
+Bad:  Use the notation defined in the relevant guide.
+Good: Draw an entity model as a UML class diagram, following docs/templates/entity-domain-model-guide.md.
+```
+
+### 1.5 Open a review with the verdict
+
+Findings per sentence hide the state of the whole document.
+
+- **Applies when:** you review a document that holds instructions.
+- **Check:** count the instructions, then count the ones that pass rules 1.3 and 1.4.
+- **Passes when:** the first line of the review gives both counts.
+- **Repair:** write that line above the findings.
+
+```text
+Good: 9 of 21 instructions can be failed and state a choice made here.
+```
 
 ## 2. Complete
 
@@ -162,7 +203,7 @@ Four kinds, one row each.
 
 | Kind | Test | Where it belongs |
 |---|---|---|
-| Convention | Can the rule be broken without a tool saying anything? | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| Convention | Can the rule be broken without a tool saying anything? | [`CONTRIBUTING.md`](../CONTRIBUTING.md), or a conventions file that it links to, as it links to `docs/diagrams.md` |
 | How-to | Does it end with something being done? | The file for the area you are working in |
 | Reference | Do you look up one row and leave again? | The same file, under **What things mean** |
 | Explanation | Does it answer "why is it like this?" | [`docs/adr/`](adr/) |
@@ -190,7 +231,7 @@ Four kinds, one row each.
 
 A reader skims headings and opens one only when it names the thing they came for.
 
-- **Applies when:** every `###` heading and every link label. The two `##` headings in the template are fixed.
+- **Applies when:** every heading below the title, and every link label. The two `##` headings in the template are fixed.
 - **Check:** does the heading hold a name the reader would search for: a form field, a command, a file, a label, a status or a name shown on the screen?
 - **Passes when:** it holds one of those. Under **How to**, the heading also opens with a verb in the imperative.
 - **Repair:** put the name in the heading.
@@ -330,7 +371,7 @@ Every sentence left changes what the reader does.
 
 Material that is interesting and irrelevant makes the task harder, and it does the most damage next to the part that matters.
 
-- **Applies when:** every sentence in a how-to. In a reference, rule 2.1 wins.
+- **Applies when:** every sentence in a how-to or a conventions file. In a reference, rule 2.1 wins.
 - **Check:** delete the sentence, then ask whether anything the reader types, runs or clicks has changed.
 - **Passes when:** deleting it changes what the reader does.
 - **Repair:** cut it. The history of a decision belongs in `docs/adr/`.
