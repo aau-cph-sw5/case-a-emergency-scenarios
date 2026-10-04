@@ -37,38 +37,9 @@ Drag the card on the board once the pull request is merged. `gh project item-edi
 | `Backlog` | The board | The issue is created or added to the board |
 | `Ready` | You | At refinement, once Definition of Ready is met |
 | `In progress` | You | When you start working |
-| `Blocked` | You | When the item cannot be finished until Metro Service answers a question. Also set the label `status:blocked` |
+| `Blocked` | You | When the item cannot be finished until Metro Service answers a question. Set `status:blocked` on the item, and `needs:metro` on the question. When the item only needs AAU work, the label is `status:refine` instead |
 | `In review` | The board | When the pull request is linked to the issue |
 | `Done` | You | When the pull request is merged and every acceptance criterion has been demonstrated |
-
-### Readiness labels
-
-These come from the hub's [`CONVENTIONS.md`](https://github.com/aau-cph-sw5/semester-docs/blob/main/CONVENTIONS.md), and they are not the same thing as the board's Status field above. The Status field is a column you drag the card to. A readiness label says whether the item can be worked on at all.
-
-**`status:ready`**: can be pulled into a sprint as written.
-**`status:refine`**: needs an AAU refinement pass. No external input required.
-**`status:blocked`**: cannot be completed without input from Metro Service.
-**`needs:metro`**: sits on the open question itself, not on the item's readiness. The same question is listed in the hub's [`CLARIFICATIONS.md`](https://github.com/aau-cph-sw5/semester-docs/blob/main/CLARIFICATIONS.md).
-
-An item carrying `status:blocked` stays in the backlog, and the question behind it goes to the next sprint review.
-
-### Views on the Case A board
-
-**`All Items`**: every top-level issue with status, assignees, linked pull requests and sub-issue progress.
-**`Overview — parent/child`**: the hierarchy between issues and their sub-issues.
-**`Kanban - Items`**: grouped by status.
-**`Sub - issues`**: sub-issues only, kept out of the main overview.
-**`My items`**: only what is assigned to you.
-**`group-7`, `group-9`, `group-10`**: one view per group. All three exist.
-
-### Views on the Management board
-
-**`Backlog`**: the meeting issues, which carry the status `MØDER`. Each meeting's agreements sit under it as sub-issues.
-**`Board`**: the columns `MØDER`, `Todo`, `In progress`, `Done`.
-**`Current iteration`**: only what is active in this sprint.
-**`Roadmap`**: a timeline of items.
-**`My items`**: only what is assigned to you.
-**`DPM - Team`**: `[?]` exists on the board, and nobody has written down what it filters on.
 
 ### Keywords that do not work here
 

@@ -1,7 +1,7 @@
 # Create an issue
 
 Naming and titles live in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
-Statuses, views and the link to a pull request live in [`working-on-issue.md`](working-on-issue.md).
+Statuses and the link to a pull request live in [`working-on-issue.md`](working-on-issue.md).
 
 ## How to
 
