@@ -1,5 +1,11 @@
 # Sådan arbejder vi i dette repo
 
+## Guides
+
+- [`docs/create-issue.md`](docs/create-issue.md) — før issuet findes
+- [`docs/working-on-issue.md`](docs/working-on-issue.md) — når det gør
+- [`docs/diagrams.md`](docs/diagrams.md) — før du tegner
+
 ## Konventioner
 
 ### Issues
@@ -45,14 +51,11 @@ Sådan gør du:
 - Opret ikke en fil ud fra en skabelon, før du har noget at skrive i den.
 - Opret ikke en mappe til én fil.
 
-## Hvis du skal
+## Hvis du skal slå noget op
 
 | … | Åbn |
 |---|---|
-| oprette et issue | [`docs/create-issue.md`](docs/create-issue.md) |
-| arbejde på et issue, eller slå en status eller visning op | [`docs/working-on-issue.md`](docs/working-on-issue.md) |
 | forstå hvorfor et tjek er rødt, eller har en idé til automatisering | [`docs/automation.md`](docs/automation.md) |
-| tegne et diagram | [`docs/diagrams.md`](docs/diagrams.md) |
 | vide hvad et felt i et scenarie betyder | [`docs/domain-model.md`](docs/domain-model.md) |
 | vide hvorfor noget er, som det er | [`docs/adr/`](docs/adr/) |
 | skrive et sprint- eller mødedokument | [`docs/templates/`](docs/templates/) |
