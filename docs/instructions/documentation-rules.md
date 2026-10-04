@@ -217,9 +217,9 @@ Four kinds, one row each. The folder gives the kind, and the kind decides which 
 
 | Kind | Folder | The reader | Test |
 |---|---|---|---|
-| Instruction | `docs/instructions/` and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) | does something | Does it end with something being done, or state a rule that can be broken without a tool saying anything? |
-| Reference | `docs/reference/`, and a section under **What things mean** | looks something up | Do you look up one row and leave again? |
-| ADR, an architecture decision record | [`docs/adr/`](../adr/) | asks why | Does it answer "why is it like this?" |
+| Instruction | `docs/instructions/` and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) | does something | Does it say what a programmer must do in a situation, such as creating an issue? |
+| Reference | `docs/reference/`, and a section under **What things mean** | looks something up | Does it explain code or configuration that affects the program directly, such as the data model or a workflow? |
+| ADR, an architecture decision record | [`docs/adr/`](../adr/) | asks why | Does it say why we chose something? |
 | Record | `docs/records/sprints/` and `docs/records/other/` | reads what happened | Does it say what happened in one sprint or at one meeting? |
 
 - **Applies when:** any section with a heading.
