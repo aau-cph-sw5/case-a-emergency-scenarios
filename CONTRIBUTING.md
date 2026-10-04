@@ -13,7 +13,6 @@
 - Name the issue `MET-A-<nr>` for the product and `MAN-A-<nr>` for managing the project. The number comes first in the title.
 - Write the issue title so it can be understood without opening the issue.
 - Create the branch from the issue: open the issue → right sidebar → **Create a branch**. The branch keeps the issue's number and title.
-- Move your issue to **In progress** when you start, and to **Done** once the pull request is merged and every acceptance criterion is met. The board moves it to **In review** on its own.
 
 ### Splitting issues
 
