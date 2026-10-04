@@ -13,7 +13,7 @@
                     {
                         "operationType" : "PENDULUM",
                         "routeCode" : "VAN-FB",
-                        "track" : "1",
+                        "track" : 1,
                         "maximumTrains" : 1,
                         "did" : "234",
                         "description" : "PENDULUM from VAN to FB",
@@ -44,7 +44,7 @@
                     {
                         "operationType" : "PENDULUM",
                         "routeCode" : "VAN-FB",
-                        "track" : "1",
+                        "track" : 1,
                         "maximumTrains" : 1,
                         "did" : "234",
                         "description" : "PENDULUM from VAN to FB",
@@ -59,7 +59,7 @@
             {
                 "operationType" : "PENDULUM",
                 "routeCode" : "VAN-FB",
-                "track" : "2",
+                "track" : 1,
                 "maximumTrains" : 1,
                 "did" : "234",
                 "route":[
