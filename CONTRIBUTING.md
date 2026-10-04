@@ -55,7 +55,7 @@ Sådan gør du:
 | vide hvad et felt i et scenarie betyder | [`docs/domain-model.md`](docs/domain-model.md) |
 | vide hvorfor noget er, som det er | [`docs/adr/`](docs/adr/) |
 | skrive et sprint- eller mødedokument | [`docs/templates/`](docs/templates/) |
-| skrive eller rette dokumentation | [`docs/documentation-structure.md`](docs/documentation-structure.md) |
+| skrive eller rette dokumentation, eller bruge en sprogmodel til det | [`docs/documentation-rules.md`](docs/documentation-rules.md) |
 
 ## Hvor du lægger nye filer
 
