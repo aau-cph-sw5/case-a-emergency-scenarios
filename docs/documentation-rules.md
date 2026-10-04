@@ -16,11 +16,21 @@ Hub'ens regler kopieres ikke. Der linkes, eller det vigtigste skrives ud med et 
 
 ## Længde
 
-Et dokument, man **læser**, holdes under 100 linjer. Over 150 kræver det en indholdsfortegnelse, og så er det ikke en huskeseddel længere.
+**Et opslagsværk skal være komplet.** Det har ingen længdegrænse. Mangler en værdi, en kolonne eller en status, tror læseren at den ikke findes, og så har dokumentet gjort skade. Fuldstændighed slår korthed.
 
-Et dokument, man **slår op i**, har ingen grænse, men skal være komplet. Et hul får læseren til at tro, at tingen ikke findes.
+En **guide** holdes under 100 linjer. Over 150 kræver den en indholdsfortegnelse, og så er den ikke en huskeseddel længere. Tallet gælder kun guides.
 
 Tre til syv linjer per afsnit. Korte ord, kom til sagen, stop så.
+
+## Åbn med formen
+
+Begynd et opslagsværk med én sætning om, hvad man kigger på og hvordan det er inddelt. Ikke "dette dokument indeholder", men "seksten begreber, som falder i tre dele".
+
+Giv hver gruppe én linje om hvad den er, før du lister dens indhold. En tabel med 43 kolonner uden en linje per tabel er sværere at bruge, ikke lettere.
+
+## Forklar notationen
+
+Fold hver forkortelse og hvert symbol ud, første gang det bruges. `PK`, `STW`, `CCR`, `0..*` — flere af os har ikke haft faget endnu.
 
 ## Rækkefølgen i en linje
 
@@ -56,11 +66,21 @@ Definitionslister virker ikke i GitHubs markdown. Brug `**navn**: betydning`.
 
 I et opslagsværk: beskriv, og kun beskriv. Ingen holdning, ingen fortolkning, ingen instruktion.
 
-I en fremgangsmåde: skriv klik-vejen eller kommandoen ud, og antag nul forhåndsviden om GitHub. Sig hvilken side man starter fra.
+I en fremgangsmåde: skriv klik-vejen eller kommandoen ud, og antag nul forhåndsviden. Sig hvilken side man starter fra.
 
 Giv hvert begreb én linje: navnet først, derefter betydningen.
 
 En sætning, der kun findes for at forbinde to andre sætninger, skal ud. Et opslagsværk læses aldrig forfra.
+
+**Men "beskriv og kun beskriv" betyder ikke, at du skjuler, hvor sikker du er.** Skriv ved hvert felt, om det er belagt i en kilde, en antagelse, eller en beslutning vi selv har truffet — og ved en antagelse: hvad der skal til for at afklare den. "Antagelse" alene er en etiket. "Antagelse. Kræver et krav om at lukke et scenarie" er en opgave.
+
+Skriv også ved hver kilde, hvad den belægger. Et kildenavn uden det er ubrugeligt, fordi læseren ikke ved, hvad de skal lede efter.
+
+Flytter du en begrundelse til `docs/adr/`, så skriv beslutningen i samme pull request. Ellers er den ikke flyttet, den er væk.
+
+## Generer tabellen fra kilden
+
+Kan en tabel bygges af koden, så gør det. En kolonne-oversigt skrevet af `schema.sql` kan ikke være uenig med skemaet, og en skrevet i hånden driver fra det. Det var sådan en manglende værdi i `station_role` blev fundet.
 
 ## Skærmbilleder
 
