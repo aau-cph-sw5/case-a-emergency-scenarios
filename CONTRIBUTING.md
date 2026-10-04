@@ -52,23 +52,34 @@ Do it like this:
 
 ## Where the documentation lives
 
-Six folders under `docs/`, one row each. The folder says what the reader does with the file.
+Six folders under `docs/`, one row each. The folder says what kind of file it holds.
 
-| Folder | The reader | What it holds |
+| Folder | What belongs here | What it holds today |
 |---|---|---|
-| [`docs/instructions/`](docs/instructions/) | does something | How to create an issue: [`create-issue.md`](docs/instructions/create-issue.md). How to work on one: [`working-on-issue.md`](docs/instructions/working-on-issue.md). How to draw a diagram: [`diagrams.md`](docs/instructions/diagrams.md), [`entity-domain-model-guide.md`](docs/instructions/entity-domain-model-guide.md) and [`integration-evolving-guide.md`](docs/instructions/integration-evolving-guide.md). How to write or fix documentation, including with a language model: [`documentation-rules.md`](docs/instructions/documentation-rules.md) |
-| [`docs/reference/`](docs/reference/) | looks something up | What a field in a scenario means: [`domain-model.md`](docs/reference/domain-model.md). Why a check is red, or an idea for automation: [`automation.md`](docs/reference/automation.md) |
-| [`docs/adr/`](docs/adr/) | asks why something is the way it is | One architecture decision record (ADR) per decision |
-| [`docs/records/sprints/`](docs/records/sprints/) | reads what happened in a sprint | Filled-in sprint documents, one set per sprint |
-| `docs/records/other/` | reads what happened outside a sprint | Records that belong to no sprint. The folder appears with its first file |
-| [`docs/templates/`](docs/templates/) | copies a blank form | A sprint or meeting template |
+| [`docs/instructions/`](docs/instructions/) | What a programmer must do in a situation, such as creating an issue or drawing a diagram | How to create an issue: [`create-issue.md`](docs/instructions/create-issue.md). How to work on one: [`working-on-issue.md`](docs/instructions/working-on-issue.md). How to draw a diagram: [`diagrams.md`](docs/instructions/diagrams.md), [`entity-domain-model-guide.md`](docs/instructions/entity-domain-model-guide.md) and [`integration-evolving-guide.md`](docs/instructions/integration-evolving-guide.md). How to write or fix documentation, including with a language model: [`documentation-rules.md`](docs/instructions/documentation-rules.md) |
+| [`docs/reference/`](docs/reference/) | What the code or the configuration does: anything implemented that affects the program directly | The scenario data model: [`domain-model.md`](docs/reference/domain-model.md). The five workflows that run on a pull request: [`automation.md`](docs/reference/automation.md) |
+| [`docs/adr/`](docs/adr/) | Why we chose something. One architecture decision record (ADR) per decision | No decision yet |
+| [`docs/records/sprints/`](docs/records/sprints/) | What happened in a sprint | The planning, review, retrospective and integration documents of sprint 1 and sprint 2 |
+| `docs/records/other/` | What happened outside a sprint | Nothing yet. The folder appears with its first file |
+| [`docs/templates/`](docs/templates/) | A blank form that you copy into `docs/records/` or `docs/adr/` | The sprint, meeting and decision templates |
+
+### Place a new file in `docs/`
+
+Take the first question you answer with yes:
+
+1. Does the file tell a programmer what to do in a situation, such as creating an issue? Put it in `docs/instructions/`.
+2. Does the file explain code or configuration that affects the program, such as the data model or a workflow? Put it in `docs/reference/`.
+3. Does the file say why we chose something? Put it in `docs/adr/`.
+4. Does the file say what happened, such as a sprint review? Put it in `docs/records/sprints/`, or in `docs/records/other/` when it belongs to no sprint.
+
+When a file answers yes to two questions, split it into two files.
 
 ## Where new files go
 
 ```text
 contracts/      interfaces other teams build against. Versioned
 fixtures/       invented test data. Never anything from Metro Service
-docs/           documentation, sorted into the six folders in "Where the documentation lives"
+docs/           documentation, sorted into the six folders under "Where the documentation lives"
 .github/        pull request template and automated checks
 ```
 
