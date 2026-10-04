@@ -49,7 +49,8 @@ Sådan gør du:
 
 | … | Åbn |
 |---|---|
-| oprette eller flytte et issue | [`docs/issue-workflow.md`](docs/issue-workflow.md) |
+| oprette et issue | [`docs/create-issue.md`](docs/create-issue.md) |
+| arbejde på et issue, eller slå en status eller visning op | [`docs/working-on-issue.md`](docs/working-on-issue.md) |
 | forstå hvorfor et tjek er rødt, eller har en idé til automatisering | [`docs/automation.md`](docs/automation.md) |
 | tegne et diagram | [`docs/diagrams.md`](docs/diagrams.md) |
 | vide hvad et felt i et scenarie betyder | [`docs/domain-model.md`](docs/domain-model.md) |
