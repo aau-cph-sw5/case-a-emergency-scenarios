@@ -6,7 +6,7 @@ The diagram uses UML class diagram notation.
 
 Diagram rules:
 
-[`../guides/entity-domain-model.md`](../guides/entity-domain-model.md)
+[`../instructions/entity-domain-model-guide.md`](../instructions/entity-domain-model-guide.md)
 
 ## Entity model
 
