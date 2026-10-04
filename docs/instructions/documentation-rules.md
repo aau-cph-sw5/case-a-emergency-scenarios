@@ -2,7 +2,7 @@
 
 Paste this whole file in as a prompt when you use a language model to write or fix documentation here, and ask for a draft.
 
-27 rules in six groups. Every rule has the same four lines: when the rule applies, the check to run, what passes, and the repair.
+31 rules in six groups. Every rule has the same four lines: when the rule applies, the check to run, what passes, and the repair.
 
 When a rule does not work in practice, propose a change in an issue, and follow the rule until the issue is settled. The structure works only when it is the same across the files.
 
@@ -12,7 +12,7 @@ When a rule does not work in practice, propose a change in an issue, and follow 
 
 **The groups are in priority order.** When two rules collide, the rule in the earlier group wins.
 
-1. **Understood**: the writer can carry out what the text says.
+1. **Understood**: the writer can carry out what the text says, and the reader can act on it.
 2. **Complete**: everything the reader looks up is there.
 3. **Concrete**: every claim holds a name, a number or an example.
 4. **Placed**: each fact sits where the reader looks for it.
@@ -23,13 +23,13 @@ A line marked `Bad:` is exempt from every rule, because the line shows the fault
 
 ## 1. Understood
 
-The writer can carry out what the text says.
+The writer can carry out what the text says, and the reader can act on it.
 
 ### 1.1 Show every instruction done once
 
 A sentence built from kind-words (`an input`, `an outcome`) can be written and read without being understood. An example of something else in the same paragraph hides the gap.
 
-- **Applies when:** a sentence tells the reader to name, choose, write, size or judge something.
+- **Applies when:** a sentence tells the reader to do something, in any wording: `use`, `keep`, `show`, `name`, `choose`, `must`, `should`, `do not`.
 - **Check:** carry out the instruction yourself on one real item from this repo. Then look for your result in the paragraph.
 - **Passes when:** the paragraph shows one finished result of the instruction, and every noun after `a`, `an` or `any` has one named member beside it.
 - **Repair:** put your result in place of the kind-word. When you cannot carry out the instruction, mark the sentence `[?]` and ask the author.
@@ -45,6 +45,61 @@ Good: Describe one test run that the line fails. "Within 3 seconds" fails when t
 - **Check:** for each sentence you added, point at the place that states the fact: the code, the hub, the issue or the old text.
 - **Passes when:** every added sentence has such a place, and you added no caveat, no recommendation, no summary section and no table.
 - **Repair:** delete what you added. When the rewrite needs a fact the source lacks, mark the gap `[?]` and leave it for the author.
+
+### 1.3 Make every requirement failable
+
+A requirement that no diagram, file or text can break gives the reader nothing to do.
+
+- **Applies when:** a sentence tells the reader to do something, in any wording: `use`, `keep`, `show`, `must`, `should`, `do not`.
+- **Check:** describe one diagram, file or text that breaks the requirement. Then ask whether two reviewers would agree on it without asking the author.
+- **Passes when:** you can describe the breaking case, and the judgement is a count, a name or a presence.
+- **Repair:** replace `clear`, `relevant`, `where it matters` and `where needed` with the thing a reviewer can see. When the team has not decided it, mark the sentence `[?]`.
+
+```text
+Bad:  Give the diagram file a clear name.
+Good: Name the file in lower case with hyphens: scenario-reference-data.md.
+```
+
+### 1.4 State a choice made here
+
+A sentence that is true in every project records no decision of ours.
+
+- **Applies when:** every instruction in `docs/instructions/` or `CONTRIBUTING.md`.
+- **Check:** would the sentence be true in another project's documentation?
+- **Passes when:** it would be false there, because it names a notation, a tool, a folder, a name or a number we chose.
+- **Repair:** write the choice. When no choice exists, cut the sentence or mark it `[?]` as an open decision.
+
+```text
+Bad:  Use the notation defined in the relevant guide.
+Good: Draw an entity model as a UML class diagram, following docs/instructions/entity-domain-model-guide.md.
+```
+
+### 1.5 Walk one real task through the file
+
+A file can pass every rule about its sentences and still leave the reader without the next step.
+
+- **Applies when:** a file in `docs/instructions/`, or `CONTRIBUTING.md`.
+- **Check:** pick one real task the file is for, such as "draw the state machine for scenario activation" for `docs/instructions/diagrams.md`. Do the task with only the text, and write down everything you type, click, create or decide.
+- **Passes when:** the file names its tasks in its opening lines or in its headings under **How to**, the file decided every step, and a step used every sentence.
+- **Repair:** write the instruction for each decision you had to make yourself, or mark it `[?]`. Cut each sentence that no step used.
+
+```text
+Bad:  The steps end at "Fill in the fields", and no step puts the issue on a board.
+Good: 4. In the right sidebar, click Projects and select the board you picked.
+```
+
+### 1.6 Open a review with the verdict
+
+Findings per sentence hide the state of the whole file.
+
+- **Applies when:** you review a file in `docs/instructions/`, or `CONTRIBUTING.md`.
+- **Check:** count the instructions, then count the ones that pass rules 1.3 and 1.4. Count the steps of the task from rule 1.5, then count the steps the file decided.
+- **Passes when:** the first line of the review gives the four counts.
+- **Repair:** write that line above the findings.
+
+```text
+Good: 9 of 21 instructions can be failed and state a choice made here. The file decided 3 of 5 steps of the task.
+```
 
 ## 2. Complete
 
@@ -70,7 +125,7 @@ A table written by hand drifts from the code. When a script wrote the column ove
 
 ### 2.3 State how certain each field is
 
-- **Applies when:** a reference describes a field of the data model, as `docs/domain-model.md` does. A table of form fields, labels or statuses is exempt.
+- **Applies when:** a reference describes a field of the data model, as `docs/reference/domain-model.md` does. A table of form fields, labels or statuses is exempt.
 - **Check:** look in the entry for one of three words: source, assumption or decision.
 - **Passes when:** the entry holds one of them. A source says what it backs up, and an assumption says what would settle it.
 - **Repair:** add the word and what follows it.
@@ -158,19 +213,19 @@ Each fact sits where the reader looks for it.
 
 ### 4.1 Answer one question per section
 
-Four kinds, one row each.
+Four kinds, one row each. The folder gives the kind, and the kind decides which rules apply.
 
-| Kind | Test | Where it belongs |
-|---|---|---|
-| Convention | Can the rule be broken without a tool saying anything? | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
-| How-to | Does it end with something being done? | The file for the area you are working in |
-| Reference | Do you look up one row and leave again? | The same file, under **What things mean** |
-| Explanation | Does it answer "why is it like this?" | [`docs/adr/`](adr/) |
+| Kind | Folder | The reader | Test |
+|---|---|---|---|
+| Instruction | `docs/instructions/` and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) | does something | Does it end with something being done, or state a rule that can be broken without a tool saying anything? |
+| Reference | `docs/reference/`, and a section under **What things mean** | looks something up | Do you look up one row and leave again? |
+| ADR, an architecture decision record | [`docs/adr/`](../adr/) | asks why | Does it answer "why is it like this?" |
+| Record | `docs/records/sprints/` and `docs/records/other/` | reads what happened | Does it say what happened in one sprint or at one meeting? |
 
 - **Applies when:** any section with a heading.
-- **Check:** say out loud which question the body answers: "How do I...?" (a how-to), "What is...?" (a reference) or "Why...?" (an explanation).
-- **Passes when:** the body answers one of them, and the heading announces that same one. A table of options belongs to the how-to when the section asks the reader to choose between its rows.
-- **Repair:** split the section at the point where the question changes. Move the "Why...?" part to `docs/adr/`.
+- **Check:** say out loud which question the body answers: "How do I...?" (an instruction), "What is...?" (a reference), "Why...?" (an ADR) or "What happened?" (a record).
+- **Passes when:** the body answers one of them, the heading announces that same one, and the file sits in the folder for that kind. A table of options belongs to the instruction when the section asks the reader to choose between its rows.
+- **Repair:** split the section at the point where the question changes, and move each part to the folder for its kind.
 
 ### 4.2 Link to the hub's rules
 
@@ -181,16 +236,16 @@ Four kinds, one row each.
 
 ### 4.3 Describe, and only describe, in a reference
 
-- **Applies when:** a section under **What things mean**.
+- **Applies when:** a file in `docs/reference/`, or a section under **What things mean**.
 - **Check:** look for a verb in the imperative and for an opinion.
 - **Passes when:** the section holds neither. The certainty from rule 2.3 is description, and it stays.
-- **Repair:** move the instruction to a section under **How to**.
+- **Repair:** move the instruction to a section under **How to**, or to a file in `docs/instructions/`.
 
 ### 4.4 Put the name the reader is after in the heading
 
 A reader skims headings and opens one only when it names the thing they came for.
 
-- **Applies when:** every `###` heading and every link label. The two `##` headings in the template are fixed.
+- **Applies when:** every heading below the title, and every link label. The two `##` headings in the template are fixed.
 - **Check:** does the heading hold a name the reader would search for: a form field, a command, a file, a label, a status or a name shown on the screen?
 - **Passes when:** it holds one of those. Under **How to**, the heading also opens with a verb in the imperative.
 - **Repair:** put the name in the heading.
@@ -321,8 +376,8 @@ Every sentence left changes what the reader does.
 
 ### 6.1 Keep a how-to under 100 lines
 
-- **Applies when:** a how-to. A reference has no length limit.
-- **Check:** count the lines of the file.
+- **Applies when:** the sections under **How to** in a file in `docs/instructions/`. A conventions file and a reference have no length limit.
+- **Check:** count the lines from `## How to` down to `## What things mean`.
 - **Passes when:** under 100.
 - **Repair:** run rule 6.2 on every sentence. Past 150 lines the file needs a table of contents, and then it is no longer a cheat sheet.
 
@@ -330,7 +385,7 @@ Every sentence left changes what the reader does.
 
 Material that is interesting and irrelevant makes the task harder, and it does the most damage next to the part that matters.
 
-- **Applies when:** every sentence in a how-to. In a reference, rule 2.1 wins.
+- **Applies when:** every sentence in `docs/instructions/` and `CONTRIBUTING.md`, outside **What things mean**. In a reference, rule 2.1 wins.
 - **Check:** delete the sentence, then ask whether anything the reader types, runs or clicks has changed.
 - **Passes when:** deleting it changes what the reader does.
 - **Repair:** cut it. The history of a decision belongs in `docs/adr/`.

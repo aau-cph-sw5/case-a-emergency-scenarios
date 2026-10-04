@@ -2,9 +2,9 @@
 
 ## Guides
 
-- [`docs/create-issue.md`](docs/create-issue.md) — before the issue exists
-- [`docs/working-on-issue.md`](docs/working-on-issue.md) — once it does
-- [`docs/diagrams.md`](docs/diagrams.md) — before you draw
+- [`docs/instructions/create-issue.md`](docs/instructions/create-issue.md) — before the issue exists
+- [`docs/instructions/working-on-issue.md`](docs/instructions/working-on-issue.md) — once it does
+- [`docs/instructions/diagrams.md`](docs/instructions/diagrams.md) — before you draw
 
 ## Conventions
 
@@ -50,22 +50,25 @@ Do it like this:
 - Don't create a file from a template before you have something to write in it.
 - Don't create a directory for a single file.
 
-## Where to look something up
+## Where the documentation lives
 
-| What you need | Open |
-|---|---|
-| Why a check is red, or an idea for automation | [`docs/automation.md`](docs/automation.md) |
-| What a field in a scenario means | [`docs/domain-model.md`](docs/domain-model.md) |
-| Why something is the way it is | [`docs/adr/`](docs/adr/) |
-| A sprint or meeting template | [`docs/templates/`](docs/templates/) |
-| How to write or fix documentation, including with a language model | [`docs/documentation-rules.md`](docs/documentation-rules.md) |
+Six folders under `docs/`, one row each. The folder says what the reader does with the file.
+
+| Folder | The reader | What it holds |
+|---|---|---|
+| [`docs/instructions/`](docs/instructions/) | does something | How to create an issue: [`create-issue.md`](docs/instructions/create-issue.md). How to work on one: [`working-on-issue.md`](docs/instructions/working-on-issue.md). How to draw a diagram: [`diagrams.md`](docs/instructions/diagrams.md), [`entity-domain-model-guide.md`](docs/instructions/entity-domain-model-guide.md) and [`integration-evolving-guide.md`](docs/instructions/integration-evolving-guide.md). How to write or fix documentation, including with a language model: [`documentation-rules.md`](docs/instructions/documentation-rules.md) |
+| [`docs/reference/`](docs/reference/) | looks something up | What a field in a scenario means: [`domain-model.md`](docs/reference/domain-model.md). Why a check is red, or an idea for automation: [`automation.md`](docs/reference/automation.md) |
+| [`docs/adr/`](docs/adr/) | asks why something is the way it is | One architecture decision record (ADR) per decision |
+| [`docs/records/sprints/`](docs/records/sprints/) | reads what happened in a sprint | Filled-in sprint documents, one set per sprint |
+| `docs/records/other/` | reads what happened outside a sprint | Records that belong to no sprint. The folder appears with its first file |
+| [`docs/templates/`](docs/templates/) | copies a blank form | A sprint or meeting template |
 
 ## Where new files go
 
 ```text
 contracts/      interfaces other teams build against. Versioned
 fixtures/       invented test data. Never anything from Metro Service
-docs/sprints/   filled-in sprint documents, one set per sprint
+docs/           documentation, sorted into the six folders in "Where the documentation lives"
 .github/        pull request template and automated checks
 ```
 
