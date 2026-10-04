@@ -51,16 +51,41 @@ Læseren lander fra en søgning eller et link, ikke fra toppen. Skriv ikke "som 
 
 Ét afsnit, én ting. Står der to, skal det være to afsnit.
 
-## Form
+## Arbejdsdelingen mellem diagram, tabel og prosa
 
-| Indholdet er | Brug |
-|---|---|
-| Et opslag med tre eller flere oplysninger per indgang | Tabel |
-| Et opslag med kun navn og betydning | Liste med `**navn**: betydning` |
-| Handlinger i rækkefølge | Nummereret liste |
-| En kommando | Indrammet kodeblok med sproget angivet |
+Har dokumentet et diagram, bærer diagrammet navne, typer og relationer. Gentag dem ikke i en tabel.
 
-Definitionslister virker ikke i GitHubs markdown. Brug `**navn**: betydning`.
+Tabellen bærer det, diagrammet ikke kan: hvad noget betyder, hvor det kommer fra, og hvor sikkert det er.
+
+Prosaen bærer det, ingen af dem kan: hvorfor valget blev truffet.
+
+Handlinger i rækkefølge er en nummereret liste. En kommando er en indrammet kodeblok med sproget angivet. Definitionslister virker ikke i GitHubs markdown — brug `**navn**: betydning`.
+
+## Prosa
+
+**Den, der handler, er grundled. Handlingen er udsagnsord.** Find handlingen i sætningen. Er den et navneord på `-ing`, `-ning`, `-else` eller `-tion`, så lav den om til et udsagnsord.
+
+> `Valideringen af fixtures mod schemaet foretages af et script.`
+> → `Scriptet validerer fixtures mod schemaet.`
+
+**Nævn den, der gør det.** Passiv skjuler aktøren, og aktøren er netop det, læseren slår op.
+
+> `Mærkatet sættes, når en pull request åbnes.`
+> → `Workflowet sætter mærkatet, når du åbner en pull request.`
+
+**Ét stedord, én mulig henvisning.** Står der to navneord i sætningen, så gentag navneordet i stedet for `den`, `det` eller `dette`.
+
+**Betingelsen først.** Så kan læseren springe sætningen over, når betingelsen ikke gælder.
+
+> `GitHub blokerer merge-knappen, hvis branchen er bagud.`
+> → `Er branchen bagud, blokerer GitHub merge-knappen.`
+
+**Nævn tingen ved navn**, ikke med en beskrivelse af den. `pr-description-check.yml`, ikke "filen, der tjekker beskrivelsen".
+
+**Tal og navne frem for mængdeord.** `flere`, `ofte`, `typisk` og `en del` siger ingenting.
+
+> `Flere brancher er bagud.`
+> → `15 af 17 brancher er bagud.`
 
 ## Hvad der skal stå
 
