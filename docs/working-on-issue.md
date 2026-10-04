@@ -37,9 +37,20 @@ Drag the card on the board once the pull request is merged. `gh project item-edi
 | `Backlog` | The board | The issue is created or added to the board |
 | `Ready` | You | At refinement, once Definition of Ready is met |
 | `In progress` | You | When you start working |
-| `Blocked` | You | When the issue is waiting. Also set the label `status:blocked`, and `needs:metro` when it waits on Metro |
+| `Blocked` | You | When the item cannot be finished until Metro Service answers a question. Also set the label `status:blocked` |
 | `In review` | The board | When the pull request is linked to the issue |
 | `Done` | You | When the pull request is merged and every acceptance criterion has been demonstrated |
+
+### Readiness labels
+
+These come from the hub's [`CONVENTIONS.md`](https://github.com/aau-cph-sw5/semester-docs/blob/main/CONVENTIONS.md), and they are not the same thing as the board's Status field above. The Status field is a column you drag the card to. A readiness label says whether the item can be worked on at all.
+
+**`status:ready`**: can be pulled into a sprint as written.
+**`status:refine`**: needs an AAU refinement pass. No external input required.
+**`status:blocked`**: cannot be completed without input from Metro Service.
+**`needs:metro`**: sits on the open question itself, not on the item's readiness. The same question is listed in the hub's [`CLARIFICATIONS.md`](https://github.com/aau-cph-sw5/semester-docs/blob/main/CLARIFICATIONS.md).
+
+An item carrying `status:blocked` stays in the backlog, and the question behind it goes to the next sprint review.
 
 ### Views on the Case A board
 
