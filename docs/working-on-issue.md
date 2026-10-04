@@ -1,63 +1,63 @@
-# Arbejd på et issue
+# Work on an issue
 
-Sådan opretter du et issue står i [`create-issue.md`](create-issue.md).
-Branch, PR-titel og review-reglerne står i [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+Creating an issue is covered in [`create-issue.md`](create-issue.md).
+Branches, pull request titles and the review rules live in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
-## Sådan gør du
+## How to
 
-### Begynd på et issue
+### Start on an issue
 
 ```bash
 gh issue develop 42 --base dev --checkout
 ```
 
-Branchen oprettes fra `dev`, kobles til issue 42, og du står på den. `gh issue develop 42 --list` viser, hvilke brancher der allerede hænger på issuet.
+The branch is created from `dev`, linked to issue 42, and you are standing on it. `gh issue develop 42 --list` shows which branches already hang off the issue.
 
-### Åbn pull requesten
+### Open the pull request
 
 ```bash
 git push -u origin HEAD
 gh pr create --base dev
 ```
 
-Pull requesten er koblet til issue 42, fordi branchen er. Du skal ikke vælge noget under **Development**.
+The pull request is linked to issue 42 because the branch is. You pick nothing under **Development**.
 
-### Flyt issuet til Done
+### Move the issue to Done
 
-Træk kortet på boardet, når pull requesten er merget. `gh project item-edit` kan det også, men kræver fire identifikatorer du selv skal slå op, så det er hurtigere at trække.
+Drag the card on the board once the pull request is merged. `gh project item-edit` can do it too, but it needs four identifiers you have to look up yourself, so dragging is faster.
 
-![Kanban-visningen med kolonnerne Ready, In progress, In review og Done](images/board-statuses.png)
+![The kanban view with the columns Ready, In progress, In review and Done](images/board-statuses.png)
 
-## Hvad betyder
+## What things mean
 
-### Statusser
+### Statuses
 
-| Status | Hvem sætter den | Hvornår |
+| Status | Who sets it | When |
 |---|---|---|
-| `Backlog` | Boardet | Issuet oprettes eller tilføjes boardet |
-| `Ready` | Dig | Ved refinement, når Definition of Ready er opfyldt |
-| `In progress` | Dig | Når du begynder at arbejde |
-| `Blocked` | Dig | Når issuet venter. Sæt også mærkatet `status:blocked`, og `needs:metro` hvis det venter på Metro |
-| `In review` | Boardet | Når pull requesten linkes til issuet |
-| `Done` | Dig | Når pull requesten er merget og hvert acceptkriterium er demonstreret |
+| `Backlog` | The board | The issue is created or added to the board |
+| `Ready` | You | At refinement, once Definition of Ready is met |
+| `In progress` | You | When you start working |
+| `Blocked` | You | When the issue is waiting. Also set the label `status:blocked`, and `needs:metro` when it waits on Metro |
+| `In review` | The board | When the pull request is linked to the issue |
+| `Done` | You | When the pull request is merged and every acceptance criterion has been demonstrated |
 
-### Visninger på Case A-boardet
+### Views on the Case A board
 
-**`All Items`**: alle top-level issues med status, assignees, linkede pull requests og fremdrift på sub-issues.
-**`Overview - parent/child`**: hierarkiet mellem issues og deres sub-issues.
-**`Kanban - Items`**: grupperet efter status.
-**`Sub-issues`**: kun sub-issues, holdt væk fra hovedoversigten.
-**`My items`**: kun det, der er tildelt dig.
-**`group-7`, `group-9`, `group-10`**: én visning per gruppe. Ikke alle er sat på endnu.
+**`All Items`**: every top-level issue with status, assignees, linked pull requests and sub-issue progress.
+**`Overview - parent/child`**: the hierarchy between issues and their sub-issues.
+**`Kanban - Items`**: grouped by status.
+**`Sub-issues`**: sub-issues only, kept out of the main overview.
+**`My items`**: only what is assigned to you.
+**`group-7`, `group-9`, `group-10`**: one view per group. Not all of them are set up yet.
 
-### Visninger på Management-boardet
+### Views on the Management board
 
-**`Backlog`**: møde-issues med status `MØDER` som parent, med aftaler fra mødet som sub-issues.
-**`Board`**: kolonnerne `MØDER`, `Todo`, `In progress`, `Done`.
-**`Current iteration`**: kun det aktive i denne sprint.
-**`Roadmap`**: tidslinje over items.
-**`My items`**: kun det, der er tildelt dig.
+**`Backlog`**: meeting issues with status `MØDER` as the parent, with the agreements from the meeting as sub-issues.
+**`Board`**: the columns `MØDER`, `Todo`, `In progress`, `Done`.
+**`Current iteration`**: only what is active in this sprint.
+**`Roadmap`**: a timeline of items.
+**`My items`**: only what is assigned to you.
 
-### Nøgleord, der ikke virker her
+### Keywords that do not work here
 
-**`Closes #42`**: fortolkes ikke. GitHub læser nøgleordet kun i en pull request mod repoets standard-branch, og den er `main`, mens vores pull requests peger på `dev`. Derfor skal issuet trækkes til **Done** i hånden.
+**`Closes #42`**: not interpreted. GitHub reads the keyword only in a pull request against the repo's default branch, and that is `main`, while our pull requests point at `dev`. So the issue has to be dragged to **Done** by hand.

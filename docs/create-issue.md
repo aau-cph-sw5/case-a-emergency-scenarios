@@ -1,71 +1,71 @@
-# Opret et issue
+# Create an issue
 
-Navngivning og titler står i [`CONTRIBUTING.md`](../CONTRIBUTING.md).
-Statusser, visninger og koblingen til en pull request står i [`working-on-issue.md`](working-on-issue.md).
+Naming and titles live in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+Statuses, views and the link to a pull request live in [`working-on-issue.md`](working-on-issue.md).
 
-## Sådan gør du
+## How to
 
-### Vælg board
+### Pick the board
 
-| Board | Her ligger | Adresse |
+| Board | What lives here | Address |
 |---|---|---|
-| Case A. Emergency Scenarios | Produktets backlog: `MET-A-xxx` og deres sub-issues | [projects/3](https://github.com/orgs/aau-cph-sw5/projects/3) |
-| Management | Driften af projektet: repo- og værktøjs-opsætning, mødenoter, præsentationer | [projects/10](https://github.com/orgs/aau-cph-sw5/projects/10) |
+| Case A. Emergency Scenarios | The product backlog: `MET-A-xxx` and their sub-issues | [projects/3](https://github.com/orgs/aau-cph-sw5/projects/3) |
+| Management | Managing the project: repo and tooling setup, meeting notes, presentations | [projects/10](https://github.com/orgs/aau-cph-sw5/projects/10) |
 
-### Opret issuet
+### Create the issue
 
 ```bash
 gh issue create --web
 ```
 
-Browseren åbner på skabelon-vælgeren. Vælg en skabelon fra tabellen nedenfor og udfyld felterne. Mærkatet `case:A` sættes af skabelonen.
+The browser opens on the template picker. Pick a template from the table below and fill in the fields. Every template sets the label `case:A`, and the Defect Report also sets `type:tech`.
 
-Skabelonerne er YAML-formularer, så de kan ikke udfyldes fra terminalen.
+The templates are YAML forms, so they cannot be filled in from the terminal. Their field names are in Danish, and the table below uses them as they appear on the form.
 
-| Skabelon | Brug den til | Felter den kræver |
+| Template | Use it for | Fields it requires |
 |---|---|---|
-| Product Backlog Item | Et nyt item: feature, teknisk arbejde, research | User story, acceptkriterier, epic, track, type, størrelse, prioritet, herkomst |
-| Sub-issue / Task | En delopgave under et eksisterende item | Beskrivelse og track |
-| Defect Report | En fejl i Case A-løsningen | Beskrivelse, trin, forventet adfærd, track, alvorlighed |
+| Product Backlog Item | A new item: feature, technical work, research | `User story`, `Acceptkriterier`, `Epic`, `Track (ejerskab)`, `Type`, `Størrelse`, `Prioritet (MoSCoW)`, `Herkomst` |
+| Sub-issue / Task | A piece of work under an existing item | `Beskrivelse`, `Track` |
+| Defect Report | A defect in the Case A solution | `Beskrivelse`, `Trin til at reproducere`, `Forventet adfærd`, `Track (hvor hører fejlen hjemme)`, `Alvorlighed` |
 
-### Skriv en tjekliste
+### Write a checklist
 
-1. Skriv `- [ ] ` foran hvert punkt i beskrivelsen.
-2. Klik på boksen i issuet, når punktet er klaret. Den bliver `- [x]`.
+1. Put `- [ ] ` in front of each point in the description.
+2. Click the box in the issue once the point is done. It becomes `- [x]`.
 
-### Lav et punkt i tjeklisten om til en sub-issue
+### Turn a checklist point into a sub-issue
 
-1. Hold musen over punktet i issuet.
-2. Klik på `...` til højre for punktet.
-3. Vælg **Convert to sub-issue**.
+1. Hover over the point in the issue.
+2. Click `...` to the right of the point.
+3. Select **Convert to sub-issue**.
 
-![Menuen bag ... ved et punkt i en tjekliste: Move up, Move down, Convert to issue, Convert to sub-issue](images/convert-to-sub-issue.png)
+![The menu behind ... on a checklist point: Move up, Move down, Convert to issue, Convert to sub-issue](images/convert-to-sub-issue.png)
 
-## Hvad betyder
+## What things mean
 
-### Acceptkriterier
+### Acceptance criteria
 
-Formen er `Givet ... når ... så ...`. Hvert kriterium skal have **en målbar tærskel** og **det miljø, den måles i** — eller være en test med en opgave, et antal deltagere og en betingelse for succes.
+The shape is `Given ... when ... then ...`. Each criterion needs **a measurable threshold** and **the environment it is measured in** — or it is a test with a task, a number of participants and a condition for success.
 
-Hvert kriterium skal kunne **fejle**. Et kriterium, som al leveret software opfylder, er ikke et kriterium.
+Each criterion has to be able to **fail**. A criterion that all delivered software satisfies is not a criterion.
 
-Eksempel fra backloggen, `MET-A-004`:
+Example from the backlog, `MET-A-004`:
 
 > A scenario activated by an operator is reflected on a connected steward client **within 3 seconds at the 95th percentile**, measured **on staging with 25 simulated clients connected**.
 
-Tærsklen er 3 sekunder ved 95. percentil. Miljøet er staging med 25 simulerede klienter. Begge dele skal stå der.
+The threshold is 3 seconds at the 95th percentile. The environment is staging with 25 simulated clients. Both have to be there.
 
-Disse formuleringer kan ikke fejle og er derfor ikke kriterier: `tydeligt markeret`, `visuelt adskilt`, `inden for få sekunder`, `brugervenligt`.
+These phrases cannot fail and are therefore not criteria: `clearly marked`, `visually distinct`, `within a few seconds`, `user-friendly`.
 
-### Størrelser
+### Sizes
 
-| Størrelse | Svarer til |
+| Size | Corresponds to |
 |---|---|
-| `XS` | Nogle timer for én person |
-| `S` | Cirka én dag for én person |
-| `M` | To til tre dage for et par. Den typiske størrelse på et velformet item |
-| `L` | Det meste af en sprint for et par, eller cirka halvdelen af en sprint for holdet |
-| `XL` | En hel sprint for hele holdet |
-| `XXL` | Større end en sprint |
+| `XS` | A few hours for one person |
+| `S` | About one day for one person |
+| `M` | Two to three days for a pair. The typical size of a well-formed item |
+| `L` | Most of a sprint for a pair, or about half a sprint for the team |
+| `XL` | A whole sprint for the whole team |
+| `XXL` | Larger than a sprint |
 
-`XL` og `XXL` må ikke trækkes ind i en sprint. Split dem først.
+`XL` and `XXL` must not be pulled into a sprint. Split them first.
