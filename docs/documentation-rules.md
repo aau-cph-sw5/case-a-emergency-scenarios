@@ -92,12 +92,34 @@ Actions in sequence are a numbered list. A command is a fenced code block with t
 > `E1002 is returned when a scenario is already active on the line.`
 > → `When a scenario is already active on the line, the endpoint returns E1002.`
 
+**Open each sentence with something the previous sentence gave the reader.** Three facts in a row with no link between them read as a list, not a paragraph.
+
+> `The contract lives in contracts/. The test suite validates the schema. Breaking changes go to the integration meeting.`
+> → `The contract lives in contracts/. The frontend test suite validates against that file, so a rename surfaces as a failing test. That failing test is what goes to the integration meeting.`
+
+**Keep the subject next to its verb.** Move the qualifying clause into a sentence of its own.
+
+> `The endpoint, which the steward app calls every thirty seconds unless the device is offline, returns the active scenario.`
+> → `The endpoint returns the active scenario. The steward app calls it every thirty seconds, unless the device is offline.`
+
 **Name the content, not its role.** A sentence that states what something is for, or how it differs from something else, leaves the content to the sentence after it. Never define a thing by negation, because "what the diagram cannot show" makes the reader work out the remainder.
 
 > `The table holds what the diagram cannot show.`
 > → `The table gives each field its meaning, its source, and how certain it is.`
 
 **Choose the verb that says what happens.** When the subject cannot do it with hands, the verb is inflating the claim. Write `the architecture logs every state change`, not `the architecture reflects a commitment to traceability`. The same family: "underscores", "highlights", "speaks to".
+
+**Put the example straight after the claim.** The example fixes the meaning, while restating the claim does not.
+
+**Group in twos or fours.** Three items in a row signal that the third is filler.
+
+## Phrases to rewrite on sight
+
+`It is not X, it is Y` defines by contrast and leaves the reader holding two things instead of one. Say what it is.
+
+Magic adverbs carry no information: `fundamentally`, `deeply`, `simply`, `essentially`. Cut one and the sentence says the same thing.
+
+A trailing `-ing` clause bolts a conclusion onto a fact: `underscoring the need for`, `highlighting that`, `contributing to`. Put the conclusion in its own sentence, or drop it.
 
 ## What goes in
 
