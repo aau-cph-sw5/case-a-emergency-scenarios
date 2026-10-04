@@ -45,17 +45,25 @@ The templates are YAML forms, so they cannot be filled in from the terminal. The
 
 ### Acceptance criteria
 
-The shape is `Given ... when ... then ...`. Each criterion needs **a measurable threshold** and **the environment it is measured in** — or it is a test with a task, a number of participants and a condition for success.
+A criterion takes one of two shapes, and which one you need depends on whether a machine or a person is being measured.
 
-Each criterion has to be able to **fail**. A criterion that all delivered software satisfies is not a criterion.
-
-Example from the backlog, `MET-A-004`:
+**A threshold criterion** states the number and the environment it is measured in. `MET-A-004`:
 
 > A scenario activated by an operator is reflected on a connected steward client **within 3 seconds at the 95th percentile**, measured **on staging with 25 simulated clients connected**.
 
-The threshold is 3 seconds at the 95th percentile. The environment is staging with 25 simulated clients. Both have to be there.
+Leave out the environment and the number says nothing, because 3 seconds with one client is a different claim from 3 seconds with 25.
 
-These phrases cannot fail and are therefore not criteria: `clearly marked`, `visually distinct`, `within a few seconds`, `user-friendly`.
+**A test protocol** states the task, how many people take it, and what counts as success. `MET-A-027`:
+
+> At least eight participants are tested, and the population is stated honestly including where students stood in for stewards. Time to correct answer and error rate are reported with the number of participants.
+
+Use this shape when the thing measured is a person: finding an assignment, or reacting in time.
+
+**The test for either shape:** name an input or an outcome where the criterion is not met. When you cannot name one, you have written a description rather than a criterion.
+
+That is what rules out `clearly marked`, `visually distinct`, `within a few seconds` and `user-friendly`. No delivered software fails them.
+
+Such a phrase is converted, not deleted. Source story A2.1 asked that required stations be identifiable `within a few seconds`, and the hub turned it into `MET-A-027` above: the same intent, now eight participants and a measured time to the correct answer.
 
 ### Sizes
 

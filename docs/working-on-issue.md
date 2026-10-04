@@ -11,7 +11,7 @@ Branches, pull request titles and the review rules live in [`CONTRIBUTING.md`](.
 gh issue develop 42 --base dev --checkout
 ```
 
-The branch is created from `dev`, linked to issue 42, and you are standing on it. `gh issue develop 42 --list` shows which branches already hang off the issue.
+The command creates the branch from `dev`, links it to issue 42, and leaves you standing on it. `gh issue develop 42 --list` shows which branches already hang off the issue.
 
 ### Open the pull request
 
@@ -20,7 +20,7 @@ git push -u origin HEAD
 gh pr create --base dev
 ```
 
-The pull request is linked to issue 42 because the branch is. You pick nothing under **Development**.
+GitHub links the pull request to issue 42, because the branch already is. You pick nothing under **Development**.
 
 ### Move the issue to Done
 
@@ -55,19 +55,20 @@ An item carrying `status:blocked` stays in the backlog, and the question behind 
 ### Views on the Case A board
 
 **`All Items`**: every top-level issue with status, assignees, linked pull requests and sub-issue progress.
-**`Overview - parent/child`**: the hierarchy between issues and their sub-issues.
+**`Overview — parent/child`**: the hierarchy between issues and their sub-issues.
 **`Kanban - Items`**: grouped by status.
-**`Sub-issues`**: sub-issues only, kept out of the main overview.
+**`Sub - issues`**: sub-issues only, kept out of the main overview.
 **`My items`**: only what is assigned to you.
-**`group-7`, `group-9`, `group-10`**: one view per group. Not all of them are set up yet.
+**`group-7`, `group-9`, `group-10`**: one view per group. All three exist.
 
 ### Views on the Management board
 
-**`Backlog`**: meeting issues with status `MØDER` as the parent, with the agreements from the meeting as sub-issues.
+**`Backlog`**: the meeting issues, which carry the status `MØDER`. Each meeting's agreements sit under it as sub-issues.
 **`Board`**: the columns `MØDER`, `Todo`, `In progress`, `Done`.
 **`Current iteration`**: only what is active in this sprint.
 **`Roadmap`**: a timeline of items.
 **`My items`**: only what is assigned to you.
+**`DPM - Team`**: `[?]` exists on the board, and nobody has written down what it filters on.
 
 ### Keywords that do not work here
 
