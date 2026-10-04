@@ -166,48 +166,50 @@ Run these against a section you have written.
 
 ### 1. One question per section
 
-From Diátaxis: a how-to answers "How do I...?", a reference answers "What is...?", an explanation answers "Why...?".
+A section answers one of three questions. "How do I...?" is a how-to. "What is...?" is a reference. "Why...?" is an explanation, and it belongs in `docs/adr/`.
 
 - **Applies when:** any section with a heading.
-- **Check:** name the question the body answers.
-- **Passes when:** the body answers one question, and the heading announces that same question.
-- **Repair:** split the section, and move the "Why...?" material to `docs/adr/`.
+- **Check:** say out loud which of the three questions the body answers.
+- **Passes when:** the body answers one of them, and the heading announces that same one.
+- **Repair:** split the section at the point where the question changes. Move the "Why...?" part to `docs/adr/`.
 
-### 2. Information scent in the heading
+### 2. The heading names what the reader is after
 
-From information foraging theory: a reader estimates a section's value against the time it costs, reads that estimate off the heading, and leaves the section when the estimate is poor.
+A reader skims headings and opens one only when it names the thing they came for. A heading that names a concept instead of a thing gets skipped.
 
 - **Applies when:** every heading and every link label.
-- **Check:** does the heading name the artefact the reader came for, such as a form field, a command, a file or a label?
-- **Passes when:** the heading names it.
-- **Repair:** put the artefact in the heading instead of the concept. `Acceptance criteria` becomes `Acceptkriterier: what goes in the field`.
+- **Check:** does the heading contain the name of a form field, a command, a file, a label or a status?
+- **Passes when:** it contains one of those.
+- **Repair:** put the name in the heading. `Acceptance criteria` becomes `Acceptkriterier: what goes in the field`.
 
-### 3. Reading to do
+### 3. What the reader copies comes first
 
-From Carroll's minimalism: documentation is read to do, to study and to locate, and an action-oriented document serves the first before the second.
+A reader opens the file in the middle of a task, not to study it. Explanation placed before the thing they need pushes it off the screen.
 
 - **Applies when:** the section asks the reader to produce text, a command or a file.
-- **Check:** count the lines from the heading to the first thing the reader can copy or run.
+- **Check:** count the lines from the heading down to the first thing the reader can copy or run.
 - **Passes when:** ten or fewer.
 - **Repair:** move the copyable thing above the explanation.
 
-### 4. Error recognition and recovery
+### 4. Say what to do when the reader cannot comply
 
-Carroll's third principle of minimalism.
+Every instruction that asks for a decision has a reader who cannot make it. A section that stops there leaves them stuck with no next move.
 
 - **Applies when:** the section asks the reader to choose, to size or to judge something.
 - **Check:** does the section say what to do when the reader cannot decide, or has decided wrongly?
-- **Passes when:** it names the next step, and who to ask or what to run.
-- **Repair:** add one sentence that names the recovery path.
+- **Passes when:** it names the next step, and who to ask or what command to run.
+- **Repair:** add one sentence that names that next step.
 
-### 5. No seductive details
+### 5. Cut what is interesting but changes nothing
 
-From the seductive-details effect, measured across 58 studies: content that is interesting but irrelevant to the task lowers both retention and transfer, and does most damage sitting next to the material that matters.
+Material that is interesting and irrelevant to the task makes the task harder, and it does the most damage when it sits next to the part that matters. How a decision came about is interesting. It is not instruction.
 
 - **Applies when:** every sentence in a how-to or a reference.
 - **Check:** delete the sentence, then ask whether anything the reader types, runs or clicks has changed.
 - **Passes when:** deleting it changes what the reader does.
-- **Repair:** cut it. Provenance and rationale belong in `docs/adr/`.
+- **Repair:** cut it. The history of a decision belongs in `docs/adr/`.
+
+These five come from the Diátaxis framework, Carroll's minimalist instruction, information foraging theory and the seductive-details effect. You do not need to have read any of them to run the checks.
 
 ## Template
 
