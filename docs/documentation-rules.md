@@ -1,10 +1,164 @@
 # How we write documentation
 
-This file is written so it can be pasted in as a prompt when you use a language model to write or fix documentation here. Give it the whole file and ask for a draft.
+Paste this whole file in as a prompt when you use a language model to write or fix documentation here, and ask for a draft.
 
-When a principle does not work in practice, propose a change in an issue. Follow them until then. The structure only works when it is the same across the files.
+27 rules in six groups. Every rule has the same four lines: when the rule applies, the check to run, what passes, and the repair.
 
-## Which kind are you writing
+When a rule does not work in practice, propose a change in an issue, and follow the rule until the issue is settled. The structure works only when it is the same across the files.
+
+## Who reads, and which rule wins
+
+**The reader** is a teammate who did the task once and forgot the steps. The reader remembers the goal, so skip the teaching. The reader has forgotten every name and every click, so write each one out.
+
+**The groups are in priority order.** When two rules collide, the rule in the earlier group wins.
+
+1. **Understood**: the writer can carry out what the text says.
+2. **Complete**: everything the reader looks up is there.
+3. **Concrete**: every claim holds a name, a number or an example.
+4. **Placed**: each fact sits where the reader looks for it.
+5. **Clear sentences**: the reader finds who does what.
+6. **Short**: every sentence left changes what the reader does.
+
+A line marked `Bad:` is exempt from every rule, because the line shows the fault.
+
+## 1. Understood
+
+The writer can carry out what the text says.
+
+### 1.1 Show every instruction done once
+
+A sentence built from kind-words (`an input`, `an outcome`) can be written and read without being understood. An example of something else in the same paragraph hides the gap.
+
+- **Applies when:** a sentence tells the reader to name, choose, write, size or judge something.
+- **Check:** carry out the instruction yourself on one real item from this repo. Then look for your result in the paragraph.
+- **Passes when:** the paragraph shows one finished result of the instruction, and every noun after `a`, `an` or `any` has one named member beside it.
+- **Repair:** put your result in place of the kind-word. When you cannot carry out the instruction, mark the sentence `[?]` and ask the author.
+
+```text
+Bad:  Name an input or an outcome where the criterion is not met.
+Good: Describe one test run that the line fails. "Within 3 seconds" fails when the phone shows the scenario after 5 seconds.
+```
+
+### 1.2 Add only facts the source holds
+
+- **Applies when:** you rewrite a document, or a repair in this file tells you to add a sentence.
+- **Check:** for each sentence you added, point at the place that states the fact: the code, the hub, the issue or the old text.
+- **Passes when:** every added sentence has such a place, and you added no caveat, no recommendation, no summary section and no table.
+- **Repair:** delete what you added. When the rewrite needs a fact the source lacks, mark the gap `[?]` and leave it for the author.
+
+## 2. Complete
+
+Everything the reader looks up is there.
+
+### 2.1 List every value in a reference
+
+When a value, a column or a status is missing, the reader assumes it does not exist.
+
+- **Applies when:** a reference lists statuses, columns, labels or fields.
+- **Check:** count the entries in the source, then count the rows in the document.
+- **Passes when:** the two counts match. A reference has no length limit.
+- **Repair:** add the missing rows.
+
+### 2.2 Build the table from the source
+
+A table written by hand drifts from the code. When a script wrote the column overview from `schema.sql`, a missing value in `station_role` showed up.
+
+- **Applies when:** the rows of a table exist in the code, as the columns do in `schema.sql`, and the table has ten rows or more. Rule 2.1 covers a shorter table.
+- **Check:** can a script print the table from that file?
+- **Passes when:** a script wrote the table.
+- **Repair:** write the script, and replace the hand-written table with its output.
+
+### 2.3 State how certain each field is
+
+- **Applies when:** a reference describes a field of the data model, as `docs/domain-model.md` does. A table of form fields, labels or statuses is exempt.
+- **Check:** look in the entry for one of three words: source, assumption or decision.
+- **Passes when:** the entry holds one of them. A source says what it backs up, and an assumption says what would settle it.
+- **Repair:** add the word and what follows it.
+
+```text
+Bad:  Assumption.
+Good: Assumption. Needs a requirement for closing a scenario.
+```
+
+### 2.4 Expand notation on first use
+
+- **Applies when:** the text holds an abbreviation or a symbol, such as `PK`, `STW`, `CCR` or `0..*`.
+- **Check:** find where the file uses it first.
+- **Passes when:** the first use says what it stands for.
+- **Repair:** write it out at the first use.
+
+### 2.5 Say what to do when the reader cannot comply
+
+Every instruction that asks for a decision has a reader who cannot make it.
+
+- **Applies when:** the section asks the reader to choose, to size or to judge something.
+- **Check:** does the section say what to do when the reader cannot decide, or has decided wrongly?
+- **Passes when:** it names the next step, and who to ask or what command to run.
+- **Repair:** add one sentence that names that next step. Rule 1.2 decides what the sentence may hold.
+
+### 2.6 Fix what your change makes stale
+
+A stale document is worse than no document. The reader carries on from an assumption that was true once, and the error slips through.
+
+- **Applies when:** your pull request changes a name, a path or a behaviour, or moves a rationale to `docs/adr/`.
+- **Check:** search the markdown files for the old name.
+- **Passes when:** no document states the old fact, and the rationale you moved is written in `docs/adr/` in the same pull request.
+- **Repair:** fix the document in the same pull request.
+
+## 3. Concrete
+
+Every claim holds a name, a number or an example.
+
+### 3.1 Name the thing
+
+- **Applies when:** every sentence.
+- **Check:** look for a description that stands in for a name, for a quantifier (`several`, `often`, `typically`, `a number of`), and for a sentence that says what a thing is for or what it lacks.
+- **Passes when:** the sentence holds the name, the count or the content itself.
+- **Repair:** write the name, the count or the content.
+
+```text
+Bad:  the file that checks the description
+Good: pr-description-check.yml
+
+Bad:  Several branches are behind.
+Good: 15 of 17 branches are behind.
+
+Bad:  The table holds what the diagram cannot show.
+Good: The table gives each field its meaning, its source, and how certain it is.
+```
+
+### 3.2 Put the example straight after the claim
+
+The example fixes the meaning, while restating the claim does not.
+
+- **Applies when:** a sentence states a rule or a general claim.
+- **Check:** read the next sentence.
+- **Passes when:** the next sentence is an example of that claim.
+- **Repair:** write the example there, and delete the restatement.
+
+### 3.3 Write out the click path or the command
+
+- **Applies when:** a step in a how-to.
+- **Check:** follow the step with only the text in front of you.
+- **Passes when:** the step names the page you start from, and then every click or the whole command.
+- **Repair:** add the start page and the missing clicks.
+
+### 3.4 Use a screenshot only where no command exists
+
+A screenshot goes stale when GitHub changes the interface, and a stale image is more convincing and more wrong than stale text.
+
+- **Applies when:** a document holds an image.
+- **Check:** does a command do the same thing?
+- **Passes when:** no command exists, and the image lives in `docs/images/`.
+- **Repair:** replace the image with the command, or with the click path in words.
+
+## 4. Placed
+
+Each fact sits where the reader looks for it.
+
+### 4.1 Answer one question per section
+
+Four kinds, one row each.
 
 | Kind | Test | Where it belongs |
 |---|---|---|
@@ -13,203 +167,193 @@ When a principle does not work in practice, propose a change in an issue. Follow
 | Reference | Do you look up one row and leave again? | The same file, under **What things mean** |
 | Explanation | Does it answer "why is it like this?" | [`docs/adr/`](adr/) |
 
-Don't copy the hub's rules. Link to them, or write out what matters most with an example.
-
-## Length
-
-**A reference has to be complete.** It has no length limit. When a value, a column or a status is missing, the reader assumes it does not exist, and the document has done damage. Completeness beats brevity.
-
-Keep a **how-to** under 100 lines. Past 150 it needs a table of contents, and then it is no longer a cheat sheet. The number applies to how-tos only.
-
-Three to seven lines per paragraph. Short words. Come to the point and stop.
-
-## Open with the shape
-
-Open a reference with one sentence about what the reader is looking at and how it is divided. Not "this document contains", but "sixteen concepts, falling into three parts".
-
-Give each group one line about what it is before you list its contents. A markdown table of 43 columns without one line per database table is harder to use, not easier.
-
-## Explain the notation
-
-Expand every abbreviation and every symbol on first use. `PK`, `STW`, `CCR`, `0..*` — several of us have not taken the course yet.
-
-## The order within a row
-
-The known first, the new last. The reader arrives with a name they have seen: a status, a label, a field. That is the known. Put it first, and let the meaning come last.
-
-The reader sees the first two words, roughly 11 characters. Open with the noun that holds the meaning.
-
-The same shape for every entry: the same columns in the same order, every time.
-
-```
-Good: | In review | The board | When the pull request is linked to the issue |
-Bad:  The board moves an issue on its own when something happens in GitHub.
-```
-
-## Paragraphs stand alone
-
-Readers open the file from a search or a link, not from the top. Don't write "as mentioned above".
-
-One paragraph, one thing. When it says two things, make it two paragraphs.
-
-## The division of labour between diagram, table and prose
-
-When the document has a diagram, the diagram shows names, types and relations. Don't repeat them in a table.
-
-The table gives each field its meaning, its source, and how certain it is.
-
-Prose says why the choice was made.
-
-Actions in sequence are a numbered list. A command is a fenced code block with the language named. Definition lists do not work in GitHub's markdown. Use one bullet per entry, `- **name**: meaning`, because plain lines next to each other run together into a single paragraph.
-
-## Prose
-
-**The one acting is the subject. The action is the verb.** Find the action in the sentence. When it is a noun ending in `-ing`, `-ment`, `-ance` or `-tion`, turn it back into a verb.
-
-> `Validation of fixtures against the schema is performed by a script.`
-> → `The script validates fixtures against the schema.`
-
-**Name the one doing it.** The passive hides the actor, and the actor is exactly what the reader came to look up.
-
-> `The label is set when a pull request is opened.`
-> → `The workflow sets the label when you open a pull request.`
-
-**One pronoun, one possible referent.** When the sentence holds two nouns, repeat the noun instead of writing `it` or `this`.
-
-**The condition first.** Then the reader can skip the sentence when the condition does not apply.
-
-> `GitHub blocks the merge button if the branch is behind.`
-> → `When the branch is behind, GitHub blocks the merge button.`
-
-**Name the thing** rather than describing it. `pr-description-check.yml`, not "the file that checks the description".
-
-**Numbers and names over quantifiers.** `several`, `often`, `typically` and `a number of` say nothing.
-
-> `Several branches are behind.`
-> → `15 of 17 branches are behind.`
-
-**End the sentence on the word that should be remembered.** The last position carries the most weight.
-
-> `E1002 is returned when a scenario is already active on the line.`
-> → `When a scenario is already active on the line, the endpoint returns E1002.`
-
-**Open each sentence with something the previous sentence gave the reader.** Three facts in a row with no link between them read as a list, not a paragraph.
-
-> `The contract lives in contracts/. The test suite validates the schema. Breaking changes go to the integration meeting.`
-> → `The contract lives in contracts/. The frontend test suite validates against that file, so a rename surfaces as a failing test. That failing test is what goes to the integration meeting.`
-
-**Keep the subject next to its verb.** Move the qualifying clause into a sentence of its own.
-
-> `The endpoint, which the steward app calls every thirty seconds unless the device is offline, returns the active scenario.`
-> → `The endpoint returns the active scenario. The steward app calls it every thirty seconds, unless the device is offline.`
-
-**Name the content, not its role.** A sentence that states what something is for, or how it differs from something else, leaves the content to the sentence after it. Never define a thing by negation, because "what the diagram cannot show" makes the reader work out the remainder.
-
-> `The table holds what the diagram cannot show.`
-> → `The table gives each field its meaning, its source, and how certain it is.`
-
-**Choose the verb that says what happens.** When the subject cannot do it with hands, the verb is inflating the claim. Write `the architecture logs every state change`, not `the architecture reflects a commitment to traceability`. The same family: "underscores", "highlights", "speaks to".
-
-**Put the example straight after the claim.** The example fixes the meaning, while restating the claim does not.
-
-**Group in twos or fours.** Three items in a row signal that the third is filler.
-
-## Phrases to rewrite on sight
-
-`It is not X, it is Y` defines by contrast and leaves the reader holding two things instead of one. Say what it is.
-
-Magic adverbs carry no information: `fundamentally`, `deeply`, `simply`, `essentially`. Cut one and the sentence says the same thing.
-
-A trailing `-ing` clause bolts a conclusion onto a fact: `underscoring the need for`, `highlighting that`, `contributing to`. Put the conclusion in its own sentence, or drop it.
-
-## What goes in
-
-In a reference: describe, and only describe. No opinion and no instruction.
-
-In a how-to: write out the click path or the command, and assume no prior knowledge. Say which page you start from.
-
-Give each concept one line: the name first, then the meaning.
-
-A sentence that exists only to connect two other sentences has to go. Nobody reads a reference from the top.
-
-**But "describe and only describe" does not mean you hide how certain you are.** At each field, write whether it is backed by a source, an assumption, or a decision we made ourselves. For an assumption, write what it would take to settle it. "Assumption" on its own is a label, while "Assumption. Needs a requirement for closing a scenario" is a task.
-
-At each source, also write what it backs up. A source name without that is useless, because the reader does not know what to look for.
-
-When you move a rationale to `docs/adr/`, write the decision in the same pull request. Otherwise it has not moved, it is gone.
-
-Add nothing the source did not contain. No caveat, no recommendation, no summary section, no table that was not already there. When a rewrite needs a fact the source lacks, mark it `[?]` and leave it for the author.
-
-## Generate the table from the source
-
-When a table can be built from the code, build it. A column overview written by `schema.sql` cannot disagree with the schema, while one written by hand drifts from it. That is how a missing value in `station_role` was found.
-
-## Screenshots
-
-Use them only where no command exists. A screenshot goes stale when GitHub changes the interface, and a stale image is more convincing and more wrong than stale text.
-
-The images live in `docs/images/`.
-
-## Going stale
-
-A stale document is worse than no document. The reader believes they have understood, carries on from an assumption that was true once, and the error slips through. The trust does not come back.
-
-So fix every document your change makes wrong, in the same pull request.
-
-## Who you write for
-
-Documentation is read to be **reminded** of something, not to learn it. Write for someone who knew it and forgot.
-
-## Review checks
-
-Run these against a section you have written.
-
-### 1. One question per section
-
-A section answers one of three questions. "How do I...?" is a how-to. "What is...?" is a reference. "Why...?" is an explanation, and it belongs in `docs/adr/`.
-
 - **Applies when:** any section with a heading.
-- **Check:** say out loud which of the three questions the body answers.
-- **Passes when:** the body answers one of them, and the heading announces that same one.
+- **Check:** say out loud which question the body answers: "How do I...?" (a how-to), "What is...?" (a reference) or "Why...?" (an explanation).
+- **Passes when:** the body answers one of them, and the heading announces that same one. A table of options belongs to the how-to when the section asks the reader to choose between its rows.
 - **Repair:** split the section at the point where the question changes. Move the "Why...?" part to `docs/adr/`.
 
-### 2. The heading names what the reader is after
+### 4.2 Link to the hub's rules
 
-A reader skims headings and opens one only when it names the thing they came for. A heading that names a concept instead of a thing gets skipped.
+- **Applies when:** a section states a rule that the hub, `semester-docs`, already states.
+- **Check:** compare the section with the hub's text.
+- **Passes when:** the section links to the hub, or writes out what matters most with an example.
+- **Repair:** replace the copy with the link.
 
-- **Applies when:** every heading and every link label.
-- **Check:** does the heading contain the name of a form field, a command, a file, a label or a status?
-- **Passes when:** it contains one of those.
-- **Repair:** put the name in the heading. `Acceptance criteria` becomes `Acceptkriterier: what goes in the field`.
+### 4.3 Describe, and only describe, in a reference
 
-### 3. What the reader copies comes first
+- **Applies when:** a section under **What things mean**.
+- **Check:** look for a verb in the imperative and for an opinion.
+- **Passes when:** the section holds neither. The certainty from rule 2.3 is description, and it stays.
+- **Repair:** move the instruction to a section under **How to**.
 
-A reader opens the file in the middle of a task, not to study it. Explanation placed before the thing they need pushes it off the screen.
+### 4.4 Put the name the reader is after in the heading
+
+A reader skims headings and opens one only when it names the thing they came for.
+
+- **Applies when:** every `###` heading and every link label. The two `##` headings in the template are fixed.
+- **Check:** does the heading hold a name the reader would search for: a form field, a command, a file, a label, a status or a name shown on the screen?
+- **Passes when:** it holds one of those. Under **How to**, the heading also opens with a verb in the imperative.
+- **Repair:** put the name in the heading.
+
+```text
+Bad:  Acceptance criteria
+Good: Fill in `Acceptkriterier`                  (under How to)
+Good: Status: who sets each value, and when      (under What things mean)
+```
+
+### 4.5 Put what the reader copies first
+
+A reader opens the file in the middle of a task. Explanation placed before the thing they need pushes it off the screen.
 
 - **Applies when:** the section asks the reader to produce text, a command or a file.
 - **Check:** count the lines from the heading down to the first thing the reader can copy or run.
 - **Passes when:** ten or fewer.
 - **Repair:** move the copyable thing above the explanation.
 
-### 4. Say what to do when the reader cannot comply
+### 4.6 Open a reference with its shape
 
-Every instruction that asks for a decision has a reader who cannot make it. A section that stops there leaves them stuck with no next move.
+- **Applies when:** a reference, and every group inside it.
+- **Check:** read the first sentence.
+- **Passes when:** the sentence says what the reader is looking at and how it is divided. Every group opens with one line about what the group is.
+- **Repair:** write that sentence. A table of 43 columns gets one line per database table.
 
-- **Applies when:** the section asks the reader to choose, to size or to judge something.
-- **Check:** does the section say what to do when the reader cannot decide, or has decided wrongly?
-- **Passes when:** it names the next step, and who to ask or what command to run.
-- **Repair:** add one sentence that names that next step.
+```text
+Bad:  This document contains the concepts of the domain.
+Good: Sixteen concepts, falling into three parts.
+```
 
-### 5. Cut what is interesting but changes nothing
+### 4.7 Order a row: the known first, the new last
 
-Material that is interesting and irrelevant to the task makes the task harder, and it does the most damage when it sits next to the part that matters. How a decision came about is interesting. It is not instruction.
+The reader arrives with a name they have seen: a status, a label, a field. The reader sees the first two words, roughly 11 characters.
 
-- **Applies when:** every sentence in a how-to or a reference.
+- **Applies when:** a table row or a list entry.
+- **Check:** read the first two words of the entry.
+- **Passes when:** they hold the name the reader arrives with, the meaning comes last, and every entry has the same columns in the same order.
+- **Repair:** move the name to the front. Give each concept one line.
+
+```text
+Bad:  The board moves an issue on its own when something happens in GitHub.
+Good: | In review | The board | When the pull request is linked to the issue |
+```
+
+### 4.8 Let the content pick the format
+
+Six kinds of content, one row each.
+
+| Content | Format |
+|---|---|
+| Names, types and relations | The diagram, when the document has one. A table does not repeat them |
+| The meaning, the source and the certainty of each field | A table |
+| Why the choice was made | Prose |
+| Actions in sequence | A numbered list |
+| A command | A fenced code block with the language named |
+| A definition | One bullet per entry: `- **name**: meaning` |
+
+- **Applies when:** you choose between a diagram, a table, a list and prose.
+- **Check:** find your content in the left column.
+- **Passes when:** the document uses the format in the right column.
+- **Repair:** change the format. GitHub's markdown has no definition lists, and plain lines next to each other run together into one paragraph.
+
+### 4.9 Keep one thing in a paragraph
+
+Readers open the file from a search or a link.
+
+- **Applies when:** every paragraph.
+- **Check:** say in one sentence what the paragraph is about. Then read it as if you arrived from a search.
+- **Passes when:** one sentence covers it, it is at most seven lines long on GitHub, and it makes sense without the paragraph before it.
+- **Repair:** split the paragraph where the subject changes. Replace `as mentioned above` with the thing mentioned. Delete a sentence whose only content is to connect two other sentences.
+
+## 5. Clear sentences
+
+The reader finds who does what.
+
+### 5.1 Make the actor the subject and the action the verb
+
+The passive hides the actor, and the actor is what the reader came to look up.
+
+- **Applies when:** every sentence.
+- **Check:** find the action in the sentence, then find who performs it.
+- **Passes when:** the action is the verb, the one performing it is the subject, and the subject could do the verb with hands.
+- **Repair:** turn a noun ending in `-ing`, `-ment`, `-ance` or `-tion` back into a verb. Name the actor. Replace `reflects`, `underscores`, `highlights` and `speaks to` with what happens.
+
+```text
+Bad:  Validation of fixtures against the schema is performed by a script.
+Good: The script validates fixtures against the schema.
+
+Bad:  The label is set when a pull request is opened.
+Good: The workflow sets the label when you open a pull request.
+
+Bad:  The architecture reflects a commitment to traceability.
+Good: The architecture logs every state change.
+```
+
+### 5.2 Order the sentence: the condition first, the stress last
+
+- **Applies when:** every sentence in a paragraph.
+- **Check:** read the opening and the last word of the sentence.
+- **Passes when:** four things hold. A condition comes first. The opening repeats something the previous sentence gave the reader. The subject sits next to its verb. The sentence ends on the word to remember.
+- **Repair:** move the condition to the front, the qualifying clause into a sentence of its own, and the word to remember to the end.
+
+```text
+Bad:  GitHub blocks the merge button if the branch is behind.
+Good: When the branch is behind, GitHub blocks the merge button.
+
+Bad:  The contract lives in contracts/. The test suite validates the schema. Breaking changes go to the integration meeting.
+Good: The contract lives in contracts/. The frontend test suite validates against that file, so a rename surfaces as a failing test. That failing test is what goes to the integration meeting.
+
+Bad:  The endpoint, which the steward app calls every thirty seconds unless the device is offline, returns the active scenario.
+Good: The endpoint returns the active scenario. The steward app calls it every thirty seconds, unless the device is offline.
+
+Bad:  E1002 is returned when a scenario is already active on the line.
+Good: When a scenario is already active on the line, the endpoint returns E1002.
+```
+
+### 5.3 Give each pronoun one possible referent
+
+- **Applies when:** a sentence holds `it`, `this` or `they`, and two nouns the pronoun could stand for.
+- **Check:** replace the pronoun with each noun in turn.
+- **Passes when:** only one replacement makes sense.
+- **Repair:** repeat the noun.
+
+## 6. Short
+
+Every sentence left changes what the reader does.
+
+### 6.1 Keep a how-to under 100 lines
+
+- **Applies when:** a how-to. A reference has no length limit.
+- **Check:** count the lines of the file.
+- **Passes when:** under 100.
+- **Repair:** run rule 6.2 on every sentence. Past 150 lines the file needs a table of contents, and then it is no longer a cheat sheet.
+
+### 6.2 Cut what changes nothing the reader does
+
+Material that is interesting and irrelevant makes the task harder, and it does the most damage next to the part that matters.
+
+- **Applies when:** every sentence in a how-to. In a reference, rule 2.1 wins.
 - **Check:** delete the sentence, then ask whether anything the reader types, runs or clicks has changed.
 - **Passes when:** deleting it changes what the reader does.
 - **Repair:** cut it. The history of a decision belongs in `docs/adr/`.
 
-These five come from the Diátaxis framework, Carroll's minimalist instruction, information foraging theory and the seductive-details effect. You do not need to have read any of them to run the checks.
+### 6.3 Cut these phrases on sight
+
+Use short words. Come to the point and stop.
+
+| Phrase | What it does | Repair |
+|---|---|---|
+| `It is not X, it is Y` | Defines by contrast, and leaves the reader holding two things | Say what it is |
+| `fundamentally`, `deeply`, `simply`, `essentially` | Carries no information | Cut the adverb |
+| A trailing `-ing` clause: `underscoring the need for`, `highlighting that`, `contributing to` | Bolts a conclusion onto a fact | Put the conclusion in its own sentence, or drop it |
+| Three items in a row that you chose yourself | Signals that the third is filler | Group in twos or fours. A list of things that exist keeps every item |
+
+- **Applies when:** every sentence.
+- **Check:** search the text for each row of the table.
+- **Passes when:** the search finds none.
+- **Repair:** the third column of the row.
+
+## Sources
+
+Rules 2.5, 4.1, 4.4, 4.5 and 6.2 come from the Diátaxis framework, Carroll's minimalist instruction, information foraging theory and the seductive-details effect. You can run the rules without having read any of them.
 
 ## Template
 
