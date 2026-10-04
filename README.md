@@ -50,7 +50,7 @@ This case now carries the semester's machine-intelligence work: `MET-A-019`, sce
 ```
 contracts/      published interfaces other teams build against, versioned
 fixtures/       synthetic test data. Never anything Metro supplied.
-docs/           conventions, decisions, sprint records and templates
+docs/           instructions, reference, architecture decisions, records and templates
 .github/        the pull request template and the automated checks
 ```
 
