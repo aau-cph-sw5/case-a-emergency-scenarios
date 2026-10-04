@@ -43,43 +43,60 @@ Do it like this:
 3. Once the bottom is merged, change your pull request's base to `dev`: **Edit** next to the title → select `dev`.
 4. Always merge from the bottom up. The bottom first.
 
-### Docs
+## Writing documentation
+
+Write a documentation file in two passes. You write it with AI first, and then the prompt in [`docs/instructions/documentation-prompt.md`](docs/instructions/documentation-prompt.md) reviews it and repairs it.
+
+1. Pick the type of your file in the table under **Types and folders**. The type gives the folder.
+
+2. Cd to that folder.
+
+3. Open [`documentation-prompt.md`](docs/instructions/documentation-prompt.md) on GitHub and click **Copy raw file**, the icon next to **Raw** at the top of the page.
+
+4. Insert prompt into your preferred LLM, and write the type on its first line of the prompt - fx:
+
+   ```text
+   Type: Reference
+   ```
+
+5. Paste the prompt under that line, and paste your file.
+
+6. Replace your file with the repaired one, and fill in every `[?]` the model left.
+
+#### Types and folders
+
+| Type | Pick it when the file holds | Folder |
+|---|---|---|
+| Instruction | What a programmer must do in a situation, such as creating an issue or drawing a diagram | [`docs/instructions/`](docs/instructions/) |
+| Reference | An explanation of code or configuration that affects the program directly, such as the data model or a workflow | [`docs/reference/`](docs/reference/) |
+| ADR | Why we chose something. One architecture decision record (ADR) per decision | [`docs/adr/`](docs/adr/) |
+| Sprint record | What happened in one sprint | [`docs/records/sprints/`](docs/records/sprints/) |
+| Other record | Meeting notes, other kinds of notes. | `docs/records/other/` |
+| Template | Blank form for different purposes | [`docs/templates/`](docs/templates/) |
+
+**When your file fits two types:** split it into two files, one per type.
+
+**When no type fits:** Put into "other" for now - propose a new type in an issue before you write the file.
+
+## Docs conventions
 
 - Filenames: lower case and hyphens. `scenario-reference-data.md`, not `Diagram FINAL 3.drawio`.
 - Open an issue before you fill in a sprint template.
 - Don't create a file from a template before you have something to write in it.
 - Don't create a directory for a single file.
+- When your pull request makes a document wrong, fix the document in the same pull request.
+- When you move a rationale to `docs/adr/`, write the decision there in the same pull request.
 
-## Where the documentation lives
+**When a rule in the prompt does not work in practice:** propose a change in an issue, and follow the rule until the issue is settled. The structure works only when it is the same across the files.
 
-Six folders under `docs/`, one row each. The folder says what kind of file it holds.
-
-| Folder | What belongs here | What it holds today |
-|---|---|---|
-| [`docs/instructions/`](docs/instructions/) | What a programmer must do in a situation, such as creating an issue or drawing a diagram | How to create an issue: [`create-issue.md`](docs/instructions/create-issue.md). How to work on one: [`working-on-issue.md`](docs/instructions/working-on-issue.md). How to draw a diagram: [`diagrams.md`](docs/instructions/diagrams.md), [`entity-domain-model-guide.md`](docs/instructions/entity-domain-model-guide.md) and [`integration-evolving-guide.md`](docs/instructions/integration-evolving-guide.md). How to write or fix documentation, including with a language model: [`documentation-rules.md`](docs/instructions/documentation-rules.md) |
-| [`docs/reference/`](docs/reference/) | What the code or the configuration does: anything implemented that affects the program directly | The scenario data model: [`domain-model.md`](docs/reference/domain-model.md). The five workflows that run on a pull request: [`automation.md`](docs/reference/automation.md) |
-| [`docs/adr/`](docs/adr/) | Why we chose something. One architecture decision record (ADR) per decision | No decision yet |
-| [`docs/records/sprints/`](docs/records/sprints/) | What happened in a sprint | The planning, review, retrospective and integration documents of sprint 1 and sprint 2 |
-| `docs/records/other/` | What happened outside a sprint | Nothing yet. The folder appears with its first file |
-| [`docs/templates/`](docs/templates/) | A blank form that you copy into `docs/records/` or `docs/adr/` | The sprint, meeting and decision templates |
-
-### Place a new file in `docs/`
-
-Take the first question you answer with yes:
-
-1. Does the file tell a programmer what to do in a situation, such as creating an issue? Put it in `docs/instructions/`.
-2. Does the file explain code or configuration that affects the program, such as the data model or a workflow? Put it in `docs/reference/`.
-3. Does the file say why we chose something? Put it in `docs/adr/`.
-4. Does the file say what happened, such as a sprint review? Put it in `docs/records/sprints/`, or in `docs/records/other/` when it belongs to no sprint.
-
-When a file answers yes to two questions, split it into two files.
+Rules 1.1, 2.6, 2.8, 2.9 and 2.11 in the prompt come from the Diátaxis framework, Carroll's minimalist instruction, information foraging theory and the seductive-details effect.
 
 ## Where new files go
 
 ```text
 contracts/      interfaces other teams build against. Versioned
 fixtures/       invented test data. Never anything from Metro Service
-docs/           documentation, sorted into the six folders under "Where the documentation lives"
+docs/           documentation. "Writing documentation" names the folder for each type
 .github/        pull request template and automated checks
 ```
 
