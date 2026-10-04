@@ -1,21 +1,35 @@
 BEGIN;
 
 CREATE TABLE scenarios (
-    scenario_id TEXT PRIMARY KEY,
-    name        TEXT NOT NULL
+    scenario_id        TEXT PRIMARY KEY,
+    name               TEXT NOT NULL,
+    current_version_id INT
 );
 
 CREATE TABLE scenario_versions (
     id          INT  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     scenario_id TEXT NOT NULL REFERENCES scenarios(scenario_id) ON DELETE CASCADE,
     version     TEXT NOT NULL,
-    revision    TEXT,
-    UNIQUE (scenario_id, version)
+    revision    TEXT NOT NULL,
+    UNIQUE (scenario_id, version),
+    UNIQUE (scenario_id, id)
 );
+
+ALTER TABLE scenarios
+    ADD FOREIGN KEY (scenario_id, current_version_id)
+    REFERENCES scenario_versions (scenario_id, id)
+    DEFERRABLE INITIALLY DEFERRED;
 
 CREATE TABLE stations (
     id   INT  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
+    code TEXT NOT NULL UNIQUE,
+    name TEXT
+);
+
+CREATE TABLE scenario_covers (
+    scenario_id TEXT NOT NULL REFERENCES scenarios(scenario_id) ON DELETE CASCADE,
+    station_id  INT  NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
+    PRIMARY KEY (scenario_id, station_id)
 );
 
 CREATE TABLE operating_plans (
@@ -29,19 +43,18 @@ CREATE TABLE operating_patterns (
     id                INT  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     operating_plan_id INT  NOT NULL REFERENCES operating_plans(id) ON DELETE CASCADE,
     operation_type    TEXT NOT NULL CHECK (operation_type IN ('PENDULUM', 'ROUNDTRIP')),
-    route_code        TEXT,
-    track             TEXT,
-    maximum_trains    INT  CHECK (maximum_trains > 0),
-    did               TEXT,
+    route_code        TEXT NOT NULL,
+    track             TEXT NOT NULL,
+    maximum_trains    INT  NOT NULL CHECK (maximum_trains >= 0),
+    did               TEXT NOT NULL,
     description       TEXT
 );
 
 CREATE TABLE line_stops (
-    id                   INT  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    operating_pattern_id INT  NOT NULL REFERENCES operating_patterns(id) ON DELETE CASCADE,
-    station_id           INT  NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
-    sequence             INT  NOT NULL CHECK (sequence > 0),
-    station_role         TEXT NOT NULL CHECK (station_role IN ('TERMINUS', 'TURNAROUND', 'STOP')),
+    id                   INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    operating_pattern_id INT NOT NULL REFERENCES operating_patterns(id) ON DELETE CASCADE,
+    station_id           INT NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
+    sequence             INT NOT NULL CHECK (sequence > 0),
     UNIQUE (operating_pattern_id, sequence)
 );
 
@@ -49,8 +62,8 @@ CREATE TABLE station_requirements (
     id                  INT  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     scenario_version_id INT  NOT NULL REFERENCES scenario_versions(id) ON DELETE CASCADE,
     station_id          INT  NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
-    placement           TEXT,
-    minimum_staffing    INT  NOT NULL DEFAULT 0 CHECK (minimum_staffing >= 0)
+    placement           TEXT NOT NULL,
+    minimum_staffing    INT  NOT NULL CHECK (minimum_staffing >= 0)
 );
 
 CREATE TABLE staffing_windows (
@@ -77,6 +90,7 @@ CREATE TABLE passenger_information (
     message             TEXT NOT NULL
 );
 
+CREATE INDEX ON scenario_covers (station_id);
 CREATE INDEX ON operating_patterns (operating_plan_id);
 CREATE INDEX ON line_stops (station_id);
 CREATE INDEX ON station_requirements (scenario_version_id);

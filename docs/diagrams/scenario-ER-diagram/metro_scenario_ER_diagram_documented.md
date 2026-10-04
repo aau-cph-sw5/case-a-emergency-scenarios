@@ -15,6 +15,7 @@ erDiagram
     scenarios {
         text scenario_id PK "stable id, survives renames"
         text name
+        int current_version_id FK "version of this scenario"
     }
     scenario_versions {
         int id PK
@@ -24,7 +25,12 @@ erDiagram
     }
     stations {
         int id PK
-        text name UK
+        text code UK "e.g. VAN"
+        text name
+    }
+    scenario_covers {
+        text scenario_id PK, FK
+        int station_id PK, FK
     }
     operating_plans {
         int id PK
@@ -46,7 +52,6 @@ erDiagram
         int operating_pattern_id FK
         int station_id FK
         int sequence "unique per pattern"
-        text station_role "TURNAROUND or STOP"
     }
     station_requirements {
         int id PK
@@ -77,6 +82,9 @@ erDiagram
     }
 
     scenarios ||--|{ scenario_versions : "versions (1 : 1..*)"
+    scenarios |o--o| scenario_versions : "current version (0..1 : 0..1)"
+    scenarios ||--o{ scenario_covers : "covers (1 : 0..*)"
+    stations ||--o{ scenario_covers : "covered by (1 : 0..*)"
     scenario_versions ||--|| operating_plans : "operating plan (1 : 1)"
     operating_plans ||--|{ operating_patterns : "patterns (1 : 1..*)"
     operating_patterns ||--|{ line_stops : "route (1 : 1..*)"
@@ -125,6 +133,8 @@ The relationships from the entity model are implemented through foreign keys.
 | Relationship | Database implementation |
 |---|---|
 | Scenario → ScenarioVersion | `scenario_versions.scenario_id` → `scenarios.scenario_id` |
+| Scenario → current ScenarioVersion | `scenarios.current_version_id` → `scenario_versions.id` |
+| Scenario → covered Station | `scenario_covers.scenario_id` → `scenarios.scenario_id` and `scenario_covers.station_id` → `stations.id` |
 | ScenarioVersion → OperatingPlan | `operating_plans.scenario_version_id` → `scenario_versions.id` |
 | OperatingPlan → OperatingPattern | `operating_patterns.operating_plan_id` → `operating_plans.id` |
 | OperatingPattern → LineStop | `line_stops.operating_pattern_id` → `operating_patterns.id` |
@@ -137,6 +147,39 @@ The relationships from the entity model are implemented through foreign keys.
 
 The foreign keys turn the conceptual associations from the entity model into enforceable database relationships.
 
+
+---
+
+## Current version
+
+`scenarios.current_version_id` points to the version of the scenario that is currently active, matching `currentVersion` in the scenario contract.
+
+The reference is made together with `scenario_id`:
+
+```sql
+FOREIGN KEY (scenario_id, current_version_id)
+    REFERENCES scenario_versions (scenario_id, id)
+```
+
+This ensures that a scenario can only point to one of its **own** versions, never to a version of another scenario.
+
+---
+
+## Covers
+
+`scenario_covers` stores the stations a scenario covers, matching `covers` in the scenario contract.
+
+It is a join table between `scenarios` and `stations`, with the pair as its primary key:
+
+```sql
+PRIMARY KEY (scenario_id, station_id)
+```
+
+This prevents the same station from being listed twice for a scenario.
+
+`covers` belongs to the scenario itself, not to a version, so it is not versioned.
+
+The entity model describes coverage in terms of `TrackSegment`, while the contract lists station codes. The database follows the contract, since that is what the clients build against.
 
 ---
 
@@ -154,7 +197,7 @@ The foreign key links the plan to its scenario version, while the unique constra
 
 ---
 
-## Ordered route stops and station roles
+## Ordered route stops
 
 `line_stops` represents a station's occurrence inside a specific operating pattern.
 
@@ -172,20 +215,6 @@ The `sequence` field defines the order of stops inside a pattern and is unique w
 ```sql
 UNIQUE (operating_pattern_id, sequence)
 ```
-
-### Station roles are stored in `line_stops`
-
-`station_role` is explicitly stored on `line_stops`:
-
-```text
-station_role "TURNAROUND or STOP"
-```
-
-The role belongs to the **station's occurrence in a specific operating pattern**, not to the station itself.
-
-This is important because the same physical station can have different roles in different routes. For example, a station may be a normal `STOP` in one operating pattern and a `TURNAROUND` in another.
-
-Keeping `station_role` in `line_stops` therefore preserves route-specific behaviour without changing the shared `stations` record.
 
 ---
 
@@ -225,16 +254,17 @@ This allows different scenarios to each have a `version 1`, while preventing dup
 
 ## Shared station references
 
-`stations` is referenced by both:
+`stations` is referenced by:
 
 ```text
+scenario_covers.station_id
 line_stops.station_id
 station_requirements.station_id
 ```
 
-This keeps the physical station as one shared record while route-specific information, including `station_role`, stays in `line_stops`, and scenario-specific staffing information stays in `station_requirements`.
+This keeps the physical station as one shared record while route-specific information stays in `line_stops`, and scenario-specific staffing information stays in `station_requirements`.
 
-Station names are unique, so the same station cannot be registered twice.
+Each station has a unique `code` (e.g. `VAN`), which is how the scenario contract refers to stations, so the same station cannot be registered twice. `name` holds the full station name (e.g. `Vanløse`) and is optional, since the contract does not provide it.
 
 ---
 
@@ -243,3 +273,7 @@ Station names are unique, so the same station cannot be registered twice.
 This ER diagram currently focuses on the persisted **scenario definition**.
 
 It does not yet include all concepts from the Scenario Entity Model, such as the live activation/deployment and staffmember part of the model. Those can be added later when the persistence requirements for that part of the system are defined.
+
+`TrackSegment` is not modelled. Scenario coverage is stored as stations through `scenario_covers`, following the scenario contract.
+
+Station roles (such as turnaround or ordinary stop) are not stored, as they are not part of the scenario-state-diagram or the scenario contract.
