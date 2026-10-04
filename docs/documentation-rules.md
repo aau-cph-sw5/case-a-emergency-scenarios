@@ -11,6 +11,7 @@ When a principle does not work in practice, propose a change in an issue. Follow
 | Convention | Can the rule be broken without a tool saying anything? | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | How-to | Does it end with something being done? | The file for the area you are working in |
 | Reference | Do you look up one row and leave again? | The same file, under **What things mean** |
+| Explanation | Does it answer "why is it like this?" | [`docs/adr/`](adr/) |
 
 Don't copy the hub's rules. Link to them, or write out what matters most with an example.
 
@@ -158,6 +159,55 @@ So fix every document your change makes wrong, in the same pull request.
 ## Who you write for
 
 Documentation is read to be **reminded** of something, not to learn it. Write for someone who knew it and forgot.
+
+## Review checks
+
+Run these against a section you have written.
+
+### 1. One question per section
+
+From Diátaxis: a how-to answers "How do I...?", a reference answers "What is...?", an explanation answers "Why...?".
+
+- **Applies when:** any section with a heading.
+- **Check:** name the question the body answers.
+- **Passes when:** the body answers one question, and the heading announces that same question.
+- **Repair:** split the section, and move the "Why...?" material to `docs/adr/`.
+
+### 2. Information scent in the heading
+
+From information foraging theory: a reader estimates a section's value against the time it costs, reads that estimate off the heading, and leaves the section when the estimate is poor.
+
+- **Applies when:** every heading and every link label.
+- **Check:** does the heading name the artefact the reader came for, such as a form field, a command, a file or a label?
+- **Passes when:** the heading names it.
+- **Repair:** put the artefact in the heading instead of the concept. `Acceptance criteria` becomes `Acceptkriterier: what goes in the field`.
+
+### 3. Reading to do
+
+From Carroll's minimalism: documentation is read to do, to study and to locate, and an action-oriented document serves the first before the second.
+
+- **Applies when:** the section asks the reader to produce text, a command or a file.
+- **Check:** count the lines from the heading to the first thing the reader can copy or run.
+- **Passes when:** ten or fewer.
+- **Repair:** move the copyable thing above the explanation.
+
+### 4. Error recognition and recovery
+
+Carroll's third principle of minimalism.
+
+- **Applies when:** the section asks the reader to choose, to size or to judge something.
+- **Check:** does the section say what to do when the reader cannot decide, or has decided wrongly?
+- **Passes when:** it names the next step, and who to ask or what to run.
+- **Repair:** add one sentence that names the recovery path.
+
+### 5. No seductive details
+
+From the seductive-details effect, measured across 58 studies: content that is interesting but irrelevant to the task lowers both retention and transfer, and does most damage sitting next to the material that matters.
+
+- **Applies when:** every sentence in a how-to or a reference.
+- **Check:** delete the sentence, then ask whether anything the reader types, runs or clicks has changed.
+- **Passes when:** deleting it changes what the reader does.
+- **Repair:** cut it. Provenance and rationale belong in `docs/adr/`.
 
 ## Template
 
