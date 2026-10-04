@@ -1,144 +1,158 @@
-# Sådan skriver vi dokumentation
+# How we write documentation
 
-Filen er skrevet til at kunne indsættes som prompt, når du bruger en sprogmodel til at skrive eller rette dokumentation her. Giv den hele filen, og bed om et udkast.
+This file is written so it can be pasted in as a prompt when you use a language model to write or fix documentation here. Give it the whole file and ask for a draft.
 
-Oplever du, at et princip ikke virker i praksis, så foreslå en ændring i et issue. Følg dem indtil da. Strukturen virker kun, hvis den er ens på tværs af filerne.
+When a principle does not work in practice, propose a change in an issue. Follow them until then. The structure only works when it is the same across the files.
 
-## Hvilken slags skriver du
+## Which kind are you writing
 
-| Slags | Test | Hvor den hører |
+| Kind | Test | Where it belongs |
 |---|---|---|
-| Konvention | Kan reglen brydes, uden at et værktøj siger noget? | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
-| Fremgangsmåde | Slutter den med, at noget er gjort? | Filen for den flade, du står ved |
-| Opslagsværk | Slår du én række op og går igen? | Samme fil, i afsnittet **Hvad betyder** |
+| Convention | Can the rule be broken without a tool saying anything? | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| How-to | Does it end with something being done? | The file for the area you are working in |
+| Reference | Do you look up one row and leave again? | The same file, under **What things mean** |
 
-Hub'ens regler kopieres ikke. Der linkes, eller det vigtigste skrives ud med et eksempel.
+Don't copy the hub's rules. Link to them, or write out what matters most with an example.
 
-## Længde
+## Length
 
-**Et opslagsværk skal være komplet.** Det har ingen længdegrænse. Mangler en værdi, en kolonne eller en status, tror læseren at den ikke findes, og så har dokumentet gjort skade. Fuldstændighed slår korthed.
+**A reference has to be complete.** It has no length limit. When a value, a column or a status is missing, the reader assumes it does not exist, and the document has done damage. Completeness beats brevity.
 
-En **guide** holdes under 100 linjer. Over 150 kræver den en indholdsfortegnelse, og så er den ikke en huskeseddel længere. Tallet gælder kun guides.
+Keep a **how-to** under 100 lines. Past 150 it needs a table of contents, and then it is no longer a cheat sheet. The number applies to how-tos only.
 
-Tre til syv linjer per afsnit. Korte ord, kom til sagen, stop så.
+Three to seven lines per paragraph. Short words. Come to the point and stop.
 
-## Åbn med formen
+## Open with the shape
 
-Begynd et opslagsværk med én sætning om, hvad man kigger på og hvordan det er inddelt. Ikke "dette dokument indeholder", men "seksten begreber, som falder i tre dele".
+Open a reference with one sentence about what the reader is looking at and how it is divided. Not "this document contains", but "sixteen concepts, falling into three parts".
 
-Giv hver gruppe én linje om hvad den er, før du lister dens indhold. En tabel med 43 kolonner uden en linje per tabel er sværere at bruge, ikke lettere.
+Give each group one line about what it is before you list its contents. A markdown table of 43 columns without one line per database table is harder to use, not easier.
 
-## Forklar notationen
+## Explain the notation
 
-Fold hver forkortelse og hvert symbol ud, første gang det bruges. `PK`, `STW`, `CCR`, `0..*` — flere af os har ikke haft faget endnu.
+Expand every abbreviation and every symbol on first use. `PK`, `STW`, `CCR`, `0..*` — several of us have not taken the course yet.
 
-## Rækkefølgen i en linje
+## The order within a row
 
-Det kendte forrest, det nye til slut. Læseren kommer med et navn, de har set — en status, et mærkat, et felt. Det er det kendte. Sæt det først, og lad betydningen stå til sidst.
+The known first, the new last. The reader arrives with a name they have seen: a status, a label, a field. That is the known. Put it first, and let the meaning come last.
 
-Læseren ser de første to ord, cirka 11 tegn. Begynd med det navneord, der bærer betydningen.
+The reader sees the first two words, roughly 11 characters. Open with the noun that holds the meaning.
 
-Samme form på hver indgang: samme kolonner i samme rækkefølge, hver gang.
+The same shape for every entry: the same columns in the same order, every time.
 
 ```
-Godt:    | In review | Boardet | Når pull requesten linkes til issuet |
-Dårligt: Boardet flytter selv et issue, når der sker noget i GitHub.
+Good: | In review | The board | When the pull request is linked to the issue |
+Bad:  The board moves an issue on its own when something happens in GitHub.
 ```
 
-## Afsnit skal stå alene
+## Paragraphs stand alone
 
-Læseren lander fra en søgning eller et link, ikke fra toppen. Skriv ikke "som nævnt ovenfor".
+Readers open the file from a search or a link, not from the top. Don't write "as mentioned above".
 
-Ét afsnit, én ting. Står der to, skal det være to afsnit.
+One paragraph, one thing. When it says two things, make it two paragraphs.
 
-## Arbejdsdelingen mellem diagram, tabel og prosa
+## The division of labour between diagram, table and prose
 
-Har dokumentet et diagram, bærer diagrammet navne, typer og relationer. Gentag dem ikke i en tabel.
+When the document has a diagram, the diagram shows names, types and relations. Don't repeat them in a table.
 
-Tabellen bærer det, diagrammet ikke kan: hvad noget betyder, hvor det kommer fra, og hvor sikkert det er.
+The table gives each field its meaning, its source, and how certain it is.
 
-Prosaen bærer det, ingen af dem kan: hvorfor valget blev truffet.
+Prose says why the choice was made.
 
-Handlinger i rækkefølge er en nummereret liste. En kommando er en indrammet kodeblok med sproget angivet. Definitionslister virker ikke i GitHubs markdown — brug `**navn**: betydning`.
+Actions in sequence are a numbered list. A command is a fenced code block with the language named. Definition lists do not work in GitHub's markdown, so use `**name**: meaning`.
 
-## Prosa
+## Prose
 
-**Den, der handler, er grundled. Handlingen er udsagnsord.** Find handlingen i sætningen. Er den et navneord på `-ing`, `-ning`, `-else` eller `-tion`, så lav den om til et udsagnsord.
+**The one acting is the subject. The action is the verb.** Find the action in the sentence. When it is a noun ending in `-ing`, `-ment`, `-ance` or `-tion`, turn it back into a verb.
 
-> `Valideringen af fixtures mod schemaet foretages af et script.`
-> → `Scriptet validerer fixtures mod schemaet.`
+> `Validation of fixtures against the schema is performed by a script.`
+> → `The script validates fixtures against the schema.`
 
-**Nævn den, der gør det.** Passiv skjuler aktøren, og aktøren er netop det, læseren slår op.
+**Name the one doing it.** The passive hides the actor, and the actor is exactly what the reader came to look up.
 
-> `Mærkatet sættes, når en pull request åbnes.`
-> → `Workflowet sætter mærkatet, når du åbner en pull request.`
+> `The label is set when a pull request is opened.`
+> → `The workflow sets the label when you open a pull request.`
 
-**Ét stedord, én mulig henvisning.** Står der to navneord i sætningen, så gentag navneordet i stedet for `den`, `det` eller `dette`.
+**One pronoun, one possible referent.** When the sentence holds two nouns, repeat the noun instead of writing `it` or `this`.
 
-**Betingelsen først.** Så kan læseren springe sætningen over, når betingelsen ikke gælder.
+**The condition first.** Then the reader can skip the sentence when the condition does not apply.
 
-> `GitHub blokerer merge-knappen, hvis branchen er bagud.`
-> → `Er branchen bagud, blokerer GitHub merge-knappen.`
+> `GitHub blocks the merge button if the branch is behind.`
+> → `When the branch is behind, GitHub blocks the merge button.`
 
-**Nævn tingen ved navn**, ikke med en beskrivelse af den. `pr-description-check.yml`, ikke "filen, der tjekker beskrivelsen".
+**Name the thing** rather than describing it. `pr-description-check.yml`, not "the file that checks the description".
 
-**Tal og navne frem for mængdeord.** `flere`, `ofte`, `typisk` og `en del` siger ingenting.
+**Numbers and names over quantifiers.** `several`, `often`, `typically` and `a number of` say nothing.
 
-> `Flere brancher er bagud.`
-> → `15 af 17 brancher er bagud.`
+> `Several branches are behind.`
+> → `15 of 17 branches are behind.`
 
-## Hvad der skal stå
+**End the sentence on the word that should be remembered.** The last position carries the most weight.
 
-I et opslagsværk: beskriv, og kun beskriv. Ingen holdning, ingen fortolkning, ingen instruktion.
+> `E1002 is returned when a scenario is already active on the line.`
+> → `When a scenario is already active on the line, the endpoint returns E1002.`
 
-I en fremgangsmåde: skriv klik-vejen eller kommandoen ud, og antag nul forhåndsviden. Sig hvilken side man starter fra.
+**Name the content, not its role.** A sentence that states what something is for, or how it differs from something else, leaves the content to the sentence after it. Never define a thing by negation, because "what the diagram cannot show" makes the reader work out the remainder.
 
-Giv hvert begreb én linje: navnet først, derefter betydningen.
+> `The table holds what the diagram cannot show.`
+> → `The table gives each field its meaning, its source, and how certain it is.`
 
-En sætning, der kun findes for at forbinde to andre sætninger, skal ud. Et opslagsværk læses aldrig forfra.
+**Choose the verb that says what happens.** When the subject cannot do it with hands, the verb is inflating the claim. Write `the architecture logs every state change`, not `the architecture reflects a commitment to traceability`. The same family: "underscores", "highlights", "speaks to".
 
-**Men "beskriv og kun beskriv" betyder ikke, at du skjuler, hvor sikker du er.** Skriv ved hvert felt, om det er belagt i en kilde, en antagelse, eller en beslutning vi selv har truffet — og ved en antagelse: hvad der skal til for at afklare den. "Antagelse" alene er en etiket. "Antagelse. Kræver et krav om at lukke et scenarie" er en opgave.
+## What goes in
 
-Skriv også ved hver kilde, hvad den belægger. Et kildenavn uden det er ubrugeligt, fordi læseren ikke ved, hvad de skal lede efter.
+In a reference: describe, and only describe. No opinion and no instruction.
 
-Flytter du en begrundelse til `docs/adr/`, så skriv beslutningen i samme pull request. Ellers er den ikke flyttet, den er væk.
+In a how-to: write out the click path or the command, and assume no prior knowledge. Say which page you start from.
 
-## Generer tabellen fra kilden
+Give each concept one line: the name first, then the meaning.
 
-Kan en tabel bygges af koden, så gør det. En kolonne-oversigt skrevet af `schema.sql` kan ikke være uenig med skemaet, og en skrevet i hånden driver fra det. Det var sådan en manglende værdi i `station_role` blev fundet.
+A sentence that exists only to connect two other sentences has to go. Nobody reads a reference from the top.
 
-## Skærmbilleder
+**But "describe and only describe" does not mean you hide how certain you are.** At each field, write whether it is backed by a source, an assumption, or a decision we made ourselves. For an assumption, write what it would take to settle it. "Assumption" on its own is a label, while "Assumption. Needs a requirement for closing a scenario" is a task.
 
-Brug dem kun, hvor der ikke findes en kommando. Et skærmbillede forælder, når GitHub laver brugerfladen om, og et forældet billede er mere overbevisende og mere forkert end forældet tekst.
+At each source, also write what it backs up. A source name without that is useless, because the reader does not know what to look for.
 
-Billederne ligger i `docs/images/`.
+When you move a rationale to `docs/adr/`, write the decision in the same pull request. Otherwise it has not moved, it is gone.
 
-## Forældelse
+Add nothing the source did not contain. No caveat, no recommendation, no summary section, no table that was not already there. When a rewrite needs a fact the source lacks, mark it `[?]` and leave it for the author.
 
-Et forældet dokument er værre end intet dokument. Læseren tror, de har forstået, arbejder videre på en antagelse der var sand engang, og fejlen slipper igennem. Tilliden kommer ikke tilbage.
+## Generate the table from the source
 
-Ret derfor hvert dokument, din ændring gør forkert, i samme pull request.
+When a table can be built from the code, build it. A column overview written by `schema.sql` cannot disagree with the schema, while one written by hand drifts from it. That is how a missing value in `station_role` was found.
 
-## Hvem du skriver til
+## Screenshots
 
-Dokumentation læses for at blive **mindet om** noget, ikke for at lære det. Skriv til en, der har vidst det og glemt det.
+Use them only where no command exists. A screenshot goes stale when GitHub changes the interface, and a stale image is more convincing and more wrong than stale text.
 
-## Skabelon
+The images live in `docs/images/`.
+
+## Going stale
+
+A stale document is worse than no document. The reader believes they have understood, carries on from an assumption that was true once, and the error slips through. The trust does not come back.
+
+So fix every document your change makes wrong, in the same pull request.
+
+## Who you write for
+
+Documentation is read to be **reminded** of something, not to learn it. Write for someone who knew it and forgot.
+
+## Template
 
 ```markdown
-# <Fladen: ét eller to ord>
+# <The area: one or two words>
 
-## Sådan gør du
+## How to
 
-### <Handlingen i bydeform>
+### <The action in the imperative>
 
-1. <skridt med kommandoen eller klik-vejen skrevet ud>
-2. <skridt>
+1. <step with the command or the click path written out>
+2. <step>
 
-## Hvad betyder
+## What things mean
 
-**<det kendte navn>**: <betydningen>
+**<the known name>**: <the meaning>
 
-| <det kendte> | <det nye> | <det nye> |
+| <the known> | <the new> | <the new> |
 |---|---|---|
 ```
