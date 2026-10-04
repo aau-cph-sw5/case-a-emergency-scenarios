@@ -1,5 +1,5 @@
-# Beslutninger
+# Decisions
 
-Én fil per beslutning: `0001-kort-titel.md`. Nummereret fortløbende, aldrig omnummereret.
+One file per decision: `0001-short-title.md`. Numbered consecutively, never renumbered.
 
-Brug skabelonen i [semester-dokumentationen](https://github.com/aau-cph-sw5/semester-docs/blob/main/templates/adr.md).
+Use the template in the [semester documentation](https://github.com/aau-cph-sw5/semester-docs/blob/main/templates/adr.md).
