@@ -2,13 +2,35 @@
 
 ## Konventioner
 
+### Issues
+
+- Navngiv issuet `MET-A-<nr>` for produktet og `MAN-A-<nr>` for driften af projektet. Nummeret står først i titlen.
+- Skriv issue-titlen, så den kan forstås uden at åbne issuet.
+- Opret branch fra issuet: åbn issuet → højre sidebar → **Create a branch**. Branchen beholder issuets nummer og titel.
+- Flyt dit issue til **In progress**, når du starter, og til **Done**, når PR'en er merget og hvert acceptkriterium er opfyldt. Boardet flytter selv til **In review**.
+
+### Splitting issues
+
+- Træk ikke et issue ind i en sprint, hvis det er større end `L`. Split det først.
+- Kan ingen vurdere issuet til under `L`, er det ikke forstået. Lav research med en aftalt deadline, der klarlægger problemet, før du estimerer igen.
+- Afhænger ét acceptkriterium af, at et andet er færdigt, er der tale om to issues.
+- Har din branch været åben i mere end en uge, var issuet for stort.
+
+### PR's
+
+- Titel: `<type>: <beskrivelse> [<nr>]`, fx `feat: afvis rapporter uden tidsstempel [MET-A-13]`. Typer: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
 - Altid PR til `dev`.
-- Opret branch fra issuet: åbn issuet → højre sidebar → **Create a branch**.
 - Merge `dev` ind i din branch, lige før du åbner PR'en: `git fetch origin && git merge origin/dev`.
 - Del PR'en op, hvis den overstiger 400 ændrede linjer.
+- Ét issue per PR. Finder du en fejl undervejs, bliver den et sub-issue eller sit eget issue.
 - Tjek for reviews dagligt. `CODEOWNERS` sætter automatisk folk på.
-- Skriv issue-titlen, så den kan forstås uden at åbne issuet.
-- Flyt dit issue til **In progress**, når du starter. Til **In review**, når du åbner en PR. Til **Done**, når PR'en er merget og hvert acceptkriterium er opfyldt.
+
+### Docs
+
+- Filnavne: små bogstaver og bindestreger. `scenario-reference-data.md`, ikke `Diagram FINAL 3.drawio`.
+- Opret et issue, før du udfylder en sprint-skabelon.
+- Opret ikke en fil ud fra en skabelon, før du har noget at skrive i den.
+- Opret ikke en mappe til én fil.
 
 ## Hvis du skal
 
