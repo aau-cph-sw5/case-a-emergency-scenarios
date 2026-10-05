@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
-import { requireAuth } from "../stub-server/auth.js";
+import { requireAuth } from "../../stub-server/auth.js";
 
 const SECRET = process.env.JWT_SECRET || "local-dev-secret-not-for-production";
 
