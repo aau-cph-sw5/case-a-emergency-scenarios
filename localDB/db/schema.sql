@@ -28,7 +28,7 @@ CREATE TABLE stations (
 
 CREATE TABLE track_segments (
     id            INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    track_number  INT NOT NULL CHECK (track_number > 0),
+    track_number  INT NOT NULL CHECK (track_number IN (1, 2)),
     station_a_id  INT NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
     station_b_id  INT NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
     CHECK (station_a_id <> station_b_id)
@@ -55,7 +55,10 @@ CREATE TABLE operating_patterns (
     operating_plan_id INT  NOT NULL REFERENCES operating_plans(id) ON DELETE CASCADE,
     operation_type    TEXT NOT NULL CHECK (operation_type IN ('PENDULUM', 'ROUNDTRIP')),
     route_code        TEXT NOT NULL,
-    track             TEXT NOT NULL,
+    -- The physical track, 1 or 2. The contract sends it as the string "1" or "2",
+    -- and the seed loader stores the integer, so it compares directly with
+    -- track_segments.track_number.
+    track_number      INT  NOT NULL CHECK (track_number IN (1, 2)),
     maximum_trains    INT  NOT NULL CHECK (maximum_trains >= 0),
     did               TEXT NOT NULL,
     description       TEXT
@@ -82,7 +85,10 @@ CREATE TABLE staffing_windows (
     station_requirement_id INT  NOT NULL REFERENCES station_requirements(id) ON DELETE CASCADE,
     day_pattern            TEXT NOT NULL,
     start_time             TIME NOT NULL,
-    end_time               TIME NOT NULL
+    end_time               TIME NOT NULL,
+    -- An end_time before start_time means the window crosses midnight,
+    -- such as 22:00 to 02:00. Equal times are rejected.
+    CHECK (start_time <> end_time)
 );
 
 CREATE TABLE actions (
