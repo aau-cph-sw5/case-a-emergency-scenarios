@@ -6,6 +6,8 @@ The domain concepts themselves are documented in the [Scenario Entity Model](/do
 
 This document only describes what is added by the relational representation: **primary keys, foreign keys, uniqueness constraints, and how the relationships are implemented in the database**.
 
+Two words recur below. A **track** is one of the two parallel rails of a line, 1 or 2. A **track segment** is the stretch of one track between two neighbouring stations.
+
 ---
 
 ## ER diagram
@@ -48,7 +50,7 @@ erDiagram
         int operating_plan_id FK
         text operation_type "PENDULUM or ROUNDTRIP"
         text route_code
-        text track
+        int track_number "1 or 2"
         int maximum_trains
         text did
         text description
@@ -223,6 +225,36 @@ The foreign key links the plan to its scenario version, while the unique constra
 
 ---
 
+## Operating plan and operating pattern
+
+An operating plan is how the trains run while a scenario version is active. Each scenario version has exactly one, in `operating_plans`, and the plan is made of one or more patterns, in `operating_patterns`.
+
+An operating pattern is one way a set of trains runs within the plan. A pattern names the stretch it serves, as a route of stops in `line_stops`, the track it runs on, the number of trains at most, and its Destination ID (DID), the code the signalling uses for that run. It is one of two types:
+
+- **`PENDULUM`**: a train shuttles back and forth on one stretch.
+- **`ROUNDTRIP`**: a train runs out from its starting point and returns to it.
+
+A plan with two patterns, for example, runs a pendulum on track 2 between the stations a closed segment cuts off, and a roundtrip on the rest of the line.
+
+Source: `operatingPlan` and `patterns` in `contracts/v1/scenario.schema.json`, and the type descriptions in `docs/scenario-state/seedDataScenario_1_documentation.md`. The meaning of DID is an assumption from the hub's naming of the Destination ID spreadsheets and needs confirming with the contract owner.
+
+---
+
+## Track
+
+Two columns name the physical track, and both hold 1 or 2.
+
+| Column | Table | Meaning | Source |
+|---|---|---|---|
+| `track_number` | `track_segments` | The track a segment of line lies on | `TrackSegment.trackNumber` in the contract, an integer |
+| `track_number` | `operating_patterns` | The track an operating pattern runs on | The pattern field `track` in the contract, the string `"1"` or `"2"` |
+
+A segment belongs to one track, so a scenario that closes track 1 on one segment leaves track 2 open there. A pattern runs on one track, so a pattern on track 2 can serve the stations that the closed segment on track 1 no longer reaches.
+
+The contract sends the pattern's track as a string, and the seed loader stores it as an integer. Both columns then share one name and one type, and a pattern's track compares directly with a segment's track without a cast. Decision taken in pull request 101; the contract itself is unchanged.
+
+---
+
 ## Ordered route stops
 
 `line_stops` represents a station's occurrence inside a specific operating pattern.
@@ -250,6 +282,8 @@ UNIQUE (operating_pattern_id, sequence)
 
 - A **station** is a permanent, physical place (e.g. `VAN`). It is the same no matter which scenario is active.
 - A **station requirement** is what one specific **scenario version** needs at that station: where stewards are placed, how many are needed, when (`staffing_windows`) and what they must do (`actions`).
+
+A staffing window has a `start_time` and an `end_time`. When `end_time` is before `start_time`, the window crosses midnight: 22:00 to 02:00 runs from ten in the evening to two in the morning. A `CHECK` rejects a window whose two times are equal.
 
 `station_requirements` therefore has two foreign keys, one to the version it belongs to and one to the station it applies to:
 
