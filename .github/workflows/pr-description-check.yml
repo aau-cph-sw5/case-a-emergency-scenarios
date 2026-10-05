@@ -25,67 +25,144 @@ jobs:
           # Normalize Windows line endings (CRLF) to Unix (LF).
           PR_BODY="${PR_BODY//$'\r'/}"
 
-          # Extract a section between two Markdown headings.
-          # Remove template comments and empty lines.
+          # Check whether a Markdown section exists.
+          section_exists() {
+            local section="$1"
+
+            grep -Fxq "## $section" <<< "$PR_BODY"
+          }
+
+          # Extract everything after a section heading until the next ## heading.
+          # Template comments and empty lines are removed.
           extract_section() {
             local section="$1"
-            local next_section="$2"
 
-            awk -v start="## $section" -v end="## $next_section" '
-              $0 == start { inside=1; found=1; next }
-              $0 == end { inside=0 }
-              inside { print }
+            awk -v start="## $section" '
+              $0 == start {
+                inside=1
+                next
+              }
+
+              inside && /^## / {
+                exit
+              }
+
+              inside {
+                print
+              }
             ' <<< "$PR_BODY" \
             | sed '/<!--/,/-->/d' \
             | sed '/^[[:space:]]*$/d'
           }
 
-          DESCRIPTION=$(extract_section "Description" "Context")
-          CONTEXT=$(extract_section "Context" "Testing")
-          TESTING=$(extract_section "Testing" "Type of change")
-          CHANGE_TYPES=$(extract_section "Type of change" "")
+          # ----------------------------------------
+          # Description
+          # ----------------------------------------
 
-          # Validate Description.
+          if ! section_exists "Description"; then
+            echo "❌ Missing required section: ## Description"
+            exit 1
+          fi
+
+          DESCRIPTION=$(extract_section "Description")
+
           if [[ -z "$DESCRIPTION" ]]; then
             echo "❌ Description must be filled in."
+            echo "   Describe what changed, why it is needed, and why this approach was chosen."
             exit 1
           fi
 
           echo "✅ Description is filled in."
 
-          # Validate Context.
+          # ----------------------------------------
+          # Context
+          # ----------------------------------------
+
+          if ! section_exists "Context"; then
+            echo "❌ Missing required section: ## Context"
+            exit 1
+          fi
+
+          CONTEXT=$(extract_section "Context")
+
           if [[ -z "$CONTEXT" ]]; then
             echo "❌ Context must be filled in."
+            echo "   Link the related GitHub issue or write NO-PBI."
             exit 1
           fi
 
           if [[ ! "$CONTEXT" =~ \#[0-9]+ ]] && \
              [[ ! "$CONTEXT" =~ github\.com/[^[:space:]]+/[^[:space:]]+/issues/[0-9]+ ]] && \
              [[ ! "$CONTEXT" =~ NO-PBI ]]; then
-            echo "❌ Context must contain:"
-            echo "   - An issue reference (#123)"
+            echo "❌ Context must contain one of:"
+            echo "   - An issue reference, e.g. #123"
             echo "   - A GitHub issue URL"
-            echo "   - Or NO-PBI"
+            echo "   - NO-PBI"
             exit 1
           fi
 
           echo "✅ Context is valid."
 
-          # Validate Testing.
-          if [[ -z "$TESTING" ]]; then
-            echo "❌ Testing must be filled in."
-            echo "   Describe testing or explain why it is N/A."
+          # ----------------------------------------
+          # How was it verified
+          # ----------------------------------------
+
+          if ! section_exists "How was it verified"; then
+            echo "❌ Missing required section: ## How was it verified"
             exit 1
           fi
 
-          echo "✅ Testing is filled in."
+          VERIFIED=$(extract_section "How was it verified")
 
-          # Validate Type of change.
+          if [[ -z "$VERIFIED" ]]; then
+            echo "❌ 'How was it verified' must be filled in."
+            echo "   Include tests, commands, manual verification, or N/A with a reason."
+            exit 1
+          fi
+
+          echo "✅ Verification is filled in."
+
+          # ----------------------------------------
+          # Type of change
+          # ----------------------------------------
+
+          if ! section_exists "Type of change"; then
+            echo "❌ Missing required section: ## Type of change"
+            exit 1
+          fi
+
+          CHANGE_TYPES=$(extract_section "Type of change")
+
           if ! grep -Eq '^- \[[xX]\] (Bug fix|New feature|Refactor|Tests|Documentation|Chore)$' <<< "$CHANGE_TYPES"; then
             echo "❌ Select at least one Type of change."
+            echo "   Allowed options:"
+            echo "   - Bug fix"
+            echo "   - New feature"
+            echo "   - Refactor"
+            echo "   - Tests"
+            echo "   - Documentation"
+            echo "   - Chore"
             exit 1
           fi
 
           echo "✅ Type of change selected."
+
+          # ----------------------------------------
+          # Noticed, not fixed
+          # ----------------------------------------
+
+          # This section is optional.
+          if section_exists "Noticed, not fixed"; then
+            NOTICED=$(extract_section "Noticed, not fixed")
+
+            if [[ -z "$NOTICED" ]]; then
+              echo "⚠️ 'Noticed, not fixed' is empty."
+              echo "   Delete the section if it does not apply."
+              echo "   This does not fail the check."
+            else
+              echo "✅ 'Noticed, not fixed' contains information."
+            fi
+          fi
+
           echo ""
           echo "✅ PR description is valid."
