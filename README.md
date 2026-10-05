@@ -105,3 +105,14 @@ The automated description checker verifies that the required sections are comple
 ## Licence
 
 MIT, per Section 7 of the AAU and Metro Service collaboration framework.
+
+### Authentication
+```bash
+npm run seed:accounts
+npm run stub
+```
+POST /api/v1/auth/login  (body: username, password → token, role)
+
+GET  /api/v1/me  (Authorization: Bearer <token>)
+
+Test-konti oprettes af `npm run seed:accounts` — se konsol-output for brugernavn/password pr. rolle.
