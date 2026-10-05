@@ -301,3 +301,11 @@ app.post("/api/v1/auth/login", (req, res) => {
 
   sendValidated(req, res, result, ["login-response.schema.json"]);
 });
+
+app.get("/api/v1/me", requireAuth, (req, res) => {
+  sendValidated(req, res, req.user, ["me.schema.json"]);
+});
+
+app.listen(PORT, () => {
+  console.log(`Stub server running at http://localhost:${PORT}`);
+});
