@@ -5,7 +5,9 @@
     "currentVersion": "1.1",
     "covers": [
   { "trackNumber": 1, "stationA": "VAN", "stationB": "FLI" },
-  { "trackNumber": 1, "stationA": "FLI", "stationB": "LIT" }
+  { "trackNumber": 1, "stationA": "FLI", "stationB": "LIT" },
+  { "trackNumber": 1, "stationA": "LIT", "stationB": "SOT" },
+  { "trackNumber": 1, "stationA": "SOT", "stationB": "FB" }
 ],
     "versions": [
       {
