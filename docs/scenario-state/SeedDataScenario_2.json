@@ -35,8 +35,8 @@
             ]
         },
         {
-            "version" : "1.0",
-            "revision" : "no changes",
+            "version" : "1.1",
+            "revision" : "string->int changes",
             "operatingPlan" : {
                 "name" : "VAN.FOR-KN.CPH.VEA_v1.0",
                 "patterns" : [
@@ -56,7 +56,7 @@
                         "operationType": "PENDULUM",
                         "routeCode": "FOR-KN",
                         "track" : "2",
-                        "maximumTrains" : "1",
+                        "maximumTrains" : 1,
                         "did" : "123",
                         "route" : [
                             {"sequence" : 1, "station" : "FOR"},
@@ -74,7 +74,7 @@
                         {"dayPattern" : "MON-FRI", "startTime" : "06:00", "endTime": "18:00"}
                     ],
                     "actions" : [
-                        {"sequence" : "1", "instructions" : "Informer PAX om eventuel pendulstamme, samt hvordan de kommer videre"}
+                        {"sequence" : 1, "instruction" : "Informer PAX om eventuel pendulstamme, samt hvordan de kommer videre"}
                     ]
                 },
                 {
