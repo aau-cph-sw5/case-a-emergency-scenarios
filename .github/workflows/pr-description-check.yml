@@ -51,7 +51,7 @@ jobs:
                 print
               }
             ' <<< "$PR_BODY" \
-            | sed '/<!--/,/-->/d' \
+            | perl -0777 -pe 's/<!--.*?-->//gs' \
             | sed '/^[[:space:]]*$/d'
           }
 
