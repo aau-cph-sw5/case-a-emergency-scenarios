@@ -2,10 +2,6 @@ name: Pull request labels
 
 on:
   pull_request_target:
-    branches:
-      - dev
-      - staging
-      - main
     types:
       - opened
       - synchronize

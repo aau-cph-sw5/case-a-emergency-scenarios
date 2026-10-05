@@ -21,6 +21,14 @@ Include relevant test cases, commands, or manual testing.
 Write N/A with a reason if not applicable.
 -->
 
+## Screenshots / Evidence
+
+<!--
+Required for UI/layout/CSS changes (before/after screenshots) and for
+performance changes (EXPLAIN output, before/after request duration).
+Otherwise delete this section.
+-->
+
 ## Noticed, not fixed
 
 <!--

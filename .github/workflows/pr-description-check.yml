@@ -123,6 +123,40 @@ jobs:
           echo "✅ Verification is filled in."
 
           # ----------------------------------------
+          # Screenshots / Evidence
+          # ----------------------------------------
+
+          # This section is optional.
+          if section_exists "Screenshots / Evidence"; then
+            EVIDENCE=$(extract_section "Screenshots / Evidence")
+
+            if [[ -z "$EVIDENCE" ]]; then
+              echo "⚠️ 'Screenshots / Evidence' is empty."
+              echo "   Delete the section if it does not apply."
+              echo "   This does not fail the check."
+            else
+              echo "✅ Screenshots / Evidence contains information."
+            fi
+          fi
+
+          # ----------------------------------------
+          # Noticed, not fixed
+          # ----------------------------------------
+
+          # This section is optional.
+          if section_exists "Noticed, not fixed"; then
+            NOTICED=$(extract_section "Noticed, not fixed")
+
+            if [[ -z "$NOTICED" ]]; then
+              echo "⚠️ 'Noticed, not fixed' is empty."
+              echo "   Delete the section if it does not apply."
+              echo "   This does not fail the check."
+            else
+              echo "✅ 'Noticed, not fixed' contains information."
+            fi
+          fi
+
+          # ----------------------------------------
           # Type of change
           # ----------------------------------------
 
@@ -146,23 +180,6 @@ jobs:
           fi
 
           echo "✅ Type of change selected."
-
-          # ----------------------------------------
-          # Noticed, not fixed
-          # ----------------------------------------
-
-          # This section is optional.
-          if section_exists "Noticed, not fixed"; then
-            NOTICED=$(extract_section "Noticed, not fixed")
-
-            if [[ -z "$NOTICED" ]]; then
-              echo "⚠️ 'Noticed, not fixed' is empty."
-              echo "   Delete the section if it does not apply."
-              echo "   This does not fail the check."
-            else
-              echo "✅ 'Noticed, not fixed' contains information."
-            fi
-          fi
 
           echo ""
           echo "✅ PR description is valid."
