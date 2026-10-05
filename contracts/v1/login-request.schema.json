@@ -1,0 +1,10 @@
+{
+  "$id": "login-request.schema.json",
+  "title": "Login Request",
+  "type": "object",
+  "required": ["username", "password"],
+  "properties": {
+    "username": { "type": "string" },
+    "password": { "type": "string" }
+  }
+}
