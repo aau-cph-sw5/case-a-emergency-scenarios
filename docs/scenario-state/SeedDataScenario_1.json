@@ -2,7 +2,7 @@
     "scenarioId" : "VAN-FB",
     "name" : "fallbackscenarie 1",
     "currentVersion" : "1.1",
-    "covers" : [ "VAN", "FLI", "LIT", "FB", "SOT", "VEA", "CPH"],
+    "covers" : [ ("1", "VAN", "FLI"), ("1", "FLI", "LIT"), ("1", "LIT", "FB"), ("1", "FB", "SOT"), ("1", "SOT", "VEA"), ("1", "VEA", "CPH")],
     "versions" : [
         {
             "version" : "1.0",
