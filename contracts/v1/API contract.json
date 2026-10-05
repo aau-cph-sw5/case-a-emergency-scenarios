@@ -84,11 +84,11 @@
     },
     "TrackSegment": {
       "type": "object",
-      "required": ["trackLabel", "stationA", "stationB"],
+      "required": ["trackNumber", "stationA", "stationB"],
       "properties": {
-        "trackLabel": {
-          "type": "string",
-          "description": "Identifier/label for the physical track."
+        "trackNumber": {
+          "type": "integer",
+          "description": "Identifier/label for the physical track (1 or 2)."
         },
         "stationA": {
           "type": "string",
