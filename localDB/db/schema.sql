@@ -26,10 +26,21 @@ CREATE TABLE stations (
     name TEXT
 );
 
+CREATE TABLE track_segments (
+    id            INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    track_number  INT NOT NULL CHECK (track_number > 0),
+    station_a_id  INT NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
+    station_b_id  INT NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
+    CHECK (station_a_id <> station_b_id)
+);
+
+CREATE UNIQUE INDEX track_segments_unique
+    ON track_segments (track_number, LEAST(station_a_id, station_b_id), GREATEST(station_a_id, station_b_id));
+
 CREATE TABLE scenario_covers (
-    scenario_id TEXT NOT NULL REFERENCES scenarios(scenario_id) ON DELETE CASCADE,
-    station_id  INT  NOT NULL REFERENCES stations(id) ON DELETE RESTRICT,
-    PRIMARY KEY (scenario_id, station_id)
+    scenario_id      TEXT NOT NULL REFERENCES scenarios(scenario_id) ON DELETE CASCADE,
+    track_segment_id INT  NOT NULL REFERENCES track_segments(id) ON DELETE RESTRICT,
+    PRIMARY KEY (scenario_id, track_segment_id)
 );
 
 CREATE TABLE operating_plans (
@@ -90,7 +101,9 @@ CREATE TABLE passenger_information (
     message             TEXT NOT NULL
 );
 
-CREATE INDEX ON scenario_covers (station_id);
+CREATE INDEX ON scenario_covers (track_segment_id);
+CREATE INDEX ON track_segments (station_a_id);
+CREATE INDEX ON track_segments (station_b_id);
 CREATE INDEX ON operating_patterns (operating_plan_id);
 CREATE INDEX ON line_stops (station_id);
 CREATE INDEX ON station_requirements (scenario_version_id);

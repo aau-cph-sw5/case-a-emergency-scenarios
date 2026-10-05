@@ -15,9 +15,8 @@
     },
     "covers": {
       "type": "array",
-      "items": {
-        "type": "string"
-      }
+      "description": "Track segments covered by the scenario.",
+      "items": { "$ref": "#/definitions/TrackSegment" }
     },
     "versions": {
       "type": "array",
@@ -160,6 +159,26 @@
               }
             }
           }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "TrackSegment": {
+      "type": "object",
+      "required": ["trackNumber", "stationA", "stationB"],
+      "properties": {
+        "trackNumber": {
+          "type": "integer",
+          "description": "Identifier/label for the physical track (1 or 2)."
+        },
+        "stationA": {
+          "type": "string",
+          "description": "Reference to the first Station's name."
+        },
+        "stationB": {
+          "type": "string",
+          "description": "Reference to the second Station's name."
         }
       }
     }

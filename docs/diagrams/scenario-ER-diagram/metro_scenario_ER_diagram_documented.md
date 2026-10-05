@@ -28,9 +28,15 @@ erDiagram
         text code UK "e.g. VAN"
         text name
     }
+    track_segments {
+        int id PK
+        int track_number "1 or 2"
+        int station_a_id FK
+        int station_b_id FK
+    }
     scenario_covers {
         text scenario_id PK, FK
-        int station_id PK, FK
+        int track_segment_id PK, FK
     }
     operating_plans {
         int id PK
@@ -82,9 +88,11 @@ erDiagram
     }
 
     scenarios ||--|{ scenario_versions : "versions (1 : 1..*)"
-    scenarios |o--o| scenario_versions : "current version (0..1 : 0..1)"
+    scenarios |o--o| scenario_versions : "current version (1 : 1)"
     scenarios ||--o{ scenario_covers : "covers (1 : 0..*)"
-    stations ||--o{ scenario_covers : "covered by (1 : 0..*)"
+    track_segments ||--o{ scenario_covers : "covered by (1 : 0..*)"
+    stations ||--o{ track_segments : "endpoint A (1 : 0..*)"
+    stations ||--o{ track_segments : "endpoint B (1 : 0..*)"
     scenario_versions ||--|| operating_plans : "operating plan (1 : 1)"
     operating_plans ||--|{ operating_patterns : "patterns (1 : 1..*)"
     operating_patterns ||--|{ line_stops : "route (1 : 1..*)"
@@ -122,7 +130,7 @@ All scenario **content** belongs to a `scenario_versions` row, not to the scenar
 
 When a scenario is revised, a new version is created with its own copy of the content. Older versions are never changed, so it is always possible to see exactly what a given version contained.
 
-`stations` is the exception: a station is a permanent, physical place and is shared by all versions. A version only records *which* stations it uses.
+`stations` and `track_segments` are the exceptions: they describe the permanent, physical network and are shared by all scenarios and versions. A version only records *which* stations it uses.
 
 ---
 
@@ -134,7 +142,8 @@ The relationships from the entity model are implemented through foreign keys.
 |---|---|
 | Scenario → ScenarioVersion | `scenario_versions.scenario_id` → `scenarios.scenario_id` |
 | Scenario → current ScenarioVersion | `scenarios.current_version_id` → `scenario_versions.id` |
-| Scenario → covered Station | `scenario_covers.scenario_id` → `scenarios.scenario_id` and `scenario_covers.station_id` → `stations.id` |
+| Scenario → covered TrackSegment | `scenario_covers.scenario_id` → `scenarios.scenario_id` and `scenario_covers.track_segment_id` → `track_segments.id` |
+| TrackSegment → Station (endpoints) | `track_segments.station_a_id` → `stations.id` and `track_segments.station_b_id` → `stations.id` |
 | ScenarioVersion → OperatingPlan | `operating_plans.scenario_version_id` → `scenario_versions.id` |
 | OperatingPlan → OperatingPattern | `operating_patterns.operating_plan_id` → `operating_plans.id` |
 | OperatingPattern → LineStop | `line_stops.operating_pattern_id` → `operating_patterns.id` |
@@ -167,19 +176,36 @@ This ensures that a scenario can only point to one of its **own** versions, neve
 
 ## Covers
 
-`scenario_covers` stores the stations a scenario covers, matching `covers` in the scenario contract.
+`covers` in the scenario contract is a **list of track segments** that the scenario covers. In a relational database a column holds a single value, so a list cannot be stored as one field on `scenarios`. Instead each item in the list becomes its own row in a separate table. This is the reason `scenario_covers` exists: it **is** the list of track segments a scenario covers.
 
-It is a join table between `scenarios` and `stations`, with the pair as its primary key:
+For example, a scenario covering three segments is stored as three rows:
 
-```sql
-PRIMARY KEY (scenario_id, station_id)
+| scenario_id | track_segment_id |
+|---|---|
+| VAN-FB | 1 (VAN–FLI, track 1) |
+| VAN-FB | 2 (FLI–LIT, track 1) |
+| VAN-FB | 3 (LIT–SOT, track 1) |
+
+The track segments themselves are stored once in `track_segments`, which describes a stretch of physical track between two stations:
+
+```text
+track_number
+station_a_id FK
+station_b_id FK
 ```
 
-This prevents the same station from being listed twice for a scenario.
+### Track segment rules
+
+A track segment is part of the permanent network, like a station, so it exists only once. The two endpoints must be different stations, and the same segment cannot be registered twice, regardless of which station is stored as A and which as B:
+
+```sql
+CHECK (station_a_id <> station_b_id)
+
+CREATE UNIQUE INDEX track_segments_unique
+    ON track_segments (track_number, LEAST(station_a_id, station_b_id), GREATEST(station_a_id, station_b_id));
+```
 
 `covers` belongs to the scenario itself, not to a version, so it is not versioned.
-
-The entity model describes coverage in terms of `TrackSegment`, while the contract lists station codes. The database follows the contract, since that is what the clients build against.
 
 ---
 
@@ -215,6 +241,28 @@ The `sequence` field defines the order of stops inside a pattern and is unique w
 ```sql
 UNIQUE (operating_pattern_id, sequence)
 ```
+
+---
+
+## Stations and station requirements
+
+`stations` and `station_requirements` are kept apart because they describe two different things:
+
+- A **station** is a permanent, physical place (e.g. `VAN`). It is the same no matter which scenario is active.
+- A **station requirement** is what one specific **scenario version** needs at that station: where stewards are placed, how many are needed, when (`staffing_windows`) and what they must do (`actions`).
+
+`station_requirements` therefore has two foreign keys, one to the version it belongs to and one to the station it applies to:
+
+```text
+station_requirements.scenario_version_id FK → scenario_versions.id
+station_requirements.station_id FK          → stations.id
+```
+
+### Cardinality (1 : 0..*)
+
+- Each station requirement applies to **exactly one** station.
+- A station can have **zero or more** requirements, because the same station can be required by several scenarios and by every version of each scenario. For example, `VAN` can have one requirement in VAN-FB version 1.0, another in VAN-FB version 1.1, and a third in a different scenario. A station that no scenario requires has none.
+
 
 ---
 
@@ -257,12 +305,13 @@ This allows different scenarios to each have a `version 1`, while preventing dup
 `stations` is referenced by:
 
 ```text
-scenario_covers.station_id
+track_segments.station_a_id
+track_segments.station_b_id
 line_stops.station_id
 station_requirements.station_id
 ```
 
-This keeps the physical station as one shared record while route-specific information stays in `line_stops`, and scenario-specific staffing information stays in `station_requirements`.
+This keeps the physical station as one shared record while track information stays in `track_segments`, route-specific information stays in `line_stops`, and scenario-specific staffing information stays in `station_requirements`.
 
 Each station has a unique `code` (e.g. `VAN`), which is how the scenario contract refers to stations, so the same station cannot be registered twice. `name` holds the full station name (e.g. `Vanløse`) and is optional, since the contract does not provide it.
 
@@ -274,6 +323,4 @@ This ER diagram currently focuses on the persisted **scenario definition**.
 
 It does not yet include all concepts from the Scenario Entity Model, such as the live activation/deployment and staffmember part of the model. Those can be added later when the persistence requirements for that part of the system are defined.
 
-`TrackSegment` is not modelled. Scenario coverage is stored as stations through `scenario_covers`, following the scenario contract.
-
-Station roles (such as turnaround or ordinary stop) are not stored, as they are not part of the scenario-state-diagram or the scenario contract.
+Station roles are not stored, as they are not part of the scenario-state-diagram or the scenario contract.
