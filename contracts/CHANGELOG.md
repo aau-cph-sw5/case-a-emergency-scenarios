@@ -8,6 +8,16 @@ Breaking. Announced at the integration meeting on [?].
 - `covers` holds `TrackSegment` objects with `trackNumber`, `stationA` and `stationB`, where it held station codes. Pull request 101.
 - Descriptions added to both `trackNumber` fields.
 
+## 1.1.0 - 2026-10-05
+
+Adds the authentication contract (additive, no breaking change).
+
+Includes:
+
+- `login-request.schema.json`
+- `login-response.schema.json`
+- `me.schema.json`
+
 ## 1.0.0 - 2026-09-23
 
 Initial scenario-state contract.
