@@ -119,8 +119,26 @@ paths:
             application/json:
               schema:
                 $ref: "./login-response.schema.json"
+        "400":
+          description: Request body does not match the login-request contract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0006"
+                  message: "Request body does not match contract schema"
         "401":
-          description: Invalid credentials
+          description: Invalid username or password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0102"
+                  message: "Invalid credentials"
 
   /api/v1/me:
     get:
@@ -135,7 +153,15 @@ paths:
               schema:
                 $ref: "./me.schema.json"
         "401":
-          description: Missing or invalid token
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
 
 components:
   securitySchemes:
@@ -143,3 +169,25 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: >
+                Error code per the hub's scheme:
+                https://github.com/aau-cph-sw5/semester-docs/blob/main/docs/06-error-codes.md
+              example: "E0001"
+            message:
+              type: string
+              description: For a developer reading a log. Never shown to a user.
