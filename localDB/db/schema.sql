@@ -58,7 +58,7 @@ CREATE TABLE operating_patterns (
     -- The physical track, 1 or 2. The contract sends it as the string "1" or "2",
     -- and the seed loader stores the integer, so it compares directly with
     -- track_segments.track_number.
-    track_number      INT  NOT NULL CHECK (track_number IN (1, 2)),
+    track_number      INT  NOT NULL CHECK (track_number IN (1, 2, 12)),
     maximum_trains    INT  NOT NULL CHECK (maximum_trains >= 0),
     did               TEXT NOT NULL,
     description       TEXT
