@@ -1,9 +1,12 @@
 # Scenario State Contract Changelog
 
-## 2026-10-05, no version change
+## [?] - 2026-10-06
 
-- Descriptions added to the pattern field `track` and to `TrackSegment.trackNumber`. Both hold the physical track, 1 or 2; the pattern carries it as a string, the segment as an integer.
-- Planned, breaking, for the next version: the pattern field `track` becomes `trackNumber`, an integer. Tracked in issue #121.
+Breaking. Announced at the integration meeting on [?].
+
+- The pattern field `track`, a string, is renamed to `trackNumber`, an integer: the physical track, 1 or 2, with the same numbering as `TrackSegment.trackNumber`. A client that reads `track` gets nothing. Issue #121.
+- `covers` holds `TrackSegment` objects with `trackNumber`, `stationA` and `stationB`, where it held station codes. Pull request 101.
+- Descriptions added to both `trackNumber` fields.
 
 ## 1.0.0 - 2026-09-23
 

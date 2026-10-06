@@ -2,7 +2,7 @@
   "scenarioId": "DEMO-001",
   "name": "Synthetic fallback scenario",
   "currentVersion": "1",
-  "covers": ["TRACK-A-B"],
+  "covers": [{ "trackNumber": 1, "stationA": "Station A", "stationB": "Station B" }],
   "versions": [
     {
       "version": "1",
@@ -13,7 +13,7 @@
           {
             "operationType": "PENDULUM",
             "routeCode": "A-B",
-            "track": "1",
+            "trackNumber": 1,
             "maximumTrains": 1,
             "did": "DEMO",
             "description": "Synthetic pendulum service",

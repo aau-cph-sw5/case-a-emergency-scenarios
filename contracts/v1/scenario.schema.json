@@ -49,7 +49,7 @@
                   "required": [
                     "operationType",
                     "routeCode",
-                    "track",
+                    "trackNumber",
                     "maximumTrains",
                     "did",
                     "route"
@@ -64,7 +64,7 @@
                     },
                     "trackNumber": {
                       "type": "integer",
-                      "description": "The physical track the pattern runs on: \"1\" or \"2\". The numbering is the same as TrackSegment.trackNumber, which carries it as an integer."
+                      "description": "The physical track the pattern runs on: 1 or 2. The same numbering as TrackSegment.trackNumber."
                     },
                     "maximumTrains": {
                       "type": "integer",
@@ -171,7 +171,7 @@
       "properties": {
         "trackNumber": {
           "type": "integer",
-          "description": "The physical track the segment lies on: 1 or 2. The numbering is the same as the pattern field track, which carries it as a string."
+          "description": "The physical track the segment lies on: 1 or 2. The same numbering as trackNumber in an operating pattern."
         },
         "stationA": {
           "type": "string",
