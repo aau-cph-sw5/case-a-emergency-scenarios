@@ -2,7 +2,9 @@
   "scenarioId": "DEMO-001",
   "name": "Synthetic fallback scenario",
   "currentVersion": "1",
-  "covers": [{ "trackNumber": 1, "stationA": "Station A", "stationB": "Station B" }],
+  "covers": [
+    { "trackNumber": 1, "stationA": "Station A", "stationB": "Station B" }
+  ],
   "versions": [
     {
       "version": "1",
