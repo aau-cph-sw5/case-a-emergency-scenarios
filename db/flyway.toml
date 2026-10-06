@@ -3,7 +3,7 @@ environment = "local"
 locations = ["filesystem:migrations"]
 defaultSchema = "public"
 cleanDisabled = true
-
+validateMigrationNaming = true
 [environments.local]
 url = "jdbc:postgresql://db:5432/metro"
 user = "metro"
