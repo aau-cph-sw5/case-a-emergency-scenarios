@@ -32,7 +32,7 @@ A scenario has one or more versions. Each version is a snapshot of the plan, not
 | `scenarioId` | string | yes | Unique ID for the scenario |
 | `name` | string | yes | readable name. |
 | `currentVersion` | string | yes | The `version` of the entry in `versions` that is currently active. |
-| `covers` | string[] | no | Station codes affected by the scenario. |
+| `covers` | TrackSegment[] | no | The track segments the scenario closes. Each is `{ "trackNumber": 1, "stationA": "NEL", "stationB": "MOP" }`: the physical track, 1 or 2, and its two neighbouring stations. |
 | `versions` | Version[] | yes | All versions of the scenario, oldest first. |
 
 ---
@@ -62,7 +62,7 @@ A scenario has one or more versions. Each version is a snapshot of the plan, not
 |---|---|---|---|
 | `operationType` | `"PENDULUM"` \| `"ROUNDTRIP"` | yes | `PENDULUM`: a train shuttles back and forth on a stretch. `ROUNDTRIP`: a train runs out and returns to its starting point. |
 | `routeCode` | string | yes | Code for the route, fx `"VAN-FB"`. |
-| `track` | string | yes | Track the pattern uses. |
+| `trackNumber` | integer | yes | The physical track the pattern runs on: 1 or 2, or 12 for a roundtrip that uses both tracks. |
 | `maximumTrains` | integer ≥ 0 | yes | Maximum number of trains running in the pattern. |
 | `did` | string | yes | DID identifier for the pattern. |
 | `description` | string | no | Free-text description. |
