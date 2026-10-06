@@ -79,7 +79,19 @@
                     "route": {
                       "type": "array",
                       "items": {
-                        "type": "object"
+                        "type": "object",
+                        "required": [
+                            "sequence",
+                            "station"
+                        ],
+                        "properties": {
+                            "sequence": {
+                                "type": "integer"
+                            },
+                            "station": {
+                                "type": "string"
+                            }
+                        }
                       }
                     }
                   }
