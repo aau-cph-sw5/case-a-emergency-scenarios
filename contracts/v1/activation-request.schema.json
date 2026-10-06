@@ -1,0 +1,13 @@
+{
+  "$id": "activation-request.schema.json",
+  "title": "Activation Request",
+  "type": "object",
+  "required": ["actor"],
+  "properties": {
+    "actor": {
+      "type": "string",
+      "description": "Work ID of the operator who activates the scenario."
+    }
+  },
+  "additionalProperties": false
+}
