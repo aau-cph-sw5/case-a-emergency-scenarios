@@ -19,7 +19,7 @@
                 {
                   "operationType": "PENDULUM",
                   "routeCode": "FOR-KN",
-                  "track": "1",
+                  "track": 1,
                   "maximumTrains": 1,
                   "did": "123",
                   "description": "PENDELUM from FOR-KN",
@@ -53,7 +53,7 @@
                 {
                   "operationType": "PENDULUM",
                   "routeCode": "VAN-FOR",
-                  "track": "1",
+                  "track": 1,
                   "maximumTrains": 4,
                   "did": "1026",
                   "description": "4 trains running VAN-FOR",
@@ -133,7 +133,7 @@
                 {
                     "operationType": "PENDULUM",
                     "routeCode": "KN-VEA",
-                    "track": "1",
+                    "track": 1,
                     "maximumTrains": 5,
                     "did": "20",
                     "description": "5 trains running KN-VEA",
