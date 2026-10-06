@@ -3,6 +3,8 @@ name: PR Description Check
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
+  merge_group:
+    types: [checks_requested]
 
 jobs:
   check-pr-description:
@@ -11,6 +13,7 @@ jobs:
 
     steps:
       - name: Validate PR description
+        if: github.event_name == 'pull_request'
         shell: bash
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
@@ -183,3 +186,7 @@ jobs:
 
           echo ""
           echo "✅ PR description is valid."
+
+      - name: Acknowledge merge queue validation
+        if: github.event_name == 'merge_group'
+        run: echo "PR description was validated before this change entered the merge queue."

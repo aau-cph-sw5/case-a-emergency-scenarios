@@ -6,14 +6,25 @@ on:
       - opened
       - synchronize
       - reopened
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
   pull-requests: write
 
 jobs:
+  merge-queue:
+    name: Acknowledge merge queue validation
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: echo "PR labels are managed before a change enters the merge queue."
+
   label:
     name: Apply labels
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
