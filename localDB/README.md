@@ -16,10 +16,10 @@ bcdedit /set hypervisorlaunchtype auto
 
 ## 2. Start the database
 
-Run all commands from this folder (`LocalDB`):
+Run all commands from this folder (`localDB`):
 
 ```bash
-cd LocalDB
+cd localDB
 docker compose up -d --wait
 ```
 

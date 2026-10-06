@@ -1,6 +1,6 @@
 # Scenario State Contract Changelog
 
-## [?] - 2026-10-06
+## 2.0.0 - 2026-10-06
 
 Breaking. Announced at the integration meeting on [?].
 
