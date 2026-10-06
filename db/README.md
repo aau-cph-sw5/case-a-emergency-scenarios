@@ -51,6 +51,7 @@ schema history remains intact.
 | `npm run db:info` | Show the migrations Flyway has recorded for the local database. |
 | `npm run db:validate` | Check that the migration files match the recorded history. Run before committing a new migration. |
 | `npm run db:down` | Stop and remove the local containers. The PostgreSQL data volume is retained. |
+| `docker compose exec db psql -U metro -c "\dt"` | See all tables in database. |
 
 The local connection details are:
 
