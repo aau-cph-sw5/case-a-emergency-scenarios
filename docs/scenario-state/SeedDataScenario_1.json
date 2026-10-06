@@ -4,8 +4,8 @@
     "name": "fallbackscenarie 1",
     "currentVersion": "1.1",
     "covers": [
-  { "trackNumber": 1, "stationA": "VAN", "stationB": "FLI" },
-  { "trackNumber": 1, "stationA": "FLI", "stationB": "LIT" },
+  { "trackNumber": 1, "stationA": "VAN", "stationB": "FL" },
+  { "trackNumber": 1, "stationA": "FL", "stationB": "LIT" },
   { "trackNumber": 1, "stationA": "LIT", "stationB": "SOT" },
   { "trackNumber": 1, "stationA": "SOT", "stationB": "FB" }
 ],
@@ -30,7 +30,7 @@
                 },
                 {
                   "sequence": 2,
-                  "station": "FLI"
+                  "station": "FL"
                 },
                 {
                   "sequence": 3,
@@ -72,7 +72,7 @@
               "route": [
                 {
                   "sequence": 1,
-                  "station": "fb"
+                  "station": "FB"
                 },
                 {
                   "sequence": 2,
@@ -84,30 +84,34 @@
                 },
                 {
                   "sequence": 4,
-                  "station": "KHC"
+                  "station": "KGN"
                 },
                 {
                   "sequence": 5,
-                  "station": "ISB"
+                  "station": "KHC"
                 },
                 {
                   "sequence": 6,
-                  "station": "UNI"
+                  "station": "ISB"
                 },
                 {
                   "sequence": 7,
-                  "station": "KHS"
+                  "station": "UNI"
                 },
                 {
                   "sequence": 8,
-                  "station": "BC"
+                  "station": "KHS"
                 },
                 {
                   "sequence": 9,
-                  "station": "ØRE"
+                  "station": "BC"
                 },
                 {
                   "sequence": 10,
+                  "station": "ØRE"
+                },
+                {
+                  "sequence": 11,
                   "station": "VEA"
                 }
                 
@@ -134,34 +138,38 @@
                   },
                   {
                     "sequence": 4,
-                    "station": "KHC"
+                    "station": "KGN"
                   },
                   {
                     "sequence": 5,
-                    "station": "AMB"
+                    "station": "KHC"
                   },
                   {
                     "sequence": 6,
-                    "station": "LGP"
+                    "station": "AMB"
                   },
                   {
                     "sequence": 7,
-                    "station": "ØSV"
+                    "station": "LGP"
                   },
                   {
                     "sequence": 8,
-                    "station": "AMS"
+                    "station": "ØSV"
                   },
                   {
                     "sequence": 9,
-                    "station": "FEØ"
+                    "station": "AMS"
                   },
                   {
                     "sequence": 10,
-                    "station": "KSA"
+                    "station": "FEØ"
                   },
                   {
                     "sequence": 11,
+                    "station": "KSA"
+                  },
+                  {
+                    "sequence": 12,
                     "station": "CPH"
                   }
               ]
@@ -188,7 +196,7 @@
             ]
           },
           {
-            "station": "FLI",
+            "station": "FL",
             "placement": "platform",
             "minimumStaffing": 1,
             "activeDuring": [
