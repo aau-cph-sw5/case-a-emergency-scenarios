@@ -74,7 +74,7 @@ docker compose down -v
 npm run db:up
 npm run db:migrate
 ```
-
+Changing POSTGRES_PASSWORD in .env only takes effect on a fresh volume. If you change it, run the wipe steps above
 Flyway then recreates the database from every migration in `db/migrations`.
 
 ## Adding a migration
