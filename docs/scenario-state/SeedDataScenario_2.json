@@ -83,7 +83,7 @@
                   ]
                 },
                 {
-                  "operationType": "PENDULUM",
+                  "operationType": "ROUNDTRIP",
                   "routeCode": "FOR-KN",
                   "track": "2",
                   "maximumTrains": 5,
