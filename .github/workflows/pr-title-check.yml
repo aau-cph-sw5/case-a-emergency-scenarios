@@ -3,6 +3,8 @@ name: PR Title Check
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
+  merge_group:
+    types: [checks_requested]
 
 jobs:
   check-pr-title:
@@ -11,6 +13,7 @@ jobs:
 
     steps:
       - name: Validate PR title
+        if: github.event_name == 'pull_request'
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
@@ -41,3 +44,7 @@ jobs:
           fi
 
           echo "✅ PR title is valid"
+
+      - name: Acknowledge merge queue validation
+        if: github.event_name == 'merge_group'
+        run: echo "PR title was validated before this change entered the merge queue."
