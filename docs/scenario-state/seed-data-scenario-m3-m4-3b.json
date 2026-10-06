@@ -5,118 +5,8 @@
   "covers": [
     {
       "trackNumber": 1,
-      "stationA": "NEL",
-      "stationB": "MOP"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "MOP",
-      "stationB": "SLU"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "SLU",
-      "stationB": "EBR"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "EBR",
-      "stationB": "HOL"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "HOL",
-      "stationB": "KH"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "KH",
-      "stationB": "RHP"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "RHP",
-      "stationB": "GLS"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "GLS",
-      "stationB": "KGN"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "KGN",
-      "stationB": "MMK"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "MMK",
-      "stationB": "KK"
-    },
-    {
-      "trackNumber": 1,
       "stationA": "KK",
-      "stationB": "OSO"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "OSO",
       "stationB": "NHT"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "NHT",
-      "stationB": "ORK"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "ORK",
-      "stationB": "TRI"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "TRI",
-      "stationB": "PHP"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "PHP",
-      "stationB": "VHR"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "VHR",
-      "stationB": "SKP"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "SKP",
-      "stationB": "NO"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "NO",
-      "stationB": "NOR"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "NOR",
-      "stationB": "NUP"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "NUP",
-      "stationB": "FB"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "FB",
-      "stationB": "FBA"
-    },
-    {
-      "trackNumber": 1,
-      "stationA": "FBA",
-      "stationB": "EHP"
     }
   ],
   "versions": [
@@ -127,12 +17,12 @@
         "name": "NEL_OSO_begge_perroner_v1.0",
         "patterns": [
           {
-            "operationType": "PENDULUM",
+            "operationType": "ROUNDTRIP",
             "routeCode": "NEL-OSO",
             "trackNumber": 12,
             "maximumTrains": 12,
             "did": "5542",
-            "description": "PENDULUM from NEL to OSO",
+            "description": "ROUNDTRIP from NEL to OSO",
             "route": [
               {
                 "sequence": 1,
@@ -185,12 +75,12 @@
             ]
           },
           {
-            "operationType": "SHUTTLE",
+            "operationType": "PENDULUM",
             "routeCode": "KK<->ORK",
             "trackNumber": 2,
             "maximumTrains": 1,
             "did": "5602",
-            "description": "SHUTTLE from KK to ORK",
+            "description": "PENDULUM from KK to ORK",
             "route": [
               {
                 "sequence": 1,
@@ -203,12 +93,12 @@
             ]
           },
           {
-            "operationType": "SHUTTLE",
+            "operationType": "PENDULUM",
             "routeCode": "ORK<->NHT",
             "trackNumber": 1,
             "maximumTrains": 1,
             "did": "5603",
-            "description": "SHUTTLE from ORK to NHT",
+            "description": "PENDULUM from ORK to NHT",
             "route": [
               {
                 "sequence": 1,
@@ -221,12 +111,12 @@
             ]
           },
           {
-            "operationType": "PENDULUM",
+            "operationType": "ROUNDTRIP",
             "routeCode": "KH-KH",
             "trackNumber": 1,
             "maximumTrains": 9,
             "did": "3001",
-            "description": "PENDULUM from KH to KH",
+            "description": "ROUNDTRIP from KH to KH",
             "route": [
               {
                 "sequence": 1,
@@ -299,12 +189,12 @@
             ]
           },
           {
-            "operationType": "PENDULUM",
+            "operationType": "ROUNDTRIP",
             "routeCode": "KH-KH",
             "trackNumber": 2,
             "maximumTrains": 9,
             "did": "3002",
-            "description": "PENDULUM from KH to KH",
+            "description": "ROUNDTRIP from KH to KH",
             "route": [
               {
                 "sequence": 1,
