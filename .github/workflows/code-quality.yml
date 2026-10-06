@@ -2,10 +2,8 @@ name: Code quality
 
 on:
   pull_request:
-    branches:
-      - dev
-      - staging
-      - main
+  merge_group:
+    types: [checks_requested]
   push:
     branches:
       - dev
