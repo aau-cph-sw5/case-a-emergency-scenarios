@@ -65,12 +65,22 @@ npm run dev
 
 ## Tests
 
-A test framework has not been added yet. When it is configured, add a `test`
-script to `package.json`. The expected command will then be:
+Run all unit and integration tests:
 
 ```bash
 npm test
 ```
+
+Run only one level:
+
+```bash
+npm run test:unit
+npm run test:integration
+```
+
+Tests live in `tests/unit/` and `tests/integration/`. GitHub Actions runs them as
+two jobs, so pull requests show separate **Unit tests** and **Integration tests**
+statuses. See `docs/reference/automation.md`.
 
 ## List available commands
 

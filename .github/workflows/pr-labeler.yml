@@ -1,0 +1,93 @@
+name: Pull request labels
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  merge-queue:
+    name: Acknowledge merge queue validation
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: echo "PR labels are managed before a change enters the merge queue."
+
+  label:
+    name: Apply labels
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Apply area labels
+        uses: actions/labeler@v7
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          sync-labels: true
+
+      - name: Apply size label
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const sizeLabels = [
+              "pr size: xs",
+              "pr size: s",
+              "pr size: m",
+              "pr size: l",
+              "pr size: xl",
+            ];
+
+            const pullRequest = context.payload.pull_request;
+            const changedLines = pullRequest.additions + pullRequest.deletions;
+
+            let sizeLabel;
+
+            if (changedLines <= 50) {
+              sizeLabel = "pr size: xs";
+            } else if (changedLines <= 200) {
+              sizeLabel = "pr size: s";
+            } else if (changedLines <= 650) {
+              sizeLabel = "pr size: m";
+            } else if (changedLines <= 1000) {
+              sizeLabel = "pr size: l";
+            } else {
+              sizeLabel = "pr size: xl";
+            }
+
+            const currentLabels = pullRequest.labels.map((label) => label.name);
+            const oldSizeLabels = currentLabels.filter(
+              (label) => sizeLabels.includes(label) && label !== sizeLabel,
+            );
+
+            for (const label of oldSizeLabels) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pullRequest.number,
+                name: label,
+              });
+            }
+
+            if (!currentLabels.includes(sizeLabel)) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pullRequest.number,
+                labels: [sizeLabel],
+              });
+            }
+
+            core.info(
+              `Applied ${sizeLabel} for ${changedLines} changed lines ` +
+                `(${pullRequest.additions} additions and ${pullRequest.deletions} deletions).`,
+            );

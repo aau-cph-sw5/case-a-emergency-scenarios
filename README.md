@@ -48,14 +48,55 @@ This case now carries the semester's machine-intelligence work: `MET-A-019`, sce
 ## Layout
 
 ```
-contracts/     published interfaces other teams build against, versioned
-docs/adr/      architecture decision records
-fixtures/      synthetic test data. Never anything Metro supplied.
+contracts/      published interfaces other teams build against, versioned
+fixtures/       synthetic test data. Never anything Metro supplied.
+docs/           instructions, reference, architecture decisions, records and templates
+.github/        the pull request template and the automated checks
 ```
 
 ## Branches
 
 `main` protected, only what has been demonstrated at a review. `staging` integration, should always run. `development` the shared working branch. One feature branch per item, named for it.
+
+## Pull requests
+
+All pull requests must follow the naming convention and use the provided PR description template. GitHub Actions automatically validates both the title and description.
+
+### PR title
+
+Titles must use the following format:
+
+`<type>: <description> [<ticket>]`
+
+**Allowed types:**
+- `feat` — New feature
+- `fix` — Bug fix
+- `docs` — Documentation changes
+- `refactor` — Code changes that do not alter functionality
+- `test` — Adding or updating tests
+- `chore` — Maintenance, dependencies, configuration and CI changes
+
+The ticket must be either `MET-A-<number>` or `NO-PBI` if there is no related backlog item.
+
+**Examples:**
+
+```text
+feat: add emergency scenario endpoint [MET-A-025]
+fix: handle invalid station data [MET-A-003]
+test: add contract tests [MET-A-003]
+chore: update dependencies [NO-PBI]
+```
+
+### PR description
+
+All pull requests must use the repository's PR template and complete the following sections:
+
+- **Description:** Explain what was changed and why.
+- **Context:** Link to the related GitHub issue, or specify `NO-PBI` if there is no related issue.
+- **Testing:** Explain how the changes were tested. Use `N/A` with an explanation if testing is not applicable.
+- **Type of change:** Select at least one checkbox that describes the changes.
+
+The automated description checker verifies that the required sections are completed, that Context contains an issue reference or `NO-PBI`, and that at least one change type is selected.
 
 ## AI assistants
 
@@ -64,3 +105,14 @@ fixtures/      synthetic test data. Never anything Metro supplied.
 ## Licence
 
 MIT, per Section 7 of the AAU and Metro Service collaboration framework.
+
+### Authentication
+```bash
+npm run seed:accounts
+npm run stub
+```
+POST /api/v1/auth/login  (body: username, password → token, role)
+
+GET  /api/v1/me  (Authorization: Bearer <token>)
+
+Test-konti oprettes af `npm run seed:accounts` — se konsol-output for brugernavn/password pr. rolle.
