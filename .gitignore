@@ -17,6 +17,7 @@ pnpm-debug.log*
 # Editor/project files
 .vscode/
 .idea/
+.memdb/
 
 # Coverage/build output if added later
 coverage/
