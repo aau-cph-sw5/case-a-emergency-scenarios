@@ -84,7 +84,7 @@
                 },
                 {
                   "operationType": "ROUNDTRIP",
-                  "routeCode": "FOR-KN",
+                  "routeCode": "KN-CPH",
                   "trackNumber": 12,
                   "maximumTrains": 5,
                   "did": "302",
