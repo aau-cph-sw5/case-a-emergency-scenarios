@@ -49,7 +49,7 @@
               "name": "VAN.FOR-KN.CPH.VEA_v1.0",
               "patterns": [
                 {
-                  "operationType": "PENDULUM",
+                  "operationType": "ROUNDTRIP",
                   "routeCode": "VAN-FOR",
                   "track": 1,
                   "maximumTrains": 4,
