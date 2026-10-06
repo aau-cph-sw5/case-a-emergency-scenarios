@@ -64,7 +64,7 @@
                     },
                     "trackNumber": {
                       "type": "integer",
-                      "description": "The physical track the pattern runs on: 1 or 2. The same numbering as TrackSegment.trackNumber."
+                      "description": "The physical track the pattern runs on: 1 or 2 (12 for ROUNDTRIP that uses both tracks). The same numbering as TrackSegment.trackNumber."
                     },
                     "maximumTrains": {
                       "type": "integer",
