@@ -188,6 +188,19 @@ app.get("/", (req, res) => {
         </div>
       </div>
 
+      <div class="endpoint">
+        <span class="method">POST</span>
+
+        <span class="post">
+          /api/v1/scenarios/{scenarioId}/activate
+        </span>
+
+        <div class="description">
+          Activate a scenario. Body: { "actor": "operator-017" }.
+          This endpoint cannot be opened directly as a browser link because it requires a POST request.
+        </div>
+      </div>
+
     </body>
     </html>
   `);
@@ -271,6 +284,78 @@ app.post("/api/v1/position-reports", (req, res) => {
   res.status(202).json({
     accepted: true,
   });
+});
+
+// ============================================
+// SCENARIO ACTIVATION
+// ============================================
+
+// In-memory, so activations reset when the stub restarts. Seeded with the
+// fixture's activation so it agrees with GET /api/v1/scenario-state.
+const activations = [readJson(path.join(fixtures, "scenario-state.json"))];
+
+// Metro's answer on MET-A-007: several scenarios may be active on the same
+// line, and activating never stands down another activation. Only activating
+// the same scenario twice is refused.
+app.post("/api/v1/scenarios/:scenarioId/activate", (req, res) => {
+  const { scenarioId } = req.params;
+
+  const errors = validate(req.body, ["activation-request.schema.json"]);
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      code: "INVALID_REQUEST",
+      message: errors.join("; "),
+    });
+  }
+
+  const filePath = path.join(fixtures, "scenarios", `${scenarioId}.json`);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({
+      code: "SCENARIO_NOT_FOUND",
+      message: `No scenario with id '${scenarioId}' exists`,
+    });
+  }
+
+  const alreadyActive = activations.some(
+    (activation) =>
+      activation.scenarioId === scenarioId && activation.status === "ACTIVE",
+  );
+
+  if (alreadyActive) {
+    return res.status(409).json({
+      code: "SCENARIO_ALREADY_ACTIVE",
+      message: `Scenario '${scenarioId}' is already active`,
+    });
+  }
+
+  const scenario = readJson(filePath);
+  const currentVersion = scenario.versions.find(
+    (version) => version.version === scenario.currentVersion,
+  );
+
+  const activation = {
+    activationId: `ACT-${scenarioId}-${activations.length + 1}`,
+    scenarioId,
+    startedAt: new Date().toISOString(),
+    endedAt: null,
+    status: "ACTIVE",
+    actor: req.body.actor,
+    deployments: (currentVersion?.stationRequirements ?? []).map(
+      (requirement) => ({
+        status: "UNMANNED",
+        staff: null,
+        fulfills: requirement.station,
+      }),
+    ),
+  };
+
+  activations.push(activation);
+  console.log("Scenario activated:", activation);
+
+  res.status(201);
+  sendValidated(req, res, activation, ["scenario-state.schema.json"]);
 });
 
 app.listen(PORT, () => {

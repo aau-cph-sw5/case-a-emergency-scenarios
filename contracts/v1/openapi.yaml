@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -99,3 +99,59 @@ paths:
                     type: boolean
               example:
                 accepted: true
+
+  /api/v1/scenarios/{scenarioId}/activate:
+    post:
+      summary: Activates a scenario with given id
+      parameters:
+        - name: scenarioId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./activation-request.schema.json"
+            example:
+              actor: "operator-017"
+      responses:
+        "201":
+          description: Activation successful
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-state.schema.json"
+        "400":
+          description: Invalid request body, e.g. missing actor.
+          content:
+            application/json:
+              schema:
+                $ref: "./error.schema.json"
+              example:
+                code: "INVALID_REQUEST"
+                message: "Request body must have required property 'actor'"
+        "404":
+          description: Scenario not found
+          content:
+            application/json:
+              schema:
+                $ref: "./error.schema.json"
+              example:
+                code: "SCENARIO_NOT_FOUND"
+                message: "No scenario with id 'S1' exists"
+        "409":
+          description: >
+            Activation refused because this same scenario is already
+            active. Other active scenarios, including scenarios on the
+            same line, never block an activation and are never stood
+            down by it.
+          content:
+            application/json:
+              schema:
+                $ref: "./error.schema.json"
+              example:
+                code: "SCENARIO_ALREADY_ACTIVE"
+                message: "Scenario 'S1' is already active"

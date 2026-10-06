@@ -32,3 +32,5 @@ GET  /api/v1/scenarios/{scenarioId}
 GET  /api/v1/metro-lines/{lineId}
 
 POST /api/v1/position-reports
+
+POST /api/v1/scenarios/{scenarioId}/activate
