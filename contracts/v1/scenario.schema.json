@@ -62,8 +62,8 @@
                     "routeCode": {
                       "type": "string"
                     },
-                    "track": {
-                      "type": "string",
+                    "trackNumber": {
+                      "type": "integer",
                       "description": "The physical track the pattern runs on: \"1\" or \"2\". The numbering is the same as TrackSegment.trackNumber, which carries it as an integer."
                     },
                     "maximumTrains": {
