@@ -1,5 +1,11 @@
 # How we work in this repo
 
+## Guides
+
+- [`docs/instructions/create-issue.md`](docs/instructions/create-issue.md) — before the issue exists
+- [`docs/instructions/working-on-issue.md`](docs/instructions/working-on-issue.md) — once it does
+- [`docs/instructions/diagrams.md`](docs/instructions/diagrams.md) — before you draw
+
 ## Conventions
 
 ### Issues
