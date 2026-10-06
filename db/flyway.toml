@@ -1,0 +1,11 @@
+[flyway]
+environment = "local"
+locations = ["filesystem:migrations"]
+defaultSchema = "public"
+cleanDisabled = true
+
+[environments.local]
+url = "jdbc:postgresql://db:5432/metro"
+user = "metro"
+password = "${FLYWAY_PASSWORD}"
+schemas = ["public"]
