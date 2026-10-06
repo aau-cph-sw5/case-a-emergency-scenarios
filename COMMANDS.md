@@ -80,7 +80,7 @@ npm run test:integration
 
 Tests live in `tests/unit/` and `tests/integration/`. GitHub Actions runs them as
 two jobs, so pull requests show separate **Unit tests** and **Integration tests**
-statuses. See `docs/Automation/ci-tests.md`.
+statuses. See `docs/reference/automation.md`.
 
 ## List available commands
 

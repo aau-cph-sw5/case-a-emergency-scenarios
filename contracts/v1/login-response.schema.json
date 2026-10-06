@@ -1,0 +1,10 @@
+{
+  "$id": "login-response.schema.json",
+  "title": "Login Response",
+  "type": "object",
+  "required": ["token", "role"],
+  "properties": {
+    "token": { "type": "string" },
+    "role": { "type": "string", "enum": ["STEWARD", "OPERATOR"] }
+  }
+}

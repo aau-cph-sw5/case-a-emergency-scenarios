@@ -48,9 +48,10 @@ This case now carries the semester's machine-intelligence work: `MET-A-019`, sce
 ## Layout
 
 ```
-contracts/     published interfaces other teams build against, versioned
-docs/adr/      architecture decision records
-fixtures/      synthetic test data. Never anything Metro supplied.
+contracts/      published interfaces other teams build against, versioned
+fixtures/       synthetic test data. Never anything Metro supplied.
+docs/           instructions, reference, architecture decisions, records and templates
+.github/        the pull request template and the automated checks
 ```
 
 ## Branches
@@ -104,3 +105,14 @@ The automated description checker verifies that the required sections are comple
 ## Licence
 
 MIT, per Section 7 of the AAU and Metro Service collaboration framework.
+
+### Authentication
+```bash
+npm run seed:accounts
+npm run stub
+```
+POST /api/v1/auth/login  (body: username, password → token, role)
+
+GET  /api/v1/me  (Authorization: Bearer <token>)
+
+Test-konti oprettes af `npm run seed:accounts` — se konsol-output for brugernavn/password pr. rolle.
