@@ -1,0 +1,51 @@
+name: Database migrations
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-migrations-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Migrate ${{ github.ref_name }} database
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'ProductionEnv' || 'StagingEnv' }}
+    env:
+      FLYWAY_URL: ${{ secrets.FLYWAY_URL }}
+      FLYWAY_USER: ${{ secrets.FLYWAY_USER }}
+      FLYWAY_PASSWORD: ${{ secrets.FLYWAY_PASSWORD }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Check migration credentials
+        run: |
+          if [ -z "$FLYWAY_URL" ] || [ -z "$FLYWAY_USER" ] || [ -z "$FLYWAY_PASSWORD" ]; then
+            echo "Configure FLYWAY_URL, FLYWAY_USER, and FLYWAY_PASSWORD in this GitHub environment."
+            exit 1
+          fi
+
+      - name: Validate and apply Flyway migrations
+        run: |
+          docker run --rm \
+            --env FLYWAY_URL \
+            --env FLYWAY_USER \
+            --env FLYWAY_PASSWORD \
+            --volume "$GITHUB_WORKSPACE/src/db/migrations:/flyway/sql:ro" \
+            flyway/flyway:13.9.0 \
+            -locations=filesystem:/flyway/sql \
+            -defaultSchema=public \
+            -schemas=public \
+            -cleanDisabled=true \
+            -validateMigrationNaming=true \
+            migrate
