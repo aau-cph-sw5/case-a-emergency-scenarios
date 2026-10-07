@@ -17,7 +17,7 @@
     "validate": "node scripts/validate-fixtures.js",
     "seed:accounts": "node scripts/seed-test-accounts.js",
     "lint": "eslint . --max-warnings 0",
-    "dev": "concurrently --names api,web --prefix-colors blue,magenta \"npm run stub\" \"npm run web:dev\"",
+    "dev:web": "concurrently --names api,web --prefix-colors blue,magenta \"npm run stub\" \"npm run web:dev\"",
     "web:dev": "npm run dev -w web",
     "web:build": "npm run build -w web",
     "web:preview": "npm run preview -w web",
@@ -28,14 +28,23 @@
     "check": "node scripts/check.mjs",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "node --test \"tests/unit/**/*.test.{js,mjs}\"",
-    "test:integration": "node --test \"tests/integration/**/*.test.{js,mjs}\""
+    "test:integration": "node --test \"tests/integration/**/*.test.{js,mjs}\"",
+    "db:up": "docker compose up -d db",
+    "db:migrate": "docker compose run --rm flyway migrate",
+    "db:info": "docker compose run --rm flyway info",
+    "db:validate": "docker compose run --rm flyway validate",
+    "db:down": "docker compose down",
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js"
   },
   "dependencies": {
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "bcryptjs": "^3.0.3",
-    "express": "^5.0.0",
-    "jsonwebtoken": "^9.0.3"
+    "dotenv": "^18.0.6",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "postgres": "^3.4.9"
   },
   "overrides": {
     "react": "19.2.3",
@@ -52,8 +61,26 @@
     "eslint-plugin-n": "^18.4.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.12.0",
+    "nodemon": "^3.1.14",
     "prettier": "^3.9.9",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.1"
-  }
+  },
+  "description": "*Nød-scenarier*  ·  5th Semester, BSc Software Engineering, AAU Copenhagen  ·  Autumn 2026",
+  "main": "eslint.config.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aau-cph-sw5/case-a-emergency-scenarios.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aau-cph-sw5/case-a-emergency-scenarios/issues"
+  },
+  "homepage": "https://github.com/aau-cph-sw5/case-a-emergency-scenarios#readme"
 }
