@@ -39,11 +39,15 @@ This case now carries the semester's machine-intelligence work: `MET-A-019`, sce
 > somebody on another team and watching where they get stuck.
 
 ```bash
-# prerequisites
-# install
-# run
-# test
+# requires Node.js 20 or later
+npm install
+cp .env.example .env
+npm run dev
 ```
+
+The real API then runs at `http://localhost:3000`; use
+`http://localhost:3000/health` to confirm it is running. `npm run stub`
+continues to run the fixture-backed mock API on port 4010.
 
 ## Local database
 
@@ -55,6 +59,10 @@ for development. See [the local database guide](db/README.md).
 ```
 contracts/      published interfaces other teams build against, versioned
 fixtures/       synthetic test data. Never anything Metro supplied.
+src/            production Node.js API (application, routes, database access)
+stub-server/    fixture-backed mock API for contract and frontend development
+db/             Flyway database migrations and local PostgreSQL configuration
+tests/          automated unit and integration tests
 docs/           instructions, reference, architecture decisions, records and templates
 .github/        the pull request template and the automated checks
 ```
