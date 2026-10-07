@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: metro
+      POSTGRES_USER: metro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metro -d metro"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - metro_postgres_data:/var/lib/postgresql/data
+
+  flyway:
+    image: flyway/flyway:13.9.0
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
+    volumes:
+      - ./db:/flyway/project:ro
+    entrypoint:
+      [
+        "flyway",
+        "-workingDirectory=/flyway/project",
+        "-configFiles=/flyway/project/flyway.toml",
+      ]
+    command: ["migrate"]
+
+volumes:
+  metro_postgres_data:
