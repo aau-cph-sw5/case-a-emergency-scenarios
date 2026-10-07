@@ -131,7 +131,7 @@
                 {
                     "operationType": "ROUNDTRIP",
                     "routeCode": "KN-VEA",
-                    "track": 1,
+                    "trackNumber": 1,
                     "maximumTrains": 5,
                     "did": "20",
                     "description": "5 trains running KN-VEA",
