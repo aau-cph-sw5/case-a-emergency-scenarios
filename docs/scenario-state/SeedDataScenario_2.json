@@ -51,7 +51,7 @@
                 {
                   "operationType": "ROUNDTRIP",
                   "routeCode": "VAN-FOR",
-                  "track": 1,
+                  "trackNumber": 1,
                   "maximumTrains": 4,
                   "did": "1026",
                   "description": "4 trains running VAN-FOR",
