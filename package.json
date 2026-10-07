@@ -22,7 +22,6 @@
     "web:build": "npm run build -w web",
     "web:preview": "npm run preview -w web",
     "mobile": "npm run start -w mobile",
-    "typecheck": "npm run typecheck --workspaces --if-present",
     "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,ts,tsx,json,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,mjs,cjs,ts,tsx,json,yml,yaml}\"",
     "check": "node scripts/check.mjs",
@@ -34,8 +33,10 @@
     "db:info": "docker compose run --rm flyway info",
     "db:validate": "docker compose run --rm flyway validate",
     "db:down": "docker compose down",
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "typecheck": "node scripts/typecheck.mjs && npm run typecheck --workspaces --if-present",
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "ajv": "^8.20.0",
@@ -54,7 +55,9 @@
     "@eslint-react/eslint-plugin": "^5.23.1",
     "@eslint/js": "^10.0.1",
     "@stoplight/prism-cli": "^5.14.2",
-    "@types/node": "^24.19.1",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.19.43",
     "concurrently": "^10.0.5",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
@@ -63,6 +66,7 @@
     "globals": "^17.12.0",
     "nodemon": "^3.1.14",
     "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.1"
   },

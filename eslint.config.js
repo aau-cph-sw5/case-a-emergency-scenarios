@@ -43,6 +43,23 @@ export default defineConfig([
     },
   },
   {
+    // TypeScript API server (src/).
+    files: ["src/**/*.ts"],
+    extends: [
+      eslint.configs.recommended,
+      tseslint.configs.recommended,
+      node.configs["flat/recommended"],
+    ],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
+    // Frontends (web/, mobile/) and their shared packages.
     files: ["{web,mobile,packages}/**/*.{ts,tsx}"],
     extends: [
       eslint.configs.recommended,

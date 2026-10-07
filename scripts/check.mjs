@@ -12,6 +12,7 @@ function run(script) {
 
 const eslintPassed = run("lint");
 const prettierPassed = run("format:check");
+const typecheckPassed = run("typecheck");
 
 console.log("\nCode-quality summary");
 console.log(
@@ -20,7 +21,10 @@ console.log(
 console.log(
   `${prettierPassed ? "✓" : "✗"} Prettier ${prettierPassed ? "passed" : "failed"}`,
 );
+console.log(
+  `${typecheckPassed ? "✓" : "✗"} TypeScript ${typecheckPassed ? "passed" : "failed"}`,
+);
 
-if (!eslintPassed || !prettierPassed) {
+if (!eslintPassed || !prettierPassed || !typecheckPassed) {
   process.exitCode = 1;
 }
