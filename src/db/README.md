@@ -75,11 +75,11 @@ npm run db:up
 npm run db:migrate
 ```
 Changing POSTGRES_PASSWORD in .env only takes effect on a fresh volume. If you change it, run the wipe steps above
-Flyway then recreates the database from every migration in `db/migrations`.
+Flyway then recreates the database from every migration in `src/db/migrations`.
 
 ## Adding a migration
 
-Create an immutable, versioned file in `db/migrations`:
+Create an immutable, versioned file in `src/db/migrations`:
 
 ```text
 V002__add_scenario_status.sql

@@ -5,6 +5,7 @@ import react from "@eslint-react/eslint-plugin";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import { defineConfig } from "eslint/config";
+import tseslint from "typescript-eslint";
 
 export default defineConfig([
   {
@@ -14,6 +15,30 @@ export default defineConfig([
     files: ["**/*.{js,mjs,cjs,jsx}"],
     extends: [
       eslint.configs.recommended,
+      node.configs["flat/recommended"],
+      react.configs.recommended,
+      react.configs["disable-conflict-eslint-plugin-react-hooks"],
+      reactHooks.configs.flat.recommended,
+    ],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    extends: [
+      eslint.configs.recommended,
+      ...tseslint.configs.recommended,
       node.configs["flat/recommended"],
       react.configs.recommended,
       react.configs["disable-conflict-eslint-plugin-react-hooks"],
