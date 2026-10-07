@@ -18,7 +18,7 @@
     "validate": "node scripts/validate-fixtures.js",
     "seed:accounts": "node scripts/seed-test-accounts.js",
     "lint": "eslint . --max-warnings 0",
-    "dev:web": "concurrently --names api,web --prefix-colors blue,magenta \"npm run stub\" \"npm run web:dev\"",
+    "dev:web": "concurrently --names api,web --prefix-colors blue,magenta \"npm run dev\" \"npm run web:dev\"",
     "web:dev": "npm run dev -w web",
     "web:build": "npm run build -w web",
     "web:preview": "npm run preview -w web",

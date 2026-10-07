@@ -4,7 +4,12 @@ export interface ScenarioSummary {
   currentVersion: string;
 }
 
+export interface HealthStatus {
+  ok: boolean;
+}
+
 export interface ApiClient {
+  fetchHealth(): Promise<HealthStatus>;
   fetchScenarios(): Promise<ScenarioSummary[]>;
 }
 
@@ -36,6 +41,7 @@ export function createApiClient(baseUrl: string): ApiClient {
   }
 
   return {
+    fetchHealth: () => getJson<HealthStatus>("/health"),
     fetchScenarios: () => getJson<ScenarioSummary[]>("/api/v1/scenarios"),
   };
 }

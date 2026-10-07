@@ -1,58 +1,51 @@
-import { useEffect, useState } from "react";
-import { api, type ScenarioSummary } from "./api";
+import { useState } from "react";
+import { api } from "./api";
 
-type LoadState =
-  | { status: "loading" }
+type HealthState =
+  | { status: "idle" }
+  | { status: "checking" }
   | { status: "error"; message: string }
-  | { status: "ready"; scenarios: ScenarioSummary[] };
+  | { status: "done"; ok: boolean };
 
 export function App() {
-  const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [state, setState] = useState<HealthState>({ status: "idle" });
 
-  useEffect(() => {
-    let cancelled = false;
-
-    api
-      .fetchScenarios()
-      .then((scenarios) => {
-        if (!cancelled) setState({ status: "ready", scenarios });
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setState({
-            status: "error",
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
+  async function checkHealth() {
+    setState({ status: "checking" });
+    try {
+      const health = await api.fetchHealth();
+      setState({ status: "done", ok: health.ok });
+    } catch (error) {
+      setState({
+        status: "error",
+        message: error instanceof Error ? error.message : String(error),
       });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    }
+  }
 
   return (
     <main>
       <h1>Emergency Scenarios</h1>
 
-      {state.status === "loading" && <p>Loading scenarios…</p>}
+      <button
+        type="button"
+        onClick={checkHealth}
+        disabled={state.status === "checking"}
+      >
+        {state.status === "checking" ? "Checking…" : "Check server health"}
+      </button>
 
-      {state.status === "error" && (
-        <p role="alert">
-          Could not load scenarios: {state.message}. Is the server running (
-          <code>npm run stub</code>)?
+      {state.status === "done" && (
+        <p role="status">
+          {state.ok ? "Server is healthy" : "Server reports a problem"}
         </p>
       )}
 
-      {state.status === "ready" && (
-        <ul>
-          {state.scenarios.map((scenario) => (
-            <li key={scenario.scenarioId}>
-              <strong>{scenario.scenarioId}</strong> {scenario.name} (version{" "}
-              {scenario.currentVersion})
-            </li>
-          ))}
-        </ul>
+      {state.status === "error" && (
+        <p role="alert">
+          Could not reach the server: {state.message}. Is it running (
+          <code>npm run dev</code>)?
+        </p>
       )}
     </main>
   );
