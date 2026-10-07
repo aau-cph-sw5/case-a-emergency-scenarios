@@ -4,11 +4,20 @@ import node from "eslint-plugin-n";
 import react from "@eslint-react/eslint-plugin";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
+import tseslint from "typescript-eslint";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
   {
-    ignores: ["coverage/", "dist/", "build/"],
+    ignores: [
+      "coverage/",
+      "dist/",
+      "build/",
+      "web/dist/",
+      "mobile/.expo/",
+      "mobile/dist/",
+      "mobile/expo-env.d.ts",
+    ],
   },
   {
     files: ["**/*.{js,mjs,cjs,jsx}"],
@@ -29,6 +38,31 @@ export default defineConfig([
       },
       globals: {
         ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
+  {
+    files: ["{web,mobile,packages}/**/*.{ts,tsx}"],
+    extends: [
+      eslint.configs.recommended,
+      tseslint.configs.recommended,
+      react.configs["recommended-typescript"],
+      react.configs["disable-conflict-eslint-plugin-react-hooks"],
+      reactHooks.configs.flat.recommended,
+    ],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
+  {
+    files: ["web/vite.config.ts", "mobile/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: {
         ...globals.node,
       },
     },

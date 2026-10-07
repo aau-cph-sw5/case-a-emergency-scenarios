@@ -4,16 +4,27 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.19.0"
   },
+  "workspaces": [
+    "web",
+    "mobile",
+    "packages/*"
+  ],
   "scripts": {
     "stub": "node stub-server/server.js",
     "stub:prism": "prism mock contracts/v1/openapi.yaml",
     "validate": "node scripts/validate-fixtures.js",
     "seed:accounts": "node scripts/seed-test-accounts.js",
     "lint": "eslint . --max-warnings 0",
-    "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{js,jsx,mjs,cjs,json,yml,yaml}\"",
+    "dev": "concurrently --names api,web --prefix-colors blue,magenta \"npm run stub\" \"npm run web:dev\"",
+    "web:dev": "npm run dev -w web",
+    "web:build": "npm run build -w web",
+    "web:preview": "npm run preview -w web",
+    "mobile": "npm run start -w mobile",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,ts,tsx,json,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,mjs,cjs,ts,tsx,json,yml,yaml}\"",
     "check": "node scripts/check.mjs",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "node --test \"tests/unit/**/*.test.{js,mjs}\"",
@@ -26,15 +37,23 @@
     "express": "^5.0.0",
     "jsonwebtoken": "^9.0.3"
   },
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
   "devDependencies": {
     "@eslint-react/eslint-plugin": "^5.23.1",
     "@eslint/js": "^10.0.1",
     "@stoplight/prism-cli": "^5.14.2",
+    "@types/node": "^24.19.1",
+    "concurrently": "^10.0.5",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-n": "^18.4.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.12.0",
-    "prettier": "^3.9.9"
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.1"
   }
 }

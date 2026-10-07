@@ -19,6 +19,9 @@ pnpm-debug.log*
 .idea/
 .memdb/
 
+# Expo (generated when Expo runs)
+.expo/
+
 # Coverage/build output if added later
 coverage/
 dist/
