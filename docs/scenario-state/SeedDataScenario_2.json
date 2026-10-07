@@ -4,7 +4,7 @@
         "name": "fallbackScenario 2",
         "currentVersion": "1.0",
         "covers": [
-            { "trackNumber": 1, "stationA": "FOR", "stationB": "KN" }
+            { "trackNumber": 1, "stationA": "FOR", "stationB": "KN" },
             { "trackNumber": 1, "stationA": "KN", "stationB": "KGN" }
 ],
         "versions": [
