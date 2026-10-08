@@ -59,8 +59,8 @@ export default defineConfig([
     },
   },
   {
-    // Frontends (web/, mobile/) and their shared packages.
-    files: ["{web,mobile,packages}/**/*.{ts,tsx}"],
+    // Frontends (web/, mobile/).
+    files: ["{web,mobile}/**/*.{ts,tsx}"],
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommended,

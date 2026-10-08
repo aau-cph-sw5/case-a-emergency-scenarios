@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { api } from "./api";
 
 type HealthState =
   | { status: "idle" }
@@ -13,7 +12,9 @@ export function App() {
   async function checkHealth() {
     setState({ status: "checking" });
     try {
-      const health = await api.fetchHealth();
+      // vite.config forwards /healthcheck to the server
+      const response = await fetch("/healthcheck");
+      const health = (await response.json()) as { ok: boolean };
       setState({ status: "done", ok: health.ok });
     } catch (error) {
       setState({
