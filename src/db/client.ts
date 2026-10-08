@@ -15,10 +15,7 @@ export function getDatabase(): ReturnType<typeof postgres> {
     );
   }
 
-  const sslMode = new URL(connectionString).searchParams.get("sslmode");
 
-  sql = postgres(connectionString, {
-    ssl: sslMode === "require" ? "require" : false,
-  });
+  sql = postgres(connectionString);
   return sql;
 }
