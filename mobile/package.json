@@ -10,7 +10,6 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@case-a/api-client": "*",
     "expo": "~57.0.27",
     "expo-constants": "~57.0.21",
     "expo-status-bar": "~57.0.1",

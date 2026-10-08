@@ -58,7 +58,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["{web,mobile,packages}/**/*.{ts,tsx}"],
+    files: ["{web,mobile}/**/*.{ts,tsx}"],
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommended,

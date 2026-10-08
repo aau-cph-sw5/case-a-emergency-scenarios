@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
+import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { api, apiBaseUrl } from "./api";
+
+const apiUrl = (Constants.expoConfig?.extra?.apiUrl as string) ?? "";
+const devHost = Constants.expoConfig?.hostUri?.split(":")[0];
+const apiBaseUrl = devHost
+  ? apiUrl.replace(/\/\/(localhost|127\.0\.0\.1)(?=[:/]|$)/, `//${devHost}`)
+  : apiUrl;
 
 type HealthState =
   | { status: "loading" }
@@ -13,25 +19,20 @@ export default function App() {
   const [state, setState] = useState<HealthState>({ status: "loading" });
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
-    api
-      .fetchHealth()
-      .then((health) => {
-        if (!cancelled) setState({ status: "ready", ok: health.ok });
-      })
+    fetch(`${apiBaseUrl}/healthcheck`, { signal: controller.signal })
+      .then((response) => response.json() as Promise<{ ok: boolean }>)
+      .then((health) => setState({ status: "ready", ok: health.ok }))
       .catch((error: unknown) => {
-        if (!cancelled) {
-          setState({
-            status: "error",
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
+        if (controller.signal.aborted) return;
+        setState({
+          status: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, []);
 
   return (
@@ -65,7 +66,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e0dcdc",
+    backgroundColor: "#010000",
     paddingHorizontal: 16,
   },
   title: {

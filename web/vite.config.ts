@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         "/api": apiUrl,
-        "/health": apiUrl,
+        "/healthcheck": apiUrl,
       },
     },
   };

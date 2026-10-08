@@ -9,8 +9,7 @@
   },
   "workspaces": [
     "web",
-    "mobile",
-    "packages/*"
+    "mobile"
   ],
   "scripts": {
     "stub": "node stub-server/server.js",
