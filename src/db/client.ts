@@ -15,7 +15,6 @@ export function getDatabase(): ReturnType<typeof postgres> {
     );
   }
 
-
   sql = postgres(connectionString);
   return sql;
 }
