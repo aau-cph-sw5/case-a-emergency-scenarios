@@ -1,6 +1,7 @@
 {
-  "scenarioId": "3B",
-  "name": " Sporskifte 3 - KONTROL I RET",
+  "_comment": "Dummy data",
+  "scenarioId": "1D",
+  "name": "Sporskifte 3",
   "currentVersion": "1.0",
   "covers": [
     {
@@ -14,15 +15,15 @@
       "version": "1.0",
       "revision": "Initial version",
       "operatingPlan": {
-        "name": "NEL_OSO_begge_perroner_v1.0",
+        "name": "NEL_ORK_begge_perroner_v1.0",
         "patterns": [
           {
             "operationType": "ROUNDTRIP",
-            "routeCode": "NEL-OSO",
+            "routeCode": "NEL-ORK",
             "trackNumber": 12,
-            "maximumTrains": 12,
-            "did": "5542",
-            "description": "ROUNDTRIP from NEL to OSO",
+            "maximumTrains": 10,
+            "did": "5809",
+            "description": "ROUNDTRIP from NEL to ORK",
             "route": [
               {
                 "sequence": 1,
@@ -70,7 +71,7 @@
               },
               {
                 "sequence": 12,
-                "station": "OSO"
+                "station": "ORK"
               }
             ]
           },
@@ -79,7 +80,7 @@
             "routeCode": "KK<->ORK",
             "trackNumber": 2,
             "maximumTrains": 1,
-            "did": "5602",
+            "did": "5784",
             "description": "PENDULUM from KK to ORK",
             "route": [
               {
@@ -97,7 +98,7 @@
             "routeCode": "ORK<->NHT",
             "trackNumber": 1,
             "maximumTrains": 1,
-            "did": "5603",
+            "did": "5534",
             "description": "PENDULUM from ORK to NHT",
             "route": [
               {
@@ -114,8 +115,8 @@
             "operationType": "ROUNDTRIP",
             "routeCode": "KH-KH",
             "trackNumber": 1,
-            "maximumTrains": 9,
-            "did": "3001",
+            "maximumTrains": 8,
+            "did": "3786",
             "description": "ROUNDTRIP from KH to KH",
             "route": [
               {
@@ -192,8 +193,8 @@
             "operationType": "ROUNDTRIP",
             "routeCode": "KH-KH",
             "trackNumber": 2,
-            "maximumTrains": 9,
-            "did": "3002",
+            "maximumTrains": 8,
+            "did": "3457",
             "description": "ROUNDTRIP from KH to KH",
             "route": [
               {
