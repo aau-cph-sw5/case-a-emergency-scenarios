@@ -1,0 +1,48 @@
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "frontend/**"
+          - "client/**"
+          - "apps/frontend/**"
+          - "src/components/**"
+          - "src/pages/**"
+          - "src/**/*.{css,scss,sass,less,jsx,tsx}"
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "backend/**"
+          - "server/**"
+          - "api/**"
+          - "apps/backend/**"
+          - "src/routes/**"
+          - "src/controllers/**"
+          - "src/services/**"
+
+database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "database/**"
+          - "src/db/**"
+          - "migrations/**"
+          - "prisma/**"
+          - "**/*.sql"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "test/**"
+          - "tests/**"
+          - "**/__tests__/**"
+          - "**/*.{test,spec}.{js,jsx,ts,tsx}"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
