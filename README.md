@@ -45,6 +45,11 @@ This case now carries the semester's machine-intelligence work: `MET-A-019`, sce
 # test
 ```
 
+## Local database
+
+The project has a local PostgreSQL database and Flyway Open Source migrations
+for development. See [the local database guide](db/README.md).
+
 ## Layout
 
 ```
