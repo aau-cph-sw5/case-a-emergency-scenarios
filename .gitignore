@@ -13,6 +13,7 @@ pnpm-debug.log*
 # Environment files
 .env
 .env.*
+!.env.example
 
 # Editor/project files
 .vscode/
