@@ -1,0 +1,45 @@
+# ADR 0005. Use Docker for Consistent Development Environments
+
+**Status.**  Accepted 
+**Date.** 2026-10-09
+**Deciders.** {names, and which teams}
+**Related backlog items.** {MET-X-000, ...}
+
+## Context
+
+Multiple teams work on the same system using different computers and operating systems. 
+We need a consistent development environment to avoid compatibility issues, dependency conflicts, and time spent configuring individual machines.
+
+## Decision
+
+We use Docker to containerize our application services and their dependencies, ensuring a consistent environment across development machines.
+
+## Consequences
+
+**Advantages:**
+- Consistent development environments across teams.
+- Easier setup for new developers.
+- Fewer dependency and configuration conflicts.
+
+**Disadvantages:**
+- Requires Docker installation and basic knowledge.
+- Uses additional system resources.
+- Container configuration must be maintained.
+
+**Long-term implications:**
+
+Our development workflow depends on Docker configurations, which must be kept updated as the system changes.
+
+## Alternatives considered
+
+
+**Manual local installation.** 
+Each developer could install and configure dependencies individually, but this increases the risk of inconsistent environments and setup problems.
+
+**Virtual machines.** 
+Provide isolated environments but generally require more resources than containers.
+
+## Notes
+
+Anything a successor would want: a link to the discussion, the measurement that
+settled it, the Metro answer that constrained it, the date it should be revisited.
