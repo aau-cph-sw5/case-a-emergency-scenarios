@@ -44,21 +44,26 @@ Your phone and your PC must be on the **same network**.
 ### 1. Install Android Studio and the SDK tools
 
 1. Install [Android Studio](https://developer.android.com/studio).
-2. Open **More Actions → SDK Manager → SDK Tools**, tick
-   **Android SDK Platform-Tools** and click **Apply**. Expo needs its `adb`
-   tool to talk to the emulator.
-3. Tell Windows where the SDK is. Run this once in PowerShell:
+2. In android studio open **More Actions → SDK Manager → SDK Tools**, tick
+   **Android SDK Platform-Tools** and click **Apply**.
+3. Tell the system where the SDK is using the commands below.
 
+**Windows**
    ```powershell
    $sdk = "$env:LOCALAPPDATA\Android\Sdk"
    [Environment]::SetEnvironmentVariable("ANDROID_HOME", $sdk, "User")
    $path = [Environment]::GetEnvironmentVariable("Path", "User")
    [Environment]::SetEnvironmentVariable("Path", "$path;$sdk\platform-tools;$sdk\emulator", "User")
    ```
+**Mac**
+   ```cat >> ~/.zshrc <<'EOF'
+   export ANDROID_HOME="$HOME/Library/Android/sdk"
+   export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
+   EOF
+   source ~/.zshrc
+   ```
 
-4. Restart VS Code completely.
-
-### 3. Download the Samsung skin
+### 3. Download the Samsung skin (optional)
 
 1. Download the Galaxy A56 skin from
    [Samsung Galaxy Emulator Skins (Galaxy A)](https://developer.samsung.com/galaxy-emulator-skin/galaxy-a.html).
@@ -74,11 +79,13 @@ Your phone and your PC must be on the **same network**.
    - **skin:** `choose the Galaxy_A56 skin` just downloaded
 3. Click **Finish**, select the new profile and click **Next**..
 
+4. for the API dropdown select `API 36.0 Baklava`
+
 ### 5. Run the app on the emulator
 
 1. Start the virtual phone from **Device Manager** and wait for the
    Android home screen.
-2. Start the server and Expo in two terminals:
+2. Run **npm install** then start server and Expo in two terminals:
 
    ```bash
    npm run dev
