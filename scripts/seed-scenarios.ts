@@ -151,6 +151,7 @@ if (allErrors.length > 0) {
     console.error(allErrors.join("\n"));
     process.exit(1);
 }
+
 async function main() {
     if (process.env.NODE_ENV === "production") {
         throw new Error("Refusing to seed production");
@@ -169,14 +170,7 @@ async function main() {
         await client.query("BEGIN");
 
         for (const scenario of scenarios) {
-            await client.query(
-                "DELETE FROM scenarios WHERE scenario_id = $1",
-                [scenario.scenarioId]
-            );
-            await client.query(
-                "INSERT INTO scenarios (scenario_id, name) VALUES ($1, $2)",
-                [scenario.scenarioId, scenario.name]
-            );
+            await client.query("SELECT load_scenario($1::jsonb)", [JSON.stringify(scenario)]);
         }
 
         await client.query("COMMIT");
