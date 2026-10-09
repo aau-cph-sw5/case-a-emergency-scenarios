@@ -1,6 +1,20 @@
 import { useEffect, useState } from "react";
-import { api, type ScenarioSummary } from "./api";
 import { filterScenarios } from "./filter-scenarios";
+
+// The fields of contracts/v1/scenario-list.schema.json this list uses.
+type ScenarioSummary = {
+  scenarioId: string;
+  name: string;
+};
+
+// vite.config forwards /api to the server
+async function fetchScenarios(signal: AbortSignal): Promise<ScenarioSummary[]> {
+  const response = await fetch("/api/v1/scenarios", { signal });
+  if (!response.ok) {
+    throw new Error(`GET /api/v1/scenarios failed with ${response.status}`);
+  }
+  return (await response.json()) as ScenarioSummary[];
+}
 
 type LoadState =
   | { status: "loading" }
@@ -12,23 +26,18 @@ export function ScenarioList() {
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
-    api.fetchScenarios().then(
-      (scenarios) => {
-        if (!cancelled) setState({ status: "done", scenarios });
-      },
+    const controller = new AbortController();
+    fetchScenarios(controller.signal).then(
+      (scenarios) => setState({ status: "done", scenarios }),
       (error: unknown) => {
-        if (!cancelled) {
-          setState({
-            status: "error",
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
+        if (controller.signal.aborted) return;
+        setState({
+          status: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
       },
     );
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, []);
 
   // The search field is always shown, so it is there whenever the list is
