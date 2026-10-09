@@ -23,7 +23,7 @@ database:
   - changed-files:
       - any-glob-to-any-file:
           - "database/**"
-          - "db/**"
+          - "src/db/**"
           - "migrations/**"
           - "prisma/**"
           - "**/*.sql"
