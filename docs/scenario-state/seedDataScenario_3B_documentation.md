@@ -1,6 +1,6 @@
 # Scenario schema
 
-This document describes the structure of a scenario, based on the scenario schema. A scenario is a prepared fallback plan for a disruption on a track. It covers how trains run, where staff must be and what to do and what passengers are told
+This document describes the structure of a scenario 3B, based on the scenario schema for the M3 and M4 lines. A scenario is a prepared fallback plan for a disruption on a track. It covers how trains run, where staff must be and what to do and what passengers are told.
 
 
 ---
@@ -18,8 +18,6 @@ Scenario
    │  └─ patterns[]
    │     └─ route[]
    ├─ stationRequirements[]              required
-   │  ├─ activeDuring[]                  optional
-   │  └─ actions[]                       optional
    └─ passengerInformation[]             optional
 ```
 
@@ -34,7 +32,7 @@ A scenario has one or more versions. Each version is a snapshot of the plan, not
 | `scenarioId` | string | yes | Unique ID for the scenario |
 | `name` | string | yes | readable name. |
 | `currentVersion` | string | yes | The `version` of the entry in `versions` that is currently active. |
-| `covers` | string[] | no | Station codes affected by the scenario. |
+| `covers` | TrackSegment[] | no | The track segments the scenario closes. Each is `{ "trackNumber": 1, "stationA": "NEL", "stationB": "MOP" }`: the physical track, 1 or 2, and its two neighbouring stations. |
 | `versions` | Version[] | yes | All versions of the scenario, oldest first. |
 
 ---
@@ -64,7 +62,7 @@ A scenario has one or more versions. Each version is a snapshot of the plan, not
 |---|---|---|---|
 | `operationType` | `"PENDULUM"` \| `"ROUNDTRIP"` | yes | `PENDULUM`: a train shuttles back and forth on a stretch. `ROUNDTRIP`: a train runs out and returns to its starting point. |
 | `routeCode` | string | yes | Code for the route, fx `"VAN-FB"`. |
-| `track` | string | yes | Track the pattern uses. |
+| `trackNumber` | integer | yes | The physical track the pattern runs on: 1 or 2, or 12 for a roundtrip that uses both tracks. |
 | `maximumTrains` | integer ≥ 0 | yes | Maximum number of trains running in the pattern. |
 | `did` | string | yes | DID identifier for the pattern. |
 | `description` | string | no | Free-text description. |
@@ -81,9 +79,9 @@ The schema only says that `route` items are objects. By convention, we use this 
 
 ```json
 "route": [
-  { "sequence": 1, "station": "VAN" },
-  { "sequence": 2, "station": "FLI" },
-  { "sequence": 3, "station": "FB" }
+  { "sequence": 1, "station": "NEL" },
+  { "sequence": 2, "station": "MOP" },
+  { "sequence": 3, "station": "SLU" }
 ]
 ```
 
@@ -98,16 +96,6 @@ The schema only says that `route` items are objects. By convention, we use this 
 | `minimumStaffing` | integer ≥ 0 | yes | Minimum number of staff. |
 | `activeDuring` | TimeWindow[] | no | When the requirement applies. If omitted, it applies whenever the scenario is active. |
 | `actions` | Action[] | no | Instructions for staff at the station. |
-
-### TimeWindow
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `dayPattern` | string | yes | Days the window applies, e.g. `"MON-FRI"`, `"MON-THU"`, `"FRI"`, `"DAILY"`. |
-| `startTime` | string | yes | `HH:MM` or `HH:MM:SS`, 24-hour clock. |
-| `endTime` | string | yes | Same format as `startTime`. |
-
-A station can have several windows, e.g. separate morning and afternoon peaks.
 
 ### Action
 
