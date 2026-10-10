@@ -1,4 +1,5 @@
 import { useSocketState } from "../../shared/socket/useSocketState";
+import { ScenarioList } from "./ScenarioList";
 import { socket } from "./socket";
 
 export function App() {
@@ -21,6 +22,8 @@ export function App() {
           ))}
         </ul>
       )}
+
+      <ScenarioList />
     </main>
   );
 }
