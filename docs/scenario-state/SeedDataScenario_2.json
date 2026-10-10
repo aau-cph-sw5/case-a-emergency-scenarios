@@ -1,0 +1,224 @@
+{
+
+        "scenarioId": "FOR-KN",
+        "name": "fallbackScenario 2",
+        "currentVersion": "1.0",
+        "covers": [
+            { "trackNumber": 1, "stationA": "FOR", "stationB": "KN" },
+            { "trackNumber": 1, "stationA": "KN", "stationB": "KGN" }
+],
+        "versions": [
+          {
+            "version": "1.0",
+            "revision": "Initial version",
+            "operatingPlan": {
+              "name": "VAN.FOR-KN.CPH.VEA_v1.0",
+              "patterns": [
+                {
+                  "operationType": "PENDULUM",
+                  "routeCode": "FOR-KN",
+                  "trackNumber": 2,
+                  "maximumTrains": 1,
+                  "did": "123",
+                  "description": "PENDELUM from FOR-KN",
+                  "route": [
+                    {
+                      "sequence": 1,
+                      "station": "FOR"
+                    },
+                    {
+                      "sequence": 2,
+                      "station": "KN"
+                    }
+                  ]
+                }
+              ]
+            },
+            "stationRequirements": [
+              {
+                "station": "FOR",
+                "placement": "platform",
+                "minimumStaffing": 1
+              }
+            ]
+          },
+          {
+            "version": "1.1",
+            "revision": "changed operating plan, outside of covered stations",
+            "operatingPlan": {
+              "name": "VAN.FOR-KN.CPH.VEA_v1.0",
+              "patterns": [
+                {
+                  "operationType": "ROUNDTRIP",
+                  "routeCode": "VAN-FOR",
+                  "trackNumber": 1,
+                  "maximumTrains": 4,
+                  "did": "1026",
+                  "description": "4 trains running VAN-FOR",
+                  "route": [
+                    {
+                        "sequence": 1,
+                        "station": "VAN"
+                    },
+                    {
+                        "sequence": 2,
+                        "station": "FL"
+                    },
+                    {
+                        "sequence": 3,
+                        "station": "LIT"
+                    },
+                    {
+                        "sequence": 4,
+                        "station": "SOT"
+                    },
+                    {
+                        "sequence": 5,
+                        "station": "FB"
+                    },
+                    {
+                        "sequence": 6,
+                        "station": "FOR"
+                    }
+                  ]
+                },
+                {
+                  "operationType": "ROUNDTRIP",
+                  "routeCode": "KN-CPH",
+                  "trackNumber": 12,
+                  "maximumTrains": 5,
+                  "did": "302",
+                  "description": "5 trains running KN-CPH",
+                  "route": [
+                    {
+                        "sequence": 1,
+                        "station": "KN"
+                      },
+                      {
+                        "sequence": 2,
+                        "station": "KHC"
+                      },
+                      {
+                        "sequence": 3,
+                        "station": "AMB"
+                      },
+                      {
+                        "sequence": 4,
+                        "station": "LGP"
+                      },
+                      {
+                        "sequence": 5,
+                        "station": "ØSV"
+                      },
+                      {
+                        "sequence": 6,
+                        "station": "AMS"
+                      },
+                      {
+                        "sequence": 7,
+                        "station": "FEØ"
+                      },
+                      {
+                        "sequence": 8,
+                        "station": "KSA"
+                      },
+                      {
+                        "sequence": 9,
+                        "station": "CPH"
+                      }
+                  ]
+                },
+                {
+                    "operationType": "ROUNDTRIP",
+                    "routeCode": "KN-VEA",
+                    "trackNumber": 1,
+                    "maximumTrains": 5,
+                    "did": "20",
+                    "description": "5 trains running KN-VEA",
+                    "route": [
+                        {
+                            "sequence": 1,
+                            "station": "KN"
+                          },
+                          {
+                            "sequence": 2,
+                            "station": "KHC"
+                          },
+                          {
+                            "sequence": 3,
+                            "station": "ISB"
+                          },
+                          {
+                            "sequence": 4,
+                            "station": "UNI"
+                          },
+                          {
+                            "sequence": 5,
+                            "station": "KHS"
+                          },
+                          {
+                            "sequence": 6,
+                            "station": "BC"
+                          },
+                          {
+                            "sequence": 7,
+                            "station": "ØRE"
+                          },
+                          {
+                            "sequence": 8,
+                            "station": "VEA"
+                          }
+                    ]
+                  }
+              ]
+            },
+            "stationRequirements": [
+              {
+                "station": "FOR",
+                "placement": "platform",
+                "minimumStaffing": 1,
+                "activeDuring": [
+                  {
+                    "dayPattern": "MON-FRI",
+                    "startTime": "06:00",
+                    "endTime": "18:00"
+                  }
+                ],
+                "actions": [
+                  {
+                    "sequence": 1,
+                    "instruction": "Informer PAX om eventuel pendulstamme, samt hvordan de kommer videre"
+                  }
+                ]
+              },
+              {
+                "station": "KN",
+                "placement": "platform",
+                "minimumStaffing": 1,
+                "activeDuring": [
+                  {
+                    "dayPattern": "MON-FRI",
+                    "startTime": "06:00",
+                    "endTime": "18:00"
+                  }
+                ]
+              }
+            ],
+            "passengerInformation": [
+              {
+                "channel": "PA",
+                "language": "DA",
+                "message": "Alle passagerer skal skifte tog på Forum og Nørreport. Dette skyldes ***. Forvent længere rejsetid. Alternativ transport kan også findes på Rejseplanen.dk. F.eks. S-tog linje C som forbinder VAN, FL og KN eller Linje M3 Cityringen som forbinder KGN og FB."
+              },
+              {
+                "channel": "PA",
+                "language": "EN",
+                "message": "All passengers must change trains at Forum and Nørreport. This is due to ***. Expect longer travel time. You can also find alternative travel suggestions on journeyplanner.dk. For instance, S-train line C connecting VAN, FL and KN or the M3 Metro line connecting KGN and FB."
+              }
+            ]
+          }
+        ]
+      }
+      
+      
+      
