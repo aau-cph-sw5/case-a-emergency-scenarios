@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ScenarioList } from "./ScenarioList";
 
 type HealthState =
   | { status: "idle" }
@@ -48,6 +49,8 @@ export function App() {
           <code>npm run dev</code>)?
         </p>
       )}
+
+      <ScenarioList />
     </main>
   );
 }

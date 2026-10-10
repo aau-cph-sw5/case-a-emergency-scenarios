@@ -7,13 +7,45 @@ type ScenarioSummary = {
   name: string;
 };
 
+const REQUEST_TIMEOUT_MS = 10_000;
+
+function isScenarioList(data: unknown): data is ScenarioSummary[] {
+  return (
+    Array.isArray(data) &&
+    data.every(
+      (item) =>
+        typeof item?.scenarioId === "string" && typeof item?.name === "string",
+    )
+  );
+}
+
 // vite.config forwards /api to the server
 async function fetchScenarios(signal: AbortSignal): Promise<ScenarioSummary[]> {
-  const response = await fetch("/api/v1/scenarios", { signal });
+  let response: Response;
+  try {
+    response = await fetch("/api/v1/scenarios", {
+      signal: AbortSignal.any([
+        signal,
+        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      ]),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new Error(
+        `no answer from the server within ${REQUEST_TIMEOUT_MS / 1000} seconds`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
   if (!response.ok) {
     throw new Error(`GET /api/v1/scenarios failed with ${response.status}`);
   }
-  return (await response.json()) as ScenarioSummary[];
+  const data: unknown = await response.json();
+  if (!isScenarioList(data)) {
+    throw new Error("the server sent a scenario list in an unexpected format");
+  }
+  return data;
 }
 
 type LoadState =
@@ -61,12 +93,15 @@ export function ScenarioList() {
         <p role="alert">Could not load scenarios: {state.message}</p>
       )}
 
-      {state.status === "done" && (
-        <ScenarioResults
-          scenarios={filterScenarios(state.scenarios, query)}
-          query={query}
-        />
-      )}
+      {state.status === "done" &&
+        (state.scenarios.length === 0 ? (
+          <p role="status">No scenarios available.</p>
+        ) : (
+          <ScenarioResults
+            scenarios={filterScenarios(state.scenarios, query)}
+            query={query}
+          />
+        ))}
     </section>
   );
 }
