@@ -23,7 +23,7 @@
     "db:info": "docker compose run --rm flyway info",
     "db:validate": "docker compose run --rm flyway validate",
     "db:down": "docker compose down",
-    "seed": "tsx scripts/seed-scenarios.ts"
+    "seed": "tsx --env-file=.env scripts/seed-scenarios.ts"
   },
   "dependencies": {
     "ajv": "^8.20.0",
