@@ -37,6 +37,6 @@ Communicating to the rest of the team to ensure everyone is aware of the databas
 ## Alternatives considered
 **Neon.** Only had 100 hours of free monthly uptime, if we needed to ping something constantly we would not have enough. 
 **Aiven.** Didn't have a user friendly interface where we could see tables. 
-**Alternative.** As above.
+Aiven also only allows 1 service and supabase allows 2. This allows us to have both staging and production database.
 
 ## Notes
