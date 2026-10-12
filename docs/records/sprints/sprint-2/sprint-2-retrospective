@@ -1,0 +1,78 @@
+# Sprint 2 retrospective
+
+**Team:**  7, 9, 10, Case A . Emergency Scenarios
+
+**Date:** 12-10-2026  
+**Present:** 
+**Facilitator:** 
+
+## 1. The numbers
+
+| | Number |
+|---|---|
+| Items committed | 3 |
+| Items finished | 2 |
+| Items carried over | 2 |
+
+**Completed PBIs:**
+- MET-A-001 – Scenario domain model
+- MET-A-002 – Scenario reference data schema
+- MET-A-003 – Scenario state contract
+
+ MET-A-002 still needs to be updated in GitHub when it is finished
+
+## 2. What went well
+
+- We finished the two PBIs we worked on during the sprint.
+- 002 is almost finished, it is under review and just needs to be polished before it is finished which should not take long
+- The overall design of the Sprint Review presentation was very good and got complimented a lot 
+- We had a good discussion about acceptance criteria and how we should validate them
+- The organization of issues and PRs is improving, although there is still room for improvement
+- Communication is improving in some areas, but we still have issues with responsiveness and coordination
+
+## 3. What did not
+
+- There was a lack of communication on Discord, with messages sometimes going unanswered.
+- PRs were not always reviewed within a reasonable amount of time, leaving people waiting before they could continue their work.
+- It was not always clear who was working on which tasks.
+- Some group members felt excluded from contributing because they were unsure what work was available or already being handled by other people
+- The lack of coordination sometimes resulted in people being unable to progress with their tasks.
+- Issues and PRs are still somewhat disorganized, making it harder to follow the progress of the work.
+
+## 4. Where we lost time
+
+- Some PRs were left waiting for reviews for several days.
+- This delayed the process of receiving feedback, making corrections and completing the work.
+- Unanswered Discord messages caused unnecessary waiting and uncertainty.
+- Time was lost because it was unclear who was responsible for certain tasks and what others were currently working on.
+- Some group members had difficulty finding work they could contribute to because the distribution of tasks was not sufficiently visible.
+
+## 5. Cross-team
+
+- We need better communication about what each team is currently working on.
+- The distribution of PBIs and responsibilities should be clearer to avoid confusion and duplicated work
+- External reviewers can provide a less biased perspective on the solution
+- We need clearer expectations for PR reviews, including how quickly reviews should be handled and what to do when a reviewer is unavailable. 
+- If a PR is not getting any response quick enough, they should ping the relevant group in the Discord
+- Reviewers should explicitly communicate when they cannot review something immediately.
+- The Integration Team should help identify dependencies and ensure relevant information is shared between teams.
+- everyone should at minimum react to messages in the discord to show that they have seen it, even if they are not responding to it
+- instead of assuming a message is not for you and that someone else will PROBABLY answer, assume that you should just answer if you are able to
+
+## 6. One improvement for next sprint
+
+**Improvement:** Improve communication and coordination of tasks and PR reviews.
+
+We need to make it clearer who is working on what, who is responsible for reviewing PRs, and when reviews can be expected. If someone cannot review a PR or respond to a question, this should be communicated so that others are not left waiting without knowing when they can continue.
+
+**Owner:** {Name}
+
+**How we will know:**
+
+- Tasks and responsibilities are visible to the group.
+- PRs receive reviews within an agreed timeframe, or delays are communicated.
+- Group members know what work is available and who is currently working on what.
+- Fewer tasks are delayed because of unanswered messages or pending reviews.
+
+## 7. Carried over from last time
+
