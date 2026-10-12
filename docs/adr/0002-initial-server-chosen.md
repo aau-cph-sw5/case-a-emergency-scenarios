@@ -6,10 +6,9 @@
 **Related backlog items.** NO-PBI, project requirement
 
 ## Context
-Had to choose a server to start working to begin development and we chose Render. 
-Server is mentioned many times all over the GitHub, doesn't belong to just one PBI. 
-
-Render is free and easy to set up. 
+We needed to choose a hosting platform to begin development and deploy our application.
+Hosting is mentioned across the GitHub documentation and is not related to one specific PBI, but is needed for the project as a whole.
+Render offers a free hosting option and is easy to set up, making it suitable for our initial development.
 
 ## Decision
 
@@ -18,24 +17,27 @@ We will use Render as a server to host our deployment of our React application.
 ## Consequences
 
 _
-What becomes easier.
+What becomes easier:
+Free hosting without needing to commit to a paid plan.
+Easy setup and deployment, allowing us to focus on development.
+Deployment can be connected to GitHub, making it easier to keep the application updated.
 
-What becomes harder. Do not skip this. A record with no downsides reads as
-advocacy rather than a decision, and the downsides are what a successor needs when
-they hit one.
-
-What this commits us to that would be expensive to reverse.
+What becomes harder:
+The free plan has limitations on resources and usage.
+Free web services can go inactive after 15 minutes without traffic, causing delays when starting again.
+We depend on Render's availability and limitations.
+Reconsidering our hosting platform if the free plan no longer meets the project's requirements.
 _
 
 ## Alternatives considered
 
-_**Alternative** Why it was rejected, specifically. "Too complex" is not a
-reason; "it would require every client to hold an open connection through a tunnel
-where the network drops for minutes at a time" is.
+_**Railway** rejected because it only gives 1$ credit each month which was not enough. 
 
+**Vercel** this is usde for serverless functions so not ideal since we don't use conventional backend. 
+
+**Microsoft Azure** Used to give 100$ every year for students, but we couldn't find information on how long that lasts, so we did not want to risk it running out during the project. 
 
 _
 ## Notes
 
-_Anything a successor would want: a link to the discussion, the measurement that
-settled it, the Metro answer that constrained it, the date it should be revisited._
+This is our initial hosting decision and should be reconsidered if the project requires more resources or functionality than Renders free plan provides
