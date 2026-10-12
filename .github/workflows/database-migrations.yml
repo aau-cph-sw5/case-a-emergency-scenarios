@@ -17,6 +17,7 @@ concurrency:
 jobs:
   migrate:
     name: Migrate ${{ github.ref_name }} database
+    if: github.ref_name == 'main' || github.ref_name == 'staging'
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'ProductionEnv' || 'StagingEnv' }}
     env:
