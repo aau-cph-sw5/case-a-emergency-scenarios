@@ -20,8 +20,8 @@
               "operationType": "PENDULUM",
               "routeCode": "VAN-FB",
               "track": "1",
-              "maximumTrains": 1,
-              "did": "234",
+              "maximumTrains": 3,
+              "did": "458",
               "description": "PENDULUM from VAN to FB",
               "route": [
                 {
@@ -66,8 +66,8 @@
               "operationType": "PENDULUM",
               "routeCode": "FB-VEA",
               "track": "1",
-              "maximumTrains": 1,
-              "did": "1",
+              "maximumTrains": 2,
+              "did": "3",
               "description": "train turns on FB",
               "route": [
                 {
@@ -117,8 +117,8 @@
               "operationType": "PENDULUM",
               "routeCode": "FB-CPH",
               "track": "1",
-              "maximumTrains": 1,
-              "did": "250",
+              "maximumTrains": 4,
+              "did": "830",
               "route": [
                 {
                     "sequence": 1,
