@@ -1,4 +1,4 @@
-# ADR 0001. Assign pull request reviewers by round robin within each team
+# ADR 0006. Assign pull request reviewers by round robin within each team
 
 **Status.** Proposed
 **Date.** 2026-10-12
