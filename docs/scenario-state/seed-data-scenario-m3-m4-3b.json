@@ -21,8 +21,8 @@
             "operationType": "ROUNDTRIP",
             "routeCode": "NEL-ORK",
             "trackNumber": 12,
-            "maximumTrains": 10,
-            "did": "5809",
+            "maximumTrains": 12,
+            "did": "4307",
             "description": "ROUNDTRIP from NEL to ORK",
             "route": [
               {
@@ -79,8 +79,8 @@
             "operationType": "PENDULUM",
             "routeCode": "KK<->ORK",
             "trackNumber": 2,
-            "maximumTrains": 1,
-            "did": "5784",
+            "maximumTrains": 3,
+            "did": "1368",
             "description": "PENDULUM from KK to ORK",
             "route": [
               {
@@ -98,7 +98,7 @@
             "routeCode": "ORK<->NHT",
             "trackNumber": 1,
             "maximumTrains": 1,
-            "did": "5534",
+            "did": "3318",
             "description": "PENDULUM from ORK to NHT",
             "route": [
               {
@@ -115,8 +115,8 @@
             "operationType": "ROUNDTRIP",
             "routeCode": "KH-KH",
             "trackNumber": 1,
-            "maximumTrains": 8,
-            "did": "3786",
+            "maximumTrains": 7,
+            "did": "7124",
             "description": "ROUNDTRIP from KH to KH",
             "route": [
               {
@@ -193,8 +193,8 @@
             "operationType": "ROUNDTRIP",
             "routeCode": "KH-KH",
             "trackNumber": 2,
-            "maximumTrains": 8,
-            "did": "3457",
+            "maximumTrains": 9,
+            "did": "1831",
             "description": "ROUNDTRIP from KH to KH",
             "route": [
               {
