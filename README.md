@@ -46,7 +46,7 @@ npm run dev
 ```
 
 The real API then runs at `http://localhost:3000`; use
-`http://localhost:3000/health` to confirm it is running. `npm run stub`
+`http://localhost:3000/healthcheck` to confirm it is running. `npm run stub`
 continues to run the fixture-backed mock API on port 4010.
 
 The API is written in TypeScript. Use `npm run build` to compile it to `dist/`

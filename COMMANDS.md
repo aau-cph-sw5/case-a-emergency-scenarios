@@ -75,7 +75,7 @@ npm run dev
 ```
 
 The API listens on `http://localhost:3000`; verify it with
-`http://localhost:3000/health`.
+`http://localhost:3000/healthcheck`.
 
 Create a production build and run the compiled API:
 
