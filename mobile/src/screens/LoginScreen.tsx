@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { apiBaseUrl } from "../api-base-url";
-import { InvalidCredentialsError, login } from "../auth/login";
-import type { Session } from "../auth/login";
+import { InvalidCredentialsError, login } from "../../../shared/auth/login";
+import type { Session } from "../../../shared/auth/login";
 import {
   box,
   colors,
@@ -11,8 +11,6 @@ import {
   surface,
   text,
 } from "../../../shared/Theme";
-
-type Reachability = "checking" | "reachable" | "unreachable";
 
 type LoginState =
   | { status: "idle" }
@@ -27,22 +25,6 @@ export function LoginScreen({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [state, setState] = useState<LoginState>({ status: "idle" });
-  const [reachability, setReachability] = useState<Reachability>("checking");
-
-  // Any HTTP answer means the server is reachable. The stub has no
-  // /healthcheck route and answers 404, which still counts.
-  useEffect(() => {
-    const controller = new AbortController();
-
-    fetch(`${apiBaseUrl}/healthcheck`, { signal: controller.signal })
-      .then(() => setReachability("reachable"))
-      .catch(() => {
-        if (controller.signal.aborted) return;
-        setReachability("unreachable");
-      });
-
-    return () => controller.abort();
-  }, []);
 
   const submitting = state.status === "submitting";
   const canSubmit = !submitting && username.trim() !== "" && password !== "";
@@ -108,13 +90,6 @@ export function LoginScreen({
             {state.message}
           </Text>
         )}
-
-        <Text style={styles.health}>
-          Server: {apiBaseUrl}
-          {reachability === "checking" && " · tjekker…"}
-          {reachability === "reachable" && " · forbundet"}
-          {reachability === "unreachable" && " · kan ikke nås"}
-        </Text>
       </View>
     </View>
   );
@@ -169,11 +144,5 @@ const styles = StyleSheet.create({
   error: {
     color: palette.metroDeepRed,
     marginTop: 12,
-  },
-  health: {
-    color: colors.text,
-    opacity: 0.6,
-    fontSize: 12,
-    marginTop: 24,
   },
 });

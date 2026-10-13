@@ -3,7 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { page } from "../shared/Theme";
-import type { Session } from "./src/auth/login";
+import type { Session } from "../shared/auth/login";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { OperatorDashboard } from "./src/screens/OperatorDashboard";
 import { StewardView } from "./src/screens/StewardView";

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { InvalidCredentialsError, login } from "../../mobile/src/auth/login.ts";
+import { InvalidCredentialsError, login } from "../../shared/auth/login.ts";
 
 const API = "http://localhost:4010";
 
