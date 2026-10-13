@@ -15,7 +15,9 @@ export function parsePattern(pattern: Pattern) {
   return {
     name: pattern.routeCode,
     tracks:
-      pattern.operationType === 'PENDULUM' ? [Number(pattern.track)] : [1, 2],
+      pattern.operationType === 'PENDULUM'
+        ? [Number(pattern.trackNumber ?? pattern.track)]
+        : [1, 2],
     connections: stations.slice(1).map((s: string, i: number) => [stations[i], s] as [string, string]),
   };
 }

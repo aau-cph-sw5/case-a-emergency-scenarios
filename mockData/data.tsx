@@ -107,6 +107,7 @@ const stationData: Record<string, [number, number]> = {
   LIT: [218, 343],
   SOT: [290, 343],
   FOR: [465, 343],
+  KN: [565, 343],
   KHC: [688, 387],
   AMB: [729, 413],
   LGP: [759, 443],
