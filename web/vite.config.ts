@@ -1,9 +1,11 @@
 import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
 // API_URL comes from the repo-root .env, shared with the mobile app.
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+const reactNativeWeb = resolve(repoRoot, "node_modules/react-native-web");
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, repoRoot, "");
@@ -11,6 +13,13 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    resolve: {
+      extensions: [".web.mjs", ".mjs", ".web.js", ".js", ".web.ts", ".ts", ".web.tsx", ".tsx", ".json"],
+      alias: {
+        "react-native": reactNativeWeb,
+        "react-native-svg": resolve(repoRoot, "node_modules/react-native-svg/lib/module/elements.web.js"),
+      },
+    },
     server: {
       port: 5173,
       proxy: {

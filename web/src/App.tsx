@@ -1,53 +1,38 @@
-import { useState } from "react";
+import { useState } from 'react';
+import { Text, View } from 'react-native';
+import ScenarioMapInitializer from '../../shared/ScenarioMapInitializer';
+import ScenarioStationList from '../../shared/ScenarioStationList';
+import ScenarioSelector from './ScenarioSelector';
+import SidePanel from './SidePanel';
+import scenarios from './scenarios';
+import { surface, text } from '../../shared/Theme';
 
-type HealthState =
-  | { status: "idle" }
-  | { status: "checking" }
-  | { status: "error"; message: string }
-  | { status: "done"; ok: boolean };
-
-export function App() {
-  const [state, setState] = useState<HealthState>({ status: "idle" });
-
-  async function checkHealth() {
-    setState({ status: "checking" });
-    try {
-      // vite.config forwards /healthcheck to the server
-      const response = await fetch("/healthcheck");
-      const health = (await response.json()) as { ok: boolean };
-      setState({ status: "done", ok: health.ok });
-    } catch (error) {
-      setState({
-        status: "error",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+// Admin-panel layout
+export default function App() {
+  const [id, setId] = useState(scenarios[0].scenarioId);
+  const scenario = scenarios.find((s: any) => s.scenarioId === id);
 
   return (
-    <main>
-      <h1>Emergency Scenarios</h1>
+    <View style={[surface, { flex: 1 }]}>
+      <Text style={[text.header, { padding: 12 }]}>
+        Administration
+      </Text>
 
-      <button
-        type="button"
-        onClick={checkHealth}
-        disabled={state.status === "checking"}
-      >
-        {state.status === "checking" ? "Checking…" : "Check server health"}
-      </button>
+      <View style={{ flex: 1, flexDirection: 'row', padding: 12, gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <ScenarioSelector scenarios={scenarios} selectedId={id} onSelect={setId} />
+        </View>
 
-      {state.status === "done" && (
-        <p role="status">
-          {state.ok ? "Server is healthy" : "Server reports a problem"}
-        </p>
-      )}
+        <View style={{ flex: 2 }}>
+          <ScenarioMapInitializer key={id} scenario={scenario} />
+        </View>
 
-      {state.status === "error" && (
-        <p role="alert">
-          Could not reach the server: {state.message}. Is it running (
-          <code>npm run dev</code>)?
-        </p>
-      )}
-    </main>
+        <View style={{ flex: 1 }}>
+          <SidePanel>
+            <ScenarioStationList scenario={scenario} />
+          </SidePanel>
+        </View>
+      </View>
+    </View>
   );
 }
