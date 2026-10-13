@@ -198,7 +198,7 @@ app.get("/", (req, res) => {
         </span>
 
         <div class="description">
-          Activate a scenario. Body: { "actor": "operator-017" }.
+          Activate a scenario. Requires a bearer token with the OPERATOR role.
           This endpoint cannot be opened directly as a browser link because it requires a POST request.
         </div>
       </div>
@@ -330,15 +330,20 @@ const activations = [readJson(path.join(fixtures, "scenario-state.json"))];
 // Metro's answer on MET-A-007: several scenarios may be active on the same
 // line, and activating never stands down another activation. Only activating
 // the same scenario twice is refused.
-app.post("/api/v1/scenarios/:scenarioId/activate", (req, res) => {
+// Metro on MET-A-026: "All in CCR can activate a scenario". The full role
+// matrix is #25's; this only keeps stewards out.
+app.post("/api/v1/scenarios/:scenarioId/activate", requireAuth, (req, res) => {
   const { scenarioId } = req.params;
 
-  const errors = validate(req.body, ["activation-request.schema.json"]);
-
-  if (errors.length > 0) {
+  if (req.user.role !== "OPERATOR") {
     return res
-      .status(400)
-      .json(errorBody(ERROR_CODES.MISSING_PARAMETER, errors.join("; ")));
+      .status(403)
+      .json(
+        errorBody(
+          ERROR_CODES.ROLE_NOT_PERMITTED,
+          `Role ${req.user.role} may not activate a scenario`,
+        ),
+      );
   }
 
   const filePath = path.join(fixtures, "scenarios", `${scenarioId}.json`);
@@ -381,7 +386,7 @@ app.post("/api/v1/scenarios/:scenarioId/activate", (req, res) => {
     startedAt: new Date().toISOString(),
     endedAt: null,
     status: "ACTIVE",
-    actor: req.body.actor,
+    actor: req.user.userId,
     deployments: (currentVersion?.stationRequirements ?? []).map(
       (requirement) => ({
         status: "UNMANNED",

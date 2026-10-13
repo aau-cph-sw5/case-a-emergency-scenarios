@@ -1,0 +1,97 @@
+import test, { after, before } from "node:test";
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import http from "node:http";
+import jwt from "jsonwebtoken";
+
+const SECRET = "integration-test-secret";
+
+// node:http rather than fetch: the repo's ESLint targets Node >=20.19, where
+// the n plugin still flags fetch as experimental.
+function request(method, path, token) {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        host: "localhost",
+        port: 4010,
+        method,
+        path,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      },
+      (res) => {
+        let body = "";
+        res.on("data", (chunk) => (body += chunk));
+        res.on("end", () => resolve({ status: res.statusCode, body }));
+      },
+    );
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+let stub;
+
+before(async () => {
+  stub = spawn("node", ["stub-server/server.js"], {
+    env: { ...process.env, JWT_SECRET: SECRET },
+    stdio: "ignore",
+  });
+  for (let i = 0; i < 50; i++) {
+    try {
+      await request("GET", "/");
+      return;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  throw new Error("Stub server did not start");
+});
+
+after(() => stub.kill());
+
+function tokenFor(userId, role) {
+  return jwt.sign({ userId, role }, SECRET, { expiresIn: "1h" });
+}
+
+async function activate(scenarioId, token) {
+  const res = await request(
+    "POST",
+    `/api/v1/scenarios/${scenarioId}/activate`,
+    token,
+  );
+  return { status: res.status, json: () => JSON.parse(res.body) };
+}
+
+const operator = tokenFor("operator-test", "OPERATOR");
+
+test("without a token the activation is refused with E0001", async () => {
+  const res = await activate("DEMO-002");
+  assert.equal(res.status, 401);
+  assert.equal(res.json().error.code, "E0001");
+});
+
+test("a steward may not activate a scenario", async () => {
+  const res = await activate("DEMO-002", tokenFor("steward-test", "STEWARD"));
+  assert.equal(res.status, 403);
+  assert.equal(res.json().error.code, "E0002");
+});
+
+test("an operator activates a second scenario while DEMO-001 is active", async () => {
+  const res = await activate("DEMO-002", operator);
+  assert.equal(res.status, 201);
+  const activation = res.json();
+  assert.equal(activation.status, "ACTIVE");
+  assert.equal(activation.actor, "operator-test");
+});
+
+test("activating the same scenario twice is refused with E0007", async () => {
+  const res = await activate("DEMO-001", operator);
+  assert.equal(res.status, 409);
+  assert.equal(res.json().error.code, "E0007");
+});
+
+test("an unknown scenario is refused with E0004", async () => {
+  const res = await activate("NOPE", operator);
+  assert.equal(res.status, 404);
+  assert.equal(res.json().error.code, "E0004");
+});

@@ -6,8 +6,7 @@ Adds the scenario activation call (additive, no breaking change).
 
 Includes:
 
-- `POST /api/v1/scenarios/{scenarioId}/activate`
-- `activation-request.schema.json`
+- `POST /api/v1/scenarios/{scenarioId}/activate`, which requires a bearer token with the `OPERATOR` role and takes the actor from the token
 
 ## 3.0.0 - 2026-10-15
 

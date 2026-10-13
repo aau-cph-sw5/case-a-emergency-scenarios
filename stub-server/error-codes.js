@@ -9,6 +9,7 @@
 
 export const ERROR_CODES = {
   AUTH_TOKEN_INVALID: "E0001", // Authentication token is missing, invalid or expired
+  ROLE_NOT_PERMITTED: "E0002", // The authenticated user's role does not permit this action
   INVALID_CREDENTIALS: "E0102", // Invalid credentials
   NOT_FOUND: "E0004", // The requested resource does not exist
   MISSING_PARAMETER: "E0006", // A required parameter is missing

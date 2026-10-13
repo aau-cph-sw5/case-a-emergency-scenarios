@@ -238,20 +238,18 @@ paths:
   /api/v1/scenarios/{scenarioId}/activate:
     post:
       summary: Activates a scenario with given id
+      description: >
+        Requires a bearer token with the OPERATOR role ("All in CCR can
+        activate a scenario", Metro on MET-A-026). The actor is taken from
+        the token, never from the request.
+      security:
+        - bearerAuth: []
       parameters:
         - name: scenarioId
           in: path
           required: true
           schema:
             type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "./activation-request.schema.json"
-            example:
-              actor: "operator-017"
       responses:
         "201":
           description: Activation successful
@@ -259,16 +257,26 @@ paths:
             application/json:
               schema:
                 $ref: "./scenario-state.schema.json"
-        "400":
-          description: Invalid request body, e.g. missing actor.
+        "401":
+          description: Missing, invalid or expired bearer token
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
               example:
                 error:
-                  code: "E0006"
-                  message: "Request body must have required property 'actor'"
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not activate a scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "Role STEWARD may not activate a scenario"
         "404":
           description: Scenario not found
           content:
