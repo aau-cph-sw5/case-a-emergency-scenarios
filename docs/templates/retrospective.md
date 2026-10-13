@@ -1,97 +1,50 @@
-# Sprint {N} retrospective
+# Sprint {N} retrospective. Team {X}, {Product}
 
-**Group {X}, {Product}**
+**Date.** {YYYY-MM-DD}
+**Present.** {names}
+**Facilitator.** {rotate this}
 
-**Date:** {DD-MM-YYYY}  
-**Present:** {names}  
-**Facilitator:** {name}
+---
 
-## 1. The numbers
+## The numbers
 
-| | Count |
-|---|---:|
-| Items committed | {number} |
-| Items finished | {number} |
-| Items carried over | {number} |
+Items committed, items finished, items carried over. No commentary yet, just the
+figures. Do this first so that the conversation starts from what happened rather
+than from how it felt.
 
-## 2. What went well
+## What went well
 
-### {Specific thing}
+Specific things, not "good teamwork". What specifically, and what made it
+possible, so that it can be repeated deliberately rather than by luck.
 
-**What happened**
+## What did not
 
-...
+Specific, and about the work rather than about people. If a person is genuinely
+the problem, that is a conversation with the semester coordinator, not a line in
+a retrospective document.
 
-**Why it worked**
+## Where we lost time
 
-...
+Usually more informative than the two sections above. Waiting on another team,
+waiting on an answer, rework after a misunderstanding, an environment that broke,
+an item that turned out to be three items.
 
-**Worth repeating?**
+## Cross-team
 
-Yes / No
+Anything another team on this product should know. Carry it to the integration
+meeting; do not leave it here where they will not read it.
 
-## 3. What did not
+## One improvement for next sprint
 
-### {Problem}
+One. Not a list. With a named owner and something observable that tells you at the
+next retrospective whether it worked.
 
-**What happened**
+**Improvement.**
+**Owner.**
+**How we will know.**
 
-...
+## Carried over from last time
 
-**Impact**
-
-...
-
-**What was within our control?**
-
-...
-
-## 4. Where we lost time
-
-- [ ] Waiting on another group
-- [ ] Waiting for an external answer
-- [ ] Rework after misunderstanding
-- [ ] Environment or tooling problem
-- [ ] Item was too large
-- [ ] Requirement was unclear
-- [ ] Review or merge delay
-- [ ] Other: ...
-
-### Most important time loss
-
-{What happened and what we learned from it}
-
-## 5. Cross-group learning
-
-Anything another Case A group should know.
-
-- ...
-- ...
-
-## 6. One improvement for next sprint
-
-**Improvement**
-
-{What will change?}
-
-**Owner**
-
-{name}
-
-**How we will know it worked**
-
-{Observable result}
-
-## 7. Last sprint's improvement
-
-**Previous improvement**
-
-...
-
-**Result**
-
-Completed / Partly / Not completed
-
-**What we learned**
-
-...
+Did last sprint's improvement happen? If it did not, that is worth more discussion
+than any other item on this page, because it means the retrospective is not
+changing anything.
