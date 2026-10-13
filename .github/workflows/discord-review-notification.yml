@@ -1,0 +1,274 @@
+
+name: Discord Review Notifications
+
+on:
+  pull_request_target:
+    types: [review_requested, closed]
+
+permissions:
+  issues: write
+
+# Prevent simultaneous runs from overwriting message tracking.
+concurrency:
+  group: discord-review-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  notify-discord:
+    if: >-
+      github.event.action == 'review_requested' ||
+      github.event.pull_request.merged == true
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Manage Discord notifications
+        uses: actions/github-script@v8
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_USERS: ${{ vars.DISCORD_USERS }}
+
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const event = context.payload.action;
+            const number = pr.number;
+
+            // -----------------------------------------
+            // Configuration
+            // -----------------------------------------
+
+            const webhook = process.env.DISCORD_WEBHOOK;
+
+            if (!webhook) {
+              throw new Error("DISCORD_WEBHOOK secret is missing");
+            }
+
+            // Case-insensitive GitHub username mapping.
+            const users = Object.fromEntries(
+              Object.entries(
+                JSON.parse(process.env.DISCORD_USERS || "{}")
+              ).map(([username, discordId]) => [
+                username.toLowerCase(),
+                String(discordId)
+              ])
+            );
+
+            const marker = "<!-- discord-review-state:";
+
+            // -----------------------------------------
+            // Load previously sent Discord messages
+            // -----------------------------------------
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: number,
+                per_page: 100
+              }
+            );
+
+            const stateComment = comments.find(
+              comment =>
+                comment.user?.login === "github-actions[bot]" &&
+                comment.body?.startsWith(marker)
+            );
+
+            let messages = {};
+
+            if (stateComment) {
+              const firstLine = stateComment.body.split("\n")[0];
+
+              const storedJson = firstLine
+                .slice(marker.length)
+                .replace(/-->$/, "")
+                .trim();
+
+              messages = JSON.parse(storedJson);
+            }
+
+            // -----------------------------------------
+            // Discord API helper
+            // -----------------------------------------
+
+            async function discordRequest(path, method, data) {
+              const response = await fetch(
+                `${webhook}${path}`,
+                {
+                  method,
+                  headers: {
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify(data)
+                }
+              );
+
+              if (!response.ok) {
+                const error = await response.text();
+
+                throw new Error(
+                  `Discord API error ${response.status}: ${error}`
+                );
+              }
+
+              return response.json();
+            }
+
+            // -----------------------------------------
+            // Save Discord message IDs on the PR
+            // -----------------------------------------
+
+            async function saveState() {
+              const body =
+                `${marker}${JSON.stringify(messages)} -->\n` +
+                "Discord notification tracking " +
+                "(managed automatically by GitHub Actions).";
+
+              if (stateComment) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: stateComment.id,
+                  body
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: number,
+                  body
+                });
+              }
+            }
+
+            // -----------------------------------------
+            // Individual reviewer requested
+            // -----------------------------------------
+
+            if (event === "review_requested") {
+              const reviewer =
+                context.payload.requested_reviewer?.login;
+
+              // Ignore team requests.
+              // Only notify individually selected reviewers.
+              if (!reviewer) {
+                console.log("Team request ignored.");
+                return;
+              }
+
+              const username = reviewer.toLowerCase();
+              const discordId = users[username];
+
+              if (!discordId) {
+                console.log(
+                  `No Discord mapping found for ${reviewer}`
+                );
+                return;
+              }
+
+              // Do not send duplicate notifications.
+              if (messages[username]) {
+                console.log(
+                  `${reviewer} has already been notified.`
+                );
+                return;
+              }
+
+              // Avoid notifying after a merge.
+              const currentPr = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: number
+              });
+
+              if (currentPr.data.state !== "open") {
+                console.log("PR is no longer open.");
+                return;
+              }
+
+              // Send Discord notification.
+              const payload = {
+                content:
+                  `🔔 **Review Requested**\n\n` +
+                  `<@${discordId}> You have been requested ` +
+                  `to review a pull request!\n\n` +
+                  `**PR #${number} — ${pr.title}**\n` +
+                  `🔗 ${pr.html_url}`,
+                allowed_mentions: {
+                  parse: [],
+                  users: [discordId]
+                }
+              };
+
+              // wait=true returns the Discord message ID.
+              const result = await discordRequest(
+                "?wait=true",
+                "POST",
+                payload
+              );
+
+              // Store the message ID for later editing.
+              messages[username] = result.id;
+
+              await saveState();
+
+              console.log(
+                `Discord notification sent to ${reviewer}. ` +
+                `Message ID: ${result.id}`
+              );
+            }
+
+            // -----------------------------------------
+            // Pull request merged
+            // -----------------------------------------
+
+            if (event === "closed" && pr.merged === true) {
+              const entries = Object.entries(messages);
+
+              if (entries.length === 0) {
+                console.log(
+                  "No tracked Discord notifications to update."
+                );
+                return;
+              }
+
+              console.log(
+                `PR #${number} merged. Updating ${entries.length} messages.`
+              );
+
+              for (const [reviewer, messageId] of entries) {
+                const payload = {
+                  content:
+                    `✅ **Pull Request Merged**\n\n` +
+                    `**PR #${number} — ${pr.title}**\n` +
+                    `🔗 ${pr.html_url}\n\n` +
+                    `Review no longer required.`,
+                  allowed_mentions: {
+                    parse: []
+                  }
+                };
+
+                try {
+                  await discordRequest(
+                    `/messages/${messageId}`,
+                    "PATCH",
+                    payload
+                  );
+
+                  console.log(
+                    `Updated Discord message for ${reviewer}.`
+                  );
+                } catch (error) {
+                  // Continue updating other reviewers
+                  // even if one message was deleted.
+                  console.error(
+                    `Failed to update ${reviewer}: ${error.message}`
+                  );
+                }
+              }
+
+              console.log("Merge notifications processed.");
+            }
