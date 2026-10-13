@@ -1,4 +1,5 @@
 // Single source of truth for shared styling.
+import { Platform } from "react-native";
 
 // Raw colours. Nothing outside this object holds a hex value.
 export const palette = {
@@ -43,7 +44,11 @@ export const radius = 0;
 export const text = {
   body: {},
   title: { fontSize: 18, fontWeight: "600" as const },
-  header: { fontFamily: "Arial, sans-serif", fontSize: 16 },
+  // A CSS font list only works on web; Android and iOS use the system font.
+  header: {
+    fontFamily: Platform.select({ web: "Arial, sans-serif" }),
+    fontSize: 16,
+  },
   button: {
     color: colors.textInverse,
     fontSize: 16,
