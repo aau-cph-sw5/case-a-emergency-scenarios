@@ -22,6 +22,7 @@
     "web:build": "npm run build -w web",
     "web:preview": "npm run preview -w web",
     "mobile": "npm run start -w mobile",
+    "mobile:web": "npm run web -w mobile",
     "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,ts,tsx,json,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,mjs,cjs,ts,tsx,json,yml,yaml}\"",
     "check": "node scripts/check.mjs",

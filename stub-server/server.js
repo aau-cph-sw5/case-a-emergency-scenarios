@@ -11,6 +11,20 @@ const PORT = 4010;
 
 app.use(express.json());
 
+// The Expo web client runs on another origin (localhost:8081), so the
+// browser needs CORS headers to call the stub.
+app.use((req, res, next) => {
+  res.set({
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  });
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
