@@ -19,7 +19,7 @@
             {
               "operationType": "PENDULUM",
               "routeCode": "VAN-FB",
-              "track": "1",
+              "trackNumber": "1",
               "maximumTrains": 1,
               "did": "234",
               "description": "PENDULUM from VAN to FB",
@@ -64,23 +64,8 @@
           "patterns": [
             {
               "operationType": "PENDULUM",
-              "routeCode": "VAN-FB",
-              "track": "1",
-              "maximumTrains": 1,
-              "did": "234",
-              "description": "PENDULUM from VAN to FB",
-              "route": [
-                { "sequence": 1, "station": "VAN" },
-                { "sequence": 2, "station": "FL" },
-                { "sequence": 3, "station": "LIT" },
-                { "sequence": 4, "station": "SOT" },
-                { "sequence": 5, "station": "FB" }
-              ]
-            },
-            {
-              "operationType": "ROUNDTRIP",
               "routeCode": "FB-VEA",
-              "track": "1",
+              "trackNumber": "1",
               "maximumTrains": 1,
               "did": "1",
               "description": "train turns on FB",
@@ -95,43 +80,47 @@
                 },
                 {
                   "sequence": 3,
-                  "station": "KGN"
+                  "station": "KN"
                 },
                 {
                   "sequence": 4,
-                  "station": "KHC"
+                  "station": "KGN"
                 },
                 {
                   "sequence": 5,
-                  "station": "ISB"
+                  "station": "KHC"
                 },
                 {
                   "sequence": 6,
-                  "station": "UNI"
+                  "station": "ISB"
                 },
                 {
                   "sequence": 7,
-                  "station": "KHS"
+                  "station": "UNI"
                 },
                 {
                   "sequence": 8,
-                  "station": "BC"
+                  "station": "KHS"
                 },
                 {
                   "sequence": 9,
-                  "station": "ØRE"
+                  "station": "BC"
                 },
                 {
                   "sequence": 10,
+                  "station": "ØRE"
+                },
+                {
+                  "sequence": 11,
                   "station": "VEA"
                 }
                 
               ]
             },
             {
-              "operationType": "ROUNDTRIP",
+              "operationType": "PENDULUM",
               "routeCode": "FB-CPH",
-              "track": "1",
+              "trackNumber": "1",
               "maximumTrains": 1,
               "did": "250",
               "route": [
@@ -145,38 +134,42 @@
                   },
                   {
                     "sequence": 3,
-                    "station": "KGN"
+                    "station": "KN"
                   },
                   {
                     "sequence": 4,
-                    "station": "KHC"
+                    "station": "KGN"
                   },
                   {
                     "sequence": 5,
-                    "station": "AMB"
+                    "station": "KHC"
                   },
                   {
                     "sequence": 6,
-                    "station": "LGP"
+                    "station": "AMB"
                   },
                   {
                     "sequence": 7,
-                    "station": "ØSV"
+                    "station": "LGP"
                   },
                   {
                     "sequence": 8,
-                    "station": "AMS"
+                    "station": "ØSV"
                   },
                   {
                     "sequence": 9,
-                    "station": "FEØ"
+                    "station": "AMS"
                   },
                   {
                     "sequence": 10,
-                    "station": "KSA"
+                    "station": "FEØ"
                   },
                   {
                     "sequence": 11,
+                    "station": "KSA"
+                  },
+                  {
+                    "sequence": 12,
                     "station": "CPH"
                   }
               ]
