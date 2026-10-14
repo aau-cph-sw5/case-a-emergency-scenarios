@@ -75,11 +75,6 @@ An ER diagram based on the entity model and Metro material, showing how the scen
 - A machine-readable schema is published alongside the prose, with both clients validating against it in their test suites.
 - The contract includes versioning, with breaking changes requiring a new version, a changelog entry and adoption by both teams within the same sprint.
 - A stub server makes the contract available to the client team before the real implementation exists.
-
-**Not met**
-
-
-
 ---
 ---
 ### MET-A-025: Authentication and role-based interface routing
@@ -101,6 +96,9 @@ As a user, I want to sign in and be given the interface and permissions for my r
 - AC4: Test accounts for every role are seeded and documented for the other teams to use.
 
 ---
+**Not met**
+These PBIs were not initially planned as prioritised to be finished during Sprint 2 with the Product Owner, but were part of the sprint 2 backlog. 
+004, 007, 008, 023. 
 ### Additional demonstrations: Wireframes
 
 **Driver:**  Design team: Luna Winther, Sofus Blad Bjørkvad
