@@ -1,25 +1,25 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { apiBaseUrl } from "../api-base-url";
-import { InvalidCredentialsError, login } from "../../../shared/auth/login";
-import type { Session } from "../../../shared/auth/login";
-import {
-  box,
-  colors,
-  palette,
-  radius,
-  surface,
-  text,
-} from "../../../shared/Theme";
+import { InvalidCredentialsError, login } from "./auth/login";
+import type { Role, Session } from "./auth/login";
+import { box, colors, palette, radius, surface, text } from "./Theme";
 
 type LoginState =
   | { status: "idle" }
   | { status: "submitting" }
   | { status: "error"; message: string };
 
+// Shared by the steward app (mobile/) and the control-room dashboard (web/).
+// Each app only lets in its own role; the other role sees wrongRoleMessage.
 export function LoginScreen({
+  apiBaseUrl,
+  allowedRole,
+  wrongRoleMessage,
   onLoggedIn,
 }: {
+  apiBaseUrl: string;
+  allowedRole: Role;
+  wrongRoleMessage: string;
   onLoggedIn: (session: Session) => void;
 }) {
   const [username, setUsername] = useState("");
@@ -34,6 +34,10 @@ export function LoginScreen({
     setState({ status: "submitting" });
     try {
       const session = await login(apiBaseUrl, username.trim(), password);
+      if (session.role !== allowedRole) {
+        setState({ status: "error", message: wrongRoleMessage });
+        return;
+      }
       onLoggedIn(session);
     } catch (error) {
       setState({
