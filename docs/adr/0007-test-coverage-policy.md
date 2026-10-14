@@ -2,7 +2,7 @@
 
 **Status.** Proposed
 **Date.** 2026-10-13
-**Deciders.** Kenneth Lykke Jensen
+**Deciders.** Kenneth Lykke Jensen, automation team
 **Related backlog items.** NO-PBI
 
 ## Context
