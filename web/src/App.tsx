@@ -20,5 +20,10 @@ export function App() {
     );
   }
 
-  return <OperatorDashboard onLogout={() => setSession(null)} />;
+  return (
+    <OperatorDashboard
+      token={session.token}
+      onLogout={() => setSession(null)}
+    />
+  );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { filterScenarios } from "./filter-scenarios";
-import { errorMessage, getJson } from "./get-json";
+import { errorMessage, getJson, postJson } from "./get-json";
 import { isScenarioState, type ScenarioState } from "./scenario-state";
 
 // The fields of contracts/v1/scenario-list.schema.json this list uses.
@@ -30,7 +30,7 @@ type ActivationState =
   | { status: "error"; message: string }
   | { status: "done"; state: ScenarioState };
 
-export function ScenarioList() {
+export function ScenarioList({ token }: { token: string }) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ScenarioSummary | null>(null);
@@ -50,13 +50,15 @@ export function ScenarioList() {
     return () => controller.abort();
   }, []);
 
-  async function activate() {
+  async function activate(scenario: ScenarioSummary) {
     setSelected(null);
     setActivation({ status: "activating" });
     try {
-      // Until #119 adds POST /api/v1/scenarios/{scenarioId}/activate, show
-      // what the stub's scenario state returns (#117, criterion 2).
-      const state = await getJson("/api/v1/scenario-state", isScenarioState);
+      const state = await postJson(
+        `/api/v1/scenarios/${encodeURIComponent(scenario.scenarioId)}/activate`,
+        token,
+        isScenarioState,
+      );
       setActivation({ status: "done", state });
     } catch (error) {
       setActivation({ status: "error", message: errorMessage(error) });
@@ -99,7 +101,7 @@ export function ScenarioList() {
       {selected && (
         <ConfirmActivation
           scenario={selected}
-          onConfirm={activate}
+          onConfirm={() => activate(selected)}
           onCancel={() => setSelected(null)}
         />
       )}
