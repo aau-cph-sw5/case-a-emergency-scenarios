@@ -3,7 +3,9 @@ import type { AppSocket } from "./createSocket";
 
 export function useSocketState(socket: AppSocket) {
   const [isConnected, setIsConnected] = useState(socket.connected);
-  const [messages, setMessages] = useState<Array<{ id: number; text: string }>>([]);
+  const [messages, setMessages] = useState<Array<{ id: number; text: string }>>(
+    [],
+  );
   const nextMessageId = useRef(0);
 
   useEffect(() => {

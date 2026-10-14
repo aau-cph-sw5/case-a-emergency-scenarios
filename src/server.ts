@@ -7,7 +7,9 @@ import { app } from "./app.js";
 
 const server = createServer(app);
 const port = Number(process.env.PORT) || 3000;
-const webDistDirectory = fileURLToPath(new URL("../web/dist/", import.meta.url));
+const webDistDirectory = fileURLToPath(
+  new URL("../web/dist/", import.meta.url),
+);
 const webOrigins = (process.env.WEB_ORIGIN || "http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim())
@@ -20,7 +22,7 @@ const io = new Server(server, {
   },
 });
 
-io.on('connection', (socket) => {
+io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
   socket.emit("welcome", "Connected to the emergency scenarios server.");
 
