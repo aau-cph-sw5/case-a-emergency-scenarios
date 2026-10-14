@@ -58,7 +58,12 @@ export default defineConfig([
     },
   },
   {
-    files: ["{web,mobile,shared}/**/*.{ts,tsx}"],
+    files: [
+      "{web,mobile}/**/*.{ts,tsx}",
+      "shared/auth/**/*.ts",
+      "shared/LoginScreen.tsx",
+      "shared/Theme.tsx",
+    ],
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommended,

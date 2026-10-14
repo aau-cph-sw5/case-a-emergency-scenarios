@@ -1,16 +1,19 @@
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { box, colors, surface, text } from "../../../shared/Theme";
 
-// Placeholder layout shared by the two role views until their real content
-// arrives (MET-A-005/MET-A-010 for stewards, MET-A-007 for operators).
+// Header with title and "Log ud" for a logged-in view; the view's own
+// content goes in children.
 export function RoleView({
   title,
   description,
   onLogout,
+  children,
 }: {
   title: string;
   description: string;
   onLogout: () => void;
+  children?: ReactNode;
 }) {
   return (
     <View style={styles.container}>
@@ -25,6 +28,7 @@ export function RoleView({
         </Pressable>
       </View>
       <Text style={styles.description}>{description}</Text>
+      {children}
     </View>
   );
 }

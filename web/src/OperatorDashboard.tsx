@@ -1,58 +1,30 @@
-import { useState } from "react";
-
-type HealthState =
-  | { status: "idle" }
-  | { status: "checking" }
-  | { status: "error"; message: string }
-  | { status: "done"; ok: boolean };
+import { useSocketState } from "../../shared/socket/useSocketState";
+import { socket } from "./socket";
 
 // Placeholder for the control-room dashboard (MET-A-007) until it is
-// connected here.
+// connected here. The socket demo is from MET-A-004.
 export function OperatorDashboard({ onLogout }: { onLogout: () => void }) {
-  const [state, setState] = useState<HealthState>({ status: "idle" });
-
-  async function checkHealth() {
-    setState({ status: "checking" });
-    try {
-      // vite.config forwards /healthcheck to the server
-      const response = await fetch("/healthcheck");
-      const health = (await response.json()) as { ok: boolean };
-      setState({ status: "done", ok: health.ok });
-    } catch (error) {
-      setState({
-        status: "error",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  const { isConnected, messages } = useSocketState(socket);
 
   return (
     <main>
       <h1>Emergency Scenarios</h1>
-
-      <button type="button" onClick={onLogout}>
+      <button onClick={onLogout} type="button">
         Log ud
       </button>
-
+      <p>Socket: {isConnected ? "connected" : "disconnected"}</p>
       <button
+        onClick={() => (isConnected ? socket.disconnect() : socket.connect())}
         type="button"
-        onClick={checkHealth}
-        disabled={state.status === "checking"}
       >
-        {state.status === "checking" ? "Checking…" : "Check server health"}
+        {isConnected ? "Disconnect socket" : "Connect socket"}
       </button>
-
-      {state.status === "done" && (
-        <p role="status">
-          {state.ok ? "Server is healthy" : "Server reports a problem"}
-        </p>
-      )}
-
-      {state.status === "error" && (
-        <p role="alert">
-          Could not reach the server: {state.message}. Is it running (
-          <code>npm run dev</code>)?
-        </p>
+      {messages.length > 0 && (
+        <ul>
+          {messages.map((message) => (
+            <li key={message.id}>{message.text}</li>
+          ))}
+        </ul>
       )}
     </main>
   );
