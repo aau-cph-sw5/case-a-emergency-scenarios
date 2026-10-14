@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { useSocketState } from "../shared/socket/useSocketState";
+import { socket } from "./src/socket";
 
 const apiUrl = (Constants.expoConfig?.extra?.apiUrl as string) ?? "";
 const devHost = Constants.expoConfig?.hostUri?.split(":")[0];
@@ -17,6 +19,7 @@ type HealthState =
 
 export default function App() {
   const [state, setState] = useState<HealthState>({ status: "loading" });
+  const { isConnected, messages } = useSocketState(socket);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -41,6 +44,24 @@ export default function App() {
         <Text style={styles.title}>Emergency Scenarios</Text>
 
         <Text>Server: {apiBaseUrl}</Text>
+
+        <Text style={isConnected ? styles.ok : styles.offline}>
+          Socket: {isConnected ? "connected" : "disconnected"}
+        </Text>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => (isConnected ? socket.disconnect() : socket.connect())}
+          style={styles.button}
+        >
+          <Text style={styles.buttonText}>
+            {isConnected ? "Disconnect socket" : "Connect socket"}
+          </Text>
+        </Pressable>
+
+        {messages.map((message) => (
+          <Text key={message.id}>Socket: {message.text}</Text>
+        ))}
 
         {state.status === "loading" && <Text>Checking server…</Text>}
 
@@ -82,5 +103,21 @@ const styles = StyleSheet.create({
   error: {
     color: "#b00020",
     marginTop: 8,
+  },
+  offline: {
+    color: "#6b7280",
+    marginTop: 8,
+  },
+  button: {
+    alignSelf: "flex-start",
+    backgroundColor: "#1b7f3b",
+    borderRadius: 4,
+    marginVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  buttonText: {
+    color: "#ffffff",
+    fontWeight: "600",
   },
 });
