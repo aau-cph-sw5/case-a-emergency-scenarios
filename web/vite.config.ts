@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
   const apiUrl = env.API_URL || "http://localhost:3000";
 
   return {
+    envDir: repoRoot,
     plugins: [react()],
     server: {
       port: 5173,

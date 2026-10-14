@@ -66,9 +66,19 @@ Run only the TypeScript type check:
 npm run typecheck
 ```
 
-## Development server
+## Development servers
 
-Run the TypeScript Express API in watch mode:
+Run the TypeScript Express API and browser app in watch mode:
+
+```bash
+npm run dev:web
+```
+
+The browser-based web client runs at `http://localhost:5173`. The API and
+Socket.IO server run at `http://localhost:3000`; verify the API with
+`http://localhost:3000/healthcheck`.
+
+To run only the API in watch mode:
 
 ```bash
 npm run dev
@@ -77,14 +87,46 @@ npm run dev
 The API listens on `http://localhost:3000`; verify it with
 `http://localhost:3000/healthcheck`.
 
-Create a production build and run the compiled API:
+Create a production build and run the compiled application:
 
 ```bash
 npm run build
 npm start
 ```
 
-`npm start` expects the compiled `dist/` output, so run `npm run build` first.
+`npm run build` creates both the compiled API in `dist/` and the browser-based
+web client build in `web/dist/`. `npm start` serves the web client, API, and
+Socket.IO from the same port. Run `npm run mobile` in another terminal to start
+the separate native Expo mobile app.
+
+## Hosted staging and production
+
+The project uses one Render Node service per environment. Each service serves
+the browser-based web client, API, and Socket.IO endpoint at its own public
+URL; no separate Socket.IO service is required. The native mobile app is built
+separately as an Expo/Android artifact and connects to that URL.
+
+Configure both Render services with:
+
+```text
+Build Command: npm ci && npm run build
+Start Command: npm start
+```
+
+Render supplies `PORT` automatically. The staging service should deploy the
+`staging` branch and the production service should deploy `main`. The deployed
+web client connects to Socket.IO on its own origin automatically.
+
+For Expo to use a hosted environment, set the matching URL in the local root
+`.env` before starting or building the mobile app:
+
+```env
+# Staging example
+API_URL=https://case-a-emergency-scenarios-staging.onrender.com
+```
+
+Use the production service URL for a production mobile build. Do not commit
+`.env`.
 
 ## Local database and Flyway migrations
 

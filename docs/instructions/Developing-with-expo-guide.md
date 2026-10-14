@@ -1,7 +1,8 @@
 # Developing the mobile frontend with expo and android studio
 
-The mobile app in `mobile/` is an Expo (React Native) app. You can run it in
-two ways during development:
+The mobile app in `mobile/` is a native Expo (React Native) app, separate from
+the browser-based web client in `web/`. It can be packaged as an installable
+Android APK; during development, you can run it in two ways:
 
 1. **On your own phone with Expo Go**, by scanning a QR code. This does
    **not** work on the university Wi-Fi.
@@ -9,6 +10,20 @@ two ways during development:
    including the university Wi-Fi.
 
 Both need the server running.
+
+## Connecting the mobile app to a hosted environment
+
+The deployed browser app, API, and Socket.IO server share one Render URL. To
+run Expo against a hosted environment, set `API_URL` in the repository-root
+`.env` and restart Expo:
+
+```env
+# Staging example
+API_URL=https://case-a-emergency-scenarios-staging.onrender.com
+```
+
+Use the production Render URL only when building or testing the production
+mobile app. This file is local configuration and must not be committed.
 
 ## Before you start
 

@@ -40,17 +40,48 @@ This case now carries the semester's machine-intelligence work: `MET-A-019`, sce
 
 ```bash
 # requires Node.js 20 or later
-npm install
+npm ci
 cp .env.example .env
-npm run dev
+npm run dev:web
 ```
 
-The real API then runs at `http://localhost:3000`; use
-`http://localhost:3000/healthcheck` to confirm it is running. `npm run stub`
-continues to run the fixture-backed mock API on port 4010.
+The browser-based web client opens at `http://localhost:5173`; the API and
+Socket.IO server run at `http://localhost:3000`. Use
+`http://localhost:3000/healthcheck` to confirm the API is running. Start the
+separate native Expo mobile app in a second terminal with `npm run mobile`.
+`npm run stub` continues to run the fixture-backed mock API on port 4010.
 
-The API is written in TypeScript. Use `npm run build` to compile it to `dist/`
-and `npm start` to run the compiled server.
+`npm run build` compiles the API to `dist/` and builds the browser app to
+`web/dist/`. `npm start` runs the compiled server, which serves the API,
+Socket.IO, and browser app from one port.
+
+## Hosted staging and production
+
+Each existing Render Node service serves its matching browser-based web client,
+API, and Socket.IO endpoint from a single URL. The staging service deploys the
+`staging` branch; the production service deploys `main`.
+
+Configure each Render service with:
+
+```text
+Build Command: npm ci && npm run build
+Start Command: npm start
+```
+
+Render provides `PORT`; do not set it manually. Visit the relevant Render URL
+to use the browser-based web client. The deployed web client connects to
+Socket.IO on that same origin, so it needs no deployment-specific URL variable.
+
+For Expo to connect to a hosted environment, set `API_URL` in the repository
+root `.env` before starting or building the mobile app, then restart Expo:
+
+```env
+# Staging example
+API_URL=https://case-a-emergency-scenarios-staging.onrender.com
+```
+
+Use the production service URL when making a production mobile build. Do not
+commit `.env`.
 
 ## Local database
 
@@ -64,6 +95,9 @@ contracts/      published interfaces other teams build against, versioned
 fixtures/       synthetic test data. Never anything Metro supplied.
 src/            production Node.js API (application, routes, database access)
   db/           database client, Flyway configuration, and migrations
+web/            Vite/React browser-based web client
+mobile/         Expo/React Native native mobile app (installable as an Android APK)
+shared/         socket event types and cross-platform connection state
 stub-server/    fixture-backed mock API for contract and frontend development
 tests/          automated unit and integration tests
 docs/           instructions, reference, architecture decisions, records and templates
@@ -72,7 +106,9 @@ docs/           instructions, reference, architecture decisions, records and tem
 
 ## Branches
 
-`main` protected, only what has been demonstrated at a review. `staging` integration, should always run. `development` the shared working branch. One feature branch per item, named for it.
+`main` is production, `staging` is the integration branch and should always
+run, and `dev` is the shared working branch. One feature branch per item is
+named for that item.
 
 ## Pull requests
 
