@@ -1,85 +1,53 @@
-# Sprint {N} review
+# Sprint {N} review. {Product}
 
-**{Product}**
-
-**Date:** {DD-MM-YYYY}  
-**Present:** {groups, Product Owner, Metro attendees}
-
-## 1. What we said we would do
-
-Include unfinished work as well as completed work.
-
-| Item | Title | Outcome |
-|---|---|---|
-| MET-A-XXX | | Done / Partly / Not started |
-| | | |
-
-## 2. What we are demonstrating
-
-Working software, not slides.
-
-### MET-A-XXX: {short title}
-
-**Driver:** {name}
-
-**What the audience will see**
-
-{Short description}
-
-**Acceptance criteria demonstrated**
-
-- AC1: ...
-- AC2: ...
-
-**Not met**
-
-{None, or state what is not met before the demonstration}
+**Date.** {YYYY-MM-DD}
+**Present.** {AAU teams, Product Owner, Metro attendees}
 
 ---
 
-### MET-A-XXX: {short title}
+## What we said we would do
 
-**Driver:** {name}
+The items pulled at planning, with their identifiers. Include the ones that did
+not get finished; a review that lists only successes is not a review.
 
-**What the audience will see**
-
-...
-
-**Acceptance criteria demonstrated**
-
-- ...
-
-## 3. What we learned
-
-What changed our understanding of the domain, user or product?
-
-- ...
-- ...
-- ...
-
-## 4. Questions for Metro Service
-
-| Item | Question | Why it matters |
+| Item | Title | Outcome |
 |---|---|---|
-| MET-A-XXX | | |
-| | | |
+| MET-X-000 | | Done / Partly / Not started |
 
-## 5. Direction for next sprint
+## What we are demonstrating
 
-{Two or three sentences describing the intended direction.}
+Working software, in order, with who drives each part. Not slides.
 
-## 6. Decisions taken in the meeting
+1. {Item}. {What the audience will see, and who drives it}
+2. ...
 
-| Topic or question | Answer or decision | Source |
+For each, say which acceptance criteria it satisfies. If one is not met, say so
+before demonstrating rather than hoping it is not noticed.
+
+## What we learned
+
+Something that changed our understanding of the domain or the product. This is the
+part Metro finds most useful and the part teams most often skip.
+
+## Questions for Metro Service
+
+The blocking questions on this product's items, restated in plain language, with
+the item they belong to. Ask the ones that change what gets built next, not the
+ones that are merely interesting.
+
+| Item | Question | Why it blocks us |
 |---|---|---|
-| | | {name / role} |
-| | | |
 
-## After the review
+## What we intend next sprint
 
-- [ ] Metro answers recorded on relevant Issues
-- [ ] Changed assumptions documented
-- [ ] Backlog updated
-- [ ] Dependencies updated
-- [ ] ADR created if a design decision changed
-- [ ] Next-sprint direction shared
+Two or three sentences. The purpose is to give Metro the chance to say "not that,
+this" while it is still cheap.
+
+## Decisions taken in this meeting
+
+Recorded here and, if they change a design, as an architecture decision record in
+the product repository. Answers given verbally in a review are lost within a
+fortnight unless somebody writes them down. That somebody is whoever is chairing.
+
+| Question | Answer | Who said it |
+|---|---|---|
