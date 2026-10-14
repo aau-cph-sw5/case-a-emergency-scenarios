@@ -1,52 +1,6 @@
 import { useEffect, useState } from "react";
 import { filterScenarios } from "./filter-scenarios";
-
-// The fields of contracts/v1/scenario-list.schema.json this list uses.
-type ScenarioSummary = {
-  scenarioId: string;
-  name: string;
-};
-
-const REQUEST_TIMEOUT_MS = 10_000;
-
-function isScenarioList(data: unknown): data is ScenarioSummary[] {
-  return (
-    Array.isArray(data) &&
-    data.every(
-      (item) =>
-        typeof item?.scenarioId === "string" && typeof item?.name === "string",
-    )
-  );
-}
-
-// vite.config forwards /api to the server
-async function fetchScenarios(signal: AbortSignal): Promise<ScenarioSummary[]> {
-  let response: Response;
-  try {
-    response = await fetch("/api/v1/scenarios", {
-      signal: AbortSignal.any([
-        signal,
-        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      ]),
-    });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new Error(
-        `no answer from the server within ${REQUEST_TIMEOUT_MS / 1000} seconds`,
-        { cause: error },
-      );
-    }
-    throw error;
-  }
-  if (!response.ok) {
-    throw new Error(`GET /api/v1/scenarios failed with ${response.status}`);
-  }
-  const data: unknown = await response.json();
-  if (!isScenarioList(data)) {
-    throw new Error("the server sent a scenario list in an unexpected format");
-  }
-  return data;
-}
+import { fetchScenarios, type ScenarioSummary } from "./scenarios";
 
 type LoadState =
   | { status: "loading" }
@@ -73,7 +27,7 @@ export function ScenarioList() {
   }, []);
 
   // The search field is always shown, so it is there whenever the list is
-  // longer than one screen (MET-A-007, criterion 1).
+  // longer than one screen (MET-A-007 criterion 1 / #116 criterion 3).
   return (
     <section aria-labelledby="scenario-list-heading">
       <h2 id="scenario-list-heading">Scenarios</h2>
