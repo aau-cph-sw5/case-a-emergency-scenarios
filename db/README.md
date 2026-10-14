@@ -39,6 +39,7 @@ production credentials here.
    npm run db:info
    ```
 
+**outdated**
    # seed-scenarios.ts and V002__load_scenario.sql
    
    the seed loader fills the local database with the scenarios stored as JSON files, should any changes occur to the scenarios, run the loader again. 
@@ -84,6 +85,8 @@ production credentials here.
       to print just one row run:
       **bash**
          docker compose exec db psql -U metro -c "SELECT * FROM line_stops LIMIT 1;"
+
+**outdated**
 
 
 
