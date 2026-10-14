@@ -1,16 +1,10 @@
 import { useEffect, useState } from "react";
-import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useSocketState } from "../shared/socket/useSocketState";
+import { apiBaseUrl } from "./src/api-base-url";
 import { socket } from "./src/socket";
-
-const apiUrl = (Constants.expoConfig?.extra?.apiUrl as string) ?? "";
-const devHost = Constants.expoConfig?.hostUri?.split(":")[0];
-const apiBaseUrl = devHost
-  ? apiUrl.replace(/\/\/(localhost|127\.0\.0\.1)(?=[:/]|$)/, `//${devHost}`)
-  : apiUrl;
 
 type HealthState =
   | { status: "loading" }
