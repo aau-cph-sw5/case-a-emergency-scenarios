@@ -84,11 +84,11 @@
     },
     "TrackSegment": {
       "type": "object",
-      "required": ["trackLabel", "stationA", "stationB"],
+      "required": ["trackNumber", "stationA", "stationB"],
       "properties": {
-        "trackLabel": {
-          "type": "string",
-          "description": "Identifier/label for the physical track."
+        "trackNumber": {
+          "type": "integer",
+          "description": "Identifier/label for the physical track (1 or 2)."
         },
         "stationA": {
           "type": "string",
@@ -181,7 +181,7 @@
       "required": [
         "operationType",
         "routeCode",
-        "track",
+        "trackNumber",
         "maximumTrains",
         "did",
         "route"
@@ -196,9 +196,9 @@
           "type": "string",
           "description": "Route/section, e.g. VAN-FB."
         },
-        "track": {
-          "type": "string",
-          "description": "Track used by the operating pattern."
+        "trackNumber": {
+          "type": "integer",
+          "description": "The physical track the pattern runs on: 1 or 2 (12 for ROUNDTRIP that uses both tracks). The same numbering as TrackSegment.trackNumber."
         },
         "maximumTrains": {
           "type": "integer",

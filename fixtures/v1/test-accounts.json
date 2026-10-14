@@ -1,0 +1,14 @@
+[
+  {
+    "userId": "steward-test",
+    "username": "steward-test",
+    "role": "STEWARD",
+    "passwordHash": "$2b$10$9VspaUPORJZ7hUvnmrBbt.trHnN7kuWAgtdEOZXj8QExLt.t63Avy"
+  },
+  {
+    "userId": "operator-test",
+    "username": "operator-test",
+    "role": "OPERATOR",
+    "passwordHash": "$2b$10$qSIZ7EigqBI7f15qpfQ9b.N4wALvXe3eIeIRmP5MrKoCdOMX4.sMm"
+  }
+]

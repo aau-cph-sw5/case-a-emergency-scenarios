@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./contract-validator.js";
+import { login, requireAuth } from "./auth.js";
+import { ERROR_CODES, errorBody } from "./error-codes.js";
 
 const app = express();
 const PORT = 4010;
@@ -271,6 +273,37 @@ app.post("/api/v1/position-reports", (req, res) => {
   res.status(202).json({
     accepted: true,
   });
+});
+
+// ============================================
+// LOGIN ROUTE
+// ============================================
+
+app.post("/api/v1/auth/login", (req, res) => {
+  const errors = validate(req.body, ["login-request.schema.json"]);
+  if (errors.length > 0) {
+    return res
+      .status(400)
+      .json(
+        errorBody(
+          ERROR_CODES.MISSING_PARAMETER,
+          "Request body does not match contract schema",
+        ),
+      );
+  }
+
+  const result = login(req.body.username, req.body.password);
+  if (!result) {
+    return res
+      .status(401)
+      .json(errorBody(ERROR_CODES.INVALID_CREDENTIALS, "Invalid credentials"));
+  }
+
+  sendValidated(req, res, result, ["login-response.schema.json"]);
+});
+
+app.get("/api/v1/me", requireAuth, (req, res) => {
+  sendValidated(req, res, req.user, ["me.schema.json"]);
 });
 
 app.listen(PORT, () => {

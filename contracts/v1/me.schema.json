@@ -1,0 +1,10 @@
+{
+  "$id": "me.schema.json",
+  "title": "Me",
+  "type": "object",
+  "required": ["userId", "role"],
+  "properties": {
+    "userId": { "type": "string" },
+    "role": { "type": "string", "enum": ["STEWARD", "OPERATOR"] }
+  }
+}

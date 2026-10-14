@@ -15,9 +15,8 @@
     },
     "covers": {
       "type": "array",
-      "items": {
-        "type": "string"
-      }
+      "description": "Track segments covered by the scenario.",
+      "items": { "$ref": "#/definitions/TrackSegment" }
     },
     "versions": {
       "type": "array",
@@ -50,7 +49,7 @@
                   "required": [
                     "operationType",
                     "routeCode",
-                    "track",
+                    "trackNumber",
                     "maximumTrains",
                     "did",
                     "route"
@@ -63,8 +62,9 @@
                     "routeCode": {
                       "type": "string"
                     },
-                    "track": {
-                      "type": "string"
+                    "trackNumber": {
+                      "type": "integer",
+                      "description": "The physical track the pattern runs on: 1 or 2 (12 for ROUNDTRIP that uses both tracks). The same numbering as TrackSegment.trackNumber."
                     },
                     "maximumTrains": {
                       "type": "integer",
@@ -160,6 +160,26 @@
               }
             }
           }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "TrackSegment": {
+      "type": "object",
+      "required": ["trackNumber", "stationA", "stationB"],
+      "properties": {
+        "trackNumber": {
+          "type": "integer",
+          "description": "The physical track the segment lies on: 1 or 2. The same numbering as trackNumber in an operating pattern."
+        },
+        "stationA": {
+          "type": "string",
+          "description": "Reference to the first Station's name."
+        },
+        "stationB": {
+          "type": "string",
+          "description": "Reference to the second Station's name."
         }
       }
     }

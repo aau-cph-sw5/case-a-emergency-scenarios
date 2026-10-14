@@ -1,16 +1,14 @@
 # Templates
 
-Reusable Case A documentation templates.
+Kopiér skabelonen til destinationen. Udfyld aldrig originalen.
 
-Do not fill in the original template. Copy it to the relevant destination and fill in the copy.
+| Skabelon | Destination |
+|---|---|
+| `sprint-planning.md` | `docs/records/sprints/sprint-{N}-planning.md` |
+| `sprint-review.md` | `docs/records/sprints/sprint-{N}-review.md` |
+| `retrospective.md` | `docs/records/sprints/sprint-{N}-retrospective-group-{X}.md` |
+| `integration-meeting.md` | `docs/records/sprints/sprint-{N}-integration.md` |
+| `project-decision.md` | `docs/adr/{nummer}-{kort-titel}.md` |
+| `entity-domain-model.md` | Hvor modellen hører. Læs `docs/instructions/entity-domain-model-guide.md` først |
 
-## Management templates
-
-| Template | Use | Filled copy |
-|---|---|---|
-| `management/sprint-planning.md` | Plan one group's sprint | `docs/sprints/sprint-{N}/planning-group-{X}.md` |
-| `management/integration-meeting.md` | Coordinate the three Case A groups | `docs/integration/sprint-{N}.md` |
-| `management/sprint-review.md` | Record the product Sprint Review | `docs/sprints/sprint-{N}/review.md` |
-| `management/retrospective.md` | Record one group's retrospective | `docs/sprints/sprint-{N}/retrospectives/group-{X}.md` |
-| `management/project-decision.md` | Record a lasting coordination/process decision | `docs/project-management/decisions/` |
-
+`integration-evolving-guide.md` er en guide uden skabelon.
