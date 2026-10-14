@@ -81,12 +81,29 @@ and on demand under **Actions → Coverage → Run workflow**.
 | Workflow run → Summary | The same table, for every run |
 | Locally | `npm run test:coverage`, then open `coverage/index.html` to see uncovered lines |
 
+The **vs `dev`** column compares with the latest successful Coverage run on
+`dev`. Every successful push to `dev` saves its coverage as the
+`coverage-baseline` artifact (kept for 90 days). Until one exists, the column
+shows `–`.
+
 ### Scope
 
 Every TypeScript file in `src/` is measured. Web and mobile are not measured yet.
 
 ### Changing the required coverage
 
-The minimums for lines, branches, functions and statements are in `.c8rc.json`.
-`0` means report only. Raise a value in a pull request; when coverage falls
-below it, the Backend coverage check fails. Why it works this way is in ADR 0007.
+The minimum coverage for lines, branches, functions and statements is set in
+`.c8rc.json`. Today every value is `0`, so coverage is only reported and the
+Backend coverage check always passes.
+
+To require a minimum:
+
+1. Raise the values in `.c8rc.json` in a pull request. From then on, the
+   Backend coverage check fails on any pull request whose coverage is below
+   the minimum.
+2. After that pull request is merged, an admin adds **Backend coverage** to the
+   required status checks of the `dev` ruleset. Until then, a failing check is
+   shown on the pull request but does not stop it from being merged.
+
+Why it works this way is in ADR 0007.
+

@@ -36,6 +36,17 @@ changed it and why.
 A coverage percentage shows which lines ran, not whether the tests check the
 right things.
 
+The tests run twice per pull request: once in `tests.yml` and once under c8 in
+`coverage.yml`. The jobs run in parallel, so the pipeline is not slower, and
+runner minutes are free for this public repository. Keeping them apart means
+test failures and too-low coverage show as separate checks. Revisit this if the repository becomes private, since runner minutes then
+count against a monthly limit.
+
+
+When the minimum is raised above 0, Backend coverage is added to the required
+status checks, so a pull request below the minimum cannot be merged.
+
+
 ## Alternatives considered
 
 **Codecov or Coveralls.** History, a badge and per-PR diffs, but needs an
@@ -48,6 +59,13 @@ but the change is not in the git history and is unknown when running locally.
 
 **A downloadable HTML report.** Few people download artifacts, and
 `npm run test:coverage` gives the same report locally.
+
+**Running the tests once and passing coverage data to a separate job.** Avoids
+running the tests twice, but the coverage data has to be passed between jobs
+as artifacts. That adds complexity without a noticeable gain: the test and
+coverage jobs already run in parallel, so the second run does not make the
+pipeline slower, and runner minutes are free for this public repository.
+
 
 ## Suggestions for later
 
