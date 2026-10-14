@@ -81,7 +81,26 @@ An ER diagram based on the entity model and Metro material, showing how the scen
 
 
 ---
+---
+### MET-A-025: Authentication and role-based interface routing
 
+**Driver:** Group 9
+
+**What the audience will see**
+
+As a user, I want to sign in and be given the interface and permissions for my role, so that I see what is relevant to my job and cannot act outside it.
+
+**Acceptance criteria demonstrated**
+
+- AC1: A steward login lands on the steward interface and an operator login on the control-room interface.
+
+- AC2: Role is resolved server-side. A client cannot obtain a different interface by changing a request.
+
+- AC3: Session expiry behaviour is specified, and an expired session does not silently discard queued offline reports.
+
+- AC4: Test accounts for every role are seeded and documented for the other teams to use.
+
+---
 ### Additional demonstrations: Wireframes
 
 **Driver:**  Design team: Luna Winther, Sofus Blad Bjørkvad
