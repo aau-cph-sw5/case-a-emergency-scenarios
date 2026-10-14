@@ -24,3 +24,12 @@ pnpm-debug.log*
 coverage/
 dist/
 build/
+
+
+docs/
+scenario-state/
+stations.json
+
+docs/
+scenario-state/
+SeedDataScenario_1.json

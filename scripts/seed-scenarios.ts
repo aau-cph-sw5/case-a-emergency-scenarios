@@ -64,8 +64,13 @@ interface PassengerInformation {
     message: string;
 }
 
-function validate (scenario: Scenario, fileName: string): string[]{
+function validate (scenario: Scenario, fileName: string, allowedStations: Set<string>): string[]{
     const errors: string[] = [];
+    const checkStation = (code: string, where: string) => {
+        if (!allowedStations.has(code)) {
+            errors.push(`${where}: unknown station "${code}".`);
+        }
+    };
 
     const versionNames = scenario.versions.map(v => v.version);
     if (!versionNames.includes(scenario.currentVersion)) {
@@ -79,7 +84,8 @@ function validate (scenario: Scenario, fileName: string): string[]{
         if(cover.stationA === cover.stationB) {
             errors.push(`${fileName}: covers[${index}] has the same station for A and B.`);
         }
-        
+        checkStation(cover.stationA, `${fileName}: covers[${index}].stationA`);
+        checkStation(cover.stationB, `${fileName}: covers[${index}].stationB`);
 
     });
 
@@ -101,12 +107,17 @@ function validate (scenario: Scenario, fileName: string): string[]{
                 break;
             }
             }
+            pattern.route.forEach((stop, stopIndex) => {
+                checkStation(stop.station, `${where}.route[${stopIndex}]`);
+            });
         });
     });
     scenario.versions.forEach((version) => {
         (version.stationRequirements ?? []).forEach((requirement, reqIndex) => {
+            checkStation(requirement.station, `${fileName}: version ${version.version} stationRequirements[${reqIndex}]`);
+
         (requirement.activeDuring ?? []).forEach((window, winIndex) => {
-            if (window.startTime == window.endTime) {
+            if (window.startTime === window.endTime) {
                 errors.push(`${fileName}: version ${version.version} stationRequirements[${reqIndex}] (${requirement.station}) activeDuring[${winIndex}] startTime and endTime are both "${window.startTime}".`);
                 }
             });
@@ -127,6 +138,8 @@ function validate (scenario: Scenario, fileName: string): string[]{
 
 
 const dir = "docs/scenario-state";
+const stationList: { code: string }[] = JSON.parse(readFileSync(join(dir, "stations.json"), "utf8"));
+const allowedStations = new Set(stationList.map(s => s.code));
 const seedFiles = readdirSync(dir).filter(
   f => f.startsWith("SeedDataScenario_") && f.endsWith(".json")
 );
@@ -136,7 +149,7 @@ const scenarios: Scenario[] = [];
 
 for (const fileName of seedFiles) {
     const scenario: Scenario = JSON.parse(readFileSync(join(dir, fileName), "utf8"));
-    allErrors.push(...validate(scenario, fileName));
+    allErrors.push(...validate(scenario, fileName, allowedStations));
     scenarios.push(scenario);
 
     const firstFile = seenIds.get(scenario.scenarioId);
@@ -184,14 +197,13 @@ async function getTrackSegmentId(client: pg.Client, trackNumber: number, station
     return created.rows[0].id;
 }
 async function loadScenario(client: pg.Client, scenario: Scenario): Promise<void> {
-    await client.query("DELETE from WHERE scennario_id = $1)", [scenario.scenarioId]);
-
+    await client.query("DELETE FROM scenarios WHERE scenario_id = $1", [scenario.scenarioId]);
     await client.query("INSERT INTO scenarios (scenario_id, name) VALUES ($1, $2)", [scenario.scenarioId, scenario.name]);
 
     for (const cover of scenario.covers) {
         const segmentId = await getTrackSegmentId(client, cover.trackNumber, cover.stationA, cover.stationB);
         await client.query(
-            `INSERT INTO scenario_covers (scenario_id, track_segment_id) VALUES ($1, $2)`,
+            `INSERT INTO scenario_covers (scenario_id, track_segment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
             [scenario.scenarioId, segmentId]
         );
     }
@@ -212,7 +224,7 @@ async function loadScenario(client: pg.Client, scenario: Scenario): Promise<void
         );
         const planId: number = planResult.rows[0].id;
         for (const pattern of version.operatingPlan.patterns) {
-            const patternResult = await client.query(`INSERT INTO patterns (operating_plan_id, operation_type, route_code, track_number, 
+            const patternResult = await client.query(`INSERT INTO operating_patterns (operating_plan_id, operation_type, route_code, track_number, 
                 maximum_trains, did, description)VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
             [   planId, 
                 pattern.operationType, 
@@ -225,16 +237,49 @@ async function loadScenario(client: pg.Client, scenario: Scenario): Promise<void
             const patternId: number = patternResult.rows[0].id;
 
             for (const stop of pattern.route) {
-                await client.query(`INSERT INTO pattern_stops (operating_pattern_id, station_id, sequence) VALUES ($1, $2, $3)`,
-                [patternId, await getStationId(client, stop.station), stop]);
+                await client.query(`INSERT INTO line_stops (operating_pattern_id, station_id, sequence) VALUES ($1, $2, $3)`,
+                [patternId, await getStationId(client, stop.station), stop.sequence]);
                 }
             }
+        for (const requirement of version.stationRequirements ?? []) { 
+            const reqResult = await client.query(`INSERT INTO station_requirements (scenario_version_id, station_id, placement, minimum_staffing) 
+                VALUES ($1, $2, $3, $4) RETURNING id`,
+                [versionId, await getStationId(client, requirement.station), requirement.placement, requirement.minimumStaffing]
+            );
+            const requirementId: number = reqResult.rows[0].id;
+
+            for (const window of requirement.activeDuring ?? []) {
+                await client.query(`INSERT INTO staffing_windows (station_requirement_id, day_pattern, start_time, end_time) VALUES ($1, $2, $3, $4)`,
+                [requirementId, window.dayPattern, window.startTime, window.endTime]);
+            }
+
+            for (const action of requirement.actions ?? []) {
+                await client.query(`INSERT INTO actions (station_requirement_id, sequence, instruction) VALUES ($1, $2, $3)`,
+                [requirementId, action.sequence, action.instruction]);
+            }
+
+        
+        }
+            for (const info of version.passengerInformation ?? []) {
+                await client.query(`INSERT INTO passenger_information (scenario_version_id, channel, language, message) VALUES ($1, $2, $3, $4)`,
+                [versionId, info.channel, info.language, info.message]);
+            }
+        }
+            const currentVersionId = versionIds.get(scenario.currentVersion);
+            if (currentVersionId === undefined) {
+                throw new Error(`Scenario ${scenario.scenarioId}: currentVersion "${scenario.currentVersion}" does not exist in versions.`);
+            }
+            await client.query(`UPDATE scenarios SET current_version_id = $1 WHERE scenario_id = $2`, [currentVersionId, scenario.scenarioId]);
+    }
 
 
 async function main() {
     if (process.env.NODE_ENV === "production") {
-        throw new Error("Refusing to seed production");
+        throw new Error("Refusing to seed");
     }
+if (!process.env.POSTGRES_PASSWORD) {
+        throw new Error("POSTGRES_PASSWORD is not set. Does .env exist, and is the script run with --env-file=.env?");
+}
 
     const client = new pg.Client({
     host: "localhost",
@@ -249,7 +294,7 @@ async function main() {
         await client.query("BEGIN");
 
         for (const scenario of scenarios) {
-            await client.query("SELECT load_scenario($1::jsonb)", [JSON.stringify(scenario)]);
+            await loadScenario(client, scenario);
         }
 
         await client.query("COMMIT");
