@@ -34,7 +34,7 @@
     "db:validate": "docker compose run --rm flyway validate",
     "db:down": "docker compose down",
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc && npm run web:build",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
     "start": "node dist/server.js"
   },
