@@ -1,23 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { filterScenarios } from "./filter-scenarios";
-import { errorMessage, getJson, postJson } from "./get-json";
+import { errorMessage, postJson } from "./get-json";
 import { isScenarioState, type ScenarioState } from "./scenario-state";
-
-// The fields of contracts/v1/scenario-list.schema.json this list uses.
-type ScenarioSummary = {
-  scenarioId: string;
-  name: string;
-};
-
-function isScenarioList(data: unknown): data is ScenarioSummary[] {
-  return (
-    Array.isArray(data) &&
-    data.every(
-      (item) =>
-        typeof item?.scenarioId === "string" && typeof item?.name === "string",
-    )
-  );
-}
+import { fetchScenarios, type ScenarioSummary } from "./scenarios";
 
 type LoadState =
   | { status: "loading" }
@@ -40,7 +25,7 @@ export function ScenarioList({ token }: { token: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    getJson("/api/v1/scenarios", isScenarioList, controller.signal).then(
+    fetchScenarios(controller.signal).then(
       (scenarios) => setState({ status: "done", scenarios }),
       (error: unknown) => {
         if (controller.signal.aborted) return;
