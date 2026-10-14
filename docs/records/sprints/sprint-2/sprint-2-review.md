@@ -15,6 +15,7 @@ We also prepared wireframes for the mobile application and the operator control 
 | MET-A-001 | Derive the scenario domain model from the Metro alternative-operation presentations | Done |
 | MET-A-002 | Scenario reference data schema, persistence and seed loader | Done (according to team, GitHub status to be updated) |
 | MET-A-003 | Scenario state contract published and versioned | Done |
+| MET-A-025 | Authentication and role-based interface routing | Done |
 
 ## 2. What we are demonstrating
 
