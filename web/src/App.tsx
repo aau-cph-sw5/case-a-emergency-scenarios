@@ -1,29 +1,24 @@
-import { useSocketState } from "../../shared/socket/useSocketState";
-import { ScenarioList } from "./ScenarioList";
-import { socket } from "./socket";
+import { useState } from "react";
+import { LoginScreen } from "../../shared/LoginScreen";
+import type { Session } from "../../shared/auth/login";
+import { OperatorDashboard } from "./OperatorDashboard";
 
+// The control-room dashboard. Stewards use the app in mobile/.
 export function App() {
-  const { isConnected, messages } = useSocketState(socket);
+  // Kept in memory only: reloading the page asks for a new login.
+  const [session, setSession] = useState<Session | null>(null);
 
-  return (
-    <main>
-      <h1>Emergency Scenarios</h1>
-      <p>Socket: {isConnected ? "connected" : "disconnected"}</p>
-      <button
-        onClick={() => (isConnected ? socket.disconnect() : socket.connect())}
-        type="button"
-      >
-        {isConnected ? "Disconnect socket" : "Connect socket"}
-      </button>
-      {messages.length > 0 && (
-        <ul>
-          {messages.map((message) => (
-            <li key={message.id}>{message.text}</li>
-          ))}
-        </ul>
-      )}
+  if (session === null) {
+    return (
+      // "" makes the login call go to /api, which vite.config forwards.
+      <LoginScreen
+        apiBaseUrl=""
+        allowedRole="OPERATOR"
+        wrongRoleMessage="Stewards logger ind i appen."
+        onLoggedIn={setSession}
+      />
+    );
+  }
 
-      <ScenarioList />
-    </main>
-  );
+  return <OperatorDashboard onLogout={() => setSession(null)} />;
 }
