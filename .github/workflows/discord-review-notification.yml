@@ -7,6 +7,7 @@ on:
 
 permissions:
   issues: write
+  pull-requests: read
 
 # Prevent simultaneous runs from overwriting message tracking.
 concurrency:
@@ -45,10 +46,14 @@ jobs:
               throw new Error("DISCORD_WEBHOOK secret is missing");
             }
 
+            if (!process.env.DISCORD_USERS) {
+              throw new Error("DISCORD_USERS variable is missing");
+            }
+
             // Case-insensitive GitHub username mapping.
             const users = Object.fromEntries(
               Object.entries(
-                JSON.parse(process.env.DISCORD_USERS || "{}")
+                JSON.parse(process.env.DISCORD_USERS)
               ).map(([username, discordId]) => [
                 username.toLowerCase(),
                 String(discordId)
@@ -114,7 +119,10 @@ jobs:
                 );
               }
 
-              return response.json();
+              // Discord may return an empty response.
+              const body = await response.text();
+
+              return body ? JSON.parse(body) : null;
             }
 
             // -----------------------------------------
@@ -169,7 +177,7 @@ jobs:
                 return;
               }
 
-              // Do not send duplicate notifications.
+              // Prevent duplicate notifications.
               if (messages[username]) {
                 console.log(
                   `${reviewer} has already been notified.`
@@ -177,7 +185,7 @@ jobs:
                 return;
               }
 
-              // Avoid notifying after a merge.
+              // Verify that the PR is still open.
               const currentPr = await github.rest.pulls.get({
                 owner,
                 repo,
@@ -210,7 +218,13 @@ jobs:
                 payload
               );
 
-              // Store the message ID for later editing.
+              if (!result?.id) {
+                throw new Error(
+                  "Discord did not return a message ID"
+                );
+              }
+
+              // Store message ID for later editing.
               messages[username] = result.id;
 
               await saveState();
@@ -236,8 +250,11 @@ jobs:
               }
 
               console.log(
-                `PR #${number} merged. Updating ${entries.length} messages.`
+                `PR #${number} merged. ` +
+                `Updating ${entries.length} messages.`
               );
+
+              let failedUpdates = 0;
 
               for (const [reviewer, messageId] of entries) {
                 const payload = {
@@ -262,13 +279,23 @@ jobs:
                     `Updated Discord message for ${reviewer}.`
                   );
                 } catch (error) {
-                  // Continue updating other reviewers
-                  // even if one message was deleted.
+                  failedUpdates++;
+
                   console.error(
-                    `Failed to update ${reviewer}: ${error.message}`
+                    `Failed to update ${reviewer}: ` +
+                    error.message
                   );
                 }
               }
 
-              console.log("Merge notifications processed.");
+              if (failedUpdates > 0) {
+                throw new Error(
+                  `${failedUpdates} Discord message(s) ` +
+                  `could not be updated.`
+                );
+              }
+
+              console.log(
+                "All Discord notifications updated to Merged."
+              );
             }
