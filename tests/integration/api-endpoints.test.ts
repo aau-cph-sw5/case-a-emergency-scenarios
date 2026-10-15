@@ -17,12 +17,29 @@ before(async () => {
 
 after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
-function postJson(path: string, body: unknown) {
+function postJson(
+  path: string,
+  body: unknown,
+  headers: Record<string, string> = {},
+) {
   return fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
+}
+
+async function bearer(username: string, password: string) {
+  const { token } = await loginAs(username, password);
+  return { Authorization: `Bearer ${token}` };
+}
+
+function operatorHeaders() {
+  return bearer("operator-test", "operator-test-pw");
+}
+
+function stewardHeaders() {
+  return bearer("steward-test", "steward-test-pw");
 }
 
 async function loginAs(username: string, password: string) {
@@ -62,9 +79,8 @@ test("POST /api/v1/auth/login rejects an invalid body with 400", async () => {
 });
 
 test("GET /api/v1/me returns the signed-in user", async () => {
-  const { token } = await loginAs("steward-test", "steward-test-pw");
   const response = await fetch(`${baseUrl}/api/v1/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await stewardHeaders(),
   });
   const body = await response.json();
 
@@ -85,7 +101,9 @@ test("GET /api/v1/me rejects a missing or invalid token with 401", async () => {
 });
 
 test("GET /api/v1/scenarios returns the scenario list", async () => {
-  const response = await fetch(`${baseUrl}/api/v1/scenarios`);
+  const response = await fetch(`${baseUrl}/api/v1/scenarios`, {
+    headers: await operatorHeaders(),
+  });
 
   assert.equal(response.status, 200);
   assert.deepEqual(
@@ -95,7 +113,9 @@ test("GET /api/v1/scenarios returns the scenario list", async () => {
 });
 
 test("GET /api/v1/scenarios/:scenarioId returns one scenario", async () => {
-  const response = await fetch(`${baseUrl}/api/v1/scenarios/DEMO-001`);
+  const response = await fetch(`${baseUrl}/api/v1/scenarios/DEMO-001`, {
+    headers: await operatorHeaders(),
+  });
   const body = await response.json();
 
   assert.equal(response.status, 200);
@@ -104,9 +124,13 @@ test("GET /api/v1/scenarios/:scenarioId returns one scenario", async () => {
 });
 
 test("GET /api/v1/scenarios/:scenarioId returns 404 for an unknown id", async () => {
-  const unknown = await fetch(`${baseUrl}/api/v1/scenarios/wrongId`);
+  const headers = await operatorHeaders();
+  const unknown = await fetch(`${baseUrl}/api/v1/scenarios/wrongId`, {
+    headers,
+  });
   const traversal = await fetch(
     `${baseUrl}/api/v1/scenarios/..%2Ftest-accounts`,
+    { headers },
   );
 
   assert.equal(unknown.status, 404);
@@ -114,7 +138,9 @@ test("GET /api/v1/scenarios/:scenarioId returns 404 for an unknown id", async ()
 });
 
 test("GET /api/v1/scenario-state returns the current state", async () => {
-  const response = await fetch(`${baseUrl}/api/v1/scenario-state`);
+  const response = await fetch(`${baseUrl}/api/v1/scenario-state`, {
+    headers: await operatorHeaders(),
+  });
 
   assert.equal(response.status, 200);
   assert.deepEqual(
@@ -124,8 +150,11 @@ test("GET /api/v1/scenario-state returns the current state", async () => {
 });
 
 test("GET /api/v1/metro-lines/:lineId returns the line or 404", async () => {
-  const found = await fetch(`${baseUrl}/api/v1/metro-lines/M1`);
-  const unknown = await fetch(`${baseUrl}/api/v1/metro-lines/M1000`);
+  const headers = await operatorHeaders();
+  const found = await fetch(`${baseUrl}/api/v1/metro-lines/M1`, { headers });
+  const unknown = await fetch(`${baseUrl}/api/v1/metro-lines/M1000`, {
+    headers,
+  });
 
   assert.equal(found.status, 200);
   assert.deepEqual(validate(await found.json(), "metro-line.schema.json"), []);
@@ -133,21 +162,29 @@ test("GET /api/v1/metro-lines/:lineId returns the line or 404", async () => {
 });
 
 test("POST /api/v1/position-reports accepts a valid report with 202", async () => {
-  const response = await postJson("/api/v1/position-reports", {
-    staff: "steward-002",
-    station: "Station B",
-    reportedAt: "2026-09-23T08:10:00Z",
-  });
+  const response = await postJson(
+    "/api/v1/position-reports",
+    {
+      staff: "steward-002",
+      station: "Station B",
+      reportedAt: "2026-09-23T08:10:00Z",
+    },
+    await stewardHeaders(),
+  );
 
   assert.equal(response.status, 202);
   assert.deepEqual(await response.json(), { accepted: true });
 });
 
 test("POST /api/v1/position-reports rejects an invalid body with 400", async () => {
-  const response = await postJson("/api/v1/position-reports", {
-    staff: "steward-002",
-    reportedAt: "not date",
-  });
+  const response = await postJson(
+    "/api/v1/position-reports",
+    {
+      staff: "steward-002",
+      reportedAt: "not date",
+    },
+    await stewardHeaders(),
+  );
 
   assert.equal(response.status, 400);
 });
