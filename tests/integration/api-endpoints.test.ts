@@ -188,3 +188,10 @@ test("POST /api/v1/position-reports rejects an invalid body with 400", async () 
 
   assert.equal(response.status, 400);
 });
+
+test("protected endpoints reject requests without a token", async () => {
+  const response = await fetch(`${baseUrl}/api/v1/scenarios`);
+
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error.code, "E0001");
+});
