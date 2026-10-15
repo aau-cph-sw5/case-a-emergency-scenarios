@@ -5,7 +5,7 @@ the seed loader has been developed in TypeScript, it is responsible for gatherin
 ## Pre-requisites
 
     - .env file, this is necessary due to it carrying the postgres port and password
-    - SeedDataScenario_(n).json and stations.json, this is the data the actual seed loader makes us of so you will need to fetch it from the project one drive
+    - SeedDataScenario_(n).json and stations.json, this is the data the actual seed loader makes us of so you will need to fetch it from the project one drive, these should be placed in docs/scenario-state.
     - Docker set up and running, download and set up docker as explained in db/README.md
 
 ## Running the seedloader
@@ -15,7 +15,7 @@ the seed loader has been developed in TypeScript, it is responsible for gatherin
 **bash**
 
     npm run seed
-        - this command in itself acutally loads the data, the expected output with one seed data file should be "Seeded 1 scenario", one per file. Running it twice is safe and should not create duplicates
+        - this command in itself acutally loads the data, the expected output with one seed data file should be "Seeded 1 scenario", one per file. Running it twice is safe and will not create duplicates
 
 ## checking the result
 

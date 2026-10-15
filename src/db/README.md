@@ -39,56 +39,6 @@ production credentials here.
    npm run db:info
    ```
 
-**outdated**
-   # seed-scenarios.ts and V002__load_scenario.sql
-   
-   the seed loader fills the local database with the scenarios stored as JSON files, should any changes occur to the scenarios, run the loader again. 
-   The loader logic is split into 2 different files a TypeScript file and a SQL file.
-
-   ## seed-scenarios.ts
-   this file is responsible for:
-      - find every JSON file located in **docs/scenario-state**
-      - read and parse every file
-      - validate data, if there are any inconsistencies in the data, they will be found here and printed and not pushed to the db
-      - connects to the database 
-      - commits if all checks pass and doesnt if any fail
-
-   ## V002__load_scenario.sql
-      - deletes any old versions of the scenario
-      - inserts the scenario itself
-         - this includes data such as: each covered track segment, each version and its attached operating plan and the staffing requirements
-      
-   ## running the loader
-      - run the db as shown above
-      - then run **bash** npm run seed
-      - expected output with 1st scenario should be **seeded 1 scenario(s).**
-
-      to correct a scenario change the JSON file and run **bash** npm run seed.
-      to make a new scenario create a new file with the name SeedDataScenario_<n>.json in docs/scenario-state with a scenario id not used by another scenario, the run **npm run seed**
-
-      to print the entire table run:
-      **bash**
-      docker compose exec db psql -U metro -c "SELECT
-         (SELECT count(*) FROM scenarios) AS scenarios,
-         (SELECT count(*) FROM scenario_versions) AS versions,
-         (SELECT count(*) FROM operating_plans) AS plans,
-         (SELECT count(*) FROM operating_patterns) AS patterns,
-         (SELECT count(*) FROM line_stops) AS stops,
-         (SELECT count(*) FROM stations) AS stations,
-         (SELECT count(*) FROM track_segments) AS segments,
-         (SELECT count(*) FROM scenario_covers) AS covers,
-         (SELECT count(*) FROM station_requirements) AS reqs,
-         (SELECT count(*) FROM staffing_windows) AS windows,
-         (SELECT count(*) FROM actions) AS actions,
-         (SELECT count(*) FROM passenger_information) AS pax;"
-
-      to print just one row run:
-      **bash**
-         docker compose exec db psql -U metro -c "SELECT * FROM line_stops LIMIT 1;"
-
-**outdated**
-
-
 
 Run `npm run db:validate` before committing a new migration. Stop the local
 database with `npm run db:down`; its Docker volume is retained, so your local
