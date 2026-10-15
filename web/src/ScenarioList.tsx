@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { filterScenarios } from "./filter-scenarios";
+import { errorMessage, getJson } from "./get-json";
 import { isScenarioState, type ScenarioState } from "./scenario-state";
 
 // The fields of contracts/v1/scenario-list.schema.json this list uses.
@@ -7,8 +8,6 @@ type ScenarioSummary = {
   scenarioId: string;
   name: string;
 };
-
-const REQUEST_TIMEOUT_MS = 10_000;
 
 function isScenarioList(data: unknown): data is ScenarioSummary[] {
   return (
@@ -18,39 +17,6 @@ function isScenarioList(data: unknown): data is ScenarioSummary[] {
         typeof item?.scenarioId === "string" && typeof item?.name === "string",
     )
   );
-}
-
-// vite.config forwards /api to the server
-async function getJson<T>(
-  path: string,
-  isValid: (data: unknown) => data is T,
-  ...signals: AbortSignal[]
-): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(path, {
-      signal: AbortSignal.any([
-        ...signals,
-        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      ]),
-    });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new Error(
-        `no answer from the server within ${REQUEST_TIMEOUT_MS / 1000} seconds`,
-        { cause: error },
-      );
-    }
-    throw error;
-  }
-  if (!response.ok) {
-    throw new Error(`GET ${path} failed with ${response.status}`);
-  }
-  const data: unknown = await response.json();
-  if (!isValid(data)) {
-    throw new Error(`GET ${path} answered in an unexpected format`);
-  }
-  return data;
 }
 
 type LoadState =
@@ -63,10 +29,6 @@ type ActivationState =
   | { status: "activating" }
   | { status: "error"; message: string }
   | { status: "done"; state: ScenarioState };
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 export function ScenarioList() {
   const [state, setState] = useState<LoadState>({ status: "loading" });
@@ -142,24 +104,31 @@ export function ScenarioList() {
         />
       )}
 
-      {activation.status === "activating" && (
-        <p role="status">Activating scenario…</p>
-      )}
+      <ActivationStatus activation={activation} />
+    </section>
+  );
+}
 
-      {activation.status === "error" && (
+function ActivationStatus({ activation }: { activation: ActivationState }) {
+  switch (activation.status) {
+    case "idle":
+      return null;
+    case "activating":
+      return <p role="status">Activating scenario…</p>;
+    case "error":
+      return (
         <p role="alert">
           Could not activate the scenario: {activation.message}
         </p>
-      )}
-
-      {activation.status === "done" && (
+      );
+    case "done":
+      return (
         <p role="status">
           Scenario {activation.state.scenarioId} is {activation.state.status},
           started {activation.state.startedAt} by {activation.state.actor}.
         </p>
-      )}
-    </section>
-  );
+      );
+  }
 }
 
 function ScenarioResults({
