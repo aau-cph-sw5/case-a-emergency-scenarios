@@ -14,7 +14,7 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
   );
 }
 
-// Token expiry time 
+// Token expiry time
 const TOKEN_TTL = "1h";
 
 // Verify that the user logging in matches the test accounts that was seeded
