@@ -84,6 +84,15 @@ test("an operator activates a second scenario while DEMO-001 is active", async (
   assert.equal(activation.actor, "operator-test");
 });
 
+test("an operator activates a second scenario on the same line as DEMO-001", async () => {
+  // DEMO-001 (Station A-B) and DEMO-003 (Station B-C) are both on track 1.
+  const res = await activate("DEMO-003", operator);
+  assert.equal(res.status, 201);
+  const activation = res.json();
+  assert.equal(activation.scenarioId, "DEMO-003");
+  assert.equal(activation.status, "ACTIVE");
+});
+
 test("activating the same scenario twice is refused with E0007", async () => {
   const res = await activate("DEMO-001", operator);
   assert.equal(res.status, 409);
