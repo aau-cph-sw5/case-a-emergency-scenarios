@@ -22,7 +22,8 @@
 - Merge `dev` into your branch right before you open the pull request: `git fetch origin && git merge origin/dev`.
 - Split the pull request when it exceeds 400 changed lines.
 - One issue per pull request. When you find a defect along the way, it becomes a sub-issue or an issue of its own.
-- Check for reviews daily. `CODEOWNERS` assigns reviewers automatically.
+- You don't need to request reviewers. When you open the pull request, `CODEOWNERS` requests all three teams, and each team's auto assignment picks one member by round robin. Check **Reviewers** in the right sidebar: it should list one person from each of `CaseA-Group-7`, `CaseA-Group-9` and `CaseA-Group-10`.
+- Check for reviews daily.
 
 ### Stacked pull requests
 

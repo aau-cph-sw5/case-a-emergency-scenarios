@@ -1,62 +1,31 @@
-import { useEffect, useState } from "react";
-import Constants from "expo-constants";
+import { useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { LoginScreen } from "../shared/LoginScreen";
+import { page } from "../shared/Theme";
+import type { Session } from "../shared/auth/login";
+import { apiBaseUrl } from "./src/api-base-url";
+import { StewardView } from "./src/screens/StewardView";
 
-const apiUrl = (Constants.expoConfig?.extra?.apiUrl as string) ?? "";
-const devHost = Constants.expoConfig?.hostUri?.split(":")[0];
-const apiBaseUrl = devHost
-  ? apiUrl.replace(/\/\/(localhost|127\.0\.0\.1)(?=[:/]|$)/, `//${devHost}`)
-  : apiUrl;
-
-type HealthState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "ready"; ok: boolean };
-
+// The steward app. Operators use the control-room dashboard in web/.
 export default function App() {
-  const [state, setState] = useState<HealthState>({ status: "loading" });
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    fetch(`${apiBaseUrl}/healthcheck`, { signal: controller.signal })
-      .then((response) => response.json() as Promise<{ ok: boolean }>)
-      .then((health) => setState({ status: "ready", ok: health.ok }))
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setState({
-          status: "error",
-          message: error instanceof Error ? error.message : String(error),
-        });
-      });
-
-    return () => controller.abort();
-  }, []);
+  // Kept in memory only: reloading the app asks for a new login.
+  const [session, setSession] = useState<Session | null>(null);
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>Emergency Scenarios</Text>
-
-        <Text>Server: {apiBaseUrl}</Text>
-
-        {state.status === "loading" && <Text>Checking server…</Text>}
-
-        {state.status === "error" && (
-          <Text style={styles.error}>
-            Could not reach the server: {state.message}. Is it running (npm run
-            dev)?
-          </Text>
+        {session === null ? (
+          <LoginScreen
+            apiBaseUrl={apiBaseUrl}
+            allowedRole="STEWARD"
+            wrongRoleMessage="Operatører logger ind på web-dashboardet."
+            onLoggedIn={setSession}
+          />
+        ) : (
+          <StewardView onLogout={() => setSession(null)} />
         )}
-
-        {state.status === "ready" && (
-          <Text style={state.ok ? styles.ok : styles.error}>
-            {state.ok ? "Server is healthy" : "Server reports a problem"}
-          </Text>
-        )}
-
         <StatusBar style="auto" />
       </SafeAreaView>
     </SafeAreaProvider>
@@ -65,22 +34,6 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#010000",
-    paddingHorizontal: 16,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  ok: {
-    color: "#1b7f3b",
-    fontWeight: "600",
-    marginTop: 8,
-  },
-  error: {
-    color: "#b00020",
-    marginTop: 8,
+    ...page,
   },
 });

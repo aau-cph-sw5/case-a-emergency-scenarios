@@ -1,53 +1,24 @@
 import { useState } from "react";
+import { LoginScreen } from "../../shared/LoginScreen";
+import type { Session } from "../../shared/auth/login";
+import { OperatorDashboard } from "./OperatorDashboard";
 
-type HealthState =
-  | { status: "idle" }
-  | { status: "checking" }
-  | { status: "error"; message: string }
-  | { status: "done"; ok: boolean };
-
+// The control-room dashboard. Stewards use the app in mobile/.
 export function App() {
-  const [state, setState] = useState<HealthState>({ status: "idle" });
+  // Kept in memory only: reloading the page asks for a new login.
+  const [session, setSession] = useState<Session | null>(null);
 
-  async function checkHealth() {
-    setState({ status: "checking" });
-    try {
-      // vite.config forwards /healthcheck to the server
-      const response = await fetch("/healthcheck");
-      const health = (await response.json()) as { ok: boolean };
-      setState({ status: "done", ok: health.ok });
-    } catch (error) {
-      setState({
-        status: "error",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
+  if (session === null) {
+    return (
+      // "" makes the login call go to /api, which vite.config forwards.
+      <LoginScreen
+        apiBaseUrl=""
+        allowedRole="OPERATOR"
+        wrongRoleMessage="Stewards logger ind i appen."
+        onLoggedIn={setSession}
+      />
+    );
   }
 
-  return (
-    <main>
-      <h1>Emergency Scenarios</h1>
-
-      <button
-        type="button"
-        onClick={checkHealth}
-        disabled={state.status === "checking"}
-      >
-        {state.status === "checking" ? "Checking…" : "Check server health"}
-      </button>
-
-      {state.status === "done" && (
-        <p role="status">
-          {state.ok ? "Server is healthy" : "Server reports a problem"}
-        </p>
-      )}
-
-      {state.status === "error" && (
-        <p role="alert">
-          Could not reach the server: {state.message}. Is it running (
-          <code>npm run dev</code>)?
-        </p>
-      )}
-    </main>
-  );
+  return <OperatorDashboard onLogout={() => setSession(null)} />;
 }
