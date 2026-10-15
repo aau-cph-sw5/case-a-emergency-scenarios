@@ -2,6 +2,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import http from "node:http";
+import net from "node:net";
 import jwt from "jsonwebtoken";
 
 const SECRET = "integration-test-secret";
@@ -13,7 +14,7 @@ function request(method, path, token) {
     const req = http.request(
       {
         host: "localhost",
-        port: 4010,
+        port,
         method,
         path,
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -30,10 +31,25 @@ function request(method, path, token) {
 }
 
 let stub;
+let port;
+
+// Asks the OS for a free port so a stub already running on 4010 does not
+// clash with the one the test spawns.
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.on("error", reject);
+    server.listen(0, () => {
+      const { port: free } = server.address();
+      server.close(() => resolve(free));
+    });
+  });
+}
 
 before(async () => {
+  port = await freePort();
   stub = spawn("node", ["stub-server/server.js"], {
-    env: { ...process.env, JWT_SECRET: SECRET },
+    env: { ...process.env, JWT_SECRET: SECRET, PORT: String(port) },
     stdio: "ignore",
   });
   for (let i = 0; i < 50; i++) {

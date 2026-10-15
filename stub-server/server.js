@@ -7,7 +7,7 @@ import { login, requireAuth } from "./auth.js";
 import { ERROR_CODES, errorBody } from "./error-codes.js";
 
 const app = express();
-const PORT = 4010;
+const PORT = process.env.PORT || 4010;
 
 app.use(express.json());
 
