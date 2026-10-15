@@ -46,14 +46,14 @@ schema history remains intact.
 
 ## Commands
 
-| Command | Purpose |
-| --- | --- |
-| `npm run db:up` | Start the local PostgreSQL Docker container in the background. Docker Desktop must already be running. |
-| `npm run db:migrate` | Apply all pending Flyway migrations. Run after `db:up`. |
-| `npm run db:info` | Show the migrations Flyway has recorded for the local database. |
-| `npm run db:validate` | Check that the migration files match the recorded history. Run before committing a new migration. |
-| `npm run db:down` | Stop and remove the local containers. The PostgreSQL data volume is retained. |
-| `docker compose exec db psql -U metro -c "\dt"` | See all tables in database. |
+| Command                                         | Purpose                                                                                                |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `npm run db:up`                                 | Start the local PostgreSQL Docker container in the background. Docker Desktop must already be running. |
+| `npm run db:migrate`                            | Apply all pending Flyway migrations. Run after `db:up`.                                                |
+| `npm run db:info`                               | Show the migrations Flyway has recorded for the local database.                                        |
+| `npm run db:validate`                           | Check that the migration files match the recorded history. Run before committing a new migration.      |
+| `npm run db:down`                               | Stop and remove the local containers. The PostgreSQL data volume is retained.                          |
+| `docker compose exec db psql -U metro -c "\dt"` | See all tables in database.                                                                            |
 
 The local connection details are:
 
@@ -76,6 +76,7 @@ docker compose down -v
 npm run db:up
 npm run db:migrate
 ```
+
 Changing POSTGRES_PASSWORD in .env only takes effect on a fresh volume. If you change it, run the wipe steps above
 Flyway then recreates the database from every migration in `src/db/migrations`.
 
