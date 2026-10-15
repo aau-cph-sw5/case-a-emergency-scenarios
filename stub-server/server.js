@@ -409,11 +409,17 @@ app.post("/api/v1/scenarios/:scenarioId/activate", requireAuth, (req, res) => {
     ),
   };
 
-  activations.push(activation);
-  console.log("Scenario activated:", activation);
+  // Store only a response that passes validation; otherwise a 500 would leave
+  // the activation behind and a retry would answer 409.
+  const schemaIds = ["scenario-state.schema.json"];
+
+  if (validate(activation, schemaIds).length === 0) {
+    activations.push(activation);
+    console.log("Scenario activated:", activation);
+  }
 
   res.status(201);
-  sendValidated(req, res, activation, ["scenario-state.schema.json"]);
+  sendValidated(req, res, activation, schemaIds);
 });
 
 app.listen(PORT, () => {
