@@ -12,8 +12,8 @@ routes/         which URL and method, and which middleware runs first
 middleware/     checks that run before the handler
 controllers/    reads the request, picks the status code and sends the response
 services/       logic that isn't about HTTP, e.g. checking a password
-repositories/   where the data comes from: right now its just from
-                the fixture files, but later it will be from the database.
+repositories/   where the data comes from: the fixture files, or the
+                database through src/db/client.ts.
 ```
 
 For example, `GET /api/v1/scenarios/DEMO-001`:
@@ -46,6 +46,19 @@ rejected before its body is examined.
   `verifyToken()` checks a token's signature and expiry and returns the user,
   or `null`. The role always comes from the verified token, never from
   anything else the client sends.
+- **`incident-log-service.ts`**: `appendEvent()` is the only way to write to
+  the incident log. It takes the caller's transaction, so the change and its
+  event commit together, and takes the actor from the verified user. See
+  [the incident log reference](../docs/reference/incident-log.md).
+
+### Repositories
+
+- **`incident-event-repository.ts`**: the SQL for the `incident_events` table.
+  Only `incident-log-service.ts` imports it.
+- **`fixture-repository.ts`**: reads the JSON files in `fixtures/v1/`.
+
+`getDatabase()` in `src/db/client.ts` returns column names in camelCase
+(`server_time` becomes `serverTime`). JSON values are returned unchanged.
 
 ### Validation
 
