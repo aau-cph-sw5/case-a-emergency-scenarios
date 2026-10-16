@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Manage Discord notifications
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           DISCORD_USERS: ${{ vars.DISCORD_USERS }}
