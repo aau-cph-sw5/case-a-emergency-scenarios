@@ -1,11 +1,11 @@
 // No react-native imports here, so the unit tests can import this file.
 
+import { REQUEST_TIMEOUT_MS } from "../http";
+
 export type Role = "STEWARD" | "OPERATOR";
 
 // contracts/v1/login-response.schema.json
 export type Session = { token: string; role: Role };
-
-const REQUEST_TIMEOUT_MS = 10_000;
 
 export class InvalidCredentialsError extends Error {
   constructor() {

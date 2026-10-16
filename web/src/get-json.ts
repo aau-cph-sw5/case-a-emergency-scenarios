@@ -1,4 +1,17 @@
-const REQUEST_TIMEOUT_MS = 10_000;
+import { REQUEST_TIMEOUT_MS } from "../../shared/http";
+
+// A non-2xx answer. message is for developers (and the console); users get
+// userMessage(). code is the E-code from the server's error body, if any.
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 async function fetchWithTimeout(
   path: string,
@@ -32,7 +45,10 @@ export async function getJson<T>(
 ): Promise<T> {
   const response = await fetchWithTimeout(path, signals);
   if (!response.ok) {
-    throw new Error(`GET ${path} failed with ${response.status}`);
+    throw new ApiError(
+      `GET ${path} failed with ${response.status}`,
+      response.status,
+    );
   }
   const data: unknown = await response.json();
   if (!isValid(data)) {
@@ -52,12 +68,15 @@ export async function postJson<T>(
   });
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    const message = (data as { error?: { message?: unknown } } | null)?.error
-      ?.message;
-    throw new Error(
-      typeof message === "string"
-        ? message
+    const body = (
+      data as { error?: { code?: unknown; message?: unknown } } | null
+    )?.error;
+    throw new ApiError(
+      typeof body?.message === "string"
+        ? body.message
         : `POST ${path} failed with ${response.status}`,
+      response.status,
+      typeof body?.code === "string" ? body.code : undefined,
     );
   }
   if (!isValid(data)) {
@@ -66,6 +85,18 @@ export async function postJson<T>(
   return data;
 }
 
-export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+// E0001 is AUTH_TOKEN_INVALID (src/error-codes.ts). Unknown codes fall back
+// on the status, so a new server code still gets a sensible text.
+export function userMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) {
+    return "Ingen forbindelse til serveren. Prøv igen.";
+  }
+  if (error.code === "E0001" || error.status === 401) {
+    return "Din session er udløbet. Log ind igen.";
+  }
+  if (error.status === 403) return "Du har ikke adgang til denne handling.";
+  if (error.status === 404) return "Scenariet findes ikke længere.";
+  if (error.status === 409) return "Scenariet er allerede aktivt.";
+  if (error.status >= 500) return "Serveren har et problem. Prøv igen om lidt.";
+  return "Handlingen kunne ikke gennemføres.";
 }

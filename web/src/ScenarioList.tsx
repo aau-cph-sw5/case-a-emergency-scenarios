@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { filterScenarios } from "./filter-scenarios";
-import { errorMessage, postJson } from "./get-json";
+import { postJson, userMessage } from "./get-json";
 import { isScenarioState, type ScenarioState } from "./scenario-state";
 import { fetchScenarios, type ScenarioSummary } from "./scenarios";
 
@@ -25,15 +25,16 @@ export function ScenarioList({ token }: { token: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchScenarios(controller.signal).then(
+    fetchScenarios(token, controller.signal).then(
       (scenarios) => setState({ status: "done", scenarios }),
       (error: unknown) => {
         if (controller.signal.aborted) return;
-        setState({ status: "error", message: errorMessage(error) });
+        console.error(error);
+        setState({ status: "error", message: userMessage(error) });
       },
     );
     return () => controller.abort();
-  }, []);
+  }, [token]);
 
   async function activate(scenario: ScenarioSummary) {
     setSelected(null);
@@ -46,7 +47,8 @@ export function ScenarioList({ token }: { token: string }) {
       );
       setActivation({ status: "done", state });
     } catch (error) {
-      setActivation({ status: "error", message: errorMessage(error) });
+      console.error(error);
+      setActivation({ status: "error", message: userMessage(error) });
     }
   }
 
@@ -54,10 +56,10 @@ export function ScenarioList({ token }: { token: string }) {
   // longer than one screen (MET-A-007 criterion 1 / #116 criterion 3).
   return (
     <section aria-labelledby="scenario-list-heading">
-      <h2 id="scenario-list-heading">Scenarios</h2>
+      <h2 id="scenario-list-heading">Nødscenarier</h2>
 
       <label>
-        Search scenarios{" "}
+        Søg efter scenarier{" "}
         <input
           type="search"
           value={query}
@@ -65,15 +67,15 @@ export function ScenarioList({ token }: { token: string }) {
         />
       </label>
 
-      {state.status === "loading" && <p role="status">Loading scenarios…</p>}
+      {state.status === "loading" && <p role="status">Henter scenarier…</p>}
 
       {state.status === "error" && (
-        <p role="alert">Could not load scenarios: {state.message}</p>
+        <p role="alert">Kunne ikke hente scenarier: {state.message}</p>
       )}
 
       {state.status === "done" &&
         (state.scenarios.length === 0 ? (
-          <p role="status">No scenarios available.</p>
+          <p role="status">Ingen scenarier tilgængelige.</p>
         ) : (
           <ScenarioResults
             scenarios={filterScenarios(state.scenarios, query)}
@@ -101,18 +103,16 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
     case "idle":
       return null;
     case "activating":
-      return <p role="status">Activating scenario…</p>;
+      return <p role="status">Aktiverer scenarie…</p>;
     case "error":
       return (
-        <p role="alert">
-          Could not activate the scenario: {activation.message}
-        </p>
+        <p role="alert">Kunne ikke aktivere scenariet: {activation.message}</p>
       );
     case "done":
       return (
         <p role="status">
-          Scenario {activation.state.scenarioId} is {activation.state.status},
-          started {activation.state.startedAt} by {activation.state.actor}.
+          Scenarie {activation.state.scenarioId} er {activation.state.status},
+          startet {activation.state.startedAt} af {activation.state.actor}.
         </p>
       );
   }
@@ -131,7 +131,7 @@ function ScenarioResults({
 }) {
   // No match is an empty list, not an error.
   if (scenarios.length === 0) {
-    return <p role="status">No scenarios match “{query.trim()}”.</p>;
+    return <p role="status">Ingen scenarier matcher “{query.trim()}”.</p>;
   }
   return (
     <ul>
@@ -173,12 +173,12 @@ function ConfirmActivation({
       onClose={onCancel}
       aria-labelledby="confirm-activation-heading"
     >
-      <h3 id="confirm-activation-heading">Activate “{scenario.name}”?</h3>
+      <h3 id="confirm-activation-heading">Aktivér “{scenario.name}”?</h3>
       <button type="button" onClick={onConfirm}>
-        Confirm
+        Bekræft
       </button>{" "}
       <button type="button" onClick={() => dialogRef.current?.close()}>
-        Cancel
+        Annullér
       </button>
     </dialog>
   );
