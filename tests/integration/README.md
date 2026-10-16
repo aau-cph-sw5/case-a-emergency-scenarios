@@ -8,3 +8,7 @@ Some tests use the database. Locally, run `npm run db:up` and `npm run db:migrat
 first, and keep `DATABASE_URL` in your `.env`. In CI, the Integration tests job
 starts its own throwaway database and applies every migration before the tests
 run.
+
+Database tests run each test in a transaction that is rolled back, so they leave
+no rows behind. Close the connection in `after(() => sql.end())`, and load
+`.env` with `import "dotenv/config"`. See `incident-log.test.ts`.
