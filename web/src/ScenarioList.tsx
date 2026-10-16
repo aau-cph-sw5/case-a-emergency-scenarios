@@ -7,13 +7,13 @@ type LoadState =
   | { status: "error"; message: string }
   | { status: "done"; scenarios: ScenarioSummary[] };
 
-export function ScenarioList() {
+export function ScenarioList({ token }: { token: string }) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [query, setQuery] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchScenarios(controller.signal).then(
+    fetchScenarios(token, controller.signal).then(
       (scenarios) => setState({ status: "done", scenarios }),
       (error: unknown) => {
         if (controller.signal.aborted) return;
@@ -24,7 +24,7 @@ export function ScenarioList() {
       },
     );
     return () => controller.abort();
-  }, []);
+  }, [token]);
 
   // The search field is always shown, so it is there whenever the list is
   // longer than one screen (MET-A-007 criterion 1 / #116 criterion 3).
