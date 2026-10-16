@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 1.0.0
+  version: 3.0.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -14,6 +14,8 @@ paths:
   /api/v1/scenario-state:
     get:
       summary: Get current scenario state
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Current scenario state
@@ -21,10 +23,22 @@ paths:
             application/json:
               schema:
                 $ref: "./scenario-state.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
 
   /api/v1/scenarios:
     get:
       summary: Get all scenarios
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: List of scenarios
@@ -34,6 +48,16 @@ paths:
                 type: array
                 items:
                   $ref: "./scenario.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
 
   /api/v1/scenarios/{scenarioId}:
     get:
@@ -44,6 +68,8 @@ paths:
           required: true
           schema:
             type: string
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Scenario
@@ -51,6 +77,16 @@ paths:
             application/json:
               schema:
                 $ref: "./scenario.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
         "404":
           description: Scenario not found
 
@@ -63,6 +99,8 @@ paths:
           required: true
           schema:
             type: string
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Metro line details
@@ -70,10 +108,24 @@ paths:
             application/json:
               schema:
                 $ref: "./metro-line.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "404":
+          description: Metro line not found
 
   /api/v1/position-reports:
     post:
       summary: Report a steward position
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -99,6 +151,26 @@ paths:
                     type: boolean
               example:
                 accepted: true
+        "400":
+          description: Request body does not match the position-report contract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0006"
+                  message: "Request body does not match contract schema"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
 
   /api/v1/auth/login:
     post:
