@@ -18,12 +18,14 @@ function isScenarioList(data: unknown): data is ScenarioSummary[] {
 
 // vite.config forwards /api to the server
 export async function fetchScenarios(
+  token: string,
   signal: AbortSignal,
   fetchImpl: typeof fetch = fetch,
 ): Promise<ScenarioSummary[]> {
   let response: Response;
   try {
     response = await fetchImpl("/api/v1/scenarios", {
+      headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.any([
         signal,
         AbortSignal.timeout(REQUEST_TIMEOUT_MS),

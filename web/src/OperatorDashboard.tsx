@@ -3,7 +3,13 @@ import { ScenarioList } from "./ScenarioList";
 import { socket } from "./socket";
 
 // The control-room dashboard. The socket demo is from MET-A-004.
-export function OperatorDashboard({ onLogout }: { onLogout: () => void }) {
+export function OperatorDashboard({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
   const { isConnected, messages } = useSocketState(socket);
 
   return (
@@ -27,7 +33,7 @@ export function OperatorDashboard({ onLogout }: { onLogout: () => void }) {
         </ul>
       )}
 
-      <ScenarioList />
+      <ScenarioList token={token} />
     </main>
   );
 }
