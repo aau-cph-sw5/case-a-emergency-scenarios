@@ -6,8 +6,7 @@ the seed loader has been developed in TypeScript, it is responsible for gatherin
 
     - .env file, this is necessary due to it carrying the postgres port and password
     - SeedDataScenario_(n).json and stations.json, this is the data the actual seed loader makes us of so you will need to fetch it from the project one drive, these should be placed in docs/scenario-state.
-        - these files should be added to gitignore like this: "docs/scenario-state/SeedDataScenario_*.json"
-            "docs/scenario-state/stations.json"
+        - these files should be added to gitignore like this: "docs/scenario-state/"
     - Docker set up and running, download and set up docker as explained in db/README.md
 
 ## Running the seedloader
