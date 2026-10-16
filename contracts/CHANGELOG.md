@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 3.1.0 - 2026-10-15
+
+Adds the scenario activation call (additive, no breaking change).
+
+Includes:
+
+- `POST /api/v1/scenarios/{scenarioId}/activate`, which requires a bearer token with the `OPERATOR` role and takes the actor from the token
+
 ## 3.0.0 - 2026-10-15
 
 - `GET /api/v1/scenarios`, `GET /api/v1/scenarios/{scenarioId}`, `GET /api/v1/scenario-state`, `GET /api/v1/metro-lines/{lineId}` and `POST /api/v1/position-reports` now require a bearer token from `POST /api/v1/auth/login`. Without a valid token they answer 401 with error code `E0001`. A client that calls them without a token gets 401 instead of data.

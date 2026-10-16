@@ -7,7 +7,7 @@ import { login, requireAuth } from "./auth.js";
 import { ERROR_CODES, errorBody } from "./error-codes.js";
 
 const app = express();
-const PORT = 4010;
+const PORT = process.env.PORT || 4010;
 
 app.use(express.json());
 
@@ -153,6 +153,17 @@ app.get("/", (req, res) => {
         </div>
       </div>
 
+      <div class="endpoint">
+        <span class="method">GET</span>
+        <a href="/api/v1/scenarios/DEMO-003">
+          /api/v1/scenarios/DEMO-003
+        </a>
+
+        <div class="description">
+          Get a specific scenario definition.
+        </div>
+      </div>
+
 
       <div class="endpoint">
         <span class="method">GET</span>
@@ -186,6 +197,19 @@ app.get("/", (req, res) => {
 
         <div class="description">
           Submit a steward position report.
+          This endpoint cannot be opened directly as a browser link because it requires a POST request.
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <span class="method">POST</span>
+
+        <span class="post">
+          /api/v1/scenarios/{scenarioId}/activate
+        </span>
+
+        <div class="description">
+          Activate a scenario. Requires a bearer token with the OPERATOR role.
           This endpoint cannot be opened directly as a browser link because it requires a POST request.
         </div>
       </div>
@@ -304,6 +328,98 @@ app.post("/api/v1/auth/login", (req, res) => {
 
 app.get("/api/v1/me", requireAuth, (req, res) => {
   sendValidated(req, res, req.user, ["me.schema.json"]);
+});
+
+// ============================================
+// SCENARIO ACTIVATION
+// ============================================
+
+// In-memory, so activations reset when the stub restarts. Seeded with the
+// fixture's activation, so the store and GET /api/v1/scenario-state only agree
+// at startup: that endpoint keeps reading the fixture and never sees later
+// activations (see the follow-up for a list endpoint).
+const activations = [readJson(path.join(fixtures, "scenario-state.json"))];
+
+// Metro's answer on MET-A-007: several scenarios may be active on the same
+// line, and activating never stands down another activation. Only activating
+// the same scenario twice is refused.
+// Metro on MET-A-026: "All in CCR can activate a scenario". The full role
+// matrix is #25's; this only keeps stewards out.
+app.post("/api/v1/scenarios/:scenarioId/activate", requireAuth, (req, res) => {
+  const { scenarioId } = req.params;
+
+  if (req.user.role !== "OPERATOR") {
+    return res
+      .status(403)
+      .json(
+        errorBody(
+          ERROR_CODES.ROLE_NOT_PERMITTED,
+          `Role ${req.user.role} may not activate a scenario`,
+        ),
+      );
+  }
+
+  const filePath = path.join(fixtures, "scenarios", `${scenarioId}.json`);
+
+  if (!fs.existsSync(filePath)) {
+    return res
+      .status(404)
+      .json(
+        errorBody(
+          ERROR_CODES.NOT_FOUND,
+          `No scenario with id '${scenarioId}' exists`,
+        ),
+      );
+  }
+
+  const alreadyActive = activations.some(
+    (activation) =>
+      activation.scenarioId === scenarioId && activation.status === "ACTIVE",
+  );
+
+  if (alreadyActive) {
+    return res
+      .status(409)
+      .json(
+        errorBody(
+          ERROR_CODES.CONFLICT,
+          `Scenario '${scenarioId}' is already active`,
+        ),
+      );
+  }
+
+  const scenario = readJson(filePath);
+  const currentVersion = scenario.versions.find(
+    (version) => version.version === scenario.currentVersion,
+  );
+
+  const activation = {
+    activationId: `ACT-${scenarioId}-${activations.length + 1}`,
+    scenarioId,
+    startedAt: new Date().toISOString(),
+    endedAt: null,
+    status: "ACTIVE",
+    actor: req.user.userId,
+    deployments: (currentVersion?.stationRequirements ?? []).map(
+      (requirement) => ({
+        status: "UNMANNED",
+        staff: null,
+        fulfills: requirement.station,
+      }),
+    ),
+  };
+
+  // Store only a response that passes validation; otherwise a 500 would leave
+  // the activation behind and a retry would answer 409.
+  const schemaIds = ["scenario-state.schema.json"];
+
+  if (validate(activation, schemaIds).length === 0) {
+    activations.push(activation);
+    console.log("Scenario activated:", activation);
+  }
+
+  res.status(201);
+  sendValidated(req, res, activation, schemaIds);
 });
 
 app.listen(PORT, () => {

@@ -36,3 +36,5 @@ POST /api/v1/position-reports
 POST /api/v1/auth/login
 
 GET  /api/v1/me
+
+POST /api/v1/scenarios/{scenarioId}/activate
