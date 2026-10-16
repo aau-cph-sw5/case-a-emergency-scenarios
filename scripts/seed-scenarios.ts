@@ -199,13 +199,13 @@ if (allErrors.length > 0) {
 async function getStationId(client: pg.Client, code: string): Promise<number> {
   const name = stationNames.get(code);
   if (name === undefined) {
-      throw new Error(`Station "${code}" is not in stations.json.`);
+    throw new Error(`Station "${code}" is not in stations.json.`);
   }
   const result = await client.query(
-      `INSERT INTO stations (code, name) VALUES ($1, $2)
+    `INSERT INTO stations (code, name) VALUES ($1, $2)
        ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
        RETURNING id`,
-      [code, name]
+    [code, name],
   );
   return result.rows[0].id;
 }
