@@ -163,10 +163,11 @@ function validate(
 }
 
 const dir = "docs/scenario-state";
-const stationList: { code: string }[] = JSON.parse(
+const stationList: { code: string; name: string }[] = JSON.parse(
   readFileSync(join(dir, "stations.json"), "utf8"),
 );
-const allowedStations = new Set(stationList.map((s) => s.code));
+const stationNames = new Map(stationList.map((s) => [s.code, s.name]));
+const allowedStations = new Set(stationNames.keys());
 const seedFiles = readdirSync(dir).filter(
   (f) => f.startsWith("SeedDataScenario_") && f.endsWith(".json"),
 );
@@ -196,11 +197,15 @@ if (allErrors.length > 0) {
   process.exit(1);
 }
 async function getStationId(client: pg.Client, code: string): Promise<number> {
+  const name = stationNames.get(code);
+  if (name === undefined) {
+      throw new Error(`Station "${code}" is not in stations.json.`);
+  }
   const result = await client.query(
-    `INSERT INTO stations (code) VALUES ($1)
-         ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
-         RETURNING id`,
-    [code],
+      `INSERT INTO stations (code, name) VALUES ($1, $2)
+       ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
+       RETURNING id`,
+      [code, name]
   );
   return result.rows[0].id;
 }
