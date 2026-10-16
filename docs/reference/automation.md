@@ -1,20 +1,41 @@
 # Automation
 
-Six workflows run on pull requests. `pr-title-check.yml` and
+Several workflows run on pull requests. `pr-title-check.yml` and
 `pr-description-check.yml` validate the title and the body against
 `.github/PULL_REQUEST_TEMPLATE.md`; both print what they expect in their error
-message. `code-quality.yml` runs lint and formatting. The three below are
-documented here.
+message. `code-quality.yml` runs lint and formatting. Tests, coverage and
+labels are documented below.
 
 ## Tests in CI
 
-The workflow `.github/workflows/tests.yml` runs the tests automatically on every
-pull request into `dev`, `staging` and `main`, and on every push to those branches.
+The workflow `.github/workflows/tests.yml` runs on every pull request, on every
+push to `dev`, `staging` and `main`, and on demand under
+**Actions → Tests → Run workflow**. Each job is its own check on the pull request:
 
-| Check on the PR | Runs | Folder |
+| Check on the PR | Runs | Fails when |
 |---|---|---|
-| Unit tests | `npm run test:unit` | `tests/unit/` |
-| Integration tests | `npm run test:integration` | `tests/integration/` |
+| Unit tests | `npm run test:unit` | a test in `tests/unit/` fails |
+| Integration tests | `npm run test:integration`, against a test database | a test in `tests/integration/` fails |
+| Backend coverage | merges the coverage of both test jobs | every test passed, but coverage is below the minimum, see [Test coverage](#test-coverage) |
+
+The test jobs run under c8 to collect coverage, but they don't check it.
+Backend coverage waits for both and still runs when a test fails, but checks
+the minimum only when every test passed, so a failing test and too-low coverage
+show as separate checks.
+
+### Test database
+
+The Integration tests job starts a throwaway PostgreSQL 16 container, applies
+every migration in `src/db/migrations/` with Flyway, and sets `DATABASE_URL`
+for the tests. The database holds only what the migrations and tests create,
+exists only while the job runs, and never touches the staging or production
+databases, so its user and password (`metro`/`metro`) are not secrets.
+
+Because of this, every new migration is applied on every pull request, before it
+reaches `staging`.
+
+When the tests need something new from the database, such as another role or
+seed data, change this job only.
 
 ### Adding a test
 
@@ -70,10 +91,10 @@ branch.
 
 ## Test coverage
 
-The workflow `.github/workflows/coverage.yml` runs all tests under
-[c8](https://github.com/bcoe/c8) and measures how much of `src/` they execute.
-It runs on every pull request, on every push to `dev`, `staging` and `main`,
-and on demand under **Actions → Coverage → Run workflow**.
+The Backend coverage job in `tests.yml` measures how much of `src/` the unit
+and integration tests execute, with [c8](https://github.com/bcoe/c8). The test
+jobs save their raw coverage as artifacts, and Backend coverage merges them.
+It runs wherever `tests.yml` runs.
 
 | Where | What you see |
 |---|---|
@@ -81,7 +102,7 @@ and on demand under **Actions → Coverage → Run workflow**.
 | Workflow run → Summary | The same table, for every run |
 | Locally | `npm run test:coverage`, then open `coverage/index.html` to see uncovered lines |
 
-The **vs `dev`** column compares with the latest successful Coverage run on
+The **vs `dev`** column compares with the latest successful Tests run on
 `dev`. Every successful push to `dev` saves its coverage as the
 `coverage-baseline` artifact (kept for 90 days). Until one exists, the column
 shows `–`.
