@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 3.0.0
+  version: 3.1.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -234,6 +234,73 @@ paths:
                 error:
                   code: "E0001"
                   message: "Invalid or expired token"
+
+  /api/v1/scenarios/{scenarioId}/activate:
+    post:
+      summary: Activates a scenario with given id
+      description: >
+        Requires a bearer token with the OPERATOR role ("All in CCR can
+        activate a scenario", Metro on MET-A-026). The actor is taken from
+        the token, never from the request.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: scenarioId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Activation successful
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-state.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not activate a scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "Role STEWARD may not activate a scenario"
+        "404":
+          description: Scenario not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0004"
+                  message: "No scenario with id 'S1' exists"
+        "409":
+          description: >
+            Activation refused because this same scenario is already
+            active. Other active scenarios, including scenarios on the
+            same line, never block an activation and are never stood
+            down by it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0007"
+                  message: "Scenario 'S1' is already active"
 
 components:
   securitySchemes:

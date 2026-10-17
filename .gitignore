@@ -29,5 +29,4 @@ dist/
 build/
 
 
-docs/scenario-state/SeedDataScenario_*.json
-docs/scenario-state/stations.json
+docs/scenario-state/

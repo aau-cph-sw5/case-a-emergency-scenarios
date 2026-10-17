@@ -12,5 +12,12 @@
     "currentVersion": "2",
     "covers": [],
     "versions": []
+  },
+  {
+    "scenarioId": "DEMO-003",
+    "name": "Synthetic fallback scenario 3",
+    "currentVersion": "1",
+    "covers": [],
+    "versions": []
   }
 ]
