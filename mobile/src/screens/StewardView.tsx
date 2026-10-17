@@ -6,6 +6,7 @@ import { socket } from "../socket";
 import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
 import { ScenarioSummary } from "./ScenarioSummary";
+import { ScenarioOverview } from "./ScenarioOverview";
 
 // token is null when the app opened without network and shows the saved copy
 // by itself; there is nothing to log out of then.
@@ -47,7 +48,7 @@ export function StewardView({
         <OfflineBanner savedAt={view.snapshot.savedAt} reason={view.reason} />
       )}
       {(view.status === "live" || view.status === "copy") && (
-        <ScenarioSummary snapshot={view.snapshot} />
+        <ScenarioOverview snapshot={view.snapshot} />
       )}
 
       {token !== null && (
