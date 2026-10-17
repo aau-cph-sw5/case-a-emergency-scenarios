@@ -65,6 +65,10 @@ In TypeScript the columns are camelCase (`serverTime`, `actorId`), because
 - Names are SCREAMING_SNAKE_CASE and past tense: `SCENARIO_ACTIVATED`,
   `STATION_COVERED`. The database rejects other formats.
 - A new type needs no migration. Start writing it, and add it to this page.
+- `POSITION_REPORTED` (schema 1): a steward's position report was stored.
+  Subject `position-report`, empty payload. Written by `savePositionReport` in
+  `src/services/position-report-service.ts`, the worked example of `appendEvent`
+  inside a transaction.
 - `schema_version` belongs to the type. Raise it when the type's payload
   changes shape. Old events keep their version, so readers check it before
   reading the payload.
