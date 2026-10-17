@@ -1,8 +1,10 @@
+import "dotenv/config";
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { app } from "../../src/app.js";
+import { getDatabase } from "../../src/db/client.js";
 import { validate } from "../../src/validation/contract-validator.js";
 
 let server: Server;
@@ -15,7 +17,10 @@ before(async () => {
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
-after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+after(async () => {
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  await getDatabase().end();
+});
 
 function postJson(
   path: string,
