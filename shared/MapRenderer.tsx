@@ -82,13 +82,23 @@ function GetColors(visible: MapLine[], colors: Record<string, string>, stationA:
 }
 
 
-export default function MapRender({ lines, colors }: { lines: MapLine[]; colors: Record<string, string> }) {
+export default function MapRender({
+  lines,
+  colors,
+  viewBox = "0 0 950 700",
+  showLineButtons = true,
+ }: { 
+  lines: MapLine[];
+  colors: Record<string, string> 
+  viewBox?: string;
+  showLineButtons?: boolean;
+}) {
   const [hidden, setHidden] = useState<string[]>([]);
   const visible = lines.filter((l) => !hidden.includes(l.name));
   return (
     <View style={{ flex: 1 }}>
-      <LineButtons colors={colors} hidden={hidden} setHidden={setHidden} />
-      <Svg width="100%" height="100%" viewBox="0 0 950 700" preserveAspectRatio="xMidYMid meet">
+      {showLineButtons && <LineButtons colors={colors} hidden={hidden} setHidden={setHidden} />}
+      <Svg width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
         {visible.flatMap(({ name, connections }) =>
           connections.map(([stationA, stationB]) => {
             const [x1, y1] = getStation(stationA);
