@@ -5,7 +5,6 @@ import { useActiveScenario } from "../offline/useActiveScenario";
 import { socket } from "../socket";
 import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
-import { ScenarioSummary } from "./ScenarioSummary";
 import { ScenarioOverview } from "./ScenarioOverview";
 
 // token is null when the app opened without network and shows the saved copy
