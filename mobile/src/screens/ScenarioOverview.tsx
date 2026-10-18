@@ -2,10 +2,11 @@ import { StyleSheet, Text, View } from "react-native";
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
 import { box, surface, lineColors, colors, text } from "../../../shared/Theme";
 import MapRender from "../../../shared/MapRenderer";
+
 import {
   affectedStations,
   affectedStretchAsMapLine,
-} from "./affected-stations";
+  areaAroundStations,} from "./affected-stations";
 
 export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
   const { scenario } = snapshot;
@@ -26,7 +27,7 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
       )}
 
       <View style={styles.mapBox}>
-        <MapRender lines={mapLines} colors={mapColors} />
+        <MapRender lines={mapLines} colors={mapColors} viewBox={areaAroundStations(stations)} showLineButtons={false} />
       </View>
 
       <View style={styles.stationList}>
