@@ -1,42 +1,47 @@
 import { FlatList, Text, View } from 'react-native';
 import { box, text } from '../Theme';
 import type { Scenario } from '../types/v1/scenario';
-import { countManned } from './stationState';
-import StationRow, { type Activation } from './StationRow';
+import { countManned, type ActiveDeployments } from './stationState';
+import StationRow from './StationRow';
+import metroLineM1 from '../../fixtures/v1/metro-lines/M1.json';
+import metroLineM2 from '../../fixtures/v1/metro-lines/M2.json';
 
-// this should 
-const LINE_ORDER = ['Station B', 'Station A', 'Station C'];
+const STATION_ORDER = [...metroLineM1.stops, ...metroLineM2.stops]
+  .sort((a, b) => a.sequence - b.sequence)
+  .map(({ station }) => station);
+const STATION_RANK = new Map(STATION_ORDER.map((station, index) => [station, index]));
 
 type Props = {
   scenario: Scenario;
-  activeState: Activation;
+  activeDeployments: ActiveDeployments;
 };
 
-export default function ScenarioStationList({ scenario, activeState }: Props) {
-
+export default function ScenarioStationList({ scenario, activeDeployments }: Props) {
   const version = scenario.versions.find(
     (item) => item.version === scenario.currentVersion
   );
 
-  const rows = [...(version?.stationRequirements ?? [])].sort(
-  (a, b) => LINE_ORDER.indexOf(a.station) - LINE_ORDER.indexOf(b.station)
+  const stations = [...(version?.stationRequirements ?? [])].sort(
+    (a, b) =>
+      (STATION_RANK.get(a.station) ?? Number.MAX_SAFE_INTEGER) -
+      (STATION_RANK.get(b.station) ?? Number.MAX_SAFE_INTEGER)
   );
 
-  const coveredCount = countManned(activeState, rows);
+  const coveredCount = countManned(activeDeployments, stations);
 
   return (
     <FlatList // we dont currently have a station order.
-      data={rows}
+      data={stations}
       keyExtractor={(item) => item.station}
       ListHeaderComponent={
         <View style={[box, { margin: 8 }]}>
           <Text style={text.title}>
-            {coveredCount}/{rows.length} stations covered
+            {coveredCount}/{stations.length} stations covered
           </Text>
         </View>
       }
       renderItem={({ item }) => (
-        <StationRow requirement={item} activeState={activeState} />
+        <StationRow requirement={item} deployments={activeDeployments} />
       )}
     />
   );

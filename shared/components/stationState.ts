@@ -1,24 +1,24 @@
-export type Deployment = {
-  fulfills: string;
-  status: string;
-  reportedAt?: string | null;
-};
+import type { Scenario } from '../types/v1/scenario';
+import type { ScenarioState } from '../types/v1/scenario-state';
+
+export type ActiveDeployments = Pick<ScenarioState, 'deployments'>;
+type StationRequirement = Scenario['versions'][number]['stationRequirements'][number];
 
 export function countManned(
-  activation: { deployments: Deployment[] },
-  requirements: { station: string; minimumStaffing: number }[]
+  scenario: ActiveDeployments,
+  requirements: Pick<StationRequirement, 'station' | 'minimumStaffing'>[]
 ) {
   return requirements.filter(
-    (r) => getStationState(activation, r.station, r.minimumStaffing).current >= r.minimumStaffing
+    (r) => getStationState(scenario, r.station, r.minimumStaffing).current >= r.minimumStaffing
   ).length;
 }
 
 export function getStationState(
-  activation: { deployments: Deployment[] },
+  scenario: ActiveDeployments,
   station: string,
   required: number
 ) {
-  const deployments = activation.deployments.filter((d) => d.fulfills === station);
+  const deployments = scenario.deployments.filter((d) => d.fulfills === station);
 
   // One status per required steward; missing ones are unmanned
   const statuses = Array.from(

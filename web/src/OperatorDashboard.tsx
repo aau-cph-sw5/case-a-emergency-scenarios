@@ -42,7 +42,7 @@ export function OperatorDashboard({
       )}
 
       <ScenarioList token={token} />
-      <ScenarioStationList scenario={selectedScenario} activeState={scenarioState} />
+      <ScenarioStationList scenario={selectedScenario} activeDeployments={scenarioState} />
     </main>
   );
 }

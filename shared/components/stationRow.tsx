@@ -2,10 +2,8 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { box, text, palette } from '../Theme';
 import type { Scenario } from '../types/v1/scenario';
-import type { ScenarioState } from '../types/v1/scenario-state';
-import { getStationState, formatTime } from './stationState';
+import { getStationState, formatTime, type ActiveDeployments } from './stationState';
  
-export type Activation = ScenarioState;
 export type StationRequirement = Scenario['versions'][number]['stationRequirements'][number];
  
 // Keyed by the status values in the scenario state
@@ -24,12 +22,12 @@ const getStatusStyle = (status: string) =>
  
 type Props = {
     requirement: StationRequirement;
-    activeState: Activation;
+    deployments: ActiveDeployments;
 };
  
-export default function StationRow({ requirement, activeState }: Props) {
+export default function StationRow({ requirement, deployments }: Props) {
     const { statuses, current, lastUpdate } = getStationState(
-        activeState,
+        deployments,
         requirement.station,
         requirement.minimumStaffing
     );
