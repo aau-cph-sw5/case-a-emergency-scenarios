@@ -3,16 +3,19 @@ import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot
 import { box, surface, lineColors, colors, text } from "../../../shared/Theme";
 import MapRender from "../../../shared/MapRenderer";
 import type { ScenarioDefinition } from "../../../shared/scenario/active-scenario";
+import { getStation } from "../../../mockData/data";
 
 //helper function as map draws "lines" made of station pairs
 //turns the affected stations (covers) into the maps "lines"
+//filter keeps only pairs where both stations have a position
 function affectedStretchAsMapLine(scenario: ScenarioDefinition) {
   return {
     name: scenario.name,
     tracks: [1, 2],
     connections: (scenario.covers ?? []).map(
       (segment) => [segment.stationA, segment.stationB] as [string, string],
-    ),
+    )
+    .filter(([stationA, stationB]) => getStation(stationA) && getStation(stationB)),
   };
 }
 

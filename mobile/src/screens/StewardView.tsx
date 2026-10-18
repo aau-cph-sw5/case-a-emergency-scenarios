@@ -18,7 +18,6 @@ import { snapshotStore } from "../offline/snapshot-store";
 import { socket } from "../socket";
 import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
-import { ScenarioSummary } from "./ScenarioSummary";
 import { ScenarioOverview } from "./ScenarioOverview";
 
 // online is false when the phone has no connection or the session could not
