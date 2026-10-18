@@ -6,9 +6,11 @@ import StationRow from './StationRow';
 import metroLineM1 from '../../fixtures/v1/metro-lines/M1.json';
 import metroLineM2 from '../../fixtures/v1/metro-lines/M2.json';
 
-const STATION_ORDER = [...metroLineM1.stops, ...metroLineM2.stops]
-  .sort((a, b) => a.sequence - b.sequence)
-  .map(({ station }) => station);
+const STATION_ORDER = [metroLineM1, metroLineM2].flatMap(({ stops }) =>
+  [...stops]
+    .sort((a, b) => a.sequence - b.sequence)
+    .map(({ station }) => station)
+);
 const STATION_RANK = new Map(STATION_ORDER.map((station, index) => [station, index]));
 
 type Props = {
