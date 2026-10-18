@@ -30,3 +30,31 @@ export function affectedStations(scenario: ScenarioDefinition) {
     ),
   ];
 }
+
+
+
+const MAP_MARGIN = 60;
+
+export function areaAroundStations(stations: string[]) {
+    //positions from the stations from the map
+    const positions = stations
+        .map((station) => getStation(station))
+        .filter((position) => position !== undefined);
+
+    //none stations on view? then shows the whole canvas
+    if (positions.length === 0) return undefined;
+    //takes the outermost stations in each direction
+    const xs = positions.map((position) => position[0]);
+    const ys = positions.map((position) => position[1]);
+    
+    // we push the edge out by the margin
+    const left = Math.min(...xs) - MAP_MARGIN;
+    const right = Math.max(...xs) + MAP_MARGIN;
+    const top = Math.min(...ys) + MAP_MARGIN;
+    const bottom = Math.max(...ys) + MAP_MARGIN;
+
+
+    //here return the values in text so it becomes "(the numbers)"
+    return `${left} ${top} ${right - left} ${bottom - top}`;
+    
+}
