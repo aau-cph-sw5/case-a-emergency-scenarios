@@ -86,6 +86,10 @@ describe('formatTime', () => {
     expect(formatTime(null)).toBe('--:--');
   });
 
+  it('uses a placeholder for an invalid timestamp', () => {
+    expect(formatTime('not-a-timestamp')).toBe('--:--');
+  });
+
   it('formats valid timestamps as a localized hour and minute', () => {
     const timestamp = '2026-10-18T09:15:00Z';
     const expected = new Date(timestamp).toLocaleTimeString([], {

@@ -2,7 +2,7 @@ import { FlatList, Text, View } from 'react-native';
 import { box, text } from '../Theme';
 import type { Scenario } from '../types/v1/scenario';
 import { countManned, type ActiveDeployments } from './stationState';
-import StationRow from './StationRow';
+import StationRow from './stationRow';
 import metroLineM1 from '../../fixtures/v1/metro-lines/M1.json';
 import metroLineM2 from '../../fixtures/v1/metro-lines/M2.json';
 

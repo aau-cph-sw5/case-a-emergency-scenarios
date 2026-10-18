@@ -32,5 +32,7 @@ export function getStationState(
 
 export function formatTime(iso?: string | null) {
   if (!iso) return '--:--';
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '--:--';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
