@@ -1,14 +1,20 @@
 import { useSocketState } from "../../shared/socket/useSocketState";
+import { ScenarioList } from "./ScenarioList";
 import { socket } from "./socket";
 
-// Placeholder for the control-room dashboard (MET-A-007) until it is
-// connected here. The socket demo is from MET-A-004.
-export function OperatorDashboard({ onLogout }: { onLogout: () => void }) {
+// The control-room dashboard. The socket demo is from MET-A-004.
+export function OperatorDashboard({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
   const { isConnected, messages } = useSocketState(socket);
 
   return (
     <main>
-      <h1>Emergency Scenarios</h1>
+      <h1>Nødscenarier</h1>
       <button onClick={onLogout} type="button">
         Log ud
       </button>
@@ -26,6 +32,8 @@ export function OperatorDashboard({ onLogout }: { onLogout: () => void }) {
           ))}
         </ul>
       )}
+
+      <ScenarioList token={token} />
     </main>
   );
 }

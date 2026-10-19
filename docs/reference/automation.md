@@ -1,9 +1,9 @@
 # Automation
 
-Five workflows run on pull requests. `pr-title-check.yml` and
+Six workflows run on pull requests. `pr-title-check.yml` and
 `pr-description-check.yml` validate the title and the body against
 `.github/PULL_REQUEST_TEMPLATE.md`; both print what they expect in their error
-message. `code-quality.yml` runs lint and formatting. The two below are
+message. `code-quality.yml` runs lint and formatting. The three below are
 documented here.
 
 ## Tests in CI
@@ -18,9 +18,7 @@ pull request into `dev`, `staging` and `main`, and on every push to those branch
 
 ### Adding a test
 
-Put a file named `*.test.js` or `*.test.mjs` in the right folder. It is picked up
-automatically, with no change to the workflow. Tests use Node's built-in test
-runner (`node:test`).
+Put a file named `*.test.js`, `*.test.mjs` or `*.test.ts` in `tests/unit/` or `tests/integration/` (see the README in each folder). It is picked up automatically, with no change to the workflow. Tests use Node's built-in test runner (`node:test`).
 
 A folder with no tests reports 0 tests and passes. A green check therefore means
 "nothing failed", not "this is tested".
@@ -69,3 +67,43 @@ The workflow starts working after it has been merged into the target branch.
 It cannot label the pull request that introduces it because
 `pull_request_target` workflows use the workflow definition from the target
 branch.
+
+## Test coverage
+
+The workflow `.github/workflows/coverage.yml` runs all tests under
+[c8](https://github.com/bcoe/c8) and measures how much of `src/` they execute.
+It runs on every pull request, on every push to `dev`, `staging` and `main`,
+and on demand under **Actions → Coverage → Run workflow**.
+
+| Where | What you see |
+|---|---|
+| Pull request | One comment with the coverage table, updated on every push |
+| Workflow run → Summary | The same table, for every run |
+| Locally | `npm run test:coverage`, then open `coverage/index.html` to see uncovered lines |
+
+The **vs `dev`** column compares with the latest successful Coverage run on
+`dev`. Every successful push to `dev` saves its coverage as the
+`coverage-baseline` artifact (kept for 90 days). Until one exists, the column
+shows `–`.
+
+### Scope
+
+Every TypeScript file in `src/` is measured. Web and mobile are not measured yet.
+
+### Changing the required coverage
+
+The minimum coverage for lines, branches, functions and statements is set in
+`.c8rc.json`. Today every value is `0`, so coverage is only reported and the
+Backend coverage check always passes.
+
+To require a minimum:
+
+1. Raise the values in `.c8rc.json` in a pull request. From then on, the
+   Backend coverage check fails on any pull request whose coverage is below
+   the minimum.
+2. After that pull request is merged, an admin adds **Backend coverage** to the
+   required status checks of the `dev` ruleset. Until then, a failing check is
+   shown on the pull request but does not stop it from being merged.
+
+Why it works this way is in ADR 0007.
+

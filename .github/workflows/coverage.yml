@@ -1,0 +1,114 @@
+name: Coverage
+
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches:
+      - dev
+      - staging
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      # Gets coverage-summary.json from the latest successful Coverage run on dev,
+      # for the "vs dev" column. If there is none, the column shows "–".
+      - name: Download coverage from dev
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          latest_dev_run=$(gh run list \
+            --workflow coverage.yml \
+            --branch dev \
+            --event push \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[].databaseId')
+
+          if [ -z "$latest_dev_run" ]; then
+            echo "No successful Coverage run on dev yet."
+            exit 0
+          fi
+
+          gh run download "$latest_dev_run" \
+            --name coverage-baseline \
+            --dir coverage/baseline \
+            || echo "Run $latest_dev_run has no coverage-baseline artifact."
+
+      - name: Write coverage summary
+        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        run: |
+          node scripts/coverage-report.mjs coverage/baseline/coverage-summary.json > coverage/report.md
+          cat coverage/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save coverage as dev baseline
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-baseline
+          path: coverage/coverage-summary.json
+          retention-days: 90
+
+      - name: Comment on pull request
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('coverage/report.md') != '' }}
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require("node:fs");
+            const marker = "<!-- coverage-report -->";
+            const body = fs.readFileSync("coverage/report.md", "utf8");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find(
+              (comment) =>
+                comment.user.login === "github-actions[bot]" && comment.body.includes(marker),
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

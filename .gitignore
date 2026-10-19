@@ -27,3 +27,6 @@ pnpm-debug.log*
 coverage/
 dist/
 build/
+
+
+docs/scenario-state/
