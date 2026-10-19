@@ -51,3 +51,61 @@ export type TestAccount = {
 export function listTestAccounts(): TestAccount[] {
   return readJson("test-accounts.json") as TestAccount[];
 }
+
+type Activation = {
+  activationId: string;
+  scenarioId: string;
+  startedAt: string;
+  endedAt: string | null;
+  status: "ACTIVE";
+  actor: string;
+  deployments: { status: "UNMANNED"; staff: null; fulfills: string }[];
+};
+
+type ScenarioFile = {
+  currentVersion: number;
+  versions: { version: number; stationRequirements?: { station: string }[] }[];
+};
+
+// In-memory until the database is populated, so activations reset when the
+// server restarts. Seeded with the fixture's activation, like the stub.
+const activations: { scenarioId: string }[] = [
+  getScenarioState() as { scenarioId: string },
+];
+
+export type ActivationResult =
+  | { kind: "ok"; activation: Activation }
+  | { kind: "not-found" }
+  | { kind: "already-active" };
+
+// Several scenarios may be active on one line, so only the same scenario
+// twice is refused (Metro on MET-A-007).
+export function activateScenario(
+  scenarioId: string,
+  actor: string,
+): ActivationResult {
+  const scenario = findScenario(scenarioId) as ScenarioFile | undefined;
+  if (scenario === undefined) return { kind: "not-found" };
+  if (activations.some((a) => a.scenarioId === scenarioId)) {
+    return { kind: "already-active" };
+  }
+
+  const version = scenario.versions.find(
+    (v) => v.version === scenario.currentVersion,
+  );
+  const activation: Activation = {
+    activationId: `ACT-${scenarioId}-${activations.length + 1}`,
+    scenarioId,
+    startedAt: new Date().toISOString(),
+    endedAt: null,
+    status: "ACTIVE",
+    actor,
+    deployments: (version?.stationRequirements ?? []).map((r) => ({
+      status: "UNMANNED",
+      staff: null,
+      fulfills: r.station,
+    })),
+  };
+  activations.push(activation);
+  return { kind: "ok", activation };
+}
