@@ -20,20 +20,14 @@ production credentials here.
    bcdedit /set hypervisorlaunchtype auto
    ```
 
-2. Copy the local-only environment template:
+2. Create `.env`, start PostgreSQL, apply the migrations and seed the
+   database:
 
    ```bash
-   cp .env.example .env
+   npm run setup
    ```
 
-3. Start PostgreSQL and apply the migrations:
-
-   ```bash
-   npm run db:up
-   npm run db:migrate
-   ```
-
-4. Check the recorded migration history:
+3. Check the recorded migration history:
 
    ```bash
    npm run db:info
@@ -53,6 +47,7 @@ schema history remains intact.
 | `npm run db:info`                               | Show the migrations Flyway has recorded for the local database.                                        |
 | `npm run db:validate`                           | Check that the migration files match the recorded history. Run before committing a new migration.      |
 | `npm run db:down`                               | Stop and remove the local containers. The PostgreSQL data volume is retained.                          |
+| `npm run db:reset`                              | Delete the local database and rebuild it from the migrations and seed data.                            |
 | `docker compose exec db psql -U metro -c "\dt"` | See all tables in database.                                                                            |
 
 The local connection details are:
@@ -72,13 +67,12 @@ local PostgreSQL data volume, including Flyway's migration history and any
 locally entered data.
 
 ```bash
-docker compose down -v
-npm run db:up
-npm run db:migrate
+npm run db:reset
 ```
 
-Changing POSTGRES_PASSWORD in .env only takes effect on a fresh volume. If you change it, run the wipe steps above
-Flyway then recreates the database from every migration in `src/db/migrations`.
+This recreates the database from every migration in `src/db/migrations` and
+seeds it again. Changing `POSTGRES_PASSWORD` in `.env` only takes effect on a
+fresh volume, so run `npm run db:reset` after changing it.
 
 ## Adding a migration
 

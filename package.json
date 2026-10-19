@@ -14,6 +14,7 @@
   "scripts": {
     "stub": "node stub-server/server.js",
     "stub:prism": "prism mock contracts/v1/openapi.yaml",
+    "setup": "node scripts/setup.mjs",
     "validate": "node scripts/validate-fixtures.js",
     "seed:accounts": "node scripts/seed-test-accounts.js",
     "lint": "eslint . --max-warnings 0",
@@ -34,6 +35,7 @@
     "db:info": "docker compose run --rm flyway info",
     "db:validate": "docker compose run --rm flyway validate",
     "db:down": "docker compose down",
+    "db:reset": "node scripts/db-reset.mjs",
     "seed": "tsx --env-file=.env scripts/seed-scenarios.ts",
     "dev": "tsx watch src/server.ts",
     "build": "tsc && npm run web:build",

@@ -6,6 +6,21 @@ application; the fixture-backed stub is a separate development tool.
 
 ## First-time setup
 
+Prepare everything for local development with one command:
+
+```bash
+npm run setup
+```
+
+This installs dependencies when `package-lock.json` has changed, creates
+`.env` from `.env.example` if it is missing, starts the local PostgreSQL
+container, applies the Flyway migrations, and seeds scenario data when the seed
+files are present in `docs/scenario-state/`. Docker Desktop must be running.
+Every step skips work that is already done, so re-run it after pulling.
+
+The individual steps are described below for when you need to run one on its
+own.
+
 Install the exact dependency versions recorded in `package-lock.json`:
 
 ```bash
@@ -148,6 +163,13 @@ Stop the local database container:
 
 ```bash
 npm run db:down
+```
+
+Delete the local database, including all its data, and rebuild it from the
+migrations and seed data:
+
+```bash
+npm run db:reset
 ```
 
 The container uses the `POSTGRES_PASSWORD` and `POSTGRES_PORT` values from
