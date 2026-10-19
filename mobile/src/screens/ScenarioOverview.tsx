@@ -6,7 +6,8 @@ import MapRender from "../../../shared/MapRenderer";
 import {
   affectedStations,
   affectedStretchAsMapLine,
-  areaAroundStations,} from "./affected-stations";
+  areaAroundStations,
+} from "./affected-stations";
 
 export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
   const { scenario } = snapshot;
@@ -27,7 +28,12 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
       )}
 
       <View style={styles.mapBox}>
-        <MapRender lines={mapLines} colors={mapColors} viewBox={areaAroundStations(stations)} showLineButtons={false} />
+        <MapRender
+          lines={mapLines}
+          colors={mapColors}
+          viewBox={areaAroundStations(stations)}
+          showLineButtons={false}
+        />
       </View>
 
       <View style={styles.stationList}>
