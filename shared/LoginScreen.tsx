@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { InvalidCredentialsError, login } from "./auth/login";
 import type { Role, Session } from "./auth/login";
-import { box, colors, palette, radius, surface, text } from "./Theme";
+import { box, colors, palette, radius, surface, text } from "./theme";
 
 type LoginState =
   | { status: "idle" }

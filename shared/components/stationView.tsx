@@ -1,5 +1,5 @@
 import { FlatList, Text, View } from "react-native";
-import { box, text } from "../Theme";
+import { box, text } from "../theme";
 import type { Scenario } from "../types/v1/scenario";
 import { countManned, type ActiveDeployments } from "./stationState";
 import StationRow from "./stationRow";

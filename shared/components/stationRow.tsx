@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { box, text, palette } from "../Theme";
+import { box, text, palette } from "../theme";
 import type { Scenario } from "../types/v1/scenario";
 import {
   getStationState,
