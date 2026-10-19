@@ -136,3 +136,17 @@ test("events for an activation are returned in sequence order", () =>
       types,
     );
   }));
+
+test("an event with only the required fields leaves the optional ones empty", () =>
+  inRolledBackTransaction(async (tx) => {
+    const event = await appendEvent(tx, operator, {
+      type: "SCENARIO_ACTIVATED",
+      schemaVersion: 1,
+      subject: { type: "activation", id: "ACT-TEST-1" },
+    });
+
+    assert.equal(event.activationId, null);
+    assert.equal(event.line, null);
+    assert.deepEqual(event.payload, {});
+    assert.equal(event.clientTime, null);
+  }));
