@@ -60,6 +60,7 @@ export default defineConfig([
   {
     files: [
       "{web,mobile}/**/*.{ts,tsx}",
+      "shared/api/**/*.ts",
       "shared/auth/**/*.ts",
       "shared/LoginScreen.tsx",
       "shared/Theme.tsx",
