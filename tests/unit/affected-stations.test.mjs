@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   affectedStations,
   affectedStretchAsMapLine,
+  areaAroundStations,
 } from "../../mobile/src/screens/affected-stations.ts";
 
 const scenario = {
@@ -38,4 +39,12 @@ test("leaves out map pieces that the map does not have svg position for", () => 
     affectedStretchAsMapLine(scenarioUnknownStation).connections,
     [["KN", "KGN"]],
   );
+});
+
+test("zooms the map with calculations with the margin", () => {
+  assert.equal(areaAroundStations(["FOR", "KN", "KGN"]), "405 283 303 124");
+});
+
+test("returns undefined when no station has a position on the map", () => {
+  assert.equal(areaAroundStations(["XYZ"]), undefined);
 });
