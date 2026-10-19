@@ -1,11 +1,10 @@
 // No react-native imports here, so the unit tests can import this file.
+import { FormatError, HttpError, REQUEST_TIMEOUT_MS } from "../api/http";
 
 export type Role = "STEWARD" | "OPERATOR";
 
 // contracts/v1/login-response.schema.json
 export type Session = { token: string; role: Role };
-
-const REQUEST_TIMEOUT_MS = 10_000;
 
 export class InvalidCredentialsError extends Error {
   constructor() {
@@ -40,11 +39,30 @@ export async function login(
     throw new InvalidCredentialsError();
   }
   if (!response.ok) {
-    throw new Error(`POST /api/v1/auth/login failed with ${response.status}`);
+    throw new HttpError("POST /api/v1/auth/login", response.status);
   }
   const data: unknown = await response.json();
   if (!isLoginResponse(data)) {
-    throw new Error("the server sent a login response in an unexpected format");
+    throw new FormatError("a login response");
   }
   return { token: data.token, role: data.role };
+}
+
+// The user id the server put in the token ({ userId, role } in
+// src/services/auth-service.ts). Read without a request, so it is known even
+// when the network drops right after login. The signature is not checked:
+// this only decides whose offline copy to show, the server still checks the
+// token on every request. Returns null for a token it cannot read.
+export function userIdFromToken(token: string): string | null {
+  try {
+    const payload = token.split(".")[1];
+    if (payload === undefined) return null;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const data: unknown = JSON.parse(atob(base64));
+    if (typeof data !== "object" || data === null) return null;
+    const { userId } = data as Record<string, unknown>;
+    return typeof userId === "string" && userId !== "" ? userId : null;
+  } catch {
+    return null;
+  }
 }
