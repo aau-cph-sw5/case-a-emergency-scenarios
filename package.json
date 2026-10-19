@@ -12,7 +12,7 @@
     "mobile"
   ],
   "scripts": {
-    "stub": "node stub-server/server.js",
+    "stub": "tsx stub-server/server.js",
     "stub:prism": "prism mock contracts/v1/openapi.yaml",
     "validate": "node scripts/validate-fixtures.js",
     "seed:accounts": "node scripts/seed-test-accounts.js",
@@ -38,7 +38,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc && npm run web:build",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
-    "start": "node dist/server.js"
+    "start": "node dist/src/server.js"
   },
   "dependencies": {
     "ajv": "^8.20.0",

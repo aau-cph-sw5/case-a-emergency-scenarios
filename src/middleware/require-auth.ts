@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { ERROR_CODES, errorBody } from "../error-codes.js";
+import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 import { verifyToken } from "../services/auth-service.js";
 
 export function requireAuth(
