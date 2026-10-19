@@ -1,11 +1,15 @@
+import type { Server } from "socket.io";
 import type { Request, Response } from "express";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
+
 import {
   activateScenario,
   findScenario,
   getScenarioState,
   listScenarios,
 } from "../repositories/fixture-repository.js";
+
+
 
 export function getScenarios(_request: Request, response: Response) {
   response.json(listScenarios());
@@ -68,7 +72,14 @@ export function activate(
         ),
       );
   } else {
+    const io = request.app.locals.io as Server | undefined;
+    io?.emit("scenario-activated", {
+      scenario: findScenario(scenarioId),
+      sentAt: new Date().toISOString(),
+    });
     console.log("Scenario activated:", result.activation);
     response.status(201).json(result.activation);
   }
 }
+
+

@@ -22,6 +22,8 @@ const io = new Server(server, {
   },
 });
 
+app.locals.io = io;
+
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
   socket.emit("welcome", "Connected to the emergency scenarios server.");

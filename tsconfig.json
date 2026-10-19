@@ -10,6 +10,6 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "shared/error-codes.ts"],
+  "include": ["src/**/*.ts", "shared/error-codes.ts", "shared/scenario.ts"],
   "exclude": ["dist", "node_modules"]
 }

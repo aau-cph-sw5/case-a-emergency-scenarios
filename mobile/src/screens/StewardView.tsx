@@ -5,7 +5,7 @@ import { RoleView } from "./RoleView";
 
 export function StewardView({ onLogout }: { onLogout: () => void }) {
   // Socket demo from MET-A-004, shown once the steward is logged in.
-  const { isConnected, messages } = useSocketState(socket);
+  const { isConnected, messages, activated } = useSocketState(socket);
 
   return (
     <RoleView
@@ -13,6 +13,11 @@ export function StewardView({ onLogout }: { onLogout: () => void }) {
       description="Logget ind som steward."
       onLogout={onLogout}
     >
+      {activated && (
+        <Text style={styles.scenario}>
+          Aktivt scenarie: {activated.scenario.name}
+        </Text>
+      )}
       <Text style={isConnected ? styles.ok : styles.offline}>
         Socket: {isConnected ? "connected" : "disconnected"}
       </Text>
@@ -55,5 +60,10 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#ffffff",
     fontWeight: "600",
+  },
+   scenario: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 8,
   },
 });
