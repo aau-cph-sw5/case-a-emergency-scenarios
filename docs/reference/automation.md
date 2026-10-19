@@ -16,11 +16,11 @@ push to `dev`, `staging` and `main`, and on demand under
 |---|---|---|
 | Unit tests | `npm run test:unit` | a test in `tests/unit/` fails |
 | Integration tests | `npm run test:integration`, against a test database | a test in `tests/integration/` fails |
-| Backend coverage | merges the coverage of both test jobs | every test passed, but coverage is below the minimum, see [Test coverage](#test-coverage) |
+| Backend coverage | merges the coverage of both test jobs | every test passed, but coverage is below 75% or dropped more than 2 percentage points compared with `dev`, see [Test coverage](#test-coverage) |
 
 The test jobs run under c8 to collect coverage, but they don't check it.
 Backend coverage waits for both and still runs when a test fails, but checks
-the minimum only when every test passed, so a failing test and too-low coverage
+the coverage only when every test passed, so a failing test and too-low coverage
 show as separate checks.
 
 ### Test database
@@ -111,20 +111,27 @@ shows `–`.
 
 Every TypeScript file in `src/` is measured. Web and mobile are not measured yet.
 
-### Changing the required coverage
+### Required coverage
 
-The minimum coverage for lines, branches, functions and statements is set in
-`.c8rc.json`. Today every value is `0`, so coverage is only reported and the
-Backend coverage check always passes.
+Both rules are set in `.c8rc.json`, and Backend coverage fails when either is
+broken:
 
-To require a minimum:
+| Rule | Key in `.c8rc.json` | Today |
+|---|---|---|
+| Minimum coverage, per metric | `lines`, `branches`, `functions`, `statements` | 75% each |
+| Maximum drop compared with `dev`, per metric | `max-decrease` | 2 percentage points |
 
-1. Raise the values in `.c8rc.json` in a pull request. From then on, the
-   Backend coverage check fails on any pull request whose coverage is below
-   the minimum.
-2. After that pull request is merged, an admin adds **Backend coverage** to the
-   required status checks of the `dev` ruleset. Until then, a failing check is
-   shown on the pull request but does not stop it from being merged.
+The maximum drop is checked only on pull requests, by
+`scripts/check-coverage-decrease.mjs`, against the same coverage from `dev` as
+the **vs `dev`** column. While there is no coverage from `dev` yet, only the
+minimum is checked. In the PR comment, ❌ marks a broken rule.
+
+The minimum is also checked locally by `npm run test:coverage`.
+
+To change either rule, change `.c8rc.json` in a pull request. A failing Backend
+coverage check stops a pull request from being merged only when **Backend
+coverage** is a required status check in the `dev` ruleset, which an admin
+sets.
 
 Why it works this way is in ADR 0007.
 

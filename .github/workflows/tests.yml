@@ -190,6 +190,13 @@ jobs:
             --dir coverage/baseline \
             || echo "Run $latest_dev_run has no coverage-baseline artifact."
 
+      # Checks that no metric dropped more than "max-decrease" in .c8rc.json
+      # compared with dev. Like the minimum, only when every test passed. Passes
+      # when there is no coverage from dev yet.
+      - name: Check coverage decrease
+        if: ${{ github.event_name == 'pull_request' && needs.unit.result == 'success' && needs.integration.result == 'success' }}
+        run: node scripts/check-coverage-decrease.mjs coverage/baseline/coverage-summary.json
+
       - name: Write coverage summary
         if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
         run: |

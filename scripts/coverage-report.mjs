@@ -32,7 +32,10 @@ function delta(name, metric) {
   if (typeof before !== "number" || typeof metric.pct !== "number") return "–";
   const diff = Math.round((metric.pct - before) * 100) / 100;
   if (diff === 0) return "±0%";
-  return diff > 0 ? `+${diff}%` : `−${Math.abs(diff)}%`;
+  if (diff > 0) return `+${diff}%`;
+  const maxDecrease = config["max-decrease"];
+  const tooLarge = typeof maxDecrease === "number" && -diff > maxDecrease;
+  return `${tooLarge ? "❌ " : ""}−${Math.abs(diff)}%`;
 }
 
 const lines = [
@@ -49,6 +52,12 @@ const lines = [
   baseline
     ? "_vs `dev` compares with the latest successful run on `dev`._"
     : "_No coverage from `dev` to compare with yet._",
+  ...(typeof config["max-decrease"] === "number"
+    ? [
+        "",
+        `_Coverage may drop at most ${config["max-decrease"]} percentage points per metric compared with \`dev\`._`,
+      ]
+    : []),
   "",
   "<details><summary>Per file</summary>",
   "",
