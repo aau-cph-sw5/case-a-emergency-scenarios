@@ -62,19 +62,21 @@ rejected before its body is examined.
 
 ## Error codes
 
-`error-codes.ts` holds the error codes the API sends, following the
+`shared/error-codes.ts` holds the error codes the API sends, following the
 [semester error-code scheme](https://github.com/aau-cph-sw5/semester-docs/blob/main/docs/06-error-codes.md).
 Every error response has the contract's shape:
 
 ```json
 { "error": { "code": "E0001", "message": "Invalid or expired token" } }
 ```
+
 Codes that have been added:
-| Code | Name | Sent when |
-| --- | --- | --- |
-| `E0001` | `AUTH_TOKEN_INVALID` | The bearer token is missing, invalid or expired (401) |
-| `E0102` | `INVALID_CREDENTIALS` | The username or password is wrong at login (401) |
-| `E0006` | `MISSING_PARAMETER` | A request body doesn't match its contract schema (400) |
+
+| Code    | Name                  | Sent when                                              |
+| ------- | --------------------- | ------------------------------------------------------ |
+| `E0001` | `AUTH_TOKEN_INVALID`  | The bearer token is missing, invalid or expired (401)  |
+| `E0102` | `INVALID_CREDENTIALS` | The username or password is wrong at login (401)       |
+| `E0006` | `MISSING_PARAMETER`   | A request body doesn't match its contract schema (400) |
 
 Build error responses with `errorBody()` and the `ERROR_CODES` constants
 instead of typing codes as strings:

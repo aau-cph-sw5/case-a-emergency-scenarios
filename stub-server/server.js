@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validate } from "./contract-validator.js";
 import { login, requireAuth } from "./auth.js";
-import { ERROR_CODES, errorBody } from "./error-codes.js";
+import { ERROR_CODES, errorBody } from "../shared/error-codes.ts";
 
 const app = express();
 const PORT = process.env.PORT || 4010;

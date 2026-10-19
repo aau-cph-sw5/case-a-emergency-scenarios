@@ -1,3 +1,4 @@
+import { ERROR_CODES } from "../../shared/error-codes";
 import { REQUEST_TIMEOUT_MS } from "../../shared/http";
 
 // A non-2xx answer. message is for developers (and the console); users get
@@ -85,15 +86,23 @@ export async function postJson<T>(
   return data;
 }
 
-// E0001 is AUTH_TOKEN_INVALID (src/error-codes.ts). Unknown codes fall back
-// on the status, so a new server code still gets a sensible text.
+// The code decides the text; an unknown or missing code falls back on the
+// status, so a new server code still gets a sensible text.
 export function userMessage(error: unknown): string {
   if (!(error instanceof ApiError)) {
     return "Ingen forbindelse til serveren. Prøv igen.";
   }
-  if (error.code === "E0001" || error.status === 401) {
-    return "Din session er udløbet. Log ind igen.";
+  switch (error.code) {
+    case ERROR_CODES.AUTH_TOKEN_INVALID:
+      return "Din session er udløbet. Log ind igen.";
+    case ERROR_CODES.ROLE_NOT_PERMITTED:
+      return "Du har ikke adgang til denne handling.";
+    case ERROR_CODES.NOT_FOUND:
+      return "Scenariet findes ikke længere.";
+    case ERROR_CODES.CONFLICT:
+      return "Scenariet er allerede aktivt.";
   }
+  if (error.status === 401) return "Din session er udløbet. Log ind igen.";
   if (error.status === 403) return "Du har ikke adgang til denne handling.";
   if (error.status === 404) return "Scenariet findes ikke længere.";
   if (error.status === 409) return "Scenariet er allerede aktivt.";

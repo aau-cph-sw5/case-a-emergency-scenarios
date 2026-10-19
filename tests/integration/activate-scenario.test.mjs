@@ -48,7 +48,7 @@ function freePort() {
 
 before(async () => {
   port = await freePort();
-  stub = spawn("node", ["stub-server/server.js"], {
+  stub = spawn("node", ["--import", "tsx", "stub-server/server.js"], {
     env: { ...process.env, JWT_SECRET: SECRET, PORT: String(port) },
     stdio: "ignore",
   });
