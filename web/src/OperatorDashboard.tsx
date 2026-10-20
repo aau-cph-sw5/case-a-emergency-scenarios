@@ -10,8 +10,10 @@ export function OperatorDashboard({
   token: string;
   onLogout: () => void;
 }) {
-  const { isConnected, messages } = useSocketState(socket);
+  const { isConnected, messages, positions } = useSocketState(socket);
+  const reports = Object.values(positions);
 
+  
   return (
     <main>
       <h1>Nødscenarier</h1>
@@ -32,6 +34,21 @@ export function OperatorDashboard({
           ))}
         </ul>
       )}
+      <section aria-labelledby="positions-heading">
+        <h2 id="positions-heading">Stewardpositioner</h2>
+        {reports.length === 0 ? (
+          <p>Ingen positioner endnu.</p>
+        ) : (
+          <ul>
+            {reports.map((report) => (
+              <li key={report.staff}>
+                {report.staff} er ved {report.station}, rapporteret{" "}
+                {new Date(report.reportedAt).toLocaleTimeString("da-DK")}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <ScenarioList token={token} />
     </main>

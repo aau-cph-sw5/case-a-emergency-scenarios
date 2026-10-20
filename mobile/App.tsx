@@ -24,7 +24,7 @@ export default function App() {
             onLoggedIn={setSession}
           />
         ) : (
-          <StewardView onLogout={() => setSession(null)} />
+          <StewardView token={session.token} onLogout={() => setSession(null)} />
         )}
         <StatusBar style="auto" />
       </SafeAreaView>

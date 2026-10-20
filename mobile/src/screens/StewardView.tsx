@@ -1,11 +1,41 @@
+import { Picker } from "@react-native-picker/picker";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import { socket } from "../socket";
 import { RoleView } from "./RoleView";
+import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
+import { apiBaseUrl } from "../api-base-url";
 
-export function StewardView({ onLogout }: { onLogout: () => void }) {
+
+export function StewardView({ token, onLogout }: { token: string; onLogout: () => void }) {
   // Socket demo from MET-A-004, shown once the steward is logged in.
   const { isConnected, messages, activated } = useSocketState(socket);
+  const [station, setStation] = useState<string>("");
+  const [reportStatus, setReportStatus] = useState<string | null>(null);
+
+  const version = activated?.scenario.versions.find(
+    (v) => v.version === activated.scenario.currentVersion,
+  );
+  const stations = version?.stationRequirements.map((r) => r.station) ?? [];
+
+  async function reportPosition() {
+    if (station === "") return;
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/position-reports`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ staff: "", station, reportedAt: new Date().toISOString() }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      setReportStatus(response.ok ? `Position sendt: ${station}` : "Positionen blev ikke modtaget.");
+    } catch {
+      setReportStatus("Ingen forbindelse til serveren.");
+    }
+  }
 
   return (
     <RoleView
@@ -18,6 +48,30 @@ export function StewardView({ onLogout }: { onLogout: () => void }) {
           Aktivt scenarie: {activated.scenario.name}
         </Text>
       )}
+      <Text style={styles.label}>Vælg station</Text>
+      <Picker
+        selectedValue={station}
+        onValueChange={(value) => setStation(value)}
+        style={styles.picker}
+      >
+        <Picker.Item label="Vælg station…" value="" />
+        {stations.map((name) => (
+          <Picker.Item key={name} label={name} value={name} />
+        ))}
+      </Picker>
+      {station !== "" && <Text>Valgt: {station}</Text>}
+      
+      <Pressable
+        accessibilityRole="button"
+        onPress={reportPosition}
+        disabled={station === ""}
+        style={styles.button}
+      >
+        <Text style={styles.buttonText}>Rapportér position</Text>
+      </Pressable>
+      {reportStatus && <Text>{reportStatus}</Text>}
+
+      
       <Text style={isConnected ? styles.ok : styles.offline}>
         Socket: {isConnected ? "connected" : "disconnected"}
       </Text>
@@ -66,4 +120,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 8,
   },
+  label: {
+  fontWeight: "600",
+  marginTop: 12,
+},
+picker: {
+  marginBottom: 8,
+},
 });
