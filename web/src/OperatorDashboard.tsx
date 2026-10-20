@@ -1,11 +1,13 @@
+import { socket } from "./socket";
 import { useSocketState } from "../../shared/socket/useSocketState";
+import { usePositionReports } from "../../shared/socket/usePositionReports";
 import ScenarioStationList from "../../shared/components/stationView";
 import scenarioFixture from "../../fixtures/v1/scenarios/DEMO-001.json";
 import scenarioStateFixture from "../../fixtures/v1/scenario-state.json";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { ScenarioList } from "./ScenarioList";
-import { socket } from "./socket";
+import { StewardPositions } from "./components/StewardPositions";
 
 const selectedScenario = scenarioFixture as Scenario;
 const scenarioState = scenarioStateFixture as ScenarioState;
@@ -18,11 +20,11 @@ export function OperatorDashboard({
   token: string;
   onLogout: () => void;
 }) {
-  const { isConnected, messages, positions } = useSocketState(socket);
+  const { isConnected, messages } = useSocketState(socket);
+  const positions = usePositionReports(socket);
   // The latest position per steward, pushed by the server over the socket.
   const reports = Object.values(positions);
 
-  
   return (
     <main>
       <h1>Nødscenarier</h1>
@@ -43,21 +45,8 @@ export function OperatorDashboard({
           ))}
         </ul>
       )}
-      <section aria-labelledby="positions-heading">
-        <h2 id="positions-heading">Stewardpositioner</h2>
-        {reports.length === 0 ? (
-          <p>Ingen positioner endnu.</p>
-        ) : (
-          <ul>
-            {reports.map((report) => (
-              <li key={report.staff}>
-                {report.staff} er ved {report.station}, rapporteret{" "}
-                {new Date(report.reportedAt).toLocaleTimeString("da-DK")}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+
+      <StewardPositions reports={reports} />
 
       <ScenarioList token={token} />
       <ScenarioStationList

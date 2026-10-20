@@ -1,58 +1,33 @@
-import { Picker } from "@react-native-picker/picker";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { useSocketState } from "../../../shared/socket/useSocketState";
+import { useActivatedScenario } from "../../../shared/socket/useActivatedScenario";
 import { socket } from "../socket";
 import { RoleView } from "./RoleView";
-import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
-import { apiBaseUrl } from "../api-base-url";
-import { ERROR_CODES } from "../../../shared/error-codes";
+import { sendPositionReport } from "../api/position-report";
+import { currentStations } from "../../../shared/components/stationState";
+import { StationPicker } from "../components/StationPicker";
 
-// What the steward reads for each refusal; the server's message is for developers.
-const REPORT_ERRORS: Record<string, string> = {
-  [ERROR_CODES.AUTH_TOKEN_INVALID]: "Din session er udløbet. Log ind igen.",
-  [ERROR_CODES.ROLE_NOT_PERMITTED]: "Kun stewards kan rapportere en position.",
-  [ERROR_CODES.NO_ACTIVE_SCENARIO]: "Der er ikke noget aktivt scenarie.",
-  [ERROR_CODES.STATION_NOT_IN_SCENARIO]:
-    "Stationen er ikke en del af det aktive scenarie.",
-};
-
-export function StewardView({ token, onLogout }: { token: string; onLogout: () => void }) {
-  // Socket demo from MET-A-004, shown once the steward is logged in.
-  const { isConnected, messages, activated } = useSocketState(socket);
+export function StewardView({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
+  // Data from the socketstate
+  const { isConnected, messages } = useSocketState(socket);
+  const activated = useActivatedScenario(socket);
   const [station, setStation] = useState<string>("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
 
   // The stations of the activated scenario's current version, for the picker.
-  const version = activated?.scenario.versions.find(
-    (v) => v.version === activated.scenario.currentVersion,
-  );
-  const stations = version?.stationRequirements.map((r) => r.station) ?? [];
+  const stations = activated ? currentStations(activated.scenario) : [];
 
-  // Sends the chosen station over HTTP; the server forwards it to the operators with sockets afterwards.
+  // Reports the chosen station and shows the answer.
   async function reportPosition() {
     if (station === "") return;
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/v1/position-reports`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ staff: "", station, reportedAt: new Date().toISOString() }),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-      if (response.ok) {
-        setReportStatus(`Position sendt: ${station}`);
-        return;
-      }
-      const body = await response.json().catch(() => null);
-      setReportStatus(
-        REPORT_ERRORS[body?.error?.code] ?? "Positionen blev ikke modtaget.",
-      );
-    } catch {
-      setReportStatus("Ingen forbindelse til serveren.");
-    }
+    setReportStatus(await sendPositionReport(token, station));
   }
 
   return (
@@ -67,18 +42,13 @@ export function StewardView({ token, onLogout }: { token: string; onLogout: () =
         </Text>
       )}
       <Text style={styles.label}>Vælg station</Text>
-      <Picker
-        selectedValue={station}
-        onValueChange={(value) => setStation(value)}
-        style={styles.picker}
-      >
-        <Picker.Item label="Vælg station…" value="" />
-        {stations.map((name) => (
-          <Picker.Item key={name} label={name} value={name} />
-        ))}
-      </Picker>
-      {station !== "" && <Text>Valgt: {station}</Text>}
-      
+
+      <StationPicker
+        stations={stations}
+        selected={station}
+        onSelect={setStation}
+      />
+
       <Pressable
         accessibilityRole="button"
         onPress={reportPosition}
@@ -89,7 +59,6 @@ export function StewardView({ token, onLogout }: { token: string; onLogout: () =
       </Pressable>
       {reportStatus && <Text>{reportStatus}</Text>}
 
-      
       <Text style={isConnected ? styles.ok : styles.offline}>
         Socket: {isConnected ? "connected" : "disconnected"}
       </Text>
@@ -133,16 +102,13 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "600",
   },
-   scenario: {
+  scenario: {
     fontSize: 18,
     fontWeight: "700",
     marginBottom: 8,
   },
   label: {
-  fontWeight: "600",
-  marginTop: 12,
-},
-picker: {
-  marginBottom: 8,
-},
+    fontWeight: "600",
+    marginTop: 12,
+  },
 });
