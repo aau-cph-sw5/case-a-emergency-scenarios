@@ -57,6 +57,31 @@ test("a socket without a valid token is refused with E0001", async () => {
   await assert.rejects(open("not-a-token"), { message: "E0001" });
 });
 
+test("an activation reaches stewards only", async () => {
+  const operatorToken = await login("operator-test", "operator-test-pw");
+  const operator = await open(operatorToken);
+  const steward = await open(await login("steward-test", "steward-test-pw"));
+
+  let operatorGotActivation = false;
+  operator.on("scenario-activated", () => {
+    operatorGotActivation = true;
+  });
+  const received = new Promise<{ scenario: { scenarioId: string } }>(
+    (resolve) => steward.once("scenario-activated", resolve),
+  );
+
+  const response = await fetch(
+    `${baseUrl}/api/v1/scenarios/DEMO-002/activate`,
+    { method: "POST", headers: { Authorization: `Bearer ${operatorToken}` } },
+  );
+  assert.equal(response.status, 201);
+  assert.equal((await received).scenario.scenarioId, "DEMO-002");
+
+  // Give a wrongly sent event time to arrive before checking it did not.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(operatorGotActivation, false);
+});
+
 test("a position report reaches operators only, with the server's time", async () => {
   const stewardToken = await login("steward-test", "steward-test-pw");
   const operator = await open(await login("operator-test", "operator-test-pw"));

@@ -79,11 +79,6 @@ export function activeStations(): Set<string> {
   );
 }
 
-// The most recently activated scenario, for clients that connect later.
-export function latestActivation(): StoredActivation | undefined {
-  return activations.at(-1);
-}
-
 export type ActivationResult =
   | { kind: "ok"; activation: Activation }
   | { kind: "not-found" }
