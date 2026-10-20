@@ -9,8 +9,6 @@ import {
   listScenarios,
 } from "../repositories/fixture-repository.js";
 
-
-
 export function getScenarios(_request: Request, response: Response) {
   response.json(listScenarios());
 }
@@ -72,14 +70,19 @@ export function activate(
         ),
       );
   } else {
+    // Push the whole activated scenario to the connected stewards.
     const io = request.app.locals.io as Server | undefined;
-    io?.emit("scenario-activated", {
-      scenario: findScenario(scenarioId),
-      sentAt: new Date().toISOString(),
-    });
+    if (!io)
+      console.warn("Socket.IO not attached; scenario-activated not sent");
+      io?.emit("scenario-activated", {
+        scenario: findScenario(scenarioId),
+        sentAt: new Date().toISOString(),
+      });
     console.log("Scenario activated:", result.activation);
+    // Counts every connected client, operators included, until sockets know their role.
+    console.log(
+      `scenario-activated sent to ${io?.engine.clientsCount ?? 0} client(s)`,
+    );
     response.status(201).json(result.activation);
   }
 }
-
-

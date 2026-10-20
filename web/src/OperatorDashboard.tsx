@@ -19,6 +19,7 @@ export function OperatorDashboard({
   onLogout: () => void;
 }) {
   const { isConnected, messages, positions } = useSocketState(socket);
+  // The latest position per steward, pushed by the server over the socket.
   const reports = Object.values(positions);
 
   

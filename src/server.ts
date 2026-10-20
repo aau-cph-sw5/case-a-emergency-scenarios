@@ -22,6 +22,7 @@ const io = new Server(server, {
   },
 });
 
+// Lets controllers emit socket events through request.app.locals.io.
 app.locals.io = io;
 
 io.on("connection", (socket) => {

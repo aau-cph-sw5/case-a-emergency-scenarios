@@ -9,6 +9,7 @@ export function useSocketState(socket: AppSocket) {
     [],
   );
 
+  // Latest activated scenario (steward) and latest position per steward (operator).
   const [activated, setActivated] = useState<ScenarioActivated | null>(null);
   const [positions, setPositions] = useState<Record<string, PositionReport>>(
     {},
@@ -31,16 +32,18 @@ export function useSocketState(socket: AppSocket) {
       ]);
     }
 
+    // An operator activated a scenario.
     function onScenarioActivated(event: ScenarioActivated) {
     console.log("Scenario activated:", JSON.stringify(event.scenario, null, 2));
       setActivated(event);
     }
 
+    // A steward reported a position.
     function onPositionReport(report: PositionReport) {
       console.log("Position reported:", report);
       setPositions((previous) => {
         const current = previous[report.staff];
-        // Keep the newest: a report generated earlier may arrive later.
+        // Keep the newest report
         if (current && current.reportedAt > report.reportedAt) return previous;
         return { ...previous, [report.staff]: report };
       });

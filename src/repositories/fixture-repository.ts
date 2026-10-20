@@ -65,9 +65,19 @@ type Activation = {
 
 // In-memory until the database is populated, so activations reset when the
 // server restarts. Seeded with the fixture's activation, like the stub.
-const activations: { scenarioId: string }[] = [
-  getScenarioState() as { scenarioId: string },
+type StoredActivation = Pick<Activation, "scenarioId"> & {
+  deployments: { fulfills: string }[];
+};
+const activations: StoredActivation[] = [
+  getScenarioState() as StoredActivation,
 ];
+
+// The stations that require manning in an active scenario.
+export function activeStations(): Set<string> {
+  return new Set(
+    activations.flatMap((a) => a.deployments.map((d) => d.fulfills)),
+  );
+}
 
 export type ActivationResult =
   | { kind: "ok"; activation: Activation }

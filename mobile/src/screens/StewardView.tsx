@@ -6,7 +6,16 @@ import { socket } from "../socket";
 import { RoleView } from "./RoleView";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
 import { apiBaseUrl } from "../api-base-url";
+import { ERROR_CODES } from "../../../shared/error-codes";
 
+// What the steward reads for each refusal; the server's message is for developers.
+const REPORT_ERRORS: Record<string, string> = {
+  [ERROR_CODES.AUTH_TOKEN_INVALID]: "Din session er udløbet. Log ind igen.",
+  [ERROR_CODES.ROLE_NOT_PERMITTED]: "Kun stewards kan rapportere en position.",
+  [ERROR_CODES.NO_ACTIVE_SCENARIO]: "Der er ikke noget aktivt scenarie.",
+  [ERROR_CODES.STATION_NOT_IN_SCENARIO]:
+    "Stationen er ikke en del af det aktive scenarie.",
+};
 
 export function StewardView({ token, onLogout }: { token: string; onLogout: () => void }) {
   // Socket demo from MET-A-004, shown once the steward is logged in.
@@ -14,11 +23,13 @@ export function StewardView({ token, onLogout }: { token: string; onLogout: () =
   const [station, setStation] = useState<string>("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
 
+  // The stations of the activated scenario's current version, for the picker.
   const version = activated?.scenario.versions.find(
     (v) => v.version === activated.scenario.currentVersion,
   );
   const stations = version?.stationRequirements.map((r) => r.station) ?? [];
 
+  // Sends the chosen station over HTTP; the server forwards it to the operators with sockets afterwards.
   async function reportPosition() {
     if (station === "") return;
     try {
@@ -31,7 +42,14 @@ export function StewardView({ token, onLogout }: { token: string; onLogout: () =
         body: JSON.stringify({ staff: "", station, reportedAt: new Date().toISOString() }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
-      setReportStatus(response.ok ? `Position sendt: ${station}` : "Positionen blev ikke modtaget.");
+      if (response.ok) {
+        setReportStatus(`Position sendt: ${station}`);
+        return;
+      }
+      const body = await response.json().catch(() => null);
+      setReportStatus(
+        REPORT_ERRORS[body?.error?.code] ?? "Positionen blev ikke modtaget.",
+      );
     } catch {
       setReportStatus("Ingen forbindelse til serveren.");
     }
