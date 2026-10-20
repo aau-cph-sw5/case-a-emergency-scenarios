@@ -2,21 +2,20 @@ import { useEffect, useState } from "react";
 import type { PositionReport } from "../types/v1/position-report";
 import type { AppSocket } from "./createSocket";
 
-// The latest position per steward, for the operator view.
+// Every position report received since the view opened, newest first, for
+// the operator view.
 export function usePositionReports(socket: AppSocket) {
-  const [positions, setPositions] = useState<Record<string, PositionReport>>(
-    {},
-  );
+  const [reports, setReports] = useState<PositionReport[]>([]);
 
   useEffect(() => {
     function onPositionReport(report: PositionReport) {
       console.log("Position reported:", report);
-      setPositions((previous) => {
-        const current = previous[report.staff];
-        // Keep the newest report
-        if (current && current.reportedAt > report.reportedAt) return previous;
-        return { ...previous, [report.staff]: report };
-      });
+      // Sort by the server's reportedAt timestamp.
+      setReports((previous) =>
+        [...previous, report].sort(
+          (a, b) => Date.parse(b.reportedAt) - Date.parse(a.reportedAt),
+        ),
+      );
     }
 
     socket.on("position-report", onPositionReport);
@@ -25,5 +24,5 @@ export function usePositionReports(socket: AppSocket) {
     };
   }, [socket]);
 
-  return positions;
+  return reports;
 }

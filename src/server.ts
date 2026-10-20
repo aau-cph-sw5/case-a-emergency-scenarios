@@ -4,9 +4,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { Server } from "socket.io";
 import { app } from "./app.js";
-import { latestActivation } from "./repositories/fixture-repository.js";
-import { findScenario } from "./repositories/fixture-repository.js";
-
+import { attachSocketHandlers } from "./realtime/socket-server.js";
 
 const server = createServer(app);
 const port = Number(process.env.PORT) || 3000;
@@ -28,22 +26,7 @@ const io = new Server(server, {
 // Lets controllers emit socket events through request.app.locals.io.
 app.locals.io = io;
 
-io.on("connection", (socket) => {
-  console.log("Socket connected:", socket.id);
-  socket.emit("welcome", "Connected to the emergency scenarios server.");
-
-  const latest = latestActivation();
-  if (latest) {
-    socket.emit("scenario-activated", {
-      scenario: findScenario(latest.scenarioId),
-      sentAt: new Date().toISOString(),
-    });
-  }
-  
-  socket.on("disconnect", (reason) => {
-    console.log("Socket disconnected:", socket.id, reason);
-  });
-});
+attachSocketHandlers(io);
 
 app.use(express.static(webDistDirectory));
 app.get("/{*path}", (_request, response) => {

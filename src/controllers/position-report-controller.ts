@@ -41,10 +41,12 @@ export function postPositionReport(request: Request, response: Response) {
     return refuse(response, 409, ERROR_CODES.STATION_NOT_IN_SCENARIO, station);
   }
 
-  // Accepted: take staff from the token and forward the report to the operators.
-  const report = { ...request.body, staff: userId };
+  // Accepted: take staff from the token and the time from the server's clock, so
+  // a phone with a wrong clock cannot reorder reports. Forward to the operators.
+  const now = new Date().toISOString();
+  const report = { ...request.body, staff: userId, reportedAt: now };
   const io = request.app.locals.io as Server | undefined;
-  io?.emit("position-report", { ...report, sentAt: new Date().toISOString() });
+  io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
 
   console.log("Position report received:", report);
   response.status(202).json({ accepted: true });

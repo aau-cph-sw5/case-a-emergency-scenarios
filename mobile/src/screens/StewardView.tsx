@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import { useActivatedScenario } from "../../../shared/socket/useActivatedScenario";
@@ -23,14 +23,26 @@ export function StewardView({
 
   // A new scenario arriving with a new scenarioid clears the old station choice.
   const scenarioId = activated?.scenario.scenarioId;
-  useEffect(() => {
+  const [shownScenarioId, setShownScenarioId] = useState(scenarioId);
+  if (scenarioId !== shownScenarioId) {
+    setShownScenarioId(scenarioId);
     setStation("");
     setReportStatus(null);
-  }, [scenarioId]);
-
+  }
 
   // The stations of the activated scenario's current version, for the picker.
   const stations = activated ? currentStations(activated.scenario) : [];
+
+  // The server refuses a socket without a valid token and uses its role to
+  // decide which events this socket gets.
+  function toggleSocket() {
+    if (isConnected) {
+      socket.disconnect();
+      return;
+    }
+    socket.auth = { token };
+    socket.connect();
+  }
 
   // Reports the chosen station and shows the answer.
   async function reportPosition() {
@@ -76,7 +88,7 @@ export function StewardView({
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => (isConnected ? socket.disconnect() : socket.connect())}
+        onPress={toggleSocket}
         style={styles.button}
       >
         <Text style={styles.buttonText}>

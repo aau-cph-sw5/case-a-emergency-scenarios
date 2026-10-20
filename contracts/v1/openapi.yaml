@@ -126,10 +126,11 @@ paths:
       summary: Report a steward position
       description: >
         Requires a bearer token with the STEWARD role. The reported station
-        must require manning in an active scenario. The staff field is
-        required by the schema but replaced by the userId from the token.
-        An accepted report is forwarded to connected clients as the
-        position-report Socket.IO event.
+        must require manning in an active scenario. The staff and
+        reportedAt fields are required by the schema but replaced by the
+        server: staff by the userId from the token, reportedAt by the time
+        the server accepted the report. An accepted report is forwarded to
+        connected operators as the position-report Socket.IO event.
       security:
         - bearerAuth: []
       requestBody:

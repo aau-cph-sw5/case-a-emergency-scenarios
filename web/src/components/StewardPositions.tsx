@@ -1,6 +1,6 @@
 import type { PositionReport } from "../../../shared/types/v1/position-report";
 
-// The latest position of each steward, updated live over the socket.
+// Every position report, newest first, updated live over the socket.
 export function StewardPositions({ reports }: { reports: PositionReport[] }) {
   return (
     <section aria-labelledby="positions-heading">
@@ -10,7 +10,7 @@ export function StewardPositions({ reports }: { reports: PositionReport[] }) {
       ) : (
         <ul>
           {reports.map((report) => (
-            <li key={report.staff}>
+            <li key={`${report.staff}-${report.reportedAt}`}>
               {report.staff} er ved {report.station}, rapporteret{" "}
               {new Date(report.reportedAt).toLocaleTimeString("da-DK")}
             </li>

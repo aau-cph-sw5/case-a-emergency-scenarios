@@ -21,9 +21,19 @@ export function OperatorDashboard({
   onLogout: () => void;
 }) {
   const { isConnected, messages } = useSocketState(socket);
-  const positions = usePositionReports(socket);
-  // The latest position per steward, pushed by the server over the socket.
-  const reports = Object.values(positions);
+  // Every position report pushed by the server over the socket, newest first.
+  const reports = usePositionReports(socket);
+
+  // The server refuses a socket without a valid token and uses its role to
+  // decide which events this socket gets.
+  function toggleSocket() {
+    if (isConnected) {
+      socket.disconnect();
+      return;
+    }
+    socket.auth = { token };
+    socket.connect();
+  }
 
   return (
     <main>
@@ -32,10 +42,7 @@ export function OperatorDashboard({
         Log ud
       </button>
       <p>Socket: {isConnected ? "connected" : "disconnected"}</p>
-      <button
-        onClick={() => (isConnected ? socket.disconnect() : socket.connect())}
-        type="button"
-      >
+      <button onClick={toggleSocket} type="button">
         {isConnected ? "Disconnect socket" : "Connect socket"}
       </button>
       {messages.length > 0 && (
