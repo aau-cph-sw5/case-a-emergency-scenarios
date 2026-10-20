@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import { useActivatedScenario } from "../../../shared/socket/useActivatedScenario";
@@ -21,6 +21,14 @@ export function StewardView({
   const [station, setStation] = useState<string>("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
 
+  // A new scenario arriving with a new scenarioid clears the old station choice.
+  const scenarioId = activated?.scenario.scenarioId;
+  useEffect(() => {
+    setStation("");
+    setReportStatus(null);
+  }, [scenarioId]);
+
+
   // The stations of the activated scenario's current version, for the picker.
   const stations = activated ? currentStations(activated.scenario) : [];
 
@@ -36,28 +44,31 @@ export function StewardView({
       description="Logget ind som steward."
       onLogout={onLogout}
     >
-      {activated && (
-        <Text style={styles.scenario}>
-          Aktivt scenarie: {activated.scenario.name}
-        </Text>
+      {activated ? (
+        <>
+          <Text style={styles.scenario}>
+            Aktivt scenarie: {activated.scenario.name}
+          </Text>
+
+          <StationPicker
+            stations={stations}
+            selected={station}
+            onSelect={setStation}
+          />
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={reportPosition}
+            disabled={station === ""}
+            style={styles.button}
+          >
+            <Text style={styles.buttonText}>Rapportér position</Text>
+          </Pressable>
+          {reportStatus && <Text>{reportStatus}</Text>}
+        </>
+      ) : (
+        <Text style={styles.noScenario}>Intet aktivt scenarie</Text>
       )}
-      <Text style={styles.label}>Vælg station</Text>
-
-      <StationPicker
-        stations={stations}
-        selected={station}
-        onSelect={setStation}
-      />
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={reportPosition}
-        disabled={station === ""}
-        style={styles.button}
-      >
-        <Text style={styles.buttonText}>Rapportér position</Text>
-      </Pressable>
-      {reportStatus && <Text>{reportStatus}</Text>}
 
       <Text style={isConnected ? styles.ok : styles.offline}>
         Socket: {isConnected ? "connected" : "disconnected"}
@@ -110,5 +121,10 @@ const styles = StyleSheet.create({
   label: {
     fontWeight: "600",
     marginTop: 12,
+  },
+  noScenario: {
+    color: "#6b7280",
+    fontSize: 18,
+    marginBottom: 8,
   },
 });
