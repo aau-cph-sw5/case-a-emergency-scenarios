@@ -22,7 +22,7 @@ export function OperatorDashboard({
 
   return (
     <main>
-      <h1>Emergency Scenarios</h1>
+      <h1>Nødscenarier</h1>
       <button onClick={onLogout} type="button">
         Log ud
       </button>

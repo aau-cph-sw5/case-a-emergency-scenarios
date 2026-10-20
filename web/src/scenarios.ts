@@ -1,10 +1,11 @@
+import { REQUEST_TIMEOUT_MS } from "../../shared/http";
+import { ApiError } from "./get-json";
+
 // The fields of contracts/v1/scenario-list.schema.json this list uses.
 export type ScenarioSummary = {
   scenarioId: string;
   name: string;
 };
-
-const REQUEST_TIMEOUT_MS = 10_000;
 
 function isScenarioList(data: unknown): data is ScenarioSummary[] {
   return (
@@ -41,7 +42,10 @@ export async function fetchScenarios(
     throw error;
   }
   if (!response.ok) {
-    throw new Error(`GET /api/v1/scenarios failed with ${response.status}`);
+    throw new ApiError(
+      `GET /api/v1/scenarios failed with ${response.status}`,
+      response.status,
+    );
   }
   const data: unknown = await response.json();
   if (!isScenarioList(data)) {
