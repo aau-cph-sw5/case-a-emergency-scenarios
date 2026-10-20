@@ -205,6 +205,7 @@ Run only one level:
 
 ```bash
 npm run test:unit
+npm run test:jest
 npm run test:integration
 ```
 
@@ -219,6 +220,15 @@ Tests live in `tests/unit/` and `tests/integration/`. GitHub Actions runs them a
 separate **Unit tests** and **Integration tests** checks, against a throwaway
 database, and reports coverage as a third check, **Backend coverage**. See
 `docs/reference/automation.md`.
+
+## Generate:
+
+Generates typescript types from the json schemas, in the `contracts/` folder, preferably use these 
+so the contracts serves as a source of truth.
+
+```bash
+npm run generate:types
+```
 
 ## List available commands
 
