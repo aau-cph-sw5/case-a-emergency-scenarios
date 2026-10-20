@@ -70,9 +70,9 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
       </View>
 
       <View style={styles.legend}>
-  <View style={styles.legendLine} />
-  <Text style={styles.body}>Berørt strækning</Text>
-</View>
+        <View style={styles.legendLine} />
+        <Text style={styles.body}>Berørt strækning</Text>
+      </View>
 
       <Text style={styles.heading}>Påvirkede stationer</Text>
       {rows.map((row) => (
@@ -143,14 +143,14 @@ const styles = StyleSheet.create({
   },
 
   legend: {
-  flexDirection: "row",
-  alignItems: "center",
-  marginBottom: 8,
-},
-legendLine: {
-  width: 24,
-  height: 4,
-  backgroundColor: STRETCH_COLOR,
-  marginRight: 8,
-},
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  legendLine: {
+    width: 24,
+    height: 4,
+    backgroundColor: STRETCH_COLOR,
+    marginRight: 8,
+  },
 });

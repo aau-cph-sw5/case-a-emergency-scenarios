@@ -3,8 +3,8 @@
   "name": "Synthetic fallback scenario",
   "currentVersion": "1",
   "covers": [
-  { "trackNumber": 1, "stationA": "FOR", "stationB": "KN" },
-  { "trackNumber": 1, "stationA": "KN", "stationB": "KGN" }
+    { "trackNumber": 1, "stationA": "FOR", "stationB": "KN" },
+    { "trackNumber": 1, "stationA": "KN", "stationB": "KGN" }
   ],
   "versions": [
     {
