@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { box, colors, surface, text } from "../../../shared/Theme";
 
-// Header with title and "Log ud" for a logged-in view; the view's own
-// content goes in children.
+// Header with title and, when logged in, "Log ud"; the view's own content goes
+// in children.
 export function RoleView({
   title,
   description,
@@ -12,20 +12,22 @@ export function RoleView({
 }: {
   title: string;
   description: string;
-  onLogout: () => void;
+  onLogout?: () => void;
   children?: ReactNode;
 }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
-        <Pressable
-          style={styles.button}
-          onPress={onLogout}
-          accessibilityRole="button"
-        >
-          <Text style={styles.buttonText}>Log ud</Text>
-        </Pressable>
+        {onLogout && (
+          <Pressable
+            style={styles.button}
+            onPress={onLogout}
+            accessibilityRole="button"
+          >
+            <Text style={styles.buttonText}>Log ud</Text>
+          </Pressable>
+        )}
       </View>
       <Text style={styles.description}>{description}</Text>
       {children}
