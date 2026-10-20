@@ -41,11 +41,13 @@ rejected before its body is examined.
 
 ### Services
 
-- **`auth-service.ts`**: `login()` checks a username and password against
-  the test accounts and returns a signed JWT with the user's id and role.
-  `verifyToken()` checks a token's signature and expiry and returns the user,
-  or `null`. The role always comes from the verified token, never from
-  anything else the client sends.
+- **`auth-service.ts`**: `login()` checks the bcrypt password hash stored in
+  PostgreSQL, creates a unique session identifier (JTI), records that active
+  session, and returns a signed JWT with the user's numeric id and role.
+  `verifyToken()` checks both the token's signature and expiry and whether its
+  JTI is still an active database session. A new login for an account replaces
+  its earlier session. `logout()` revokes the current session. The role always
+  comes from the verified token, never from anything else the client sends.
 - **`incident-log-service.ts`**: `appendEvent()` is the only way to write to
   the incident log. It takes the caller's transaction, so the change and its
   event commit together, and takes the actor from the verified user. See

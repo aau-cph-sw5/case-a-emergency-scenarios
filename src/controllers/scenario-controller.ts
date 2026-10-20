@@ -11,6 +11,7 @@ import {
   listActivations,
   listScenarios,
 } from "../repositories/fixture-repository.js";
+import { userRepository } from "../repositories/user-repository.js";
 
 export function getScenarios(_request: Request, response: Response) {
   response.json(listScenarios());
@@ -58,7 +59,7 @@ export function getActivations(request: Request, response: Response) {
 
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
 // matrix is #25's; this only keeps stewards out.
-export function activate(
+export async function activate(
   request: Request<{ scenarioId: string }>,
   response: Response,
 ) {
@@ -77,7 +78,18 @@ export function activate(
     return;
   }
 
-  const result = activateScenario(scenarioId, userId);
+  const user = await userRepository.getUserById(userId);
+
+  if (!user) {
+    response
+      .status(401)
+      .json(
+        errorBody(ERROR_CODES.AUTH_TOKEN_INVALID, "Invalid or expired token"),
+      );
+    return;
+  }
+
+  const result = activateScenario(scenarioId, user.username);
   if (result.kind === "not-found") {
     response
       .status(404)

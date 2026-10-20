@@ -271,6 +271,25 @@ paths:
                   code: "E0001"
                   message: "Invalid or expired token"
 
+  /api/v1/auth/logout:
+    post:
+      summary: End the current login session
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Session revoked
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+
   /api/v1/activations:
     get:
       summary: List activations
@@ -308,15 +327,6 @@ paths:
                 error:
                   code: "E0005"
                   message: "status must be one of ACTIVE, CLOSED"
-        "401":
-          description: Missing, invalid or expired bearer token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E0001"
                   message: "Invalid or expired token"
 
   /api/v1/scenarios/{scenarioId}/activate:

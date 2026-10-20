@@ -3,14 +3,25 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
+import jwt from "jsonwebtoken";
 import { app } from "../../src/app.js";
 import { getDatabase } from "../../src/db/client.js";
 import { validate } from "../../src/validation/contract-validator.js";
+import { seedTestUsers } from "../../scripts/seed-test-users.js";
 
 let server: Server;
 let baseUrl: string;
+let operatorId: number;
+let stewardId: number;
+
+const OPERATOR_USERNAME = "api-operator-test";
+const STEWARD_USERNAME = "api-steward-test";
 
 before(async () => {
+  const users = await seedTestUsers("api-");
+  operatorId = users.find((user) => user.username === OPERATOR_USERNAME)!.id;
+  stewardId = users.find((user) => user.username === STEWARD_USERNAME)!.id;
+
   server = await new Promise<Server>((resolve) => {
     const listening = app.listen(0, "127.0.0.1", () => resolve(listening));
   });
@@ -40,11 +51,11 @@ async function bearer(username: string, password: string) {
 }
 
 function operatorHeaders() {
-  return bearer("operator-test", "operator-test-pw");
+  return bearer(OPERATOR_USERNAME, "operator-test-pw");
 }
 
 function stewardHeaders() {
-  return bearer("steward-test", "steward-test-pw");
+  return bearer(STEWARD_USERNAME, "steward-test-pw");
 }
 
 async function loginAs(username: string, password: string) {
@@ -54,7 +65,7 @@ async function loginAs(username: string, password: string) {
 
 test("POST /api/v1/auth/login returns a token and role", async () => {
   const response = await postJson("/api/v1/auth/login", {
-    username: "operator-test",
+    username: OPERATOR_USERNAME,
     password: "operator-test-pw",
   });
   const body = await response.json();
@@ -62,12 +73,39 @@ test("POST /api/v1/auth/login returns a token and role", async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(validate(body, "login-response.schema.json"), []);
   assert.equal(body.role, "OPERATOR");
+
+  const payload = jwt.decode(body.token);
+  assert.ok(payload && typeof payload !== "string");
+  assert.equal(payload.userId, operatorId);
+  assert.equal(payload.role, "OPERATOR");
+  assert.equal(typeof payload.jti, "string");
+  assert.equal(payload.exp! - payload.iat!, 30 * 24 * 60 * 60);
+});
+
+test("POST /api/v1/auth/login matches usernames without regard to casing", async () => {
+  const response = await postJson("/api/v1/auth/login", {
+    username: OPERATOR_USERNAME.toUpperCase(),
+    password: "operator-test-pw",
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).role, "OPERATOR");
 });
 
 test("POST /api/v1/auth/login rejects a wrong password with 401", async () => {
   const response = await postJson("/api/v1/auth/login", {
-    username: "operator-test",
+    username: OPERATOR_USERNAME,
     password: "wrong",
+  });
+
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error.code, "E0102");
+});
+
+test("POST /api/v1/auth/login rejects an unknown username with 401", async () => {
+  const response = await postJson("/api/v1/auth/login", {
+    username: "not-a-user",
+    password: "not-a-password",
   });
 
   assert.equal(response.status, 401);
@@ -91,7 +129,26 @@ test("GET /api/v1/me returns the signed-in user", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(validate(body, "me.schema.json"), []);
-  assert.deepEqual(body, { userId: "steward-test", role: "STEWARD" });
+  assert.deepEqual(body, { userId: stewardId, role: "STEWARD" });
+});
+
+test("POST /api/v1/auth/logout revokes the current session", async () => {
+  const headers = await stewardHeaders();
+  const logout = await postJson("/api/v1/auth/logout", {}, headers);
+  const me = await fetch(`${baseUrl}/api/v1/me`, { headers });
+
+  assert.equal(logout.status, 204);
+  assert.equal(me.status, 401);
+});
+
+test("a second login replaces the first session for an account", async () => {
+  const first = await bearer(OPERATOR_USERNAME, "operator-test-pw");
+  const second = await bearer(OPERATOR_USERNAME, "operator-test-pw");
+  const firstMe = await fetch(`${baseUrl}/api/v1/me`, { headers: first });
+  const secondMe = await fetch(`${baseUrl}/api/v1/me`, { headers: second });
+
+  assert.equal(firstMe.status, 401);
+  assert.equal(secondMe.status, 200);
 });
 
 test("GET /api/v1/me rejects a missing or invalid token with 401", async () => {
