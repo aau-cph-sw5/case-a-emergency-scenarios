@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import type { Scenario } from "../../shared/scenario.js";
+import type { Scenario } from "../../shared/types/v1/scenario.js";
 
 // This file is temporary until the real database is populated
 // Right now it just imports the fixture data from the fixtures folder

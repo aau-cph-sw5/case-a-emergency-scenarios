@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AppSocket } from "./createSocket";
-import type { ScenarioActivated, PositionReport } from "./events";
+import type { ScenarioActivated } from "./events";
+import type { PositionReport } from "../types/v1/position-report";
 
 export function useSocketState(socket: AppSocket) {
   const [isConnected, setIsConnected] = useState(socket.connected);
