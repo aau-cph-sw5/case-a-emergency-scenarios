@@ -4,6 +4,7 @@ import {
   affectedStations,
   affectedStretchAsMapLine,
   areaAroundStations,
+  networkWithoutStretch,
 } from "../../mobile/src/screens/affected-stations.ts";
 
 const scenario = {
@@ -25,6 +26,13 @@ const scenarioUnknownStation = {
     { trackNumber: 1, stationA: "KN", stationB: "KGN" },
   ],
 };
+
+const networkWithKnFor= [
+  {name: "M2", connections: [["FOR", "KN", ], ["KN", "KGN"], ["KGN", "KHC"] ]}
+]
+
+const stretchKnFor = [["KN", "FOR"]]
+
 
 test("list each affected station once in order", () => {
   assert.deepEqual(affectedStations(scenario), ["FOR", "KN", "KGN"]);
@@ -48,3 +56,9 @@ test("zooms the map with calculations with the margin", () => {
 test("returns undefined when no station has a position on the map", () => {
   assert.equal(areaAroundStations(["XYZ"]), undefined);
 });
+
+test("Removes the stretchs pieces from the network in one of the directions", () => {
+  assert.deepEqual(networkWithoutStretch(networkWithKnFor, stretchKnFor), [
+    { name: "M2", connections: [["KN", "KGN"], ["KGN", "KHC"]] },
+  ]);
+})
