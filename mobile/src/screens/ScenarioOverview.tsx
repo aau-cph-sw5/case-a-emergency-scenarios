@@ -17,6 +17,9 @@ import {
   networkWithoutStretch,
 } from "./affected-stations";
 
+// The colour of the affected stretch, on the map and in the legend.
+const STRETCH_COLOR = lineColors[0];
+
 type StationRow = {
   station: string;
   placement: string;
@@ -28,7 +31,7 @@ type StationRow = {
 export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
   const { scenario } = snapshot;
   const mapColors = {
-    [scenario.name]: lineColors[0],
+    [scenario.name]: STRETCH_COLOR,
     M1: palette.networkGrey,
     M2: palette.networkGrey,
     M3: palette.networkGrey,
@@ -65,6 +68,12 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
           showLineButtons={false}
         />
       </View>
+
+      <View style={styles.legend}>
+  <View style={styles.legendLine} />
+  <Text style={styles.body}>Berørt strækning</Text>
+</View>
+
       <Text style={styles.heading}>Påvirkede stationer</Text>
       {rows.map((row) => (
         <View
@@ -132,4 +141,16 @@ const styles = StyleSheet.create({
     ...box,
     marginBottom: 6,
   },
+
+  legend: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: 8,
+},
+legendLine: {
+  width: 24,
+  height: 4,
+  backgroundColor: STRETCH_COLOR,
+  marginRight: 8,
+},
 });
