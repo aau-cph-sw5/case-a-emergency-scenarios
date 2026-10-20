@@ -1,6 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { verifyToken, type AuthUser } from "../services/auth-service.js";
+import { findScenario, latestActivation } from "../repositories/fixture-repository.js";
 
 // Each socket joins the room named after its role, so an event can be sent to
 // one role only: io.to("OPERATOR") or io.to("STEWARD").
@@ -33,5 +34,15 @@ export function attachSocketHandlers(io: Server) {
     socket.on("disconnect", (reason) => {
       console.log("Socket disconnected:", socket.id, reason);
     });
+
+    const latest = latestActivation();
+    if (role === "STEWARD" && latest) {
+      socket.emit("scenario-activated", {
+        scenario: findScenario(latest.scenarioId),
+        sentAt: new Date().toISOString(),
+      });
+    }
   });
 }
+
+
