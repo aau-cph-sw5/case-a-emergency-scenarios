@@ -194,7 +194,6 @@ npm run validate
 ```
 
 ## Tests
-
 Run all unit and integration tests:
 
 ```bash
@@ -216,8 +215,8 @@ npm run db:up
 npm run db:migrate
 ```
 
-Tests live in `tests/unit/` and `tests/integration/`. GitHub Actions runs them as
-separate **Unit tests** and **Integration tests** checks, against a throwaway
+Tests live in `tests/unit/`, `tests/jest/` and `tests/integration/`. GitHub Actions runs them as
+separate **Unit tests** **Jest tests** and  **Integration tests** checks, against a throwaway
 database, and reports coverage as a third check, **Backend coverage**. See
 `docs/reference/automation.md`.
 
