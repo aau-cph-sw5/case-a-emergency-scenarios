@@ -27,12 +27,18 @@ const scenarioUnknownStation = {
   ],
 };
 
-const networkWithKnFor= [
-  {name: "M2", connections: [["FOR", "KN", ], ["KN", "KGN"], ["KGN", "KHC"] ]}
-]
+const networkWithKnFor = [
+  {
+    name: "M2",
+    connections: [
+      ["FOR", "KN"],
+      ["KN", "KGN"],
+      ["KGN", "KHC"],
+    ],
+  },
+];
 
-const stretchKnFor = [["KN", "FOR"]]
-
+const stretchKnFor = [["KN", "FOR"]];
 
 test("list each affected station once in order", () => {
   assert.deepEqual(affectedStations(scenario), ["FOR", "KN", "KGN"]);
@@ -59,6 +65,12 @@ test("returns undefined when no station has a position on the map", () => {
 
 test("Removes the stretchs pieces from the network in one of the directions", () => {
   assert.deepEqual(networkWithoutStretch(networkWithKnFor, stretchKnFor), [
-    { name: "M2", connections: [["KN", "KGN"], ["KGN", "KHC"]] },
+    {
+      name: "M2",
+      connections: [
+        ["KN", "KGN"],
+        ["KGN", "KHC"],
+      ],
+    },
   ]);
-})
+});

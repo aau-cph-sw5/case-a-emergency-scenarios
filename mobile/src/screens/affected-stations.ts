@@ -18,7 +18,6 @@ export function affectedStretchAsMapLine(scenario: ScenarioDefinition) {
   };
 }
 
-
 const MAP_MARGIN = 60;
 
 //helper function to name stations in order.
@@ -33,8 +32,6 @@ export function affectedStations(scenario: ScenarioDefinition) {
     ),
   ];
 }
-
-
 
 export function areaAroundStations(stations: string[]) {
   //positions from the stations from the map
@@ -74,7 +71,8 @@ export function networkWithoutStretch(
   return networkLines.map((line) => ({
     ...line,
     connections: line.connections.filter(
-      (piece) => !stretchPieces.some((stretchPiece) => samePiece(piece, stretchPiece)),
+      (piece) =>
+        !stretchPieces.some((stretchPiece) => samePiece(piece, stretchPiece)),
     ),
   }));
 }
