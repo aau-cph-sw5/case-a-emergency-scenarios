@@ -152,7 +152,17 @@ npm run db:down
 
 The container uses the `POSTGRES_PASSWORD` and `POSTGRES_PORT` values from
 your local `.env`. `DATABASE_URL` is also read from that local file when a Node
-API route accesses the database.
+API route or an integration test accesses the database.
+
+Seed local users for database-backed authentication after applying migrations:
+
+```bash
+npm run seed:users
+```
+
+This creates or updates the local-only accounts `steward-test` /
+`steward-test-pw` and `operator-test` / `operator-test-pw`. Do not use these
+credentials outside local development.
 
 ## Hosted staging and production migrations
 
@@ -208,9 +218,17 @@ npm run test:unit
 npm run test:integration
 ```
 
+Some integration tests use the database. Start and migrate it first:
+
+```bash
+npm run db:up
+npm run db:migrate
+```
+
 Tests live in `tests/unit/` and `tests/integration/`. GitHub Actions runs them as
-two jobs, so pull requests show separate **Unit tests** and **Integration tests**
-statuses. See `docs/reference/automation.md`.
+separate **Unit tests** and **Integration tests** checks, against a throwaway
+database, and reports coverage as a third check, **Backend coverage**. See
+`docs/reference/automation.md`.
 
 ## List available commands
 
