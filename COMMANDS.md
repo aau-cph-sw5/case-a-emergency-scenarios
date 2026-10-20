@@ -154,6 +154,16 @@ The container uses the `POSTGRES_PASSWORD` and `POSTGRES_PORT` values from
 your local `.env`. `DATABASE_URL` is also read from that local file when a Node
 API route or an integration test accesses the database.
 
+Seed local users for database-backed authentication after applying migrations:
+
+```bash
+npm run seed:users
+```
+
+This creates or updates the local-only accounts `steward-test` /
+`steward-test-pw` and `operator-test` / `operator-test-pw`. Do not use these
+credentials outside local development.
+
 ## Hosted staging and production migrations
 
 GitHub Actions runs Flyway automatically when a commit reaches `staging` or
