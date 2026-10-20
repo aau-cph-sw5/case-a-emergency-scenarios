@@ -1,6 +1,6 @@
 # ADR 0008. Push updates to clients over Socket.IO and send client changes over HTTP
 
-**Status.** Proposed
+**Status.** Accepted
 **Date.** 2026-10-19
 **Deciders.** group 7
 **Related backlog items.** MET-A-004, MET-A-007
@@ -25,9 +25,14 @@ The server pushes changes to clients over Socket.IO, and clients send their own
 changes to the server over the HTTP API.
 
 An operator activates a scenario with `POST /api/v1/scenarios/{scenarioId}/activate`,
-and the server then emits `scenario-activated` to the connected clients. A
+and the server then emits `scenario-activated` to the connected stewards. A
 steward sends `POST /api/v1/position-reports`, and the server forwards the
-report to the operators over the socket.
+report to the connected operators as `position-report`.
+
+A client sends its bearer token when it opens the socket, and the server
+refuses the connection without a valid token (error code `E0001`). Each socket
+joins a room named after its role, `OPERATOR` or `STEWARD`, so every event is
+sent to the one role it is for.
 
 ## Consequences
 
@@ -36,7 +41,7 @@ What becomes easier:
 - A change reaches the receiving clients as soon as the server has it, without
   polling. The latency is roughly one network trip, and no requests are sent
   while nothing changes.
-- Client changes keep using the existing HTTP 
+- Client changes keep using the existing HTTP endpoints.
 - Socket.IO reconnects automatically, which matters on a phone, because the app can be left running in the background
 - Event payloads are typed in `shared/socket/events.ts`, so the server, web and
   mobile agree on what an event contains.

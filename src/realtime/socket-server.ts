@@ -1,9 +1,5 @@
 import type { Server, Socket } from "socket.io";
 import { ERROR_CODES } from "../../shared/error-codes.js";
-import {
-  findScenario,
-  latestActivation,
-} from "../repositories/fixture-repository.js";
 import { verifyToken, type AuthUser } from "../services/auth-service.js";
 
 // Each socket joins the room named after its role, so an event can be sent to
