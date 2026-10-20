@@ -204,7 +204,6 @@ npm run validate
 ```
 
 ## Tests
-
 Run all unit and integration tests:
 
 ```bash
@@ -215,6 +214,7 @@ Run only one level:
 
 ```bash
 npm run test:unit
+npm run test:jest
 npm run test:integration
 ```
 
@@ -225,10 +225,19 @@ npm run db:up
 npm run db:migrate
 ```
 
-Tests live in `tests/unit/` and `tests/integration/`. GitHub Actions runs them as
-separate **Unit tests** and **Integration tests** checks, against a throwaway
+Tests live in `tests/unit/`, `tests/jest/` and `tests/integration/`. GitHub Actions runs them as
+separate **Unit tests** **Jest tests** and  **Integration tests** checks, against a throwaway
 database, and reports coverage as a third check, **Backend coverage**. See
 `docs/reference/automation.md`.
+
+## Generate:
+
+Generates typescript types from the json schemas, in the `contracts/` folder, preferably use these 
+so the contracts serves as a source of truth.
+
+```bash
+npm run generate:types
+```
 
 ## List available commands
 
