@@ -1,19 +1,50 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
-import { box, surface, lineColors, colors, text } from "../../../shared/Theme";
+import {
+  box,
+  surface,
+  lineColors,
+  colors,
+  text,
+  palette,
+} from "../../../shared/Theme";
 import MapRender from "../../../shared/MapRenderer";
-
+import { parseStationRequirements } from "../../../shared/ScenarioParser";
+import { getLines } from "../../../mockData/data";
 import {
   affectedStations,
   affectedStretchAsMapLine,
-  areaAroundStations,
+  networkWithoutStretch,
 } from "./affected-stations";
+
+type StationRow = {
+  station: string;
+  placement: string;
+  staff: number;
+  times: string[];
+  actions: string[];
+};
 
 export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
   const { scenario } = snapshot;
-  const mapLines = [affectedStretchAsMapLine(scenario)];
-  const mapColors = { [scenario.name]: lineColors[0] };
+  const mapColors = {
+    [scenario.name]: lineColors[0],
+    M1: palette.networkGrey,
+    M2: palette.networkGrey,
+    M3: palette.networkGrey,
+    M4: palette.networkGrey,
+  };
   const stations = affectedStations(scenario);
+  const rows =
+    scenario.versions.length > 0
+      ? (parseStationRequirements(scenario) as StationRow[])
+      : [];
+  const stretch = affectedStretchAsMapLine(scenario);
+  const networkLines = networkWithoutStretch(
+    getLines(),
+    stretch.connections,
+  ).map((line) => ({ ...line, tracks: [1, 2] }));
+  const mapLines = [...networkLines, stretch];
 
   return (
     <View>
@@ -31,18 +62,33 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
         <MapRender
           lines={mapLines}
           colors={mapColors}
-          viewBox={areaAroundStations(stations)}
           showLineButtons={false}
         />
       </View>
-
-      <View style={styles.stationList}>
-        {stations.map((station) => (
-          <Text key={station} style={styles.stationName}>
-            {station}
+      <Text style={styles.heading}>Påvirkede stationer</Text>
+      {rows.map((row) => (
+        <View
+          key={`${row.station}-${row.placement}-${row.times.join(",")}`}
+          style={styles.station}
+        >
+          <Text style={styles.stationName}>
+            {row.station} · {row.staff} påkrævet
           </Text>
-        ))}
-      </View>
+          <Text style={styles.body}>{row.placement}</Text>
+          <Text style={styles.body}>
+            {row.times.length > 0
+              ? `Bemandes: ${row.times.join(", ")}`
+              : "Bemandes hele tiden"}
+          </Text>
+          {row.actions.length > 0 && (
+            <Text style={styles.body}>
+              {row.actions
+                .map((action, index) => `${index + 1}. ${action}`)
+                .join("\n")}
+            </Text>
+          )}
+        </View>
+      ))}
     </View>
   );
 }
@@ -65,12 +111,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  stationList: {
-    ...surface,
-    ...box,
-  },
   stationName: {
     ...text.body,
     color: colors.text,
+    fontWeight: "600",
+  },
+
+  heading: {
+    ...text.header,
+    color: colors.text,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  body: {
+    ...text.body,
+    color: colors.text,
+  },
+  station: {
+    ...surface,
+    ...box,
+    marginBottom: 6,
   },
 });
