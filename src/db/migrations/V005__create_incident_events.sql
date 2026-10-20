@@ -18,4 +18,6 @@ CREATE TABLE incident_events (
 );
 
 CREATE INDEX ON incident_events (activation_id, sequence);
+
+-- For looking up an incident's events by line and time.
 CREATE INDEX ON incident_events (line, server_time);

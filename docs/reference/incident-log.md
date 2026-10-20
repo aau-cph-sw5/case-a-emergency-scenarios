@@ -2,9 +2,9 @@
 
 The incident log records every state-changing action as an event: what
 happened, who did it, what it was about, and when. It is used to analyse an
-incident afterwards. Events are only ever added, never changed or deleted.
+incident afterwards. The application only ever adds events and it has no way to change or delete them.
 
-The log is the `incident_events` table (`src/db/migrations/V003__create_incident_events.sql`).
+The log is the `incident_events` table (`src/db/migrations/V005__create_incident_events.sql`).
 All code writes to it through one function, `appendEvent` in
 `src/services/incident-log-service.ts`.
 
@@ -64,10 +64,19 @@ In TypeScript the columns are camelCase (`serverTime`, `actorId`), because
 
 - Names are SCREAMING_SNAKE_CASE and past tense: `SCENARIO_ACTIVATED`,
   `STATION_COVERED`. The database rejects other formats.
-- A new type needs no migration. Start writing it, and add it to this page.
+- A new type needs no migration. Start writing it, and add it to the table below.
 - `schema_version` belongs to the type. Raise it when the type's payload
   changes shape. Old events keep their version, so readers check it before
   reading the payload.
+
+### Known event types
+
+Add a row when a feature starts writing a type. A payload change gets a new
+row with the next version and the old row stays, because old events keep their
+version. 
+
+| Type | Version | Subject | Payload | Written by |
+|---|---|---|---|---|
 
 ## Payload rules
 
@@ -100,6 +109,9 @@ In TypeScript the columns are camelCase (`serverTime`, `actorId`), because
   supplied by a caller.
 - `client_time` is optional and is what the device claims.
 - Order events by `sequence`, not by time.
+- `sequence` arrives in TypeScript as a string, so `"10" < "9"`. Let the
+  database order events, or compare with `BigInt(...)`.
+
 
 ## Known limits
 
