@@ -35,7 +35,8 @@ async function operatorToken() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       username: OPERATOR_USERNAME,
-      password: "operator-test-pw",
+      password: "operator123",
+      expectedRole: "OPERATOR",
     }),
   });
   return ((await response.json()) as { token: string }).token;

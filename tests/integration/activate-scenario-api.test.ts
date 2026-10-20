@@ -29,11 +29,15 @@ after(async () => {
   await getDatabase().end();
 });
 
-async function tokenFor(username: string, password: string) {
+async function tokenFor(
+  username: string,
+  password: string,
+  expectedRole: "STEWARD" | "OPERATOR",
+) {
   const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, expectedRole }),
   });
   return ((await response.json()) as { token: string }).token;
 }
@@ -69,14 +73,18 @@ test("without a token the activation is refused", async () => {
 test("a steward may not activate a scenario", async () => {
   const res = await activate(
     "DEMO-002",
-    await tokenFor(STEWARD_USERNAME, "steward-test-pw"),
+    await tokenFor(STEWARD_USERNAME, "steward123", "STEWARD"),
   );
   assert.equal(res.status, 403);
   assert.equal((await res.json()).error.code, ERROR_CODES.ROLE_NOT_PERMITTED);
 });
 
 test("an operator activates scenarios, also on the same line", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(
+    OPERATOR_USERNAME,
+    "operator123",
+    "OPERATOR",
+  );
   for (const scenarioId of ["DEMO-002", "DEMO-003"]) {
     const res = await activate(scenarioId, token);
     const activation = await res.json();
@@ -89,14 +97,22 @@ test("an operator activates scenarios, also on the same line", async () => {
 });
 
 test("activating the same scenario twice is refused", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(
+    OPERATOR_USERNAME,
+    "operator123",
+    "OPERATOR",
+  );
   const res = await activate("DEMO-001", token);
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
 });
 
 test("an unknown scenario is refused", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(
+    OPERATOR_USERNAME,
+    "operator123",
+    "OPERATOR",
+  );
   const res = await activate("NOPE", token);
   assert.equal(res.status, 404);
   assert.equal((await res.json()).error.code, ERROR_CODES.NOT_FOUND);

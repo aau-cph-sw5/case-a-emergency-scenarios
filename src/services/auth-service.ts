@@ -1,31 +1,30 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
+import { isRole, type Role } from "../../shared/auth/roles.js";
 import { authSessionRepository } from "../repositories/auth-session-repository.js";
 import { userRepository } from "../repositories/user-repository.js";
 
-export type Role = "STEWARD" | "OPERATOR";
+function requireJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "local-dev-secret-not-for-production";
+  if (!secret) {
+    throw new Error("JWT_SECRET must be set before the server starts.");
+  }
 
-if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
-  throw new Error(
-    "JWT_SECRET must be set via an environment variable outside local development.",
-  );
+  return secret;
 }
+
+const JWT_SECRET = requireJwtSecret();
 
 // Token expiry time
 const TOKEN_TTL = "30d";
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-function isRole(role: unknown): role is Role {
-  return role === "STEWARD" || role === "OPERATOR";
-}
-
 export async function login(
   username: string,
   password: string,
+  expectedRole: Role,
 ): Promise<{ token: string; role: Role } | null> {
   const user = await userRepository.getUserByUsername(username);
 
@@ -33,6 +32,7 @@ export async function login(
 
   const passwordMatches = await bcrypt.compare(password, user.passwordHash);
   if (!passwordMatches) return null;
+  if (user.role !== expectedRole) return null;
 
   const jti = randomUUID();
   const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
@@ -54,6 +54,19 @@ export type AuthUser = {
   jti: string;
 };
 
+function isAuthPayload(payload: unknown): payload is AuthUser {
+  if (typeof payload !== "object" || payload === null) return false;
+
+  const { userId, role, jti } = payload as Record<string, unknown>;
+
+  return (
+    typeof userId === "number" &&
+    typeof jti === "string" &&
+    jti !== "" &&
+    isRole(role)
+  );
+}
+
 export async function verifyToken(token: string): Promise<AuthUser | null> {
   let payload: jwt.JwtPayload | string;
 
@@ -63,12 +76,7 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
     return null;
   }
 
-  if (
-    typeof payload === "string" ||
-    typeof payload.userId !== "number" ||
-    typeof payload.jti !== "string" ||
-    !isRole(payload.role)
-  ) {
+  if (!isAuthPayload(payload)) {
     return null;
   }
 

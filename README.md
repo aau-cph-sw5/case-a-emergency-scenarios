@@ -1,6 +1,6 @@
 # Case A. Emergency Scenarios
 
-*Nød-scenarier*  ·  5th Semester, BSc Software Engineering, AAU Copenhagen  ·  Autumn 2026
+_Nød-scenarier_ · 5th Semester, BSc Software Engineering, AAU Copenhagen · Autumn 2026
 
 A shared situational-awareness tool that lets the control room select the active emergency or alternative-operation scenario and gives both the control room and the stewards a live graphical overview, replacing a document that is hard to navigate under pressure and reducing radio traffic.
 
@@ -133,6 +133,7 @@ Titles must use the following format:
 `<type>: <description> [<ticket>]`
 
 **Allowed types:**
+
 - `feat` — New feature
 - `fix` — Bug fix
 - `docs` — Documentation changes
@@ -171,12 +172,25 @@ The automated description checker verifies that the required sections are comple
 MIT, per Section 7 of the AAU and Metro Service collaboration framework.
 
 ### Authentication
+
 ```bash
-npm run seed:accounts
-npm run stub
+openssl rand -base64 48 # set the result as JWT_SECRET in .env
+npm run db:up
+npm run db:migrate
+npm run seed:users
+npm run dev
 ```
-POST /api/v1/auth/login  (body: username, password → token, role)
+
+```text
+POST /api/v1/auth/login
+body: username, password, expectedRole → token, role
 
 GET  /api/v1/me  (Authorization: Bearer <token>)
 
-Test-konti oprettes af `npm run seed:accounts` — se konsol-output for brugernavn/password pr. rolle.
+POST /api/v1/auth/logout  (Authorization: Bearer <token>)
+```
+
+`expectedRole` is `STEWARD` for the mobile app and `OPERATOR` for the web
+dashboard. The server checks that the database account has that role before it
+creates a session. Test accounts are created by `npm run seed:users`; see its
+console output for usernames and passwords.
