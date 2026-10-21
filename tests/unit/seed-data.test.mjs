@@ -21,22 +21,26 @@ test("finds no problem when stations.json and a scenario file exist", () => {
   assert.deepEqual(findSeedData(dir), {
     scenarioFiles: ["SeedDataScenario_1.json", "SeedDataScenario_2.json"],
     problem: null,
+    fatal: false,
   });
 });
 
-test("reports that the scenario files are missing", () => {
-  const { problem } = findSeedData(seedDir(["stations.json"]));
+test("reports that the scenario files are missing, without being fatal", () => {
+  const { problem, fatal } = findSeedData(seedDir(["stations.json"]));
   assert.match(problem, /No SeedDataScenario_\*\.json files/);
+  assert.equal(fatal, false);
 });
 
-test("reports that stations.json is missing", () => {
-  const { problem } = findSeedData(seedDir(["SeedDataScenario_1.json"]));
+test("reports that stations.json is missing, as fatal", () => {
+  const { problem, fatal } = findSeedData(seedDir(["SeedDataScenario_1.json"]));
   assert.match(problem, /stations\.json is missing/);
+  assert.equal(fatal, true);
 });
 
 test("reports that both are missing, also when the folder does not exist", () => {
   for (const dir of [seedDir([]), path.join(tmpdir(), "seed-data-missing")]) {
-    const { problem } = findSeedData(dir);
+    const { problem, fatal } = findSeedData(dir);
     assert.match(problem, /^No seed data in .*stations\.json and the/);
+    assert.equal(fatal, true);
   }
 });

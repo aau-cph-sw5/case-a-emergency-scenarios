@@ -168,14 +168,17 @@ function validate(
   return errors;
 }
 
-const dir = SEED_DATA_DIR;
-const { scenarioFiles: seedFiles, problem } = findSeedData(dir);
+const {
+  scenarioFiles: seedFiles,
+  problem,
+  fatal,
+} = findSeedData(SEED_DATA_DIR);
 if (problem) {
   console.error(`${problem}\n${FETCH_HINT}`);
-  process.exit(1);
+  if (fatal) process.exit(1);
 }
 const stationList: { code: string; name: string }[] = JSON.parse(
-  readFileSync(join(dir, STATIONS_FILE), "utf8"),
+  readFileSync(join(SEED_DATA_DIR, STATIONS_FILE), "utf8"),
 );
 const stationNames = new Map(stationList.map((s) => [s.code, s.name]));
 const allowedStations = new Set(stationNames.keys());
@@ -185,7 +188,7 @@ const scenarios: Scenario[] = [];
 
 for (const fileName of seedFiles) {
   const scenario: Scenario = JSON.parse(
-    readFileSync(join(dir, fileName), "utf8"),
+    readFileSync(join(SEED_DATA_DIR, fileName), "utf8"),
   );
   allErrors.push(...validate(scenario, fileName, allowedStations));
   scenarios.push(scenario);
