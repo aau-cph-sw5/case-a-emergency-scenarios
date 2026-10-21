@@ -75,7 +75,7 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://metro:metro@localhost:5432/metro
+      TEST_DATABASE_URL: postgresql://metro:metro@localhost:5432/metro
 
     steps:
       - name: Check out repository
@@ -104,7 +104,7 @@ jobs:
 
       # See the comment on the unit test step.
       - name: Run integration tests
-        run: npx c8 --reporter=none --check-coverage=false npm run test:integration
+        run: npx c8 --reporter=none --check-coverage=false npm run test:integration:run
 
       - name: Save raw coverage
         if: ${{ !cancelled() }}

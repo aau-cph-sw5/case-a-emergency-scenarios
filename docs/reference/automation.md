@@ -26,8 +26,8 @@ show as separate checks.
 ### Test database
 
 The Integration tests job starts a throwaway PostgreSQL 16 container, applies
-every migration in `src/db/migrations/` with Flyway, and sets `DATABASE_URL`
-for the tests. The database holds only what the migrations and tests create,
+every migration in `src/db/migrations/` with Flyway, and sets
+`TEST_DATABASE_URL` for the tests. The database holds only what the migrations and tests create,
 exists only while the job runs, and never touches the staging or production
 databases, so its user and password (`metro`/`metro`) are not secrets.
 
@@ -134,4 +134,3 @@ coverage** is a required status check in the `dev` ruleset, which an admin
 sets.
 
 Why it works this way is in ADR 0007.
-
