@@ -1,4 +1,5 @@
 import { getDatabase } from "../db/client.js";
+import { RENEWAL_WINDOW_MS } from "../../shared/auth/renewal.js";
 
 export type AuthSession = {
   userId: number;
@@ -29,6 +30,34 @@ async function startSession(
       revoked_at AS "revokedAt"
   `;
   return result[0];
+}
+
+async function replaceDueSession(
+  userId: number,
+  currentJti: string,
+  newJti: string,
+  expiresAt: Date,
+): Promise<AuthSession | null> {
+  const sql = getDatabase();
+  const result = await sql<AuthSession[]>`
+    UPDATE auth_sessions
+    SET
+      jti = ${newJti},
+      expires_at = ${expiresAt},
+      revoked_at = NULL,
+      created_at = CURRENT_TIMESTAMP
+    WHERE user_id = ${userId}
+      AND jti = ${currentJti}
+      AND revoked_at IS NULL
+      AND expires_at > NOW()
+      AND expires_at <= NOW() + ${RENEWAL_WINDOW_MS} * INTERVAL '1 millisecond'
+    RETURNING
+      user_id AS "userId",
+      jti,
+      expires_at AS "expiresAt",
+      revoked_at AS "revokedAt"
+  `;
+  return result[0] || null;
 }
 
 async function findActiveSession(
@@ -89,6 +118,7 @@ async function revokeAllSessionsForUser(userId: number): Promise<void> {
 
 export const authSessionRepository = {
   startSession,
+  replaceDueSession,
   findActiveSession,
   extendSession,
   revokeSession,

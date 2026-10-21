@@ -1,6 +1,8 @@
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Pressable,
   StyleSheet,
   Text,
@@ -21,6 +23,16 @@ export default function App() {
     allowedRole: "STEWARD",
     store: mobileSessionStore,
   });
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        void restore();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [restore]);
 
   return (
     <SafeAreaProvider>

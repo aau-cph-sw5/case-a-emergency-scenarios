@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { isRole, type Role } from "../../shared/auth/roles.js";
+import { RENEWAL_WINDOW_MS } from "../../shared/auth/renewal.js";
 import { authSessionRepository } from "../repositories/auth-session-repository.js";
 import { userRepository } from "../repositories/user-repository.js";
 
@@ -19,13 +20,69 @@ const JWT_SECRET = requireJwtSecret();
 
 // Token expiry time
 const TOKEN_TTL = "30d";
-const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+export type AuthSessionResponse = {
+  token: string;
+  role: Role;
+  expiresAt: string;
+};
+
+type IssuedSession = {
+  response: AuthSessionResponse;
+  jti: string;
+  expiresAt: Date;
+};
+
+function getTokenExpiry(token: string): Date {
+  const payload = jwt.decode(token);
+
+  if (
+    typeof payload === "string" ||
+    payload === null ||
+    typeof payload.exp !== "number"
+  ) {
+    throw new Error("Failed to create a JWT with an expiry.");
+  }
+
+  return new Date(payload.exp * 1000);
+}
+
+async function issueSession(
+  userId: number,
+  role: Role,
+): Promise<AuthSessionResponse> {
+  const session = createSession(userId, role);
+  await authSessionRepository.startSession(
+    userId,
+    session.jti,
+    session.expiresAt,
+  );
+  return session.response;
+}
+
+function createSession(userId: number, role: Role): IssuedSession {
+  const jti = randomUUID();
+  const token = jwt.sign({ userId, role, jti }, JWT_SECRET, {
+    expiresIn: TOKEN_TTL,
+  });
+  const expiresAt = getTokenExpiry(token);
+
+  return {
+    response: {
+      token,
+      role,
+      expiresAt: expiresAt.toISOString(),
+    },
+    jti,
+    expiresAt,
+  };
+}
 
 export async function login(
   username: string,
   password: string,
   expectedRole: Role,
-): Promise<{ token: string; role: Role } | null> {
+): Promise<AuthSessionResponse | null> {
   const user = await userRepository.getUserByUsername(username);
 
   if (!user || !isRole(user.role)) return null;
@@ -34,18 +91,7 @@ export async function login(
   if (!passwordMatches) return null;
   if (user.role !== expectedRole) return null;
 
-  const jti = randomUUID();
-  const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
-
-  const token = jwt.sign(
-    { userId: user.id, role: user.role, jti },
-    JWT_SECRET,
-    { expiresIn: TOKEN_TTL },
-  );
-
-  await authSessionRepository.startSession(user.id, jti, expiresAt);
-
-  return { token, role: user.role };
+  return issueSession(user.id, user.role);
 }
 
 export type AuthUser = {
@@ -92,6 +138,36 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
     role: payload.role,
     jti: payload.jti,
   };
+}
+
+export type RenewalResult =
+  | { kind: "renewed"; session: AuthSessionResponse }
+  | { kind: "not-due" }
+  | { kind: "invalid" };
+
+export async function renew(user: AuthUser): Promise<RenewalResult> {
+  const session = await authSessionRepository.findActiveSession(
+    user.userId,
+    user.jti,
+  );
+
+  if (!session) return { kind: "invalid" };
+
+  const remainingMs = session.expiresAt.getTime() - Date.now();
+
+  if (remainingMs > RENEWAL_WINDOW_MS) return { kind: "not-due" };
+
+  const replacement = createSession(user.userId, user.role);
+  const replaced = await authSessionRepository.replaceDueSession(
+    user.userId,
+    user.jti,
+    replacement.jti,
+    replacement.expiresAt,
+  );
+
+  if (!replaced) return { kind: "invalid" };
+
+  return { kind: "renewed", session: replacement.response };
 }
 
 export async function logout(user: AuthUser): Promise<void> {
