@@ -63,6 +63,14 @@ test("an operator activates scenarios, also on the same line", async () => {
   }
 });
 
+test("activating B on the same line as A leaves A active", async () => {
+  // DEMO-002 and DEMO-003 are both on track 1. A stood down by B would no
+  // longer be active, so activating A again would not be refused.
+  const token = await tokenFor("operator-test", "operator-test-pw");
+  assert.equal((await activate("DEMO-002", token)).status, 409);
+  assert.equal((await activate("DEMO-003", token)).status, 409);
+});
+
 test("activating the same scenario twice is refused", async () => {
   const token = await tokenFor("operator-test", "operator-test-pw");
   const res = await activate("DEMO-001", token);
