@@ -1,10 +1,13 @@
 import "dotenv/config";
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
+import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { app } from "../../src/app.js";
+import { postRenew } from "../../src/controllers/auth-controller.js";
 import { getDatabase } from "../../src/db/client.js";
 import { validate } from "../../src/validation/contract-validator.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
@@ -284,6 +287,38 @@ test("POST /api/v1/auth/renew rejects a missing token", async () => {
 
   assert.equal(response.status, 401);
   assert.equal((await response.json()).error.code, "E0001");
+});
+
+test("postRenew rejects a session replaced after authentication", async () => {
+  let statusCode: number | undefined;
+  let body: unknown;
+  const response = {
+    locals: {
+      user: {
+        userId: operatorId,
+        role: "OPERATOR" as const,
+        jti: randomUUID(),
+      },
+    },
+    status(code: number) {
+      statusCode = code;
+      return this;
+    },
+    json(value: unknown) {
+      body = value;
+      return this;
+    },
+  };
+
+  await postRenew({} as Request, response as unknown as Response);
+
+  assert.equal(statusCode, 401);
+  assert.deepEqual(body, {
+    error: {
+      code: "E0001",
+      message: "Invalid or expired token",
+    },
+  });
 });
 
 test("a second login replaces the first session for an account", async () => {
