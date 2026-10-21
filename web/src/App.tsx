@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LoginScreen } from "../../shared/LoginScreen";
 import type { Session } from "../../shared/auth/login";
+import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
 import { OperatorDashboard } from "./OperatorDashboard";
 
 // The control-room dashboard. Stewards use the app in mobile/.
@@ -20,10 +21,14 @@ export function App() {
     );
   }
 
+  // The banner sits outside any view, so every view added below it keeps it.
   return (
-    <OperatorDashboard
-      token={session.token}
-      onLogout={() => setSession(null)}
-    />
+    <>
+      <ActiveScenarioBanner token={session.token} />
+      <OperatorDashboard
+        token={session.token}
+        onLogout={() => setSession(null)}
+      />
+    </>
   );
 }
