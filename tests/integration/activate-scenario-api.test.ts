@@ -35,6 +35,21 @@ function activate(scenarioId: string, token?: string) {
   });
 }
 
+function listActivations(token?: string, query = "") {
+  return fetch(`${baseUrl}/api/v1/activations${query}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+async function activeScenarioIds(token: string) {
+  const list = (await (
+    await listActivations(token, "?status=ACTIVE")
+  ).json()) as {
+    scenarioId: string;
+  }[];
+  return list.map((a) => a.scenarioId);
+}
+
 test("without a token the activation is refused", async () => {
   const res = await activate("DEMO-002");
   assert.equal(res.status, 401);
@@ -63,13 +78,14 @@ test("an operator activates scenarios, also on a track that already has one", as
   }
 });
 
-test("activating B on the same line as A leaves A active", async () => {
-  // DEMO-001 (A-B, active from the seed) and DEMO-003 (B-C, activated above)
-  // are both on track 1. A stood down by B would no longer be active, so
-  // activating A again would not be refused.
+test("activating B on the same track as A leaves A active", async () => {
+  // DEMO-001 (A-B, active from the seed) and DEMO-003 (B-C) are both on
+  // track 1. A stood down by B would no longer be listed as active.
   const token = await tokenFor("operator-test", "operator-test-pw");
-  assert.equal((await activate("DEMO-001", token)).status, 409);
-  assert.equal((await activate("DEMO-003", token)).status, 409);
+  await activate("DEMO-003", token);
+  const active = await activeScenarioIds(token);
+  assert.ok(active.includes("DEMO-001"));
+  assert.ok(active.includes("DEMO-003"));
 });
 
 test("activating the same scenario twice is refused", async () => {
@@ -88,12 +104,9 @@ test("an unknown scenario is refused", async () => {
 
 test("the activations list returns the active scenarios, filtered by status", async () => {
   const token = await tokenFor("operator-test", "operator-test-pw");
-  const headers = { Authorization: `Bearer ${token}` };
   await activate("DEMO-003", token);
 
-  const active = await fetch(`${baseUrl}/api/v1/activations?status=ACTIVE`, {
-    headers,
-  });
+  const active = await listActivations(token, "?status=ACTIVE");
   assert.equal(active.status, 200);
   const list = (await active.json()) as {
     scenarioId: string;
@@ -101,11 +114,31 @@ test("the activations list returns the active scenarios, filtered by status", as
   }[];
   assert.ok(list.some((a) => a.scenarioId === "DEMO-003"));
   assert.ok(list.every((a) => a.status === "ACTIVE"));
+  for (const activation of list) {
+    assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
+  }
 
-  const closed = await fetch(`${baseUrl}/api/v1/activations?status=CLOSED`, {
-    headers,
-  });
+  const all = (await (await listActivations(token)).json()) as unknown[];
+  assert.equal(all.length, list.length);
+
+  const closed = await listActivations(token, "?status=CLOSED");
+  assert.equal(closed.status, 200);
   assert.deepEqual(await closed.json(), []);
+});
 
-  assert.equal((await fetch(`${baseUrl}/api/v1/activations`)).status, 401);
+test("the activations list needs a token", async () => {
+  assert.equal((await listActivations()).status, 401);
+});
+
+test("an unknown or repeated status filter is refused", async () => {
+  const token = await tokenFor("operator-test", "operator-test-pw");
+  for (const query of [
+    "?status=active",
+    "?status=NOPE",
+    "?status=ACTIVE&status=CLOSED",
+  ]) {
+    const res = await listActivations(token, query);
+    assert.equal(res.status, 400, query);
+    assert.equal((await res.json()).error.code, ERROR_CODES.INVALID_REQUEST);
+  }
 });

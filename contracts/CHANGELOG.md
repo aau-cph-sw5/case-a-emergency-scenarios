@@ -1,5 +1,14 @@
 # Scenario State Contract Changelog
 
+## 3.2.0 - 2026-10-21
+
+Adds the activations list (additive, no breaking change).
+
+Includes:
+
+- `GET /api/v1/activations`, which requires a bearer token and returns an array of `scenario-state` objects. The optional `status` query parameter is `ACTIVE` or `CLOSED`; any other value, or a repeated `status`, answers 400 with error code `E0005`
+- `info.version` in `openapi.yaml` is now 3.2.0
+
 ## 3.1.0 - 2026-10-15
 
 Adds the scenario activation call (additive, no breaking change).
