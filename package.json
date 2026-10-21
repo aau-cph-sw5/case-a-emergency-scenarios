@@ -37,6 +37,7 @@
     "db:migrate": "docker compose run --rm flyway migrate",
     "db:info": "docker compose run --rm flyway info",
     "db:validate": "docker compose run --rm flyway validate",
+    "db:check-versions": "node scripts/check-migration-versions.mjs",
     "db:down": "docker compose down",
     "db:test:up": "docker compose up -d db-test",
     "db:test:reset": "docker compose run --rm flyway-test clean && docker compose run --rm flyway-test migrate",

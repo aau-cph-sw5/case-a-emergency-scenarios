@@ -134,3 +134,12 @@ coverage** is a required status check in the `dev` ruleset, which an admin
 sets.
 
 Why it works this way is in ADR 0007.
+
+## Migration versions
+
+The **Migration versions** workflow runs on pull requests, merge-queue checks,
+and pushes to `dev`, `staging`, and `main`. It rejects duplicate numeric Flyway
+versions and gaps in the sequence. The project convention is a three-digit
+prefix. The sequence starts at `V001`, so if the latest migration is `V004`,
+write the next one as `V005`. Leading zeroes are normalized, so `V005`, `V5`,
+and `V0000005` are version 5.
