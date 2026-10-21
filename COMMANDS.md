@@ -174,7 +174,17 @@ npm run db:reset
 
 The container uses the `POSTGRES_PASSWORD` and `POSTGRES_PORT` values from
 your local `.env`. `DATABASE_URL` is also read from that local file when a Node
-API route accesses the database.
+API route or an integration test accesses the database.
+
+Seed local users for database-backed authentication after applying migrations:
+
+```bash
+npm run seed:users
+```
+
+This creates or updates the local-only accounts `steward-test` /
+`steward-test-pw` and `operator-test` / `operator-test-pw`. Do not use these
+credentials outside local development.
 
 ## Hosted staging and production migrations
 
@@ -216,7 +226,6 @@ npm run validate
 ```
 
 ## Tests
-
 Run all unit and integration tests:
 
 ```bash
@@ -227,12 +236,30 @@ Run only one level:
 
 ```bash
 npm run test:unit
+npm run test:jest
 npm run test:integration
 ```
 
-Tests live in `tests/unit/` and `tests/integration/`. GitHub Actions runs them as
-two jobs, so pull requests show separate **Unit tests** and **Integration tests**
-statuses. See `docs/reference/automation.md`.
+Some integration tests use the database. Start and migrate it first:
+
+```bash
+npm run db:up
+npm run db:migrate
+```
+
+Tests live in `tests/unit/`, `tests/jest/` and `tests/integration/`. GitHub Actions runs them as
+separate **Unit tests** **Jest tests** and  **Integration tests** checks, against a throwaway
+database, and reports coverage as a third check, **Backend coverage**. See
+`docs/reference/automation.md`.
+
+## Generate:
+
+Generates typescript types from the json schemas, in the `contracts/` folder, preferably use these 
+so the contracts serves as a source of truth.
+
+```bash
+npm run generate:types
+```
 
 ## List available commands
 

@@ -1,20 +1,41 @@
 # Automation
 
-Six workflows run on pull requests. `pr-title-check.yml` and
+Several workflows run on pull requests. `pr-title-check.yml` and
 `pr-description-check.yml` validate the title and the body against
 `.github/PULL_REQUEST_TEMPLATE.md`; both print what they expect in their error
-message. `code-quality.yml` runs lint and formatting. The three below are
-documented here.
+message. `code-quality.yml` runs lint and formatting. Tests, coverage and
+labels are documented below.
 
 ## Tests in CI
 
-The workflow `.github/workflows/tests.yml` runs the tests automatically on every
-pull request into `dev`, `staging` and `main`, and on every push to those branches.
+The workflow `.github/workflows/tests.yml` runs on every pull request, on every
+push to `dev`, `staging` and `main`, and on demand under
+**Actions → Tests → Run workflow**. Each job is its own check on the pull request:
 
-| Check on the PR | Runs | Folder |
+| Check on the PR | Runs | Fails when |
 |---|---|---|
-| Unit tests | `npm run test:unit` | `tests/unit/` |
-| Integration tests | `npm run test:integration` | `tests/integration/` |
+| Unit tests | `npm run test:unit` | a test in `tests/unit/` fails |
+| Integration tests | `npm run test:integration`, against a test database | a test in `tests/integration/` fails |
+| Backend coverage | merges the coverage of both test jobs | every test passed, but coverage is below 75% or dropped more than 2 percentage points compared with `dev`, see [Test coverage](#test-coverage) |
+
+The test jobs run under c8 to collect coverage, but they don't check it.
+Backend coverage waits for both and still runs when a test fails, but checks
+the coverage only when every test passed, so a failing test and too-low coverage
+show as separate checks.
+
+### Test database
+
+The Integration tests job starts a throwaway PostgreSQL 16 container, applies
+every migration in `src/db/migrations/` with Flyway, and sets `DATABASE_URL`
+for the tests. The database holds only what the migrations and tests create,
+exists only while the job runs, and never touches the staging or production
+databases, so its user and password (`metro`/`metro`) are not secrets.
+
+Because of this, every new migration is applied on every pull request, before it
+reaches `staging`.
+
+When the tests need something new from the database, such as another role or
+seed data, change this job only.
 
 ### Adding a test
 
@@ -70,10 +91,10 @@ branch.
 
 ## Test coverage
 
-The workflow `.github/workflows/coverage.yml` runs all tests under
-[c8](https://github.com/bcoe/c8) and measures how much of `src/` they execute.
-It runs on every pull request, on every push to `dev`, `staging` and `main`,
-and on demand under **Actions → Coverage → Run workflow**.
+The Backend coverage job in `tests.yml` measures how much of `src/` the unit
+and integration tests execute, with [c8](https://github.com/bcoe/c8). The test
+jobs save their raw coverage as artifacts, and Backend coverage merges them.
+It runs wherever `tests.yml` runs.
 
 | Where | What you see |
 |---|---|
@@ -81,7 +102,7 @@ and on demand under **Actions → Coverage → Run workflow**.
 | Workflow run → Summary | The same table, for every run |
 | Locally | `npm run test:coverage`, then open `coverage/index.html` to see uncovered lines |
 
-The **vs `dev`** column compares with the latest successful Coverage run on
+The **vs `dev`** column compares with the latest successful Tests run on
 `dev`. Every successful push to `dev` saves its coverage as the
 `coverage-baseline` artifact (kept for 90 days). Until one exists, the column
 shows `–`.
@@ -90,20 +111,35 @@ shows `–`.
 
 Every TypeScript file in `src/` is measured. Web and mobile are not measured yet.
 
-### Changing the required coverage
+### Required coverage
 
-The minimum coverage for lines, branches, functions and statements is set in
-`.c8rc.json`. Today every value is `0`, so coverage is only reported and the
-Backend coverage check always passes.
+Both rules are set in `.c8rc.json`, and Backend coverage fails when either is
+broken:
 
-To require a minimum:
+| Rule | Key in `.c8rc.json` | Today |
+|---|---|---|
+| Minimum coverage, per metric | `lines`, `branches`, `functions`, `statements` | 75% each |
+| Maximum drop compared with `dev`, per metric | `max-decrease` | 2 percentage points |
 
-1. Raise the values in `.c8rc.json` in a pull request. From then on, the
-   Backend coverage check fails on any pull request whose coverage is below
-   the minimum.
-2. After that pull request is merged, an admin adds **Backend coverage** to the
-   required status checks of the `dev` ruleset. Until then, a failing check is
-   shown on the pull request but does not stop it from being merged.
+The maximum drop is checked only on pull requests, by
+`scripts/check-coverage-decrease.mjs`, against the same coverage from `dev` as
+the **vs `dev`** column. While there is no coverage from `dev` yet, only the
+minimum is checked. In the PR comment, ❌ marks a broken rule.
+
+The minimum is also checked locally by `npm run test:coverage`.
+
+To change either rule, change `.c8rc.json` in a pull request. A failing Backend
+coverage check stops a pull request from being merged only when **Backend
+coverage** is a required status check in the `dev` ruleset, which an admin
+sets.
 
 Why it works this way is in ADR 0007.
 
+## Migration versions
+
+The **Migration versions** workflow runs on pull requests, merge-queue checks,
+and pushes to `dev`, `staging`, and `main`. It rejects duplicate numeric Flyway
+versions and gaps in the sequence. The project convention is a three-digit
+prefix. The sequence starts at `V001`, so if the latest migration is `V004`,
+write the next one as `V005`. Leading zeroes are normalized, so `V005`, `V5`,
+and `V0000005` are version 5.

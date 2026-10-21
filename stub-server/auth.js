@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { ERROR_CODES, errorBody } from "./error-codes.js";
+import { ERROR_CODES, errorBody } from "../shared/error-codes.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const accountsPath = path.join(__dirname, "../fixtures/v1/test-accounts.json");

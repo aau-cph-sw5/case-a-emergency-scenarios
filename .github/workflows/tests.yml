@@ -9,6 +9,7 @@ on:
       - dev
       - staging
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -36,11 +37,86 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Runs under c8 only to collect raw coverage for the Backend coverage job.
+      # The minimum applies to unit and integration tests together, so it is
+      # checked once, in that job, not here.
       - name: Run unit tests
-        run: npm run test:unit
+        run: npx c8 --reporter=none --check-coverage=false npm run test:unit
+
+      - name: Save raw coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-raw-unit
+          path: coverage/tmp/
+          retention-days: 1
+          if-no-files-found: ignore
 
   integration:
     name: Integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # A throwaway database that exists only for this job. Its credentials are
+    # not secrets: it holds nothing but what the migrations and tests create.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: metro
+          POSTGRES_USER: metro
+          POSTGRES_PASSWORD: metro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U metro -d metro"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://metro:metro@localhost:5432/metro
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply database migrations
+        run: |
+          docker run --rm --network host \
+            --volume "$GITHUB_WORKSPACE/src/db/migrations:/flyway/sql:ro" \
+            flyway/flyway:13.9.0 \
+            -url=jdbc:postgresql://localhost:5432/metro \
+            -user=metro \
+            -password=metro \
+            -locations=filesystem:/flyway/sql \
+            -validateMigrationNaming=true \
+            migrate
+
+      # See the comment on the unit test step.
+      - name: Run integration tests
+        run: npx c8 --reporter=none --check-coverage=false npm run test:integration
+
+      - name: Save raw coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-raw-integration
+          path: coverage/tmp/
+          retention-days: 1
+          if-no-files-found: ignore
+
+  jest:
+    name: Jest tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -57,5 +133,129 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run integration tests
-        run: npm run test:integration
+      - name: Run Jest tests
+        run: npm run test:jest
+
+  coverage:
+    name: Backend coverage
+    needs: [unit, integration]
+    # Runs even when a test fails, so the PR comment always shows coverage. The
+    # minimum is only checked when every test passed, so a failing test and
+    # too-low coverage show as separate checks.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download raw coverage
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-raw-*
+          path: coverage/tmp
+          merge-multiple: true
+
+      # Merges the raw coverage of both test jobs and writes the reports,
+      # including coverage/coverage-summary.json. Always runs, so the PR comment
+      # shows numbers even when a test failed.
+      - name: Report coverage
+        if: ${{ hashFiles('coverage/tmp/*.json') != '' }}
+        run: npx c8 report --check-coverage=false
+
+      # Checks the minimum in .c8rc.json, but only when every test passed. Coverage
+      # from a run with a failing test is incomplete, and the failing test check
+      # already says what is wrong.
+      - name: Check minimum coverage
+        if: ${{ needs.unit.result == 'success' && needs.integration.result == 'success' }}
+        run: npx c8 check-coverage
+
+      # Gets coverage-summary.json from the latest successful Tests run on dev,
+      # for the "vs dev" column. If there is none, the column shows "–".
+      - name: Download coverage from dev
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          latest_dev_run=$(gh run list \
+            --workflow tests.yml \
+            --branch dev \
+            --event push \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[].databaseId')
+
+          if [ -z "$latest_dev_run" ]; then
+            echo "No successful Tests run on dev yet."
+            exit 0
+          fi
+
+          gh run download "$latest_dev_run" \
+            --name coverage-baseline \
+            --dir coverage/baseline \
+            || echo "Run $latest_dev_run has no coverage-baseline artifact."
+
+      # Checks that no metric dropped more than "max-decrease" in .c8rc.json
+      # compared with dev. Like the minimum, only when every test passed. Passes
+      # when there is no coverage from dev yet.
+      - name: Check coverage decrease
+        if: ${{ github.event_name == 'pull_request' && needs.unit.result == 'success' && needs.integration.result == 'success' }}
+        run: node scripts/check-coverage-decrease.mjs coverage/baseline/coverage-summary.json
+
+      - name: Write coverage summary
+        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        run: |
+          node scripts/coverage-report.mjs coverage/baseline/coverage-summary.json > coverage/report.md
+          cat coverage/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save coverage as dev baseline
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-baseline
+          path: coverage/coverage-summary.json
+          retention-days: 90
+
+      - name: Comment on pull request
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('coverage/report.md') != '' }}
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require("node:fs");
+            const marker = "<!-- coverage-report -->";
+            const body = fs.readFileSync("coverage/report.md", "utf8");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find(
+              (comment) =>
+                comment.user.login === "github-actions[bot]" && comment.body.includes(marker),
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
