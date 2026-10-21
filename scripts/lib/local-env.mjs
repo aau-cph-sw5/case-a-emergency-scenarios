@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { FETCH_HINT, SEED_DATA_DIR, findSeedData } from "./seed-data.mjs";
 
 export const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -13,7 +14,6 @@ export const root = path.resolve(
 );
 
 const MIN_NODE = [20, 19, 0];
-const SEED_DATA_DIR = "docs/scenario-state";
 
 export class SetupError extends Error {}
 
@@ -131,10 +131,10 @@ export function migrateDatabase() {
 }
 
 export function seedDatabase() {
-  if (!existsSync(path.join(root, SEED_DATA_DIR, "stations.json"))) {
-    note(
-      `Skipped: no seed data in ${SEED_DATA_DIR}/. Fetch it from the project OneDrive, see scripts/README.md, then run \`npm run seed\`.`,
-    );
+  const { problem } = findSeedData(path.join(root, SEED_DATA_DIR));
+  if (problem) {
+    note(`Skipped: ${problem}`);
+    note(`${FETCH_HINT} Then run \`npm run seed\`.`);
     return;
   }
   if (npm(["run", "seed"]).status !== 0) {

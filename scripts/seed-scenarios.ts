@@ -1,6 +1,12 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import pg from "pg";
+import {
+  FETCH_HINT,
+  SEED_DATA_DIR,
+  STATIONS_FILE,
+  findSeedData,
+} from "./lib/seed-data.mjs";
 
 interface Scenario {
   scenarioId: string;
@@ -162,15 +168,17 @@ function validate(
   return errors;
 }
 
-const dir = "docs/scenario-state";
+const dir = SEED_DATA_DIR;
+const { scenarioFiles: seedFiles, problem } = findSeedData(dir);
+if (problem) {
+  console.error(`${problem}\n${FETCH_HINT}`);
+  process.exit(1);
+}
 const stationList: { code: string; name: string }[] = JSON.parse(
-  readFileSync(join(dir, "stations.json"), "utf8"),
+  readFileSync(join(dir, STATIONS_FILE), "utf8"),
 );
 const stationNames = new Map(stationList.map((s) => [s.code, s.name]));
 const allowedStations = new Set(stationNames.keys());
-const seedFiles = readdirSync(dir).filter(
-  (f) => f.startsWith("SeedDataScenario_") && f.endsWith(".json"),
-);
 const allErrors: string[] = [];
 const seenIds = new Map<string, string>();
 const scenarios: Scenario[] = [];
