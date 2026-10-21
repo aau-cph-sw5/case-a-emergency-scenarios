@@ -36,6 +36,7 @@
     "db:migrate": "docker compose run --rm flyway migrate",
     "db:info": "docker compose run --rm flyway info",
     "db:validate": "docker compose run --rm flyway validate",
+    "db:check-versions": "node scripts/check-migration-versions.mjs",
     "db:down": "docker compose down",
     "seed": "tsx --env-file=.env scripts/seed-scenarios.ts",
     "dev": "tsx watch src/server.ts",

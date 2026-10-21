@@ -93,3 +93,9 @@ migration after it has been applied to a shared environment; create a new
 corrective migration instead. Flyway Community runs only these forward
 (`V...`) migrations.
 
+Migration versions must start at `V001` and be consecutive. The project
+convention is to use three digits, so after `V004__...sql`, write the next
+migration as `V005__...sql`. Leading zeroes do not make a distinct version, so `V005`, `V5`, and
+`V0000005` cannot coexist. GitHub checks this on pull requests and merge-queue
+runs; run
+`npm run db:check-versions` locally to check it before pushing.
