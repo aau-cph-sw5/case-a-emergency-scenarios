@@ -41,7 +41,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc && npm run web:build",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
-    "start": "node dist/src/server.js"
+    "start": "node dist/src/server.js",
+    "measure": "tsx --env-file=.env scripts/measure-latency.mjs"
   },
   "dependencies": {
     "ajv": "^8.20.0",

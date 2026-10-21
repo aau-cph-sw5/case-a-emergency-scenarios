@@ -4,6 +4,7 @@ import {
   getCurrentScenarioState,
   getScenario,
   getScenarios,
+  deactivate
 } from "../controllers/scenario-controller.js";
 
 import { requireAuth } from "../middleware/require-auth.js";
@@ -21,4 +22,9 @@ scenarioRouter.post(
   "/api/v1/scenarios/:scenarioId/activate",
   requireAuth,
   activate,
+);
+scenarioRouter.post(
+  "/api/v1/scenarios/:scenarioId/deactivate",
+  requireAuth,
+  deactivate,
 );
