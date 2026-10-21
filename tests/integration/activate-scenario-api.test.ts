@@ -84,3 +84,27 @@ test("an unknown scenario is refused", async () => {
   assert.equal(res.status, 404);
   assert.equal((await res.json()).error.code, ERROR_CODES.NOT_FOUND);
 });
+
+test("the activations list returns the active scenarios, filtered by status", async () => {
+  const token = await tokenFor("operator-test", "operator-test-pw");
+  const headers = { Authorization: `Bearer ${token}` };
+  await activate("DEMO-003", token);
+
+  const active = await fetch(`${baseUrl}/api/v1/activations?status=ACTIVE`, {
+    headers,
+  });
+  assert.equal(active.status, 200);
+  const list = (await active.json()) as {
+    scenarioId: string;
+    status: string;
+  }[];
+  assert.ok(list.some((a) => a.scenarioId === "DEMO-003"));
+  assert.ok(list.every((a) => a.status === "ACTIVE"));
+
+  const closed = await fetch(`${baseUrl}/api/v1/activations?status=CLOSED`, {
+    headers,
+  });
+  assert.deepEqual(await closed.json(), []);
+
+  assert.equal((await fetch(`${baseUrl}/api/v1/activations`)).status, 401);
+});

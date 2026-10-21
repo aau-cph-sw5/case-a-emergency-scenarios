@@ -4,6 +4,7 @@ import {
   activateScenario,
   findScenario,
   getScenarioState,
+  listActivations,
   listScenarios,
 } from "../repositories/fixture-repository.js";
 
@@ -25,6 +26,13 @@ export function getScenario(
 
 export function getCurrentScenarioState(_request: Request, response: Response) {
   response.json(getScenarioState());
+}
+
+export function getActivations(request: Request, response: Response) {
+  const { status } = request.query;
+  response.json(
+    listActivations(typeof status === "string" ? status : undefined),
+  );
 }
 
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
