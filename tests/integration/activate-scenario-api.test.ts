@@ -50,7 +50,7 @@ test("a steward may not activate a scenario", async () => {
   assert.equal((await res.json()).error.code, ERROR_CODES.ROLE_NOT_PERMITTED);
 });
 
-test("an operator activates scenarios, also on the same line", async () => {
+test("an operator activates scenarios, also on a track that already has one", async () => {
   const token = await tokenFor("operator-test", "operator-test-pw");
   for (const scenarioId of ["DEMO-002", "DEMO-003"]) {
     const res = await activate(scenarioId, token);
@@ -64,10 +64,11 @@ test("an operator activates scenarios, also on the same line", async () => {
 });
 
 test("activating B on the same line as A leaves A active", async () => {
-  // DEMO-002 and DEMO-003 are both on track 1. A stood down by B would no
-  // longer be active, so activating A again would not be refused.
+  // DEMO-001 (A-B, active from the seed) and DEMO-003 (B-C, activated above)
+  // are both on track 1. A stood down by B would no longer be active, so
+  // activating A again would not be refused.
   const token = await tokenFor("operator-test", "operator-test-pw");
-  assert.equal((await activate("DEMO-002", token)).status, 409);
+  assert.equal((await activate("DEMO-001", token)).status, 409);
   assert.equal((await activate("DEMO-003", token)).status, 409);
 });
 
