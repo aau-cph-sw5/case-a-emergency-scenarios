@@ -14,8 +14,8 @@ let baseUrl: string;
 let operatorId: number;
 let stewardId: number;
 
-const OPERATOR_USERNAME = "api-operator-test";
-const STEWARD_USERNAME = "api-steward-test";
+const OPERATOR_USERNAME = "api-operator";
+const STEWARD_USERNAME = "api-steward";
 
 before(async () => {
   const users = await seedTestUsers("api-");

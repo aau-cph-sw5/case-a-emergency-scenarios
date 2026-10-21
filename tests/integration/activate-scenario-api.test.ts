@@ -12,8 +12,8 @@ import { seedTestUsers } from "../../scripts/seed-test-users.js";
 let server: Server;
 let baseUrl: string;
 
-const OPERATOR_USERNAME = "activation-operator-test";
-const STEWARD_USERNAME = "activation-steward-test";
+const OPERATOR_USERNAME = "activation-operator";
+const STEWARD_USERNAME = "activation-steward";
 
 before(async () => {
   await seedTestUsers("activation-");
@@ -80,11 +80,7 @@ test("a steward may not activate a scenario", async () => {
 });
 
 test("an operator activates scenarios, also on the same line", async () => {
-  const token = await tokenFor(
-    OPERATOR_USERNAME,
-    "operator123",
-    "OPERATOR",
-  );
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
   for (const scenarioId of ["DEMO-002", "DEMO-003"]) {
     const res = await activate(scenarioId, token);
     const activation = await res.json();
@@ -97,22 +93,14 @@ test("an operator activates scenarios, also on the same line", async () => {
 });
 
 test("activating the same scenario twice is refused", async () => {
-  const token = await tokenFor(
-    OPERATOR_USERNAME,
-    "operator123",
-    "OPERATOR",
-  );
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
   const res = await activate("DEMO-001", token);
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
 });
 
 test("an unknown scenario is refused", async () => {
-  const token = await tokenFor(
-    OPERATOR_USERNAME,
-    "operator123",
-    "OPERATOR",
-  );
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
   const res = await activate("NOPE", token);
   assert.equal(res.status, 404);
   assert.equal((await res.json()).error.code, ERROR_CODES.NOT_FOUND);

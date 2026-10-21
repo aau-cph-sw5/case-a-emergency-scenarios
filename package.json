@@ -32,7 +32,7 @@
     "test:jest": "jest --config jest.config.cjs",
     "test:unit": "node --import tsx --test \"tests/unit/**/*.test.{js,mjs,ts}\"",
     "test:integration": "npm run db:test:up && npm run db:test:reset && npm run test:integration:run",
-    "test:integration:run": "node --env-file-if-exists=.env --import tsx --import ./tests/integration/setup-env.ts --test \"tests/integration/**/*.test.{js,mjs,ts}\"",
+    "test:integration:run": "node --env-file-if-exists=.env --import tsx --import ./tests/integration/setup-env.ts --test --test-concurrency=1 \"tests/integration/**/*.test.{js,mjs,ts}\"",
     "test:coverage": "c8 npm test",
     "db:up": "docker compose up -d db",
     "db:migrate": "docker compose run --rm flyway migrate",

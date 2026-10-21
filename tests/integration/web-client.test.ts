@@ -10,7 +10,7 @@ import { fetchScenarios } from "../../web/src/scenarios.js";
 let server: Server;
 let baseUrl: string;
 
-const OPERATOR_USERNAME = "web-operator-test";
+const OPERATOR_USERNAME = "web-operator";
 
 before(async () => {
   await seedTestUsers("web-");
