@@ -176,7 +176,8 @@ npm run db:reset -- --yes
 
 The container uses the `POSTGRES_PASSWORD` and `POSTGRES_PORT` values from
 your local `.env`. `DATABASE_URL` is also read from that local file when a Node
-API route or an integration test accesses the database.
+API route accesses the database. Integration tests use a separate local
+database and never write to this one.
 
 Seed local users for database-backed authentication after applying migrations:
 
@@ -242,12 +243,9 @@ npm run test:jest
 npm run test:integration
 ```
 
-Some integration tests use the database. Start and migrate it first:
-
-```bash
-npm run db:up
-npm run db:migrate
-```
+Integration tests start, reset and migrate their own disposable `metro_test`
+database automatically. They do not write to the local development database.
+Use `npm run db:test:down` afterwards if you want to stop its container.
 
 Tests live in `tests/unit/`, `tests/jest/` and `tests/integration/`. GitHub Actions runs them as
 separate **Unit tests** **Jest tests** and  **Integration tests** checks, against a throwaway

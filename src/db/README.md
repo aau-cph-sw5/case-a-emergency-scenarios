@@ -47,7 +47,9 @@ schema history remains intact.
 | `npm run db:info`                               | Show the migrations Flyway has recorded for the local database.                                        |
 | `npm run db:validate`                           | Check that the migration files match the recorded history. Run before committing a new migration.      |
 | `npm run db:down`                               | Stop and remove the local containers. The PostgreSQL data volume is retained.                          |
-| `npm run db:reset`                              | Delete the local database and rebuild it from the migrations and seed data.                            |
+| `npm run db:test:up`                            | Start the disposable integration-test PostgreSQL container on port 5433.                               |
+| `npm run db:test:reset`                         | Delete and recreate only the test database schema, then apply every migration.                         |
+| `npm run db:test:down`                          | Stop the integration-test container. Its test-data volume is retained.                                 |
 | `docker compose exec db psql -U metro -c "\dt"` | See all tables in database.                                                                            |
 
 The local connection details are:
@@ -59,6 +61,20 @@ Database: metro
 Username: metro
 Password: the POSTGRES_PASSWORD value in .env
 ```
+
+Integration tests use a separate, disposable database:
+
+```text
+Host:     localhost
+Port:     5433
+Database: metro_test
+Username: metro
+Password: metro
+```
+
+`npm run test:integration` starts it, clears only its schema, applies every
+migration and runs the tests. It never uses `DATABASE_URL` from `.env`, so it
+cannot write test users or scenarios into the local development database.
 
 ## Wipe and start fresh
 
