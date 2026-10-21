@@ -166,10 +166,12 @@ npm run db:down
 ```
 
 Delete the local database, including all its data, and rebuild it from the
-migrations and seed data:
+migrations and seed data. It asks for confirmation first; add `-- --yes` to
+skip the question, for example in a script:
 
 ```bash
 npm run db:reset
+npm run db:reset -- --yes
 ```
 
 The container uses the `POSTGRES_PASSWORD` and `POSTGRES_PORT` values from

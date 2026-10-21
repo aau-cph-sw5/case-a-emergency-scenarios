@@ -6,6 +6,7 @@ import path from "node:path";
 import {
   dependenciesUpToDate,
   lockfileHash,
+  resetConfirmation,
 } from "../../scripts/lib/local-env.mjs";
 
 function project(lockfile) {
@@ -55,4 +56,17 @@ test("stays up to date when only the timestamp changed", () => {
   const now = new Date();
   utimesSync(path.join(dir, "package-lock.json"), now, now);
   assert.equal(dependenciesUpToDate(dir), true);
+});
+
+test("db:reset skips the question when run with --yes", () => {
+  assert.equal(resetConfirmation(["--yes"], true), "skip");
+  assert.equal(resetConfirmation(["--yes"], false), "skip");
+});
+
+test("db:reset asks when run in a terminal without --yes", () => {
+  assert.equal(resetConfirmation([], true), "ask");
+});
+
+test("db:reset refuses without a terminal and without --yes", () => {
+  assert.equal(resetConfirmation([], false), "refuse");
 });

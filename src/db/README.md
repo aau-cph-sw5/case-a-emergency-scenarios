@@ -70,6 +70,9 @@ locally entered data.
 npm run db:reset
 ```
 
+It asks for confirmation before deleting anything. Run
+`npm run db:reset -- --yes` to skip the question, for example in a script.
+
 This recreates the database from every migration in `src/db/migrations` and
 seeds it again. Changing `POSTGRES_PASSWORD` in `.env` only takes effect on a
 fresh volume, so run `npm run db:reset` after changing it.
