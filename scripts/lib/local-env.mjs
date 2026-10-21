@@ -3,7 +3,8 @@
 // Uses only Node built-ins so it can run before `npm ci`.
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { FETCH_HINT, SEED_DATA_DIR, findSeedData } from "./seed-data.mjs";
@@ -14,6 +15,9 @@ export const root = path.resolve(
 );
 
 const MIN_NODE = [20, 19, 0];
+// Fingerprint of the lockfile that node_modules was last installed from.
+// Lives inside node_modules, so deleting node_modules also forces a reinstall.
+const INSTALLED_LOCK_HASH = "node_modules/.setup-lockfile-hash";
 
 export class SetupError extends Error {}
 
@@ -54,20 +58,34 @@ export function checkNode() {
   note(`Node.js ${process.versions.node}`);
 }
 
-export function installDependencies() {
-  const lockFile = path.join(root, "package-lock.json");
-  const installedLock = path.join(root, "node_modules/.package-lock.json");
-  const upToDate =
-    existsSync(installedLock) &&
-    statSync(installedLock).mtimeMs >= statSync(lockFile).mtimeMs;
+export function lockfileHash(dir = root) {
+  const lockfile = readFileSync(path.join(dir, "package-lock.json"));
+  return createHash("sha256").update(lockfile).digest("hex");
+}
 
-  if (upToDate) {
+// Compares file contents, not timestamps, so a lockfile restored or copied
+// with an old timestamp is still detected as changed.
+export function dependenciesUpToDate(dir = root) {
+  try {
+    const installed = readFileSync(path.join(dir, INSTALLED_LOCK_HASH), "utf8");
+    return installed.trim() === lockfileHash(dir);
+  } catch {
+    // No saved hash: never installed by setup, or node_modules was deleted.
+    return false;
+  }
+}
+
+export function installDependencies() {
+  if (dependenciesUpToDate()) {
     note("Dependencies are up to date.");
     return;
   }
+  // Hash before the install, so it matches the lockfile npm ci used.
+  const hash = lockfileHash();
   if (npm(["ci"]).status !== 0) {
     throw new SetupError("`npm ci` failed. See the output above.");
   }
+  writeFileSync(path.join(root, INSTALLED_LOCK_HASH), `${hash}\n`);
 }
 
 export function ensureEnvFile() {
