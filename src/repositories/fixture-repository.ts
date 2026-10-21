@@ -69,9 +69,15 @@ type ScenarioFile = {
 
 // In-memory until the database is populated, so activations reset when the
 // server restarts. Seeded with the fixture's activation, like the stub.
-const activations: { scenarioId: string }[] = [
-  getScenarioState() as { scenarioId: string },
+const activations: { scenarioId: string; status: string }[] = [
+  getScenarioState() as { scenarioId: string; status: string },
 ];
+
+export function listActivations(status?: string) {
+  return status === undefined
+    ? activations
+    : activations.filter((a) => a.status === status);
+}
 
 export type ActivationResult =
   | { kind: "ok"; activation: Activation }
