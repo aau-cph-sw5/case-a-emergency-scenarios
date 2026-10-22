@@ -26,8 +26,8 @@ show as separate checks.
 ### Test database
 
 The Integration tests job starts a throwaway PostgreSQL 16 container, applies
-every migration in `src/db/migrations/` with Flyway, and sets `DATABASE_URL`
-for the tests. The database holds only what the migrations and tests create,
+every migration in `src/db/migrations/` with Flyway, and sets
+`TEST_DATABASE_URL` for the tests. The database holds only what the migrations and tests create,
 exists only while the job runs, and never touches the staging or production
 databases, so its user and password (`metro`/`metro`) are not secrets.
 
@@ -135,3 +135,11 @@ sets.
 
 Why it works this way is in ADR 0007.
 
+## Migration versions
+
+The **Migration versions** workflow runs on pull requests, merge-queue checks,
+and pushes to `dev`, `staging`, and `main`. It rejects duplicate numeric Flyway
+versions and gaps in the sequence. The project convention is a three-digit
+prefix. The sequence starts at `V001`, so if the latest migration is `V004`,
+write the next one as `V005`. Leading zeroes are normalized, so `V005`, `V5`,
+and `V0000005` are version 5.
