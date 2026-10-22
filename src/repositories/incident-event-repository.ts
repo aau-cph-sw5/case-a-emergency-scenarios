@@ -1,6 +1,6 @@
 import type postgres from "postgres";
-import type { Role } from "../../shared/auth/roles.js";
 import type { Db } from "../db/client.js";
+import type { Role } from "../services/auth-service.js";
 
 // Only incident-log-service.ts may import this file. Everything else writes
 // events through appendEvent, so the actor and clock rules live in one place.
