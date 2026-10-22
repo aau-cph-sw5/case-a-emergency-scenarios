@@ -5,3 +5,5 @@ build/
 package-lock.json
 docs/
 .github/ISSUE_TEMPLATE/
+mobile/ios/
+mobile/android/

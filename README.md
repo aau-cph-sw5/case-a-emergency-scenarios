@@ -38,12 +38,19 @@ This case now carries the semester's machine-intelligence work: `MET-A-019`, sce
 > and get the system running by following this README alone. Test that by handing it to
 > somebody on another team and watching where they get stuck.
 
+Requires Node.js 20.19 or later and a running Docker Desktop.
+
 ```bash
-# requires Node.js 20 or later
-npm ci
-cp .env.example .env
+npm run setup
 npm run dev:web
 ```
+
+`npm run setup` installs dependencies, creates `.env`, starts the local
+PostgreSQL database, applies the migrations and seeds scenario data when the
+seed files are present (see [the seed loader guide](scripts/README.md)). It is
+safe to re-run at any time, for example after pulling new migrations. If the
+local database gets into a bad state, `npm run db:reset` deletes it and
+rebuilds it from scratch.
 
 The browser-based web client opens at `http://localhost:5173`; the API and
 Socket.IO server run at `http://localhost:3000`. Use
