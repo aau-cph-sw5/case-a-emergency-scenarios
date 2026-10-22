@@ -45,3 +45,11 @@ export function formatTime(iso?: string | null) {
   if (Number.isNaN(date.getTime())) return "--:--";
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
+
+// The stations that require manning in the scenario's current version.
+export function currentStations(scenario: Scenario): string[] {
+  const version = scenario.versions.find(
+    (v) => v.version === scenario.currentVersion,
+  );
+  return version?.stationRequirements.map((r) => r.station) ?? [];
+}
