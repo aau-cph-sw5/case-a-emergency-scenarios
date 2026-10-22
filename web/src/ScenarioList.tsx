@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { colors } from "../../shared/Theme";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
 import { isScenarioState, type ScenarioState } from "./scenario-state";
 import { fetchScenarios, type ScenarioSummary } from "./scenarios";
+import { canActivate, keepSelection } from "./selection";
 
 type LoadState =
   | { status: "loading" }
@@ -15,10 +17,21 @@ type ActivationState =
   | { status: "error"; message: string }
   | { status: "done"; state: ScenarioState };
 
-export function ScenarioList({ token }: { token: string }) {
+// The selection is held by OperatorDashboard, so the preview (#202) reads the
+// same selected scenario as this list.
+export function ScenarioList({
+  token,
+  selectedId,
+  onSelect,
+}: {
+  token: string;
+  selectedId: string | null;
+  onSelect: (scenarioId: string | null) => void;
+}) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<ScenarioSummary | null>(null);
+  // True while the confirmation dialog is open for the selected scenario.
+  const [confirming, setConfirming] = useState(false);
   const [activation, setActivation] = useState<ActivationState>({
     status: "idle",
   });
@@ -36,8 +49,22 @@ export function ScenarioList({ token }: { token: string }) {
     return () => controller.abort();
   }, [token]);
 
+  // Clear the selection if the selected scenario is no longer in the list.
+  useEffect(() => {
+    if (state.status !== "done") return;
+    const kept = keepSelection(selectedId, state.scenarios);
+    if (kept !== selectedId) onSelect(kept);
+  }, [state, selectedId, onSelect]);
+
+  const selected =
+    state.status === "done"
+      ? (state.scenarios.find(
+          (scenario) => scenario.scenarioId === selectedId,
+        ) ?? null)
+      : null;
+
   async function activate(scenario: ScenarioSummary) {
-    setSelected(null);
+    setConfirming(false);
     setActivation({ status: "activating" });
     try {
       const state = await postJson(
@@ -80,16 +107,32 @@ export function ScenarioList({ token }: { token: string }) {
           <ScenarioResults
             scenarios={filterScenarios(state.scenarios, query)}
             query={query}
-            onSelect={setSelected}
+            selectedId={selectedId}
+            onSelect={onSelect}
             disabled={activation.status === "activating"}
           />
         ))}
 
-      {selected && (
+      {/* Opens the existing confirmation for the selected scenario. #202 moves
+          this button to the bottom of the preview. */}
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        disabled={
+          !canActivate(
+            selected?.scenarioId ?? null,
+            activation.status === "activating",
+          )
+        }
+      >
+        Aktivér valgt scenarie
+      </button>
+
+      {confirming && selected && (
         <ConfirmActivation
           scenario={selected}
           onConfirm={() => activate(selected)}
-          onCancel={() => setSelected(null)}
+          onCancel={() => setConfirming(false)}
         />
       )}
 
@@ -118,15 +161,23 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
   }
 }
 
+const selectedStyle = {
+  backgroundColor: colors.active,
+  color: colors.textInverse,
+  fontWeight: "bold",
+} as const;
+
 function ScenarioResults({
   scenarios,
   query,
+  selectedId,
   onSelect,
   disabled,
 }: {
   scenarios: ScenarioSummary[];
   query: string;
-  onSelect: (scenario: ScenarioSummary) => void;
+  selectedId: string | null;
+  onSelect: (scenarioId: string) => void;
   disabled: boolean;
 }) {
   // No match is an empty list, not an error.
@@ -135,17 +186,25 @@ function ScenarioResults({
   }
   return (
     <ul>
-      {scenarios.map((scenario) => (
-        <li key={scenario.scenarioId}>
-          <button
-            type="button"
-            onClick={() => onSelect(scenario)}
-            disabled={disabled}
-          >
-            {scenario.name}
-          </button>
-        </li>
-      ))}
+      {scenarios.map((scenario) => {
+        const isSelected = scenario.scenarioId === selectedId;
+        // The selected scenario is inverted, the shared "selected" style in
+        // Theme, and bold, so it is marked by more than colour. aria-pressed
+        // tells screen readers which one is selected.
+        return (
+          <li key={scenario.scenarioId}>
+            <button
+              type="button"
+              aria-pressed={isSelected}
+              onClick={() => onSelect(scenario.scenarioId)}
+              disabled={disabled}
+              style={isSelected ? selectedStyle : undefined}
+            >
+              {scenario.name}
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }
