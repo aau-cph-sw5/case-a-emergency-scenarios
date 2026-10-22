@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 3.2.0
+  version: 3.3.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -124,6 +124,13 @@ paths:
   /api/v1/position-reports:
     post:
       summary: Report a steward position
+      description: >
+        Requires a bearer token with the STEWARD role. The reported station
+        must require manning in an active scenario. The staff and
+        reportedAt fields are required by the schema but replaced by the
+        server: staff by the userId from the token, reportedAt by the time
+        the server accepted the report. An accepted report is forwarded to
+        connected operators as the position-report Socket.IO event.
       security:
         - bearerAuth: []
       requestBody:
@@ -171,6 +178,35 @@ paths:
                 error:
                   code: "E0001"
                   message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not report a position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "The authenticated user's role does not permit this action"
+        "409":
+          description: >
+            No scenario is active (E1001), or the station does not require
+            manning in an active scenario (E1004).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                noActiveScenario:
+                  value:
+                    error:
+                      code: "E1001"
+                      message: "No scenario is currently active"
+                stationNotInScenario:
+                  value:
+                    error:
+                      code: "E1004"
+                      message: "The station is not part of the active scenario"
 
   /api/v1/auth/login:
     post:

@@ -6,6 +6,7 @@ export function useSocketState(socket: AppSocket) {
   const [messages, setMessages] = useState<Array<{ id: number; text: string }>>(
     [],
   );
+
   const nextMessageId = useRef(0);
 
   useEffect(() => {

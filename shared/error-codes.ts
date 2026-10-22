@@ -34,6 +34,23 @@ export const ERROR_CODES = {
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 
-export function errorBody(code: ErrorCode, message: string) {
+// The developer message for each code in use, the "Meaning" column of the
+// semester docs. Never shown to a user; the clients choose their own text from
+// the code. Add a message here when a code starts being used.
+export const ERROR_MESSAGES: Partial<Record<ErrorCode, string>> = {
+  E0001: "Authentication token is missing, invalid or expired",
+  E0002: "The authenticated user's role does not permit this action",
+  E0004: "The requested resource does not exist",
+  E0006: "A required parameter is missing",
+  E0007: "The request conflicts with the current state of the resource",
+  E0102: "Invalid credentials",
+  E1001: "No scenario is currently active",
+  E1004: "The station is not part of the active scenario",
+};
+
+export function errorBody(
+  code: ErrorCode,
+  message = ERROR_MESSAGES[code] ?? "Unknown error",
+) {
   return { error: { code, message } };
 }
