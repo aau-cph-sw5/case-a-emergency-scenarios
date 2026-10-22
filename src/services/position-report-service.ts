@@ -2,7 +2,7 @@ import { getDatabase, type Db } from "../db/client.js";
 import {
   insertPositionReport,
   type NewPositionReport,
-  type PositionReport,
+  type StoredPositionReport,
 } from "../repositories/position-report-repository.js";
 import type { AuthUser } from "./auth-service.js";
 import { appendEvent } from "./incident-log-service.js";
@@ -22,13 +22,15 @@ export async function savePositionReport(
   user: AuthUser,
   report: NewPositionReport,
   writeEvent: WriteEvent = appendEvent,
-): Promise<PositionReport> {
+): Promise<StoredPositionReport> {
   const saved = await insertPositionReport(tx, report);
 
   await writeEvent(tx, user, {
     type: "POSITION_REPORTED",
     schemaVersion: 1,
     subject: { type: "position-report", id: saved.id },
+    // Keeps the location in the log even if the report row is later replaced.
+    payload: { stationId: report.station },
     clientTime: new Date(report.reportedAt),
   });
 
@@ -38,6 +40,6 @@ export async function savePositionReport(
 export function recordPositionReport(
   user: AuthUser,
   report: NewPositionReport,
-): Promise<PositionReport> {
+): Promise<StoredPositionReport> {
   return getDatabase().begin((tx) => savePositionReport(tx, user, report));
 }

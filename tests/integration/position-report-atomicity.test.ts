@@ -46,45 +46,71 @@ function reportsBy(staff: string) {
 }
 
 function eventsAbout(reportId: string) {
-  return sql<{ type: string; actorId: string }[]>`
-    SELECT type, actor_id FROM incident_events
+  return sql<{ type: string; actorId: string; payload: unknown }[]>`
+    SELECT type, actor_id, payload FROM incident_events
     WHERE subject_type = 'position-report' AND subject_id = ${reportId}
   `;
 }
 
-test("a position report and its event are stored together, with the actor from the token", async () => {
-  const report = aReport();
+async function loginToken(username: string, password: string) {
   const login = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username: "steward-test",
-      password: "steward-test-pw",
-    }),
+    body: JSON.stringify({ username, password }),
   });
-  const { token } = (await login.json()) as { token: string };
+  return ((await login.json()) as { token: string }).token;
+}
 
+test("a position report and its event are stored together, with the actor from the token", async () => {
+  // The endpoint only accepts stations of an active scenario. Station C is only
+  // in DEMO-003, and no other test file reports on it, so the row is ours.
+  const operatorToken = await loginToken("operator-test", "operator-test-pw");
+  const activation = await fetch(
+    `${baseUrl}/api/v1/scenarios/DEMO-003/activate`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${operatorToken}`,
+      },
+      body: "{}",
+    },
+  );
+  assert.equal(activation.status, 201);
+
+  await sql`DELETE FROM position_reports WHERE station = 'Station C'`;
+  const stewardToken = await loginToken("steward-test", "steward-test-pw");
+
+  // The client claims `staff` is somebody else. The token decides.
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${stewardToken}`,
     },
-    body: JSON.stringify(report),
+    body: JSON.stringify({
+      staff: "someone-else",
+      station: "Station C",
+      reportedAt: "2026-09-23T08:10:00Z",
+    }),
   });
 
   assert.equal(response.status, 202);
-  const [saved] = await reportsBy(report.staff);
-  assert.ok(saved);
+  const saved = await sql<{ id: string; staff: string }[]>`
+    SELECT id, staff FROM position_reports WHERE station = 'Station C'
+  `;
+  assert.equal(saved.length, 1);
   try {
-    const events = await eventsAbout(saved.id);
+    assert.equal(saved[0].staff, "steward-test");
+    const events = await eventsAbout(saved[0].id);
     assert.equal(events.length, 1);
     assert.equal(events[0].type, "POSITION_REPORTED");
-    // The report claims `staff` is somebody else. The token decides.
     assert.equal(events[0].actorId, "steward-test");
+    // The station stays in the log even if the report row is replaced later.
+    assert.deepEqual(events[0].payload, { stationId: "Station C" });
   } finally {
     // The event stays: the log is append-only.
-    await sql`DELETE FROM position_reports WHERE id = ${saved.id}`;
+    await sql`DELETE FROM position_reports WHERE id = ${saved[0].id}`;
   }
 });
 
