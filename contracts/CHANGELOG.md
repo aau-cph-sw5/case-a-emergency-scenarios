@@ -1,5 +1,9 @@
 # Scenario State Contract Changelog
 
+## 3.2.0 - 2026-10-20
+
+`POST /api/v1/position-reports` documents its 403 (`E0002`, not a steward) and 409 (`E1001` no active scenario, `E1004` station not in an active scenario) responses. The server takes `staff` from the token and sets `reportedAt` to the time it accepted the report, ignoring the client's clock. Accepted reports go to connected operators only, and the Socket.IO connection needs the bearer token in `auth.token`.
+
 ## 3.1.0 - 2026-10-15
 
 Adds the scenario activation call (additive, no breaking change).
