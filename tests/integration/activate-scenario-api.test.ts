@@ -65,24 +65,24 @@ test("a steward may not activate a scenario", async () => {
   assert.equal((await res.json()).error.code, ERROR_CODES.ROLE_NOT_PERMITTED);
 });
 
-test("an operator activates scenarios, also on a track that already has one", async () => {
+test("an operator activates a scenario", async () => {
   const token = await tokenFor("operator-test", "operator-test-pw");
-  for (const scenarioId of ["DEMO-002", "DEMO-003"]) {
-    const res = await activate(scenarioId, token);
-    const activation = await res.json();
-    assert.equal(res.status, 201);
-    assert.equal(activation.scenarioId, scenarioId);
-    assert.equal(activation.status, "ACTIVE");
-    assert.equal(activation.actor, "operator-test");
-    assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
-  }
+  const res = await activate("DEMO-002", token);
+  const activation = await res.json();
+  assert.equal(res.status, 201);
+  assert.equal(activation.scenarioId, "DEMO-002");
+  assert.equal(activation.status, "ACTIVE");
+  assert.equal(activation.actor, "operator-test");
+  assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
 });
 
 test("activating B on the same track as A leaves A active", async () => {
   // DEMO-001 (A-B, active from the seed) and DEMO-003 (B-C) are both on
   // track 1. A stood down by B would no longer be listed as active.
+  // Only this test activates DEMO-003 first, so its own 201 is checked.
   const token = await tokenFor("operator-test", "operator-test-pw");
-  await activate("DEMO-003", token);
+  const res = await activate("DEMO-003", token);
+  assert.equal(res.status, 201);
   const active = await activeScenarioIds(token);
   assert.ok(active.includes("DEMO-001"));
   assert.ok(active.includes("DEMO-003"));
@@ -104,7 +104,6 @@ test("an unknown scenario is refused", async () => {
 
 test("the activations list returns the active scenarios, filtered by status", async () => {
   const token = await tokenFor("operator-test", "operator-test-pw");
-  await activate("DEMO-003", token);
 
   const active = await listActivations(token, "?status=ACTIVE");
   assert.equal(active.status, 200);
@@ -112,7 +111,7 @@ test("the activations list returns the active scenarios, filtered by status", as
     scenarioId: string;
     status: string;
   }[];
-  assert.ok(list.some((a) => a.scenarioId === "DEMO-003"));
+  assert.ok(list.some((a) => a.scenarioId === "DEMO-001"));
   assert.ok(list.every((a) => a.status === "ACTIVE"));
   for (const activation of list) {
     assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
