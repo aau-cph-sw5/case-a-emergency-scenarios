@@ -1,7 +1,6 @@
 import "dotenv/config";
-import test, { after, before } from "node:test";
+import test, { after, before, mock } from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import type { Request, Response } from "express";
@@ -9,6 +8,7 @@ import jwt from "jsonwebtoken";
 import { app } from "../../src/app.js";
 import { postRenew } from "../../src/controllers/auth-controller.js";
 import { getDatabase } from "../../src/db/client.js";
+import { authSessionRepository } from "../../src/repositories/auth-session-repository.js";
 import { validate } from "../../src/validation/contract-validator.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
 
@@ -185,7 +185,7 @@ test("POST /api/v1/auth/logout revokes the current session", async () => {
   assert.equal(me.status, 401);
 });
 
-test("POST /api/v1/auth/renew replaces a session that is due", async () => {
+test("POST /api/v1/auth/renew extends a due session without replacing its JTI", async () => {
   const first = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
   const firstPayload = jwt.decode(first.token);
 
@@ -211,7 +211,8 @@ test("POST /api/v1/auth/renew replaces a session that is due", async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(validate(renewed, "login-response.schema.json"), []);
   assert.ok(renewedPayload && typeof renewedPayload !== "string");
-  assert.notEqual(renewedPayload.jti, firstPayload.jti);
+  assert.equal(renewedPayload.jti, firstPayload.jti);
+  assert.equal(renewed.role, "OPERATOR");
 
   const oldSession = await fetch(`${baseUrl}/api/v1/me`, {
     headers: { Authorization: `Bearer ${first.token}` },
@@ -220,11 +221,11 @@ test("POST /api/v1/auth/renew replaces a session that is due", async () => {
     headers: { Authorization: `Bearer ${renewed.token}` },
   });
 
-  assert.equal(oldSession.status, 401);
+  assert.equal(oldSession.status, 200);
   assert.equal(newSession.status, 200);
 });
 
-test("POST /api/v1/auth/renew allows only one concurrent replacement", async () => {
+test("POST /api/v1/auth/renew keeps concurrent requests usable", async () => {
   const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
   const sql = getDatabase();
   await sql`
@@ -250,22 +251,26 @@ test("POST /api/v1/auth/renew allows only one concurrent replacement", async () 
     ),
   ]);
 
-  const successful = responses.filter((response) => response.status === 200);
-  const rejected = responses.filter((response) => response.status === 401);
+  assert.ok(responses.every((response) => response.status !== 401));
+  assert.ok(responses.some((response) => response.status === 200));
 
-  assert.equal(successful.length, 1);
-  assert.equal(rejected.length, 1);
-
-  const replacement = (await successful[0].json()) as { token: string };
+  const replacements = await Promise.all(
+    responses
+      .filter((response) => response.status === 200)
+      .map(async (response) => (await response.json()) as { token: string }),
+  );
   const oldSession = await fetch(`${baseUrl}/api/v1/me`, {
     headers: { Authorization: `Bearer ${session.token}` },
   });
-  const newSession = await fetch(`${baseUrl}/api/v1/me`, {
-    headers: { Authorization: `Bearer ${replacement.token}` },
-  });
 
-  assert.equal(oldSession.status, 401);
-  assert.equal(newSession.status, 200);
+  assert.equal(oldSession.status, 200);
+
+  for (const replacement of replacements) {
+    const newSession = await fetch(`${baseUrl}/api/v1/me`, {
+      headers: { Authorization: `Bearer ${replacement.token}` },
+    });
+    assert.equal(newSession.status, 200);
+  }
 });
 
 test("POST /api/v1/auth/renew does not replace a session that is not due", async () => {
@@ -289,7 +294,7 @@ test("POST /api/v1/auth/renew rejects a missing token", async () => {
   assert.equal((await response.json()).error.code, "E0001");
 });
 
-test("postRenew rejects a session replaced after authentication", async () => {
+test("postRenew returns not due when another request wins the renewal race", async () => {
   let statusCode: number | undefined;
   let body: unknown;
   const response = {
@@ -297,7 +302,7 @@ test("postRenew rejects a session replaced after authentication", async () => {
       user: {
         userId: operatorId,
         role: "OPERATOR" as const,
-        jti: randomUUID(),
+        jti: "unused-jti",
       },
     },
     status(code: number) {
@@ -308,17 +313,65 @@ test("postRenew rejects a session replaced after authentication", async () => {
       body = value;
       return this;
     },
+    end() {
+      return this;
+    },
   };
 
-  await postRenew({} as Request, response as unknown as Response);
+  const findActiveSession = mock.method(
+    authSessionRepository,
+    "findActiveSession",
+    async () => ({
+      userId: operatorId,
+      jti: "unused-jti",
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      revokedAt: null,
+    }),
+  );
+  const extendDueSession = mock.method(
+    authSessionRepository,
+    "extendDueSession",
+    async () => null,
+  );
 
-  assert.equal(statusCode, 401);
-  assert.deepEqual(body, {
-    error: {
-      code: "E0001",
-      message: "Invalid or expired token",
-    },
-  });
+  try {
+    await postRenew({} as Request, response as unknown as Response);
+  } finally {
+    findActiveSession.mock.restore();
+    extendDueSession.mock.restore();
+  }
+
+  assert.equal(statusCode, 204);
+  assert.equal(body, undefined);
+});
+
+test("POST /api/v1/auth/renew uses the account's current role", async () => {
+  const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const sql = getDatabase();
+
+  await sql`
+    UPDATE auth_sessions
+    SET expires_at = NOW() + INTERVAL '1 day'
+    WHERE user_id = ${operatorId}
+  `;
+  await sql`UPDATE users SET role = 'STEWARD' WHERE id = ${operatorId}`;
+
+  try {
+    const response = await postJson(
+      "/api/v1/auth/renew",
+      {},
+      { Authorization: `Bearer ${session.token}` },
+    );
+    const renewed = (await response.json()) as { token: string; role: string };
+    const payload = jwt.decode(renewed.token);
+
+    assert.equal(response.status, 200);
+    assert.equal(renewed.role, "STEWARD");
+    assert.ok(payload && typeof payload !== "string");
+    assert.equal(payload.role, "STEWARD");
+  } finally {
+    await sql`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
+  }
 });
 
 test("a second login replaces the first session for an account", async () => {

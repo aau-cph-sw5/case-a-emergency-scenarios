@@ -32,22 +32,19 @@ async function startSession(
   return result[0];
 }
 
-async function replaceDueSession(
+async function extendDueSession(
   userId: number,
-  currentJti: string,
-  newJti: string,
+  jti: string,
   expiresAt: Date,
 ): Promise<AuthSession | null> {
   const sql = getDatabase();
   const result = await sql<AuthSession[]>`
     UPDATE auth_sessions
     SET
-      jti = ${newJti},
       expires_at = ${expiresAt},
-      revoked_at = NULL,
       created_at = CURRENT_TIMESTAMP
     WHERE user_id = ${userId}
-      AND jti = ${currentJti}
+      AND jti = ${jti}
       AND revoked_at IS NULL
       AND expires_at > NOW()
       AND expires_at <= NOW() + ${RENEWAL_WINDOW_MS} * INTERVAL '1 millisecond'
@@ -80,22 +77,6 @@ async function findActiveSession(
   return result[0] || null;
 }
 
-async function extendSession(
-  userId: number,
-  jti: string,
-  newExpiresAt: Date,
-): Promise<void> {
-  const sql = getDatabase();
-  await sql`
-    UPDATE auth_sessions
-    SET expires_at = ${newExpiresAt}
-    WHERE user_id = ${userId}
-      AND jti = ${jti}
-      AND revoked_at IS NULL
-      AND expires_at > NOW()
-  `;
-}
-
 async function revokeSession(userId: number, jti: string): Promise<void> {
   const sql = getDatabase();
   await sql`
@@ -118,9 +99,8 @@ async function revokeAllSessionsForUser(userId: number): Promise<void> {
 
 export const authSessionRepository = {
   startSession,
-  replaceDueSession,
+  extendDueSession,
   findActiveSession,
-  extendSession,
   revokeSession,
   revokeAllSessionsForUser,
 };

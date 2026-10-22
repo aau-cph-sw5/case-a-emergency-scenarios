@@ -33,6 +33,23 @@ type IssuedSession = {
   expiresAt: Date;
 };
 
+function createToken(
+  userId: number,
+  role: Role,
+  jti: string,
+  expiresAt?: Date,
+): string {
+  const payload = expiresAt
+    ? { userId, role, jti, exp: Math.floor(expiresAt.getTime() / 1000) }
+    : { userId, role, jti };
+
+  return jwt.sign(
+    payload,
+    JWT_SECRET,
+    expiresAt ? undefined : { expiresIn: TOKEN_TTL },
+  );
+}
+
 function getTokenExpiry(token: string): Date {
   const payload = jwt.decode(token);
 
@@ -62,9 +79,7 @@ async function issueSession(
 
 function createSession(userId: number, role: Role): IssuedSession {
   const jti = randomUUID();
-  const token = jwt.sign({ userId, role, jti }, JWT_SECRET, {
-    expiresIn: TOKEN_TTL,
-  });
+  const token = createToken(userId, role, jti);
   const expiresAt = getTokenExpiry(token);
 
   return {
@@ -75,6 +90,19 @@ function createSession(userId: number, role: Role): IssuedSession {
     },
     jti,
     expiresAt,
+  };
+}
+
+function createRenewedSession(
+  userId: number,
+  role: Role,
+  jti: string,
+  expiresAt: Date,
+): AuthSessionResponse {
+  return {
+    token: createToken(userId, role, jti, expiresAt),
+    role,
+    expiresAt: expiresAt.toISOString(),
   };
 }
 
@@ -153,21 +181,53 @@ export async function renew(user: AuthUser): Promise<RenewalResult> {
 
   if (!session) return { kind: "invalid" };
 
+  const account = await userRepository.getUserById(user.userId);
+
+  if (!account || !isRole(account.role)) return { kind: "invalid" };
+
   const remainingMs = session.expiresAt.getTime() - Date.now();
 
   if (remainingMs > RENEWAL_WINDOW_MS) return { kind: "not-due" };
 
-  const replacement = createSession(user.userId, user.role);
-  const replaced = await authSessionRepository.replaceDueSession(
+  const renewedExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const extended = await authSessionRepository.extendDueSession(
     user.userId,
     user.jti,
-    replacement.jti,
-    replacement.expiresAt,
+    renewedExpiresAt,
   );
 
-  if (!replaced) return { kind: "invalid" };
+  if (extended) {
+    return {
+      kind: "renewed",
+      session: createRenewedSession(
+        user.userId,
+        account.role,
+        user.jti,
+        extended.expiresAt,
+      ),
+    };
+  }
 
-  return { kind: "renewed", session: replacement.response };
+  const currentSession = await authSessionRepository.findActiveSession(
+    user.userId,
+    user.jti,
+  );
+
+  if (!currentSession) return { kind: "invalid" };
+
+  if (currentSession.expiresAt.getTime() - Date.now() > RENEWAL_WINDOW_MS) {
+    return {
+      kind: "renewed",
+      session: createRenewedSession(
+        user.userId,
+        account.role,
+        user.jti,
+        currentSession.expiresAt,
+      ),
+    };
+  }
+
+  return { kind: "not-due" };
 }
 
 export async function logout(user: AuthUser): Promise<void> {

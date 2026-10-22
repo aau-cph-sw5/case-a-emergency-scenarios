@@ -65,28 +65,26 @@ test("replaces the active session when the same user signs in again", async () =
   );
 });
 
-test("replaces a due session only when its JTI still matches", async () => {
+test("extends a due session only when its JTI still matches", async () => {
   const currentJti = randomUUID();
-  const replacementJti = randomUUID();
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
   const renewedExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   await authSessionRepository.startSession(user.id, currentJti, expiresAt);
 
-  const replacement = await authSessionRepository.replaceDueSession(
+  const replacement = await authSessionRepository.extendDueSession(
     user.id,
     currentJti,
-    replacementJti,
     renewedExpiresAt,
   );
-  const staleReplacement = await authSessionRepository.replaceDueSession(
+  const staleReplacement = await authSessionRepository.extendDueSession(
     user.id,
-    currentJti,
     randomUUID(),
     renewedExpiresAt,
   );
 
-  assert.equal(replacement?.jti, replacementJti);
+  assert.equal(replacement?.jti, currentJti);
+  assert.equal(replacement?.expiresAt.getTime(), renewedExpiresAt.getTime());
   assert.equal(staleReplacement, null);
 });
 
@@ -100,22 +98,6 @@ test("does not return a revoked session as active", async () => {
   assert.equal(
     await authSessionRepository.findActiveSession(user.id, jti),
     null,
-  );
-});
-
-test("extends an active session", async () => {
-  const jti = randomUUID();
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-  const extendedExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
-
-  await authSessionRepository.startSession(user.id, jti, expiresAt);
-  await authSessionRepository.extendSession(user.id, jti, extendedExpiresAt);
-
-  assert.equal(
-    (
-      await authSessionRepository.findActiveSession(user.id, jti)
-    )?.expiresAt.getTime(),
-    extendedExpiresAt.getTime(),
   );
 });
 

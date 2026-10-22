@@ -4,16 +4,15 @@ import { Text } from "react-native";
 import { useSession, type SessionStore } from "../../shared/auth/use-session";
 
 const API_URL = "http://localhost:4010";
-const OLD_SESSION = {
-  token: "old-token",
-  role: "STEWARD" as const,
-  expiresAt: "2026-10-22T12:00:00.000Z",
-};
-const RENEWED_SESSION = {
-  token: "renewed-token",
-  role: "STEWARD" as const,
-  expiresAt: "2026-11-20T12:00:00.000Z",
-};
+function session(token: string, expiresInDays: number) {
+  return {
+    token,
+    role: "STEWARD" as const,
+    expiresAt: new Date(
+      Date.now() + expiresInDays * 24 * 60 * 60 * 1000,
+    ).toISOString(),
+  };
+}
 
 function response(status: number, body: unknown = {}) {
   return {
@@ -43,8 +42,10 @@ afterEach(() => {
 
 describe("useSession", () => {
   it("keeps a renewed session in memory when saving it fails", async () => {
+    const oldSession = session("old-token", 1);
+    const renewedSession = session("renewed-token", 30);
     const store: SessionStore = {
-      load: jest.fn(async () => OLD_SESSION),
+      load: jest.fn(async () => oldSession),
       save: jest.fn(async () => {
         throw new Error("secure storage unavailable");
       }),
@@ -57,7 +58,7 @@ describe("useSession", () => {
           return response(200, { userId: 1, role: "STEWARD" });
         }
 
-        return response(200, RENEWED_SESSION);
+        return response(200, renewedSession);
       });
 
     render(<SessionProbe store={store} />);
@@ -66,7 +67,7 @@ describe("useSession", () => {
       expect(screen.getByText("signed-in:renewed-token")).toBeTruthy();
     });
 
-    expect(store.save).toHaveBeenCalledWith(RENEWED_SESSION);
+    expect(store.save).toHaveBeenCalledWith(renewedSession);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
