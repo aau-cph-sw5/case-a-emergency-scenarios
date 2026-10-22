@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { palette, radius } from "../../shared/Theme";
 import { fetchActiveActivations } from "./activations";
 import { describeCovers } from "./lines";
 import { fetchScenarios, type ScenarioSummary } from "./scenarios";
@@ -71,22 +73,112 @@ export function ActiveScenarioBanner({ token }: { token: string }) {
   );
 
   return (
-    <aside aria-label="Aktive scenarier">
+    <View aria-label="Aktive scenarier" role="complementary" style={styles.bar}>
       {error !== null ? (
-        <p role="alert">Kunne ikke hente aktive scenarier: {error}</p>
+        <View role="alert" style={styles.row}>
+          <View style={[styles.dot, styles.dotIdle]} />
+          <Text style={styles.meta}>
+            Kunne ikke hente aktive scenarier: {error}
+          </Text>
+        </View>
       ) : active.length === 0 ? (
-        <p role="status">Ingen aktive scenarier</p>
+        <View role="status" style={styles.row}>
+          <View style={[styles.dot, styles.dotIdle]} />
+          <Text style={styles.meta}>Ingen aktive scenarier</Text>
+        </View>
       ) : (
-        <ul>
-          {oldestFirst.map((a, i) => (
-            <li key={a.scenarioId}>
-              <strong>{names.get(a.scenarioId)?.name ?? a.scenarioId}</strong>{" "}
-              Aktivt scenarie {i + 1}. · {startedLabel(a.startedAt)}{" "}
-              {describeCovers(names.get(a.scenarioId)?.covers).join(", ")}
-            </li>
-          ))}
-        </ul>
+        oldestFirst.map((a, i) => (
+          <ScenarioItem
+            key={a.scenarioId}
+            title={names.get(a.scenarioId)?.name ?? a.scenarioId}
+            meta={`Aktivt scenarie ${i + 1}. · ${startedLabel(a.startedAt)}`}
+            covers={describeCovers(names.get(a.scenarioId)?.covers)}
+          />
+        ))
       )}
-    </aside>
+    </View>
   );
 }
+
+// ponytail: the hover only hints that the box can become a link to the scenario.
+function ScenarioItem({
+  title,
+  meta,
+  covers,
+}: {
+  title: string;
+  meta: string;
+  covers: string[];
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <Pressable
+      onHoverIn={() => setHover(true)}
+      onHoverOut={() => setHover(false)}
+      style={[styles.item, hover && styles.itemHover]}
+    >
+      <View style={styles.dot} />
+      <View style={styles.info}>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.meta}>{meta}</Text>
+        {covers.map((c) => (
+          <Text key={c} style={styles.cover}>
+            {c}
+          </Text>
+        ))}
+      </View>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  // position sticky is web only, so the types do not know it. The control-room
+  // dashboard runs on the web.
+  bar: {
+    position: "sticky" as "absolute",
+    top: 0,
+    zIndex: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: palette.metroBlack,
+    borderBottomWidth: 1,
+    borderColor: palette.barBorder,
+  },
+  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  item: {
+    flex: 1,
+    flexBasis: 220,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: palette.barBorder,
+    borderRadius: radius,
+  },
+  itemHover: { backgroundColor: palette.barHover, cursor: "pointer" },
+  info: {
+    flex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    columnGap: 24,
+    rowGap: 4,
+  },
+  dot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: palette.metroLineOne,
+  },
+  dotIdle: { backgroundColor: palette.metroLineThree },
+  title: { color: palette.metroWhite, fontSize: 18, fontWeight: "bold" },
+  meta: { color: palette.metroWhite, fontSize: 14, opacity: 0.75 },
+  cover: { color: palette.metroWhite, fontSize: 14 },
+});
