@@ -161,20 +161,12 @@ test("GET /api/v1/metro-lines/:lineId returns the line or 404", async () => {
   assert.equal(unknown.status, 404);
 });
 
-test("POST /api/v1/position-reports accepts a valid report with 202", async () => {
-  const response = await postJson(
-    "/api/v1/position-reports",
-    {
-      staff: "steward-002",
-      station: "Station B",
-      reportedAt: "2026-09-23T08:10:00Z",
-    },
-    await stewardHeaders(),
-  );
-
-  assert.equal(response.status, 202);
-  assert.deepEqual(await response.json(), { accepted: true });
-});
+// Station G is only in DEMO-002
+const stationGReport = {
+  staff: "",
+  station: "Station G",
+  reportedAt: "2026-09-23T08:10:00Z",
+};
 
 test("POST /api/v1/position-reports rejects an invalid body with 400", async () => {
   const response = await postJson(
@@ -187,6 +179,43 @@ test("POST /api/v1/position-reports rejects an invalid body with 400", async () 
   );
 
   assert.equal(response.status, 400);
+});
+
+test("POST /api/v1/position-reports refuses an operator with E0002", async () => {
+  const response = await postJson(
+    "/api/v1/position-reports",
+    stationGReport,
+    await operatorHeaders(),
+  );
+
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).error.code, "E0002");
+});
+
+// One test, so the refusal always runs before DEMO-002 is activated.
+test("POST /api/v1/position-reports refuses Station G with E1004 until DEMO-002 is activated, then accepts it with 202", async () => {
+  const before = await postJson(
+    "/api/v1/position-reports",
+    stationGReport,
+    await stewardHeaders(),
+  );
+  assert.equal(before.status, 409);
+  assert.equal((await before.json()).error.code, "E1004");
+
+  const activation = await postJson(
+    "/api/v1/scenarios/DEMO-002/activate",
+    {},
+    await operatorHeaders(),
+  );
+  assert.equal(activation.status, 201);
+
+  const after = await postJson(
+    "/api/v1/position-reports",
+    stationGReport,
+    await stewardHeaders(),
+  );
+  assert.equal(after.status, 202);
+  assert.deepEqual(await after.json(), { accepted: true });
 });
 
 test("protected endpoints reject requests without a token", async () => {

@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import type { Scenario } from "../../shared/types/v1/scenario.js";
 
 // This file is temporary until the real database is populated
 // Right now it just imports the fixture data from the fixtures folder
@@ -33,8 +34,8 @@ export function listScenarios(): unknown {
   return readJson("scenarios.json");
 }
 
-export function findScenario(scenarioId: string): unknown | undefined {
-  return readById("scenarios", scenarioId);
+export function findScenario(scenarioId: string): Scenario | undefined {
+  return readById("scenarios", scenarioId) as Scenario | undefined;
 }
 
 export function findMetroLine(lineId: string): unknown | undefined {
@@ -62,21 +63,35 @@ type Activation = {
   deployments: { status: "UNMANNED"; staff: null; fulfills: string }[];
 };
 
-type ScenarioFile = {
-  currentVersion: number;
-  versions: { version: number; stationRequirements?: { station: string }[] }[];
-};
-
 // In-memory until the database is populated, so activations reset when the
 // server restarts. Seeded with the fixture's activation, like the stub.
-const activations: { scenarioId: string; status: string }[] = [
-  getScenarioState() as { scenarioId: string; status: string },
+export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
+export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
+
+type StoredActivation = Pick<Activation, "scenarioId"> & {
+  status: ActivationStatus;
+  deployments: { fulfills: string }[];
+};
+const activations: StoredActivation[] = [
+  getScenarioState() as StoredActivation,
 ];
 
-export function listActivations(status?: string) {
+export function listActivations(status?: ActivationStatus) {
   return status === undefined
-    ? activations
+    ? [...activations]
     : activations.filter((a) => a.status === status);
+}
+
+// The stations that require manning in an active scenario.
+export function activeStations(): Set<string> {
+  return new Set(
+    activations.flatMap((a) => a.deployments.map((d) => d.fulfills)),
+  );
+}
+
+// The most recently activated scenario, for clients that connect later.
+export function latestActivation(): StoredActivation | undefined {
+  return activations.at(-1);
 }
 
 export type ActivationResult =
@@ -90,7 +105,7 @@ export function activateScenario(
   scenarioId: string,
   actor: string,
 ): ActivationResult {
-  const scenario = findScenario(scenarioId) as ScenarioFile | undefined;
+  const scenario = findScenario(scenarioId);
   if (scenario === undefined) return { kind: "not-found" };
   if (activations.some((a) => a.scenarioId === scenarioId)) {
     return { kind: "already-active" };

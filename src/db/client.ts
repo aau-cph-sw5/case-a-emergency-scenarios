@@ -15,6 +15,15 @@ export function getDatabase(): ReturnType<typeof postgres> {
     );
   }
 
-  sql = postgres(connectionString);
+  // Columns come back in camelCase (server_time → serverTime). Only column names
+  // are converted; JSON values such as an event payload are returned unchanged.
+  sql = postgres(connectionString, {
+    transform: { column: { from: postgres.toCamel, to: postgres.fromCamel } },
+  });
+
   return sql;
 }
+
+// Either the shared connection or a transaction from sql.begin(). Functions that
+// write take this, so the caller decides which transaction the write belongs to.
+export type Db = postgres.Sql | postgres.TransactionSql;

@@ -1,11 +1,54 @@
+import { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { useSocketState } from "../../../shared/socket/useSocketState";
+import { useActivatedScenario } from "../../../shared/socket/useActivatedScenario";
 import { socket } from "../socket";
 import { RoleView } from "./RoleView";
+import { sendPositionReport } from "../api/position-report";
+import { currentStations } from "../../../shared/components/stationState";
+import { StationPicker } from "../components/StationPicker";
 
-export function StewardView({ onLogout }: { onLogout: () => void }) {
-  // Socket demo from MET-A-004, shown once the steward is logged in.
+export function StewardView({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
+  // Data from the socketstate
   const { isConnected, messages } = useSocketState(socket);
+  const activated = useActivatedScenario(socket);
+  const [station, setStation] = useState<string>("");
+  const [reportStatus, setReportStatus] = useState<string | null>(null);
+
+  // A new scenario arriving with a new scenarioid clears the old station choice.
+  const scenarioId = activated?.scenario.scenarioId;
+  const [shownScenarioId, setShownScenarioId] = useState(scenarioId);
+  if (scenarioId !== shownScenarioId) {
+    setShownScenarioId(scenarioId);
+    setStation("");
+    setReportStatus(null);
+  }
+
+  // The stations of the activated scenario's current version, for the picker.
+  const stations = activated ? currentStations(activated.scenario) : [];
+
+  // The server refuses a socket without a valid token and uses its role to
+  // decide which events this socket gets.
+  function toggleSocket() {
+    if (isConnected) {
+      socket.disconnect();
+      return;
+    }
+    socket.auth = { token };
+    socket.connect();
+  }
+
+  // Reports the chosen station and shows the answer.
+  async function reportPosition() {
+    if (station === "") return;
+    setReportStatus(await sendPositionReport(token, station));
+  }
 
   return (
     <RoleView
@@ -13,13 +56,39 @@ export function StewardView({ onLogout }: { onLogout: () => void }) {
       description="Logget ind som steward."
       onLogout={onLogout}
     >
+      {activated ? (
+        <>
+          <Text style={styles.scenario}>
+            Aktivt scenarie: {activated.scenario.name}
+          </Text>
+
+          <StationPicker
+            stations={stations}
+            selected={station}
+            onSelect={setStation}
+          />
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={reportPosition}
+            disabled={station === ""}
+            style={styles.button}
+          >
+            <Text style={styles.buttonText}>Rapportér position</Text>
+          </Pressable>
+          {reportStatus && <Text>{reportStatus}</Text>}
+        </>
+      ) : (
+        <Text style={styles.noScenario}>Intet aktivt scenarie</Text>
+      )}
+
       <Text style={isConnected ? styles.ok : styles.offline}>
         Socket: {isConnected ? "connected" : "disconnected"}
       </Text>
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => (isConnected ? socket.disconnect() : socket.connect())}
+        onPress={toggleSocket}
         style={styles.button}
       >
         <Text style={styles.buttonText}>
@@ -55,5 +124,19 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#ffffff",
     fontWeight: "600",
+  },
+  scenario: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  label: {
+    fontWeight: "600",
+    marginTop: 12,
+  },
+  noScenario: {
+    color: "#6b7280",
+    fontSize: 18,
+    marginBottom: 8,
   },
 });
