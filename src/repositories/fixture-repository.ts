@@ -120,10 +120,3 @@ export function activateScenario(
   activations.push(activation);
   return { kind: "ok", activation };
 }
-
-export function deactivateScenario(scenarioId: string): boolean {
-  const index = activations.findIndex((a) => a.scenarioId === scenarioId);
-  if (index === -1) return false;
-  activations.splice(index, 1);
-  return true;
-}

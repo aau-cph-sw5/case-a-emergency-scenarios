@@ -118,8 +118,7 @@ async function main() {
 
     console.log(`\nURL ${URL}, run ${new Date().toISOString()}`);
   } finally {
-    // Close every socket that was opened and deactivate active scenario
-    await post(`/api/v1/scenarios/${SCENARIO}/deactivate`, operatorToken);
+    // Close every socket that was opened
     [...stewards, operator].forEach((socket) => socket.disconnect());
   }
 }

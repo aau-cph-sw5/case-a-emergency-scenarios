@@ -1,14 +1,12 @@
 import type { Server } from "socket.io";
 import type { Request, Response } from "express";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
-import type { AuthUser } from "../services/auth-service.js";
 
 import {
   activateScenario,
   findScenario,
   getScenarioState,
   listScenarios,
-  deactivateScenario
 } from "../repositories/fixture-repository.js";
 
 export function getScenarios(_request: Request, response: Response) {
@@ -88,24 +86,3 @@ export function activate(
     response.status(201).json(result.activation);
   }
 }
-
-// Operators deactivates a scenario
-export function deactivate(
-  request: Request<{ scenarioId: string }>,
-  response: Response,
-) {
-  const { role } = response.locals.user as AuthUser;
-  const { scenarioId } = request.params;
-
-  if (role !== "OPERATOR") {
-    response.status(403).json(errorBody(ERROR_CODES.ROLE_NOT_PERMITTED));
-    return;
-  }
-  if (!deactivateScenario(scenarioId)) {
-    response.status(409).json(errorBody(ERROR_CODES.CONFLICT));
-    return;
-  }
-  console.log("Scenario deactivated:", scenarioId);
-  response.status(204).end();
-}
-
