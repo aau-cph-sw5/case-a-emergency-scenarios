@@ -35,7 +35,7 @@ after(async () => {
   const io = app.locals.io as Server;
   delete app.locals.io;
   await new Promise<void>((resolve) => io.close(() => resolve()));
-  // A position report is stored in the database, so the pool is open by now.
+  await new Promise<void>((resolve) => server.close(() => resolve()));
   await getDatabase().end();
 });
 
