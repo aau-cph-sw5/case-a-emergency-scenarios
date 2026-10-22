@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 3.2.0
+  version: 3.3.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -260,6 +260,54 @@ paths:
             application/json:
               schema:
                 $ref: "./me.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+
+  /api/v1/activations:
+    get:
+      summary: List activations
+      description: >
+        Returns the activations in the store. Several scenarios may be
+        active at once, also on the same line, so the list can hold more
+        than one ACTIVE entry. Any signed-in role may read it.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Only return activations with this status.
+          schema:
+            type: string
+            enum: [ACTIVE, CLOSED]
+      responses:
+        "200":
+          description: The activations, empty when none match
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./scenario-state.schema.json"
+        "400":
+          description: >
+            status is not ACTIVE or CLOSED, or is given more than once
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0005"
+                  message: "status must be one of ACTIVE, CLOSED"
         "401":
           description: Missing, invalid or expired bearer token
           content:
