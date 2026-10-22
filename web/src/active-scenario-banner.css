@@ -30,9 +30,31 @@
   margin: 0;
 }
 
-.active-scenario-banner strong {
+.active-scenario-banner li {
+  padding: 8px 14px;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+/* Hints that the box can become a link to the scenario. */
+.active-scenario-banner small {
   display: block;
   margin-top: 4px;
+  color: #fff;
+}
+
+.active-scenario-banner li:hover {
+  background: #2b2b2b;
+  border-color: #777;
+  cursor: pointer;
+}
+
+.active-scenario-banner strong {
+  display: block;
+  margin-bottom: 4px;
   color: #fff;
   font-size: 15px;
 }
