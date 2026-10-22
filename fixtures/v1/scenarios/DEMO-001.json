@@ -40,6 +40,22 @@
             {
               "sequence": 1,
               "instruction": "Synthetic example instruction"
+            },
+            {
+              "sequence": 2,
+              "instruction": "Synthetic example instruction 2"
+            },
+            {
+              "sequence": 3,
+              "instruction": "Synthetic example instruction 3"
+            },
+            {
+              "sequence": 4,
+              "instruction": "Synthetic example instruction 4"
+            },
+            {
+              "sequence": 5,
+              "instruction": "Synthetic example instruction 5"
             }
           ]
         }

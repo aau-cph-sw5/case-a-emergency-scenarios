@@ -17,8 +17,8 @@
       "status": "PENDING",
       "reportedAt": "2026-09-23T08:04:00Z",
       "arrivedAt": null,
-      "staff": "Example Steward 2",
-      "fulfills": "Station B"
+      "staff": "steward-test",
+      "fulfills": "KN"
     },
     {
       "status": "UNMANNED",
