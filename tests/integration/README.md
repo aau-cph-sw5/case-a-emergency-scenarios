@@ -9,3 +9,7 @@ resets and migrates its own disposable `metro_test` database on port 5433. It
 never writes to the development database configured by `DATABASE_URL` in
 `.env`. In CI, the Integration tests job starts its own throwaway database and
 applies every migration before the tests run.
+
+Database tests run each test in a transaction that is rolled back, so they leave
+no rows behind. Close the connection in `after(() => sql.end())`. See
+`incident-log.test.ts`.
