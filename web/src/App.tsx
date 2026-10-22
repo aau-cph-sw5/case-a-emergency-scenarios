@@ -8,6 +8,9 @@ import { OperatorDashboard } from "./OperatorDashboard";
 export function App() {
   // Kept in memory only: reloading the page asks for a new login.
   const [session, setSession] = useState<Session | null>(null);
+  // Bumped after an activation, so the banner refetches at once instead of
+  // waiting for its next poll.
+  const [activations, setActivations] = useState(0);
 
   if (session === null) {
     return (
@@ -24,10 +27,11 @@ export function App() {
   // The banner sits outside any view, so every view added below it keeps it.
   return (
     <>
-      <ActiveScenarioBanner token={session.token} />
+      <ActiveScenarioBanner token={session.token} refresh={activations} />
       <OperatorDashboard
         token={session.token}
         onLogout={() => setSession(null)}
+        onActivated={() => setActivations((n) => n + 1)}
       />
     </>
   );

@@ -31,6 +31,8 @@
 }
 
 .active-scenario-banner li {
+  /* One box fills the bar, several share it, and they wrap on a narrow screen. */
+  flex: 1 1 220px;
   padding: 8px 14px;
   border: 1px solid #454545;
   border-radius: 4px;
@@ -39,13 +41,23 @@
     border-color 0.15s;
 }
 
-/* Hints that the box can become a link to the scenario. */
-.active-scenario-banner small {
-  display: block;
-  margin-top: 4px;
-  color: #fff;
+/* Name, number and time, and the covered stations, spread across the box. */
+.active-scenario-banner .info {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 24px;
+  font-size: 14px;
 }
 
+.active-scenario-banner small {
+  color: #fff;
+  font-size: 14px;
+}
+
+/* Hints that the box can become a link to the scenario. */
 .active-scenario-banner li:hover {
   background: #2b2b2b;
   border-color: #777;
@@ -53,16 +65,14 @@
 }
 
 .active-scenario-banner strong {
-  display: block;
-  margin-bottom: 4px;
   color: #fff;
-  font-size: 15px;
+  font-size: 18px;
 }
 
 .active-scenario-banner .dot {
   flex-shrink: 0;
-  width: 7px;
-  height: 7px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: #007d55;
   box-shadow: 0 0 0 4px #007d551c;

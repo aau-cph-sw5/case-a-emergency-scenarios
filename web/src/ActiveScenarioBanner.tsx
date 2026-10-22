@@ -24,7 +24,13 @@ function startedLabel(startedAt: string) {
 // Shown by App above every view, so an active scenario is visible wherever
 // the operator is (MET-A-007 criterion 3). Shows the scenario name, falling
 // back to scenarioId; the line is not shown yet.
-export function ActiveScenarioBanner({ token }: { token: string }) {
+export function ActiveScenarioBanner({
+  token,
+  refresh,
+}: {
+  token: string;
+  refresh: number;
+}) {
   const [active, setActive] = useState<ScenarioState[]>([]);
   const [names, setNames] = useState<Map<string, ScenarioSummary>>(
     () => new Map(),
@@ -54,7 +60,7 @@ export function ActiveScenarioBanner({ token }: { token: string }) {
       controller.abort();
       clearInterval(timer);
     };
-  }, [token]);
+  }, [token, refresh]);
 
   // ISO timestamps sort as text; the numbering is the order of activation.
   const oldestFirst = [...active].sort((a, b) =>
@@ -78,9 +84,11 @@ export function ActiveScenarioBanner({ token }: { token: string }) {
           {oldestFirst.map((a, i) => (
             <li key={a.scenarioId}>
               <span className="dot" />
-              <span>
+              <span className="info">
                 <strong>{names.get(a.scenarioId)?.name ?? a.scenarioId}</strong>
-                Aktivt scenarie {i + 1}. · {startedLabel(a.startedAt)}
+                <span>
+                  Aktivt scenarie {i + 1}. · {startedLabel(a.startedAt)}
+                </span>
                 {describeCovers(names.get(a.scenarioId)?.covers).map((c) => (
                   <small key={c}>{c}</small>
                 ))}

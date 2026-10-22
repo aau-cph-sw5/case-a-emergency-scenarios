@@ -14,9 +14,11 @@ const scenarioState = scenarioStateFixture as ScenarioState;
 export function OperatorDashboard({
   token,
   onLogout,
+  onActivated,
 }: {
   token: string;
   onLogout: () => void;
+  onActivated: () => void;
 }) {
   const { isConnected, messages } = useSocketState(socket);
 
@@ -41,7 +43,7 @@ export function OperatorDashboard({
         </ul>
       )}
 
-      <ScenarioList token={token} />
+      <ScenarioList token={token} onActivated={onActivated} />
       <ScenarioStationList
         scenario={selectedScenario}
         activeDeployments={scenarioState}
