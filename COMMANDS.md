@@ -13,10 +13,11 @@ npm run setup
 ```
 
 This installs dependencies when `package-lock.json` has changed, creates
-`.env` from `.env.example` if it is missing, starts the local PostgreSQL
-container, applies the Flyway migrations, and seeds scenario data when the seed
-files are present in `docs/scenario-state/`. Docker Desktop must be running.
-Every step skips work that is already done, so re-run it after pulling.
+`.env` from `.env.example` if it is missing, generates a local `JWT_SECRET`
+when it is blank, starts the local PostgreSQL container, applies the Flyway
+migrations, and seeds scenario data when the seed files are present in
+`docs/scenario-state/`. Docker Desktop must be running. Every step skips work
+that is already done, so re-run it after pulling.
 
 The individual steps are described below for when you need to run one on its
 own.

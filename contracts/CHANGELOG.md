@@ -5,6 +5,7 @@
 Breaking.
 
 - `GET /api/v1/me` now returns `userId` as an integer database identifier, where it previously returned a string username. Clients must update any parsing, storage, or comparisons of this field.
+- `POST /api/v1/auth/login` now requires `expectedRole` (`STEWARD` or `OPERATOR`). Clients must send the role for the interface they are opening.
 
 Also includes the additive activation and position-report changes that were prepared as 3.3.0 and 3.2.0:
 

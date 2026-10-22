@@ -45,11 +45,11 @@ npm run setup
 npm run dev:web
 ```
 
-`npm run setup` installs dependencies, creates `.env`, starts the local
-PostgreSQL database, applies the migrations and seeds scenario data when the
-seed files are present (see [the seed loader guide](scripts/README.md)). It is
-safe to re-run at any time, for example after pulling new migrations. If the
-local database gets into a bad state, `npm run db:reset` deletes it and
+`npm run setup` installs dependencies, creates `.env` and a local JWT secret,
+starts the local PostgreSQL database, applies the migrations and seeds scenario
+data when the seed files are present (see [the seed loader guide](scripts/README.md)).
+It is safe to re-run at any time, for example after pulling new migrations. If
+the local database gets into a bad state, `npm run db:reset` deletes it and
 rebuilds it from scratch.
 
 The browser-based web client opens at `http://localhost:5173`; the API and
@@ -174,9 +174,7 @@ MIT, per Section 7 of the AAU and Metro Service collaboration framework.
 ### Authentication
 
 ```bash
-openssl rand -base64 48 # set the result as JWT_SECRET in .env
-npm run db:up
-npm run db:migrate
+npm run setup # creates .env and a local JWT_SECRET when needed
 npm run seed:users
 npm run dev
 ```
