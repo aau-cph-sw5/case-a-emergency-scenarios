@@ -1,6 +1,6 @@
 import { REQUEST_TIMEOUT_MS } from "../../shared/http";
 import { ApiError } from "./get-json";
-import type { TrackSegment } from "./lines";
+import type { TrackSegment } from "../../shared/types/v1/scenario-list";
 
 // The fields of contracts/v1/scenario-list.schema.json this list uses.
 export type ScenarioSummary = {

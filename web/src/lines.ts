@@ -1,11 +1,7 @@
 import M1 from "../../fixtures/v1/metro-lines/M1.json";
 import M2 from "../../fixtures/v1/metro-lines/M2.json";
 
-export type TrackSegment = {
-  trackNumber: number;
-  stationA: string;
-  stationB: string;
-};
+import type { TrackSegment } from "../../shared/types/v1/scenario-list";
 
 // The lines are the fixtures', like stationView uses them.
 // ponytail: fetch GET /api/v1/metro-lines/{id} when there are more lines.
