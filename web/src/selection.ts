@@ -14,10 +14,12 @@ export function keepSelection(
 }
 
 // The activate button acts on the selected scenario, so it is disabled when
-// nothing is selected or while an activation is already in progress (#182).
+// nothing is selected, while an activation is already in progress, or when the
+// selected scenario is already active (#182).
 export function canActivate(
   selectedId: string | null,
   activating: boolean,
+  activeIds: ReadonlySet<string>,
 ): boolean {
-  return selectedId !== null && !activating;
+  return selectedId !== null && !activating && !activeIds.has(selectedId);
 }

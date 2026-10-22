@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { colors } from "../../shared/Theme";
+import { fetchActiveScenarioIds } from "./activations";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
 import { isScenarioState, type ScenarioState } from "./scenario-state";
@@ -35,6 +36,11 @@ export function ScenarioList({
   const [activation, setActivation] = useState<ActivationState>({
     status: "idle",
   });
+  // The scenarios that are already active, and whether loading them failed.
+  const [activeIds, setActiveIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [activeFailed, setActiveFailed] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,6 +50,24 @@ export function ScenarioList({
         if (controller.signal.aborted) return;
         console.error(error);
         setState({ status: "error", message: userMessage(error) });
+      },
+    );
+    return () => controller.abort();
+  }, [token]);
+
+  // Loaded separately from the scenarios, so the list still works when the
+  // activations cannot be loaded (#182).
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchActiveScenarioIds(token, controller.signal).then(
+      (ids) => {
+        setActiveIds(ids);
+        setActiveFailed(false);
+      },
+      (error: unknown) => {
+        if (controller.signal.aborted) return;
+        console.error(error);
+        setActiveFailed(true);
       },
     );
     return () => controller.abort();
@@ -73,6 +97,8 @@ export function ScenarioList({
         isScenarioState,
       );
       setActivation({ status: "done", state });
+      // Mark it active at once, without reloading the page (#182).
+      setActiveIds((ids) => new Set(ids).add(state.scenarioId));
     } catch (error) {
       console.error(error);
       setActivation({ status: "error", message: userMessage(error) });
@@ -108,10 +134,13 @@ export function ScenarioList({
             scenarios={filterScenarios(state.scenarios, query)}
             query={query}
             selectedId={selectedId}
+            activeIds={activeIds}
             onSelect={onSelect}
             disabled={activation.status === "activating"}
           />
         ))}
+
+      {activeFailed && <p role="status">Aktive scenarier kunne ikke vises.</p>}
 
       {/* Opens the existing confirmation for the selected scenario. #202 moves
           this button to the bottom of the preview. */}
@@ -122,6 +151,7 @@ export function ScenarioList({
           !canActivate(
             selected?.scenarioId ?? null,
             activation.status === "activating",
+            activeIds,
           )
         }
       >
@@ -171,12 +201,14 @@ function ScenarioResults({
   scenarios,
   query,
   selectedId,
+  activeIds,
   onSelect,
   disabled,
 }: {
   scenarios: ScenarioSummary[];
   query: string;
   selectedId: string | null;
+  activeIds: ReadonlySet<string>;
   onSelect: (scenarioId: string) => void;
   disabled: boolean;
 }) {
@@ -201,6 +233,8 @@ function ScenarioResults({
               style={isSelected ? selectedStyle : undefined}
             >
               {scenario.name}
+              {/* Text, so an active scenario is not marked by colour alone. */}
+              {activeIds.has(scenario.scenarioId) && " — Aktiv"}
             </button>
           </li>
         );
