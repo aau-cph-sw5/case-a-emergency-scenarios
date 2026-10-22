@@ -10,7 +10,9 @@ import { io } from "socket.io-client";
 const URL = process.env.MEASURE_LATENCY_API_URL ?? "http://localhost:3000";
 const CLIENTS = Number(process.argv[2] ?? 25);
 if (!Number.isInteger(CLIENTS) || CLIENTS < 1) {
-  throw new Error(`The number of clients must be a whole number above 0, got "${process.argv[2]}"`);
+  throw new Error(
+    `The number of clients must be a whole number above 0, got "${process.argv[2]}"`,
+  );
 }
 const SCENARIO = "DEMO-002";
 const STATION = "Station C";
@@ -24,7 +26,8 @@ async function login(username, password) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
   });
-  if (!response.ok) throw new Error(`Login as ${username} failed: ${response.status}`);
+  if (!response.ok)
+    throw new Error(`Login as ${username} failed: ${response.status}`);
   return (await response.json()).token;
 }
 
@@ -32,7 +35,10 @@ async function login(username, password) {
 function post(path, token, body = {}) {
   return fetch(`${URL}${path}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body),
   });
 }
@@ -52,7 +58,11 @@ function collect(socket, event, count, t0, matches = () => true) {
     const times = [];
     const timer = setTimeout(() => {
       socket.off(event, onEvent);
-      reject(new Error(`Only ${times.length} of ${count} "${event}" within ${TIMEOUT_MS} ms`));
+      reject(
+        new Error(
+          `Only ${times.length} of ${count} "${event}" within ${TIMEOUT_MS} ms`,
+        ),
+      );
     }, TIMEOUT_MS);
     function onEvent(payload) {
       if (!matches(payload)) return;
@@ -101,20 +111,43 @@ async function main() {
     // Activation to every connected steward
     let t0 = performance.now();
     const activations = stewards.map((steward) =>
-      collect(steward, "scenario-activated", 1, t0, (e) => e.scenario?.scenarioId === SCENARIO),
+      collect(
+        steward,
+        "scenario-activated",
+        1,
+        t0,
+        (e) => e.scenario?.scenarioId === SCENARIO,
+      ),
     );
-    const response = await post(`/api/v1/scenarios/${SCENARIO}/activate`, operatorToken);
+    const response = await post(
+      `/api/v1/scenarios/${SCENARIO}/activate`,
+      operatorToken,
+    );
     if (response.status === 409) {
       throw new Error(`${SCENARIO} is already active`);
     }
-    report("Activation → steward", (await Promise.all(activations)).flat(), `1 activation × ${CLIENTS} clients`);
+    report(
+      "Activation → steward",
+      (await Promise.all(activations)).flat(),
+      `1 activation × ${CLIENTS} clients`,
+    );
 
     // Position reports from stewards to operator (all stewards report at once)
     t0 = performance.now();
     const reports = collect(operator, "position-report", CLIENTS, t0);
-    const body = { staff: "", station: STATION, reportedAt: new Date().toISOString() };
-    await Promise.all(stewards.map(() => post("/api/v1/position-reports", stewardToken, body)));
-    report("Position report → operator", await reports, `${CLIENTS} simultaneous reports`);
+    const body = {
+      staff: "",
+      station: STATION,
+      reportedAt: new Date().toISOString(),
+    };
+    await Promise.all(
+      stewards.map(() => post("/api/v1/position-reports", stewardToken, body)),
+    );
+    report(
+      "Position report → operator",
+      await reports,
+      `${CLIENTS} simultaneous reports`,
+    );
 
     console.log(`\nURL ${URL}, run ${new Date().toISOString()}`);
   } finally {
