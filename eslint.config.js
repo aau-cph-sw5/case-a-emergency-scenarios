@@ -43,6 +43,7 @@ export default defineConfig([
     },
   },
   {
+    // TypeScript API server (src/).
     files: ["src/**/*.ts"],
     extends: [
       eslint.configs.recommended,
@@ -58,7 +59,13 @@ export default defineConfig([
     },
   },
   {
-    files: ["{web,mobile}/**/*.{ts,tsx}"],
+    // Frontends (web/, mobile/) and the shared UI and auth code they import.
+    files: [
+      "{web,mobile}/**/*.{ts,tsx}",
+      "shared/auth/**/*.ts",
+      "shared/LoginScreen.tsx",
+      "shared/Theme.tsx",
+    ],
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommended,

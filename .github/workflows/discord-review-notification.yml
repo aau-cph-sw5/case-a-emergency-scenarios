@@ -1,0 +1,610 @@
+name: Discord Review Notifications
+
+on:
+  pull_request_target:
+    types: [opened, review_requested, closed]
+
+permissions:
+  issues: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: discord-review-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  notify-discord:
+    if: >-
+      github.event.action == 'opened' ||
+      github.event.action == 'review_requested' ||
+      github.event.pull_request.merged == true
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Manage Discord notifications
+        uses: actions/github-script@v9
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_USERS: ${{ vars.DISCORD_USERS }}
+
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const action = context.payload.action;
+            const number = pr.number;
+            const runId = String(context.runId);
+            const marker = '<!-- discord-review-state:';
+            const batchMs = 30_000;
+            const webhook = process.env.DISCORD_WEBHOOK;
+
+            if (!webhook) {
+              throw new Error('DISCORD_WEBHOOK secret missing');
+            }
+
+            if (!process.env.DISCORD_USERS) {
+              throw new Error('DISCORD_USERS variable missing');
+            }
+
+            let rawUsers;
+
+            try {
+              rawUsers = JSON.parse(process.env.DISCORD_USERS);
+            } catch {
+              throw new Error('DISCORD_USERS must contain a valid JSON object');
+            }
+
+            if (
+              !rawUsers ||
+              Array.isArray(rawUsers) ||
+              typeof rawUsers !== 'object'
+            ) {
+              throw new Error('DISCORD_USERS must be a JSON object');
+            }
+
+            const users = Object.fromEntries(
+              Object.entries(rawUsers).map(([name, id]) => {
+                if (!/^\d{15,25}$/.test(String(id))) {
+                  throw new Error(
+                    `Invalid Discord user ID mapping for ${name}`
+                  );
+                }
+
+                return [name.toLowerCase(), String(id)];
+              })
+            );
+
+            // Prevent untrusted PR titles from creating mentions.
+            function safeTitle(title) {
+              return String(title)
+                .replace(/@/g, '@\u200b')
+                .replace(/[`*_~|<>]/g, '\\$&');
+            }
+
+            const prText =
+              `**PR #${number} — ${safeTitle(pr.title)}**\n` +
+              `🔗 ${pr.html_url}`;
+
+            // ============================================
+            // GitHub tracking storage
+            // ============================================
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: number,
+                per_page: 100
+              }
+            );
+
+            let stateComment = comments.find(
+              c =>
+                c.user?.login === 'github-actions[bot]' &&
+                c.body?.startsWith(marker)
+            );
+
+            const defaultState = () => ({
+              version: 4,
+              initial: null,
+              notifications: [],
+              merged: false,
+              mergeEdits: {}
+            });
+
+            let state = defaultState();
+
+            if (stateComment) {
+              const firstLine = stateComment.body.split('\n')[0];
+
+              let old;
+
+              try {
+                old = JSON.parse(
+                  firstLine
+                    .slice(marker.length)
+                    .replace(/-->$/, '')
+                    .trim()
+                );
+              } catch {
+                throw new Error(
+                  'Discord tracking comment is corrupt; manual recovery needed'
+                );
+              }
+
+              if (old.version === 4) {
+                state = old;
+              } else if (
+                old.version === 3 ||
+                old.version === 2
+              ) {
+                // Migrate previous tracking state.
+                state.initial = old.initial
+                  ? {
+                      status:
+                        old.initial.status ||
+                        (old.initial.messageId
+                          ? 'sent'
+                          : 'pending'),
+                      runId: old.initial.runId
+                        ? String(old.initial.runId)
+                        : null,
+                      deadline: old.initial.deadline || 0,
+                      reviewers: old.initial.reviewers || [],
+                      messageId: old.initial.messageId || null
+                    }
+                  : null;
+
+                state.notifications = (
+                  old.notifications || []
+                ).map(n => ({
+                  reviewer: String(n.reviewer).toLowerCase(),
+                  runId: n.runId ? String(n.runId) : null,
+                  status:
+                    n.status ||
+                    (n.messageId ? 'sent' : 'pending'),
+                  messageId: n.messageId || null
+                }));
+
+                state.merged = Boolean(old.merged);
+              } else {
+                // Migrate legacy reviewer-to-message storage.
+                for (const [reviewer, ids] of Object.entries(old)) {
+                  for (
+                    const id of (
+                      Array.isArray(ids) ? ids : [ids]
+                    )
+                  ) {
+                    state.notifications.push({
+                      reviewer: reviewer.toLowerCase(),
+                      runId: null,
+                      status: 'sent',
+                      messageId: String(id)
+                    });
+                  }
+                }
+
+                state.initial = {
+                  status: 'sent',
+                  runId: null,
+                  deadline: 0,
+                  reviewers: [],
+                  messageId: null
+                };
+              }
+            }
+
+            state.mergeEdits ||= {};
+            state.notifications ||= [];
+
+            async function saveState() {
+              const body =
+                `${marker}${JSON.stringify(state)} -->\n` +
+                'Discord notification tracking (managed by GitHub Actions).';
+
+              if (stateComment) {
+                const result =
+                  await github.rest.issues.updateComment({
+                    owner,
+                    repo,
+                    comment_id: stateComment.id,
+                    body
+                  });
+
+                stateComment = result.data;
+              } else {
+                const result =
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: number,
+                    body
+                  });
+
+                stateComment = result.data;
+              }
+            }
+
+            // ============================================
+            // Discord API
+            // ============================================
+
+            const webhookUrl = new URL(webhook);
+
+            if (
+              webhookUrl.protocol !== 'https:' ||
+              ![
+                'discord.com',
+                'discordapp.com'
+              ].includes(webhookUrl.hostname) ||
+              !/^\/api\/webhooks\/\d+\/[^/]+\/?$/.test(
+                webhookUrl.pathname
+              )
+            ) {
+              throw new Error(
+                'DISCORD_WEBHOOK must be a Discord HTTPS webhook URL'
+              );
+            }
+
+            webhookUrl.pathname =
+              webhookUrl.pathname.replace(/\/$/, '');
+
+            async function discordRequest(
+              method,
+              suffix,
+              payload
+            ) {
+              const url = new URL(webhookUrl);
+
+              url.pathname += suffix;
+
+              if (method === 'POST') {
+                url.searchParams.set('wait', 'true');
+              }
+
+              const response = await fetch(url, {
+                method,
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(15_000)
+              });
+
+              if (!response.ok) {
+                const details =
+                  (await response.text()).slice(0, 250);
+
+                throw new Error(
+                  `Discord ${response.status}: ${details}`
+                );
+              }
+
+              const body = await response.text();
+
+              return body ? JSON.parse(body) : null;
+            }
+
+            async function sendMessage(content, ids) {
+              const result = await discordRequest(
+                'POST',
+                '',
+                {
+                  content,
+                  allowed_mentions: {
+                    parse: [],
+                    users: [...new Set(ids)]
+                  }
+                }
+              );
+
+              if (!result?.id) {
+                throw new Error(
+                  'Discord did not return a message ID'
+                );
+              }
+
+              return String(result.id);
+            }
+
+            async function currentPr() {
+              const response = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: number
+              });
+
+              return response.data;
+            }
+
+            // ============================================
+            // Initial notification: batch reviewers
+            // ============================================
+
+            async function doInitialBatch() {
+              if (!state.initial) {
+                const run =
+                  await github.rest.actions.getWorkflowRun({
+                    owner,
+                    repo,
+                    run_id: context.runId
+                  });
+
+                state.initial = {
+                  status: 'pending',
+                  runId,
+                  deadline:
+                    new Date(
+                      run.data.created_at
+                    ).getTime() + batchMs,
+                  reviewers: [],
+                  messageId: null
+                };
+
+                await saveState();
+              }
+
+              if (state.initial.status === 'sent') {
+                return;
+              }
+
+              const remaining =
+                state.initial.deadline - Date.now();
+
+              if (remaining > 0) {
+                await new Promise(
+                  resolve => setTimeout(resolve, remaining)
+                );
+              }
+
+              if ((await currentPr()).state !== 'open') {
+                return;
+              }
+
+              const response =
+                await github.rest.pulls.listRequestedReviewers({
+                  owner,
+                  repo,
+                  pull_number: number
+                });
+
+              const reviewers = [
+                ...new Set(
+                  response.data.users
+                    .map(u => u.login.toLowerCase())
+                    .filter(u => users[u])
+                )
+              ];
+
+              state.initial.reviewers = reviewers;
+
+              if (reviewers.length === 0) {
+                state.initial.status = 'sent';
+
+                await saveState();
+
+                console.log(
+                  'Initial batch contains no mapped reviewers'
+                );
+
+                return;
+              }
+
+              const ids = [
+                ...new Set(
+                  reviewers.map(u => users[u])
+                )
+              ];
+
+              const mentions = ids
+                .map(id => `<@${id}>`)
+                .join(' ');
+
+              await saveState();
+
+              const messageId = await sendMessage(
+                `🔔 **Review Requested**\n\n${mentions}\n\n` +
+                `You have been requested to review:\n${prText}`,
+                ids
+              );
+
+              state.initial.messageId = messageId;
+              state.initial.status = 'sent';
+
+              await saveState();
+
+              console.log(
+                `Initial Discord notification: ${messageId}`
+              );
+            }
+
+            // ============================================
+            // Later requests and re-requests
+            // ============================================
+
+            async function sendIndividualRequest() {
+              const reviewer =
+                context.payload.requested_reviewer
+                  ?.login?.toLowerCase();
+
+              if (!reviewer || !users[reviewer]) {
+                return;
+              }
+
+              if (
+                (await currentPr()).state !== 'open' ||
+                state.merged
+              ) {
+                return;
+              }
+
+              // Finish the initial batch before handling
+              // subsequent reviewer requests.
+              if (
+                state.initial?.status === 'pending'
+              ) {
+                await doInitialBatch();
+              }
+
+              const initial = state.initial;
+
+              const run =
+                await github.rest.actions.getWorkflowRun({
+                  owner,
+                  repo,
+                  run_id: context.runId
+                });
+
+              const eventTime = new Date(
+                run.data.created_at
+              ).getTime();
+
+              if (
+                initial?.reviewers?.includes(reviewer) &&
+                eventTime <= initial.deadline
+              ) {
+                return;
+              }
+
+              let record = state.notifications.find(
+                n => n.runId === runId
+              );
+
+              if (record?.status === 'sent') {
+                return;
+              }
+
+              const previous =
+                initial?.reviewers?.includes(reviewer) ||
+                state.notifications.some(
+                  n =>
+                    n.reviewer === reviewer &&
+                    n.status === 'sent'
+                );
+
+              if (!record) {
+                record = {
+                  reviewer,
+                  runId,
+                  status: 'pending',
+                  messageId: null
+                };
+
+                state.notifications.push(record);
+
+                await saveState();
+              }
+
+              const heading = previous
+                ? '🔄 **Review Re-requested**'
+                : '🔔 **New Reviewer Requested**';
+
+              const messageId = await sendMessage(
+                `${heading}\n\n` +
+                `<@${users[reviewer]}> Your review is needed!\n\n` +
+                prText,
+                [users[reviewer]]
+              );
+
+              record.messageId = messageId;
+              record.status = 'sent';
+
+              await saveState();
+
+              console.log(
+                `Reviewer notification: ${messageId}`
+              );
+            }
+
+            // ============================================
+            // Pull request merged
+            // ============================================
+
+            async function updateMergedMessages() {
+              state.merged = true;
+
+              await saveState();
+
+              const ids = [
+                ...new Set(
+                  [
+                    state.initial?.messageId,
+                    ...state.notifications.map(
+                      n => n.messageId
+                    )
+                  ].filter(Boolean)
+                )
+              ];
+
+              const content =
+                `✅ **Pull Request Merged**\n\n` +
+                `${prText}\n\n` +
+                `Review no longer required.`;
+
+              let failed = 0;
+
+              for (const id of ids) {
+                if (state.mergeEdits[id] === true) {
+                  continue;
+                }
+
+                try {
+                  await discordRequest(
+                    'PATCH',
+                    `/messages/${id}`,
+                    {
+                      content,
+                      allowed_mentions: {
+                        parse: []
+                      }
+                    }
+                  );
+
+                  state.mergeEdits[id] = true;
+
+                  await saveState();
+                } catch (error) {
+                  failed++;
+
+                  console.error(
+                    `Unable to update Discord message ${id}: ` +
+                    error.message
+                  );
+                }
+              }
+
+              if (failed) {
+                throw new Error(
+                  `${failed} Discord merge message update(s) failed; ` +
+                  'rerun this job to retry'
+                );
+              }
+
+              console.log(
+                `Merged PR: ${ids.length} Discord message(s) handled`
+              );
+            }
+
+            // ============================================
+            // Event handling
+            // ============================================
+
+            if (
+              action === 'closed' &&
+              pr.merged === true
+            ) {
+              await updateMergedMessages();
+            } else if (action === 'opened') {
+              await doInitialBatch();
+            } else if (action === 'review_requested') {
+              if (!state.initial) {
+                await doInitialBatch();
+              }
+
+              await sendIndividualRequest();
+            }
