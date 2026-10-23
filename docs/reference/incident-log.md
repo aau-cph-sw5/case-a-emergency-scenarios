@@ -8,6 +8,24 @@ The log is the `incident_events` table (`src/db/migrations/V005__create_incident
 All code writes to it through one function, `appendEvent` in
 `src/services/incident-log-service.ts`.
 
+## Append-only
+
+The database itself refuses to change the log. A trigger
+(`src/db/migrations/V007__incident_events_append_only.sql`) rejects `UPDATE`,
+`DELETE` and `TRUNCATE` on `incident_events` with error `23001`
+(`restrict_violation`) and the message "incident_events is append-only". It
+applies to every database user, so a later migration or a direct SQL
+connection can't edit an event either.
+
+A mistaken event is not corrected by editing it. Write a new event that
+records the correction.
+
+The trigger does not stop a superuser or the table owner, who can drop it. It
+also doesn't stop `DROP TABLE` or `DROP SCHEMA`, which is how `npm run db:reset`
+and the test database start from scratch. Tamper-evidence against those users
+needs controls outside the application, such as database permissions on the
+hosted environments.
+
 ## Writing an event
 
 Call `appendEvent` with the transaction that makes the change, the verified
