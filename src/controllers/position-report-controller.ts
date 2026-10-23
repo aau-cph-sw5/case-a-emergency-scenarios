@@ -55,4 +55,3 @@ export async function postPositionReport(request: Request, response: Response) {
   io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
   response.status(202).json({ accepted: true });
 }
-
