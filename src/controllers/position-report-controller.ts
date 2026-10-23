@@ -46,10 +46,13 @@ export async function postPositionReport(request: Request, response: Response) {
   // a phone with a wrong clock cannot reorder reports. Store the report and its
   // event first, so the operators are never told about a report that was lost.
   const now = new Date().toISOString();
+  // The phone's own time, for the event log, before reportedAt is replaced.
+  const clientTime = new Date(request.body.reportedAt);
   const report = { ...request.body, staff: userId, reportedAt: now };
-  await recordPositionReport(response.locals.user, report);
+  await recordPositionReport(response.locals.user, report, clientTime);
 
   const io = request.app.locals.io as Server | undefined;
   io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
   response.status(202).json({ accepted: true });
 }
+
