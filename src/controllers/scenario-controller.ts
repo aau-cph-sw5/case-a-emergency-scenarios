@@ -6,21 +6,23 @@ import {
   ACTIVATION_STATUSES,
   type ActivationStatus,
   activateScenario,
-  findScenario,
   getScenarioState,
   listActivations,
-  listScenarios,
 } from "../repositories/fixture-repository.js";
+import {
+  findScenario,
+  getAllScenarios,
+} from "../repositories/scenario-repository.js";
 
-export function getScenarios(_request: Request, response: Response) {
-  response.json(listScenarios());
+export async function getScenarios(_request: Request, response: Response) {
+  response.json(await getAllScenarios());
 }
 
-export function getScenario(
+export async function getScenario(
   request: Request<{ scenarioId: string }>,
   response: Response,
 ) {
-  const scenario = findScenario(request.params.scenarioId);
+  const scenario = await findScenario(request.params.scenarioId);
   if (scenario === undefined) {
     response.status(404).json({ error: "Scenario not found" });
     return;
@@ -58,7 +60,7 @@ export function getActivations(request: Request, response: Response) {
 
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
 // matrix is #25's; this only keeps stewards out.
-export function activate(
+export async function activate(
   request: Request<{ scenarioId: string }>,
   response: Response,
 ) {
@@ -77,8 +79,8 @@ export function activate(
     return;
   }
 
-  const result = activateScenario(scenarioId, userId);
-  if (result.kind === "not-found") {
+  const scenario = await findScenario(scenarioId);
+  if (scenario === undefined) {
     response
       .status(404)
       .json(
@@ -87,7 +89,11 @@ export function activate(
           `No scenario with id '${scenarioId}' exists`,
         ),
       );
-  } else if (result.kind === "already-active") {
+    return;
+  }
+
+  const result = activateScenario(scenario, userId);
+  if (result.kind === "already-active") {
     response
       .status(409)
       .json(
@@ -103,7 +109,7 @@ export function activate(
       console.warn("Socket.IO not attached; scenario-activated not sent");
     }
     io?.to("STEWARD").emit("scenario-activated", {
-      scenario: findScenario(scenarioId),
+      scenario,
       sentAt: new Date().toISOString(),
     });
     console.log("Scenario activated:", result.activation);

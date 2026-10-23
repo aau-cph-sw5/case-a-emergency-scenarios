@@ -2,9 +2,10 @@ import type { Server, Socket } from "socket.io";
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { verifyToken, type AuthUser } from "../services/auth-service.js";
 import {
-  findScenario,
   latestActivation,
 } from "../repositories/fixture-repository.js";
+
+import { findScenario } from "../repositories/scenario-repository.js";
 
 // Each socket joins the room named after its role, so an event can be sent to
 // one role only: io.to("OPERATOR") or io.to("STEWARD").
@@ -28,7 +29,7 @@ export function authenticateSocket(
 export function attachSocketHandlers(io: Server) {
   io.use(authenticateSocket);
 
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
     const { userId, role } = socket.data.user as AuthUser;
     socket.join(role satisfies RoleRoom);
     console.log("Socket connected:", socket.id, userId, role);
@@ -40,10 +41,18 @@ export function attachSocketHandlers(io: Server) {
 
     const latest = latestActivation();
     if (role === "STEWARD" && latest) {
-      socket.emit("scenario-activated", {
-        scenario: findScenario(latest.scenarioId),
-        sentAt: new Date().toISOString(),
-      });
+      try {
+        const scenario = await findScenario(latest.scenarioId);
+        if (scenario) {
+          socket.emit("scenario-activated", {
+            scenario,
+            sentAt: new Date().toISOString(),
+          });
+        }
+      } catch (error) {
+        console.error("Could not send the latest activation:", error);
+      }
     }
   });
 }
+

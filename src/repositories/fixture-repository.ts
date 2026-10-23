@@ -72,9 +72,7 @@ type StoredActivation = Pick<Activation, "scenarioId"> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
 };
-const activations: StoredActivation[] = [
-  getScenarioState() as StoredActivation,
-];
+const activations: StoredActivation[] = [];
 
 export function listActivations(status?: ActivationStatus) {
   return status === undefined
@@ -95,18 +93,15 @@ export function latestActivation(): StoredActivation | undefined {
 }
 
 export type ActivationResult =
-  | { kind: "ok"; activation: Activation }
-  | { kind: "not-found" }
-  | { kind: "already-active" };
+  { kind: "ok"; activation: Activation } | { kind: "already-active" };
 
 // Several scenarios may be active on one line, so only the same scenario
 // twice is refused (Metro on MET-A-007).
 export function activateScenario(
-  scenarioId: string,
+  scenario: Scenario,
   actor: string,
 ): ActivationResult {
-  const scenario = findScenario(scenarioId);
-  if (scenario === undefined) return { kind: "not-found" };
+  const { scenarioId } = scenario;
   if (activations.some((a) => a.scenarioId === scenarioId)) {
     return { kind: "already-active" };
   }
