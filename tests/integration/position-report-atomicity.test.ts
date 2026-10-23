@@ -45,9 +45,16 @@ function reportsBy(staff: string) {
   `;
 }
 
+type LoggedEvent = {
+  type: string;
+  actorId: string;
+  payload: unknown;
+  clientTime: Date;
+};
+
 function eventsAbout(reportId: string) {
-  return sql<{ type: string; actorId: string; payload: unknown }[]>`
-    SELECT type, actor_id, payload FROM incident_events
+  return sql<LoggedEvent[]>`
+    SELECT type, actor_id, payload, client_time FROM incident_events
     WHERE subject_type = 'position-report' AND subject_id = ${reportId}
   `;
 }
@@ -108,6 +115,10 @@ test("a position report and its event are stored together, with the actor from t
     assert.equal(events[0].actorId, "steward-test");
     // The station stays in the log even if the report row is replaced later.
     assert.deepEqual(events[0].payload, { stationId: "Station C" });
+    assert.equal(
+      events[0].clientTime.toISOString(),
+      "2026-09-23T08:10:00.000Z",
+    );
   } finally {
     // The event stays: the log is append-only.
     await sql`DELETE FROM position_reports WHERE id = ${saved[0].id}`;
@@ -120,7 +131,7 @@ test("rolling back the change writes no event", async () => {
 
   await assert.rejects(
     sql.begin(async (tx) => {
-      const saved = await savePositionReport(tx, steward, report);
+      const saved = await savePositionReport(tx, steward, report, new Date());
       reportId = saved.id;
       // Inside the transaction both rows exist.
       assert.equal(
@@ -150,10 +161,11 @@ test("a failing event write rolls back the change", async () => {
 
   await assert.rejects(
     sql.begin((tx) =>
-      savePositionReport(tx, steward, report, writeInvalidEvent),
+      savePositionReport(tx, steward, report, new Date(), writeInvalidEvent),
     ),
     (error: unknown) => (error as { code?: string }).code === "23514",
   );
 
   assert.equal((await reportsBy(report.staff)).length, 0);
 });
+
