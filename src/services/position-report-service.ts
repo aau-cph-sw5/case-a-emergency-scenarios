@@ -47,4 +47,3 @@ export function recordPositionReport(
     savePositionReport(tx, user, report, clientTime),
   );
 }
-
