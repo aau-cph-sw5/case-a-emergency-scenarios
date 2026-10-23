@@ -12,7 +12,7 @@ import { StewardPositions } from "./components/StewardPositions";
 const selectedScenario = scenarioFixture as Scenario;
 const scenarioState = scenarioStateFixture as ScenarioState;
 
-// The control-room dashboard. The banner opens the socket.
+// The control-room dashboard. App opens the socket.
 export function OperatorDashboard({
   token,
   onLogout,

@@ -52,9 +52,7 @@ export function ActiveScenarioBanner({ token }: { token: string }) {
       }
     }
     const timer = setInterval(load, POLL_MS);
-    socket.auth = { token };
-    socket.connect();
-    // "connect" also fires on a reconnect, which catches up on missed events.
+    // App opens the socket. "connect" also fires on a reconnect, which catches up on missed events.
     socket.on("connect", load);
     socket.on("activations-changed", load);
     load();
@@ -63,7 +61,6 @@ export function ActiveScenarioBanner({ token }: { token: string }) {
       clearInterval(timer);
       socket.off("connect", load);
       socket.off("activations-changed", load);
-      socket.disconnect();
     };
   }, [token]);
 
