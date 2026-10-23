@@ -18,8 +18,9 @@ type ActivationState =
   | { status: "error"; message: string }
   | { status: "done"; state: ScenarioState };
 
-// The selection is held by OperatorDashboard, so the preview (#202) reads the
-// same selected scenario as this list.
+// The list does not keep the selection itself. OperatorDashboard holds it and
+// passes it in, so the scenario preview next to the list shows the same
+// scenario that is selected here.
 export function ScenarioList({
   token,
   selectedId,
@@ -55,8 +56,9 @@ export function ScenarioList({
     return () => controller.abort();
   }, [token]);
 
-  // Loaded separately from the scenarios, so the list still works when the
-  // activations cannot be loaded (#182).
+  // The active scenarios are loaded separately from the scenario list. If
+  // they cannot be loaded, the operator can still find and activate
+  // scenarios, and a message says that active scenarios could not be shown.
   useEffect(() => {
     const controller = new AbortController();
     fetchActiveScenarioIds(token, controller.signal).then(
@@ -97,7 +99,8 @@ export function ScenarioList({
         isScenarioState,
       );
       setActivation({ status: "done", state });
-      // Mark it active at once, without reloading the page (#182).
+      // Mark the scenario active straight away, so the operator sees it
+      // without reloading the page and cannot try to activate it again.
       setActiveIds((ids) => new Set(ids).add(state.scenarioId));
     } catch (error) {
       console.error(error);
@@ -142,8 +145,10 @@ export function ScenarioList({
 
       {activeFailed && <p role="status">Aktive scenarier kunne ikke vises.</p>}
 
-      {/* Opens the existing confirmation for the selected scenario. #202 moves
-          this button to the bottom of the preview. */}
+      {/* Opens the existing confirmation for the selected scenario. It sits
+          under the list for now; it belongs at the bottom of the scenario
+          preview, so the operator sees what a scenario requires before
+          activating it. */}
       <button
         type="button"
         onClick={() => setConfirming(true)}

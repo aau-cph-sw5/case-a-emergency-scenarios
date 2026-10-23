@@ -20,8 +20,10 @@ function isActivationList(data: unknown): data is ActivationSummary[] {
 }
 
 // The ids of the scenarios that are active right now, from
-// GET /api/v1/activations?status=ACTIVE (PR #171). Several scenarios can be
-// active at once, so this is a set of ids rather than a single scenario.
+// GET /api/v1/activations?status=ACTIVE. The scenario list uses them to mark
+// active scenarios and to stop the operator from activating one twice.
+// Several scenarios can be active at once, so this is a set of ids rather
+// than a single scenario.
 export async function fetchActiveScenarioIds(
   token: string,
   signal: AbortSignal,

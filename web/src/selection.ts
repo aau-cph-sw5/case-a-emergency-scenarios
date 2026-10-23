@@ -1,8 +1,9 @@
 import type { ScenarioSummary } from "./scenarios";
 
 // The selection stays until the operator picks another scenario, or the
-// selected one is no longer in the loaded list (#182). Searching only hides
-// scenarios, so it does not count as the scenario disappearing.
+// selected one is no longer in the loaded list, for example after the list is
+// reloaded without it. Searching only hides scenarios, so it does not count as
+// the scenario disappearing.
 export function keepSelection(
   selectedId: string | null,
   scenarios: ScenarioSummary[],
@@ -14,8 +15,8 @@ export function keepSelection(
 }
 
 // The activate button acts on the selected scenario, so it is disabled when
-// nothing is selected, while an activation is already in progress, or when the
-// selected scenario is already active (#182).
+// nothing is selected, while an activation is already in progress (so it
+// cannot be sent twice), or when the selected scenario is already active.
 export function canActivate(
   selectedId: string | null,
   activating: boolean,

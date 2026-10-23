@@ -56,8 +56,8 @@ test("rejects a response that is not a list of activations", async () => {
   );
 });
 
-// Until PR #171 is merged, the server answers 404. The list then still works
-// and says that active scenarios could not be shown.
+// When the activations cannot be loaded, the error is passed on, so the list
+// can still work and say that active scenarios could not be shown.
 test("reports the status when the server answers with an error", async () => {
   await assert.rejects(
     fetchActiveScenarioIds(token, signal, respondWith({}, 404)),

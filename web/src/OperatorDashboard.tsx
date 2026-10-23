@@ -24,8 +24,11 @@ export function OperatorDashboard({
   const { isConnected, messages } = useSocketState(socket);
   // Every position report pushed by the server over the socket, newest first.
   const reports = usePositionReports(socket);
-  // The scenario the operator has selected in the list. Held here so the
-  // preview (#202) can show the same scenario.
+  // The scenario the operator has selected in the list. It is held here, in
+  // the dashboard, rather than inside the list, so that other parts of the
+  // dashboard can use the same selection. The scenario preview, which shows
+  // what the selected scenario requires before it is activated, reads it from
+  // here.
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(
     null,
   );
