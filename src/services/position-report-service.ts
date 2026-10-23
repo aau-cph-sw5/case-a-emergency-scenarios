@@ -15,12 +15,13 @@ type WriteEvent = typeof appendEvent;
 // state-changing action follows: make the change with tx, then appendEvent with
 // the same tx.
 //
-// The actor is the user from the token, not the `staff` field of the report.
-// `staff` says who the report is about, and the client chooses it.
+// The actor is the user from the token. `clientTime` is the phone's own time,
+// which the controller replaces in `report.reportedAt`.
 export async function savePositionReport(
   tx: Db,
   user: AuthUser,
   report: NewPositionReport,
+  clientTime: Date,
   writeEvent: WriteEvent = appendEvent,
 ): Promise<StoredPositionReport> {
   const saved = await insertPositionReport(tx, report);
@@ -31,7 +32,7 @@ export async function savePositionReport(
     subject: { type: "position-report", id: saved.id },
     // Keeps the location in the log even if the report row is later replaced.
     payload: { stationId: report.station },
-    clientTime: new Date(report.reportedAt),
+    clientTime,
   });
 
   return saved;
@@ -40,6 +41,10 @@ export async function savePositionReport(
 export function recordPositionReport(
   user: AuthUser,
   report: NewPositionReport,
+  clientTime: Date,
 ): Promise<StoredPositionReport> {
-  return getDatabase().begin((tx) => savePositionReport(tx, user, report));
+  return getDatabase().begin((tx) =>
+    savePositionReport(tx, user, report, clientTime),
+  );
 }
+
