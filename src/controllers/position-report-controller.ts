@@ -7,6 +7,7 @@ import {
 } from "../../shared/error-codes.js";
 import { activeStations } from "../repositories/fixture-repository.js";
 import type { AuthUser } from "../services/auth-service.js";
+import { recordPositionReport } from "../services/position-report-service.js";
 
 // The response carries the code's fixed message; the details go to the log.
 function refuse(
@@ -21,7 +22,7 @@ function refuse(
 
 /* Refuse emit to the operators if request was not sent by a steward and if the station
 Reported in the postionreport is not part of the active scenario */
-export function postPositionReport(request: Request, response: Response) {
+export async function postPositionReport(request: Request, response: Response) {
   const { userId, role } = response.locals.user as AuthUser;
   const { station } = request.body;
   const stations = activeStations();
@@ -42,12 +43,15 @@ export function postPositionReport(request: Request, response: Response) {
   }
 
   // Accepted: take staff from the token and the time from the server's clock, so
-  // a phone with a wrong clock cannot reorder reports. Forward to the operators.
+  // a phone with a wrong clock cannot reorder reports. Store the report and its
+  // event first, so the operators are never told about a report that was lost.
   const now = new Date().toISOString();
+  // The phone's own time, for the event log, before reportedAt is replaced.
+  const clientTime = new Date(request.body.reportedAt);
   const report = { ...request.body, staff: userId, reportedAt: now };
+  await recordPositionReport(response.locals.user, report, clientTime);
+
   const io = request.app.locals.io as Server | undefined;
   io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
-
-  console.log("Position report received:", report);
   response.status(202).json({ accepted: true });
 }

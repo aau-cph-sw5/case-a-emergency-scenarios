@@ -132,6 +132,11 @@ Render supplies `PORT` automatically. The staging service should deploy the
 `staging` branch and the production service should deploy `main`. The deployed
 web client connects to Socket.IO on its own origin automatically.
 
+Set `DATABASE_URL` on each service to the connection string of that
+environment's own database, the one the migrations below are applied to. Routes
+that use the database fail without it; `POST /api/v1/position-reports` is the
+first.
+
 For Expo to use a hosted environment, set the matching URL in the local root
 `.env` before starting or building the mobile app:
 
