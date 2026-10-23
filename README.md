@@ -79,6 +79,11 @@ Render provides `PORT`; do not set it manually. Visit the relevant Render URL
 to use the browser-based web client. The deployed web client connects to
 Socket.IO on that same origin, so it needs no deployment-specific URL variable.
 
+Set `DATABASE_URL` on each service to the connection string of that
+environment's own database, the one the Database migrations workflow migrates.
+Routes that use the database fail without it; `POST /api/v1/position-reports`
+is the first.
+
 For Expo to connect to a hosted environment, set `API_URL` in the repository
 root `.env` before starting or building the mobile app, then restart Expo:
 

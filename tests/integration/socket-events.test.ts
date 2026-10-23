@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { Server } from "socket.io";
 import { io as connect, type Socket } from "socket.io-client";
 import { app } from "../../src/app.js";
+import { getDatabase } from "../../src/db/client.js";
 import { attachSocketHandlers } from "../../src/realtime/socket-server.js";
 
 let server: HttpServer;
@@ -27,6 +28,8 @@ after(async () => {
   const io = app.locals.io as Server;
   delete app.locals.io;
   await new Promise<void>((resolve) => io.close(() => resolve()));
+  // A position report is stored in the database, so the pool is open by now.
+  await getDatabase().end();
 });
 
 async function login(username: string, password: string) {

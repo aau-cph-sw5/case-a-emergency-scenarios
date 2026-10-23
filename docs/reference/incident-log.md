@@ -77,6 +77,7 @@ version.
 
 | Type | Version | Subject | Payload | Written by |
 |---|---|---|---|---|
+| `POSITION_REPORTED` | 1 | `position-report` | `stationId` | `savePositionReport` in `src/services/position-report-service.ts`, the worked example of `appendEvent` inside a transaction |
 
 ## Payload rules
 

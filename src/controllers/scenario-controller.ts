@@ -3,9 +3,12 @@ import type { Request, Response } from "express";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 
 import {
+  ACTIVATION_STATUSES,
+  type ActivationStatus,
   activateScenario,
   findScenario,
   getScenarioState,
+  listActivations,
   listScenarios,
 } from "../repositories/fixture-repository.js";
 
@@ -27,6 +30,30 @@ export function getScenario(
 
 export function getCurrentScenarioState(_request: Request, response: Response) {
   response.json(getScenarioState());
+}
+
+export function getActivations(request: Request, response: Response) {
+  const { status } = request.query;
+  if (status === undefined) {
+    response.json(listActivations());
+    return;
+  }
+  // A repeated or unknown status is refused, not silently treated as no filter.
+  if (
+    typeof status !== "string" ||
+    !ACTIVATION_STATUSES.includes(status as ActivationStatus)
+  ) {
+    response
+      .status(400)
+      .json(
+        errorBody(
+          ERROR_CODES.INVALID_REQUEST,
+          `status must be one of ${ACTIVATION_STATUSES.join(", ")}`,
+        ),
+      );
+    return;
+  }
+  response.json(listActivations(status as ActivationStatus));
 }
 
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
