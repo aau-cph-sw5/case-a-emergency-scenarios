@@ -7,6 +7,7 @@ import {
   appendEvent,
   type NewIncidentEvent,
 } from "../../src/services/incident-log-service.js";
+import { anEvent, inRolledBackTransaction } from "./helpers.js";
 
 const sql = getDatabase();
 const operator: AuthUser = { userId: "operator-test", role: "OPERATOR" };
@@ -15,32 +16,6 @@ const operator: AuthUser = { userId: "operator-test", role: "OPERATOR" };
 const RESTRICT_VIOLATION = "23001";
 
 after(() => sql.end());
-
-class Rollback extends Error {}
-
-// Every test runs in a transaction that is rolled back. The log is append-only,
-// so a committed test event could never be removed again.
-async function inRolledBackTransaction(run: (tx: Db) => Promise<void>) {
-  try {
-    await sql.begin(async (tx) => {
-      await run(tx);
-      throw new Rollback();
-    });
-  } catch (error) {
-    if (!(error instanceof Rollback)) throw error;
-  }
-}
-
-function anEvent(): NewIncidentEvent {
-  return {
-    type: "SCENARIO_ACTIVATED",
-    schemaVersion: 1,
-    subject: { type: "activation", id: "ACT-TEST-1" },
-    activationId: "ACT-TEST-1",
-    line: "M1",
-    payload: { scenarioId: "DEMO-001" },
-  };
-}
 
 // The failing statement runs in a savepoint, so the transaction survives it and
 // the test can check that the row is unchanged afterwards.

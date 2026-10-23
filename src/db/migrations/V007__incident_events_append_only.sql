@@ -4,8 +4,8 @@
 --
 -- A trigger is used instead of revoking privileges, because it holds for
 -- whichever database user connects. It does not hold against a superuser or
--- the table owner, who can drop the trigger. Dropping the table or schema
--- (db:reset, Flyway clean) is not blocked either.
+-- the table owner, who can drop or disable the trigger. Dropping the table or
+-- schema is not blocked either (Flyway clean on the test database).
 
 CREATE FUNCTION reject_incident_event_change() RETURNS trigger
 LANGUAGE plpgsql AS $$
