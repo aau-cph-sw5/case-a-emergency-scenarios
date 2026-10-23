@@ -168,4 +168,3 @@ test("a failing event write rolls back the change", async () => {
 
   assert.equal((await reportsBy(report.staff)).length, 0);
 });
-
