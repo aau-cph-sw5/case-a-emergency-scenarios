@@ -1,8 +1,15 @@
+import ScenarioStationList from "../../shared/components/stationView";
 import { useEffect, useRef, useState } from "react";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
 import { isScenarioState, type ScenarioState } from "./scenario-state";
-import { fetchScenarios, type ScenarioSummary } from "./scenarios";
+import {
+  fetchScenario,
+  fetchScenarios,
+  type ScenarioSummary,
+} from "./scenarios";
+
+import type { Scenario } from "../../shared/types/v1/scenario";
 
 type LoadState =
   | { status: "loading" }
@@ -15,10 +22,20 @@ type ActivationState =
   | { status: "error"; message: string }
   | { status: "done"; state: ScenarioState };
 
+type PreviewState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "done"; scenario: Scenario };
+
 export function ScenarioList({ token }: { token: string }) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ScenarioSummary | null>(null);
+  const [preview, setPreview] = useState<PreviewState>({
+    status: "idle",
+  });
+  const [confirming, setConfirming] = useState(false);
   const [activation, setActivation] = useState<ActivationState>({
     status: "idle",
   });
@@ -35,6 +52,32 @@ export function ScenarioList({ token }: { token: string }) {
     );
     return () => controller.abort();
   }, [token]);
+
+  useEffect(() => {
+    if (!selected) {
+      setPreview({ status: "idle" });
+      return;
+    }
+
+    const controller = new AbortController();
+    setPreview({ status: "loading" });
+
+    fetchScenario(token, selected.scenarioId, controller.signal).then(
+      (scenario) => {
+        if (controller.signal.aborted) return;
+
+        setPreview({ status: "done", scenario });
+      },
+      (error: unknown) => {
+        if (controller.signal.aborted) return;
+
+        console.error(error);
+        setPreview({ status: "error", message: userMessage(error) });
+      },
+    );
+
+    return () => controller.abort();
+  }, [selected, token]);
 
   async function activate(scenario: ScenarioSummary) {
     setSelected(null);
@@ -80,18 +123,58 @@ export function ScenarioList({ token }: { token: string }) {
           <ScenarioResults
             scenarios={filterScenarios(state.scenarios, query)}
             query={query}
-            onSelect={setSelected}
+            onSelect={(scenario) => {
+              setConfirming(false);
+              setSelected(scenario);
+            }}
             disabled={activation.status === "activating"}
           />
         ))}
 
-      {selected && (
-        <ConfirmActivation
-          scenario={selected}
-          onConfirm={() => activate(selected)}
-          onCancel={() => setSelected(null)}
-        />
-      )}
+      <section aria-labelledby="scenario-preview-heading">
+        <h2 id="scenario-preview-heading">Scenarie forhåndsvisning</h2>
+
+        {!selected && (
+          <p role="status">Vælg et scenarie for at se bemandingsbehov.</p>
+        )}
+
+        {selected && preview.status === "loading" && (
+          <p role="status">Henter scenarie…</p>
+        )}
+
+        {selected && preview.status === "error" && (
+          <p role="alert">Kunne ikke hente scenariet: {preview.message}</p>
+        )}
+
+        {selected &&
+          preview.status === "done" &&
+          preview.scenario.scenarioId === selected.scenarioId && (
+            <>
+              <h3>{preview.scenario.name}</h3>
+
+              <ScenarioStationList
+                scenario={preview.scenario}
+                mode="needed-only"
+              />
+              <button type="button" onClick={() => setConfirming(true)}>
+                Aktivér scenarie
+              </button>
+            </>
+          )}
+      </section>
+      {confirming &&
+        selected &&
+        preview.status === "done" &&
+        preview.scenario.scenarioId === selected.scenarioId && (
+          <ConfirmActivation
+            scenario={preview.scenario}
+            onConfirm={() => {
+              setConfirming(false);
+              activate(preview.scenario);
+            }}
+            onCancel={() => setConfirming(false)}
+          />
+        )}
 
       <ActivationStatus activation={activation} />
     </section>
