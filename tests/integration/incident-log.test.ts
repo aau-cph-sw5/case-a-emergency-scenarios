@@ -5,46 +5,19 @@ import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import express from "express";
-import { getDatabase, type Db } from "../../src/db/client.js";
+import { getDatabase } from "../../src/db/client.js";
 import { requireAuth } from "../../src/middleware/require-auth.js";
 import { login, type AuthUser } from "../../src/services/auth-service.js";
 import {
   appendEvent,
   listIncidentEvents,
-  type NewIncidentEvent,
 } from "../../src/services/incident-log-service.js";
+import { anEvent, inRolledBackTransaction } from "./helpers.js";
 
 const sql = getDatabase();
 const operator: AuthUser = { userId: "operator-test", role: "OPERATOR" };
 
 after(() => sql.end());
-
-class Rollback extends Error {}
-
-// Every test runs in a transaction that is rolled back, so the tests leave no
-// rows behind.
-async function inRolledBackTransaction(run: (tx: Db) => Promise<void>) {
-  try {
-    await sql.begin(async (tx) => {
-      await run(tx);
-      throw new Rollback();
-    });
-  } catch (error) {
-    if (!(error instanceof Rollback)) throw error;
-  }
-}
-
-function anEvent(overrides: Partial<NewIncidentEvent> = {}): NewIncidentEvent {
-  return {
-    type: "SCENARIO_ACTIVATED",
-    schemaVersion: 1,
-    subject: { type: "activation", id: "ACT-TEST-1" },
-    activationId: "ACT-TEST-1",
-    line: "M1",
-    payload: { scenarioId: "DEMO-001", some_key: 1 },
-    ...overrides,
-  };
-}
 
 test("an event is stored with the actor from the user and the server's time", () =>
   inRolledBackTransaction(async (tx) => {
