@@ -41,6 +41,33 @@ afterEach(() => {
 });
 
 describe("useSession", () => {
+  it("keeps a valid session signed in when renewal fails", async () => {
+    const oldSession = session("old-token", 1);
+    const store: SessionStore = {
+      load: jest.fn(async () => oldSession),
+      save: jest.fn(async () => undefined),
+      clear: jest.fn(async () => undefined),
+    };
+    const fetchMock = jest
+      .spyOn(global, "fetch")
+      .mockImplementation(async (input) => {
+        if (String(input).endsWith("/api/v1/me")) {
+          return response(200, { userId: 1, role: "STEWARD" });
+        }
+
+        throw new Error("renewal timed out");
+      });
+
+    render(<SessionProbe store={store} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("signed-in:old-token")).toBeTruthy();
+    });
+
+    expect(store.clear).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps a renewed session in memory when saving it fails", async () => {
     const oldSession = session("old-token", 1);
     const renewedSession = session("renewed-token", 30);

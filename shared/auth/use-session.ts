@@ -5,6 +5,7 @@ import {
   isRenewalDue,
   renewSession,
   logout as revokeSession,
+  type RenewalResult,
   type Session,
 } from "./session";
 
@@ -57,62 +58,71 @@ export function useSession({
         return;
       }
 
-      try {
-        const currentUser = await getCurrentUser(
-          apiBaseUrl,
-          storedSession.token,
-        );
+      let currentUser;
 
-        if (!currentUser || currentUser.role !== allowedRole) {
+      try {
+        currentUser = await getCurrentUser(apiBaseUrl, storedSession.token);
+      } catch {
+        // Keep the locally stored token while the API is unreachable.
+        setState({ status: "unavailable", session: storedSession });
+        return;
+      }
+
+      if (!currentUser || currentUser.role !== allowedRole) {
+        try {
+          await store.clear();
+        } catch {
+          // The token is rejected locally.
+        }
+
+        setState({ status: "signed-out" });
+        return;
+      }
+
+      let session: Session = {
+        ...storedSession,
+        role: currentUser.role,
+      };
+
+      if (isRenewalDue(session)) {
+        let renewal: RenewalResult;
+
+        try {
+          renewal = await renewSession(apiBaseUrl, session.token);
+        } catch {
+          // /me accepted this token. A renewal failure is temporary, so retain
+          // it and retry when the app next restores its session.
+          setState({ status: "signed-in", session });
+          return;
+        }
+
+        if (
+          renewal.kind === "invalid" ||
+          (renewal.kind === "renewed" && renewal.session.role !== allowedRole)
+        ) {
           try {
             await store.clear();
           } catch {
-            // The token is rejected locally.
+            // The token is still rejected locally.
           }
 
           setState({ status: "signed-out" });
           return;
         }
 
-        let session: Session = {
-          ...storedSession,
-          role: currentUser.role,
-        };
+        if (renewal.kind === "renewed") {
+          session = renewal.session;
 
-        if (isRenewalDue(session)) {
-          const renewal = await renewSession(apiBaseUrl, session.token);
-
-          if (
-            renewal.kind === "invalid" ||
-            (renewal.kind === "renewed" && renewal.session.role !== allowedRole)
-          ) {
-            try {
-              await store.clear();
-            } catch {
-              // The token is still rejected locally.
-            }
-
-            setState({ status: "signed-out" });
+          try {
+            await store.save(session);
+          } catch {
+            setState({ status: "signed-in", session });
             return;
           }
-
-          if (renewal.kind === "renewed") {
-            session = renewal.session;
-
-            try {
-              await store.save(session);
-            } catch {
-              setState({ status: "signed-in", session });
-              return;
-            }
-          }
         }
-
-        setState({ status: "signed-in", session });
-      } catch {
-        // Keep the locally stored token while the API is unreachable.
-        setState({ status: "unavailable", session: storedSession });
       }
+
+      setState({ status: "signed-in", session });
     })();
 
     restoreInFlightRef.current = operation;
