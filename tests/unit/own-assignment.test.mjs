@@ -29,3 +29,23 @@ test("returns undefined without a user id, even if a deployment has no staff", (
 test("returns undefined when there are no deployments", () => {
   assert.equal(findOwnAssignment([], "steward-test"), undefined);
 });
+
+// Since #193 the userId is a numeric database id, while staff is text.
+test("matches a numeric user id against staff written as text", () => {
+  const withNumericIds = [
+    { status: "MANNED", staff: "2", fulfills: "FOR" },
+    { status: "PENDING", staff: "1", fulfills: "KN" },
+  ];
+  assert.equal(findOwnAssignment(withNumericIds, 1)?.fulfills, "KN");
+});
+
+test("matches when staff arrives as a number", () => {
+  const withNumberStaff = [{ status: "PENDING", staff: 1, fulfills: "KN" }];
+  assert.equal(findOwnAssignment(withNumberStaff, "1")?.fulfills, "KN");
+  assert.equal(findOwnAssignment(withNumberStaff, 2), undefined);
+});
+
+test("does not match 0 against a deployment without staff", () => {
+  const unmanned = [{ status: "UNMANNED", staff: null, fulfills: "KGN" }];
+  assert.equal(findOwnAssignment(unmanned, 0), undefined);
+});

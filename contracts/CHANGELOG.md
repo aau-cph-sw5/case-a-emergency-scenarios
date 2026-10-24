@@ -4,7 +4,7 @@
 
 Documents what `deployments[].staff` holds (no change to the shape).
 
-- `staff` is the `userId` of the assigned steward, the same id `GET /api/v1/me` and the login token return. The steward app matches it against the logged-in user to highlight the steward's own assignment (MET-A-010, issue #158). A client that showed `staff` as a display name should look the name up instead.
+- `staff` is the `userId` of the steward who reported to the station, the same id `GET /api/v1/me` and the login token return, written as text (for example `"1"`), as the server already does for position reports. The steward app matches it against the logged-in user to highlight the steward's own assignment (MET-A-010, issue #158). A client that showed `staff` as a display name should look the name up instead.
 
 ## 3.1.0 - 2026-10-15
 

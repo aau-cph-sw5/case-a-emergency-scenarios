@@ -52,7 +52,7 @@
           },
           "staff": {
             "type": ["string", "null"],
-            "description": "The userId of the assigned steward, the same id GET /api/v1/me and the login token return. Null when nobody is assigned."
+            "description": "The userId of the steward who reported to this station, the same id GET /api/v1/me and the login token return, written as text (for example \"1\"). Null when nobody has reported."
           },
           "fulfills": {
             "type": "string"
