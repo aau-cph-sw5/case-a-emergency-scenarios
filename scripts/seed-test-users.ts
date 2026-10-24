@@ -6,13 +6,13 @@ const SALT_ROUNDS = 10;
 
 const users = [
   {
-    username: "steward-test",
-    password: "steward-test-pw",
+    username: "steward",
+    password: "steward123",
     role: "STEWARD",
   },
   {
-    username: "operator-test",
-    password: "operator-test-pw",
+    username: "operator",
+    password: "operator123",
     role: "OPERATOR",
   },
 ] as const;

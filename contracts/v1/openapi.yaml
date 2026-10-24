@@ -220,6 +220,7 @@ paths:
             example:
               username: "steward-test"
               password: "steward-test-pw"
+              expectedRole: "STEWARD"
       responses:
         "200":
           description: Login successful
@@ -238,7 +239,7 @@ paths:
                   code: "E0006"
                   message: "Request body does not match contract schema"
         "401":
-          description: Invalid username or password
+          description: Invalid credentials or account role for this client
           content:
             application/json:
               schema:
