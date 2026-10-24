@@ -18,8 +18,9 @@ function requireJwtSecret(): string {
 
 const JWT_SECRET = requireJwtSecret();
 
-// Token expiry time
-const TOKEN_TTL = "30d";
+const TOKEN_TTL_DAYS = 30;
+const TOKEN_TTL: `${number}d` = `${TOKEN_TTL_DAYS}d`;
+const TOKEN_TTL_MS = TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
 
 export type AuthSessionResponse = {
   token: string;
@@ -161,9 +162,13 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
 
   if (!session) return null;
 
+  const user = await userRepository.getUserById(payload.userId);
+
+  if (!user || !isRole(user.role)) return null;
+
   return {
-    userId: payload.userId,
-    role: payload.role,
+    userId: user.id,
+    role: user.role,
     jti: payload.jti,
   };
 }
@@ -189,7 +194,7 @@ export async function renew(user: AuthUser): Promise<RenewalResult> {
 
   if (remainingMs > RENEWAL_WINDOW_MS) return { kind: "not-due" };
 
-  const renewedExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const renewedExpiresAt = new Date(Date.now() + TOKEN_TTL_MS);
   const extended = await authSessionRepository.extendDueSession(
     user.userId,
     user.jti,

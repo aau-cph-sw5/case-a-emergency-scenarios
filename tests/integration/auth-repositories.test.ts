@@ -88,6 +88,30 @@ test("extends a due session only when its JTI still matches", async () => {
   assert.equal(staleReplacement, null);
 });
 
+test("renewing a session preserves its creation time", async () => {
+  const jti = randomUUID();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  const renewedExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const createdAt = new Date("2026-01-01T12:00:00.000Z");
+  const sql = getDatabase();
+
+  await authSessionRepository.startSession(user.id, jti, expiresAt);
+  await sql`
+    UPDATE auth_sessions
+    SET created_at = ${createdAt}
+    WHERE user_id = ${user.id}
+  `;
+  await authSessionRepository.extendDueSession(user.id, jti, renewedExpiresAt);
+
+  const [session] = await sql<{ createdAt: Date }[]>`
+    SELECT created_at AS "createdAt"
+    FROM auth_sessions
+    WHERE user_id = ${user.id}
+  `;
+
+  assert.equal(session.createdAt.getTime(), createdAt.getTime());
+});
+
 test("does not return a revoked session as active", async () => {
   const jti = randomUUID();
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000);

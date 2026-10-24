@@ -40,9 +40,7 @@ async function extendDueSession(
   const sql = getDatabase();
   const result = await sql<AuthSession[]>`
     UPDATE auth_sessions
-    SET
-      expires_at = ${expiresAt},
-      created_at = CURRENT_TIMESTAMP
+    SET expires_at = ${expiresAt}
     WHERE user_id = ${userId}
       AND jti = ${jti}
       AND revoked_at IS NULL

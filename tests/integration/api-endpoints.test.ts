@@ -9,6 +9,7 @@ import { app } from "../../src/app.js";
 import { postRenew } from "../../src/controllers/auth-controller.js";
 import { getDatabase } from "../../src/db/client.js";
 import { authSessionRepository } from "../../src/repositories/auth-session-repository.js";
+import { renew } from "../../src/services/auth-service.js";
 import { validate } from "../../src/validation/contract-validator.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
 
@@ -174,6 +175,31 @@ test("GET /api/v1/me returns the signed-in user", async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(validate(body, "me.schema.json"), []);
   assert.deepEqual(body, { userId: stewardId, role: "STEWARD" });
+});
+
+test("protected requests use the user's current database role", async () => {
+  const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const headers = { Authorization: `Bearer ${session.token}` };
+  const sql = getDatabase();
+
+  await sql`UPDATE users SET role = 'STEWARD' WHERE id = ${operatorId}`;
+
+  try {
+    const me = await fetch(`${baseUrl}/api/v1/me`, { headers });
+    const activation = await postJson(
+      "/api/v1/scenarios/DEMO-002/activate",
+      {},
+      headers,
+    );
+
+    assert.deepEqual(await me.json(), {
+      userId: operatorId,
+      role: "STEWARD",
+    });
+    assert.equal(activation.status, 403);
+  } finally {
+    await sql`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
+  }
 });
 
 test("POST /api/v1/auth/logout revokes the current session", async () => {
@@ -343,6 +369,89 @@ test("postRenew returns not due when another request wins the renewal race", asy
 
   assert.equal(statusCode, 204);
   assert.equal(body, undefined);
+});
+
+test("renew returns the current session when another request renewed it", async () => {
+  const dueSession = {
+    userId: operatorId,
+    jti: "renewed-by-another-request",
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    revokedAt: null,
+  };
+  const currentSession = {
+    ...dueSession,
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  };
+  let calls = 0;
+  const findActiveSession = mock.method(
+    authSessionRepository,
+    "findActiveSession",
+    async () => {
+      calls += 1;
+      return calls === 1 ? dueSession : currentSession;
+    },
+  );
+  const extendDueSession = mock.method(
+    authSessionRepository,
+    "extendDueSession",
+    async () => null,
+  );
+
+  try {
+    const result = await renew({
+      userId: operatorId,
+      role: "OPERATOR",
+      jti: dueSession.jti,
+    });
+
+    assert.equal(result.kind, "renewed");
+    if (result.kind === "renewed") {
+      assert.equal(
+        result.session.expiresAt,
+        currentSession.expiresAt.toISOString(),
+      );
+    }
+  } finally {
+    findActiveSession.mock.restore();
+    extendDueSession.mock.restore();
+  }
+});
+
+test("renew rejects a session that disappears during renewal", async () => {
+  const dueSession = {
+    userId: operatorId,
+    jti: "removed-during-renewal",
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    revokedAt: null,
+  };
+  let calls = 0;
+  const findActiveSession = mock.method(
+    authSessionRepository,
+    "findActiveSession",
+    async () => {
+      calls += 1;
+      return calls === 1 ? dueSession : null;
+    },
+  );
+  const extendDueSession = mock.method(
+    authSessionRepository,
+    "extendDueSession",
+    async () => null,
+  );
+
+  try {
+    assert.deepEqual(
+      await renew({
+        userId: operatorId,
+        role: "OPERATOR",
+        jti: dueSession.jti,
+      }),
+      { kind: "invalid" },
+    );
+  } finally {
+    findActiveSession.mock.restore();
+    extendDueSession.mock.restore();
+  }
 });
 
 test("POST /api/v1/auth/renew uses the account's current role", async () => {
