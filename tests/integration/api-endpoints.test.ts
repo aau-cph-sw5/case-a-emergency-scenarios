@@ -177,6 +177,20 @@ test("GET /api/v1/me returns the signed-in user", async () => {
   assert.deepEqual(body, { userId: stewardId, role: "STEWARD" });
 });
 
+test("GET /api/v1/me rejects a signed token with an invalid payload", async () => {
+  const token = jwt.sign(
+    { userId: "not-a-number", role: "OPERATOR", jti: "test-jti" },
+    process.env.JWT_SECRET!,
+  );
+
+  const response = await fetch(`${baseUrl}/api/v1/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error.code, "E0001");
+});
+
 test("protected requests use the user's current database role", async () => {
   const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
   const headers = { Authorization: `Bearer ${session.token}` };
