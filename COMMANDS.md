@@ -133,9 +133,10 @@ Render supplies `PORT` automatically. The staging service should deploy the
 web client connects to Socket.IO on its own origin automatically.
 
 Set `DATABASE_URL` on each service to the connection string of that
-environment's own database, the one the migrations below are applied to. Routes
-that use the database fail without it; `POST /api/v1/position-reports` is the
-first.
+environment's own database, the one the migrations below are applied to, but
+with the `metro_app` user, not the owner that Flyway uses. See
+[Database roles](#database-roles). Routes that use the database fail without
+it; `POST /api/v1/position-reports` is the first.
 
 For Expo to use a hosted environment, set the matching URL in the local root
 `.env` before starting or building the mobile app:
@@ -181,7 +182,8 @@ npm run db:reset -- --yes
 
 The container uses the `POSTGRES_PASSWORD` and `POSTGRES_PORT` values from
 your local `.env`. `DATABASE_URL` is also read from that local file when a Node
-API route accesses the database. Integration tests use a separate local
+API route accesses the database, as the `metro_app` user (see
+[Database roles](#database-roles)). Integration tests use a separate local
 database and never write to this one.
 
 Seed local users for database-backed authentication after applying migrations:
@@ -199,6 +201,56 @@ credentials outside local development.
 GitHub Actions runs Flyway automatically when a commit reaches `staging` or
 `main`. The job selects the existing GitHub environment named `StagingEnv` for
 the staging branch and `ProductionEnv` for the main branch.
+
+## Database roles
+
+Two database users connect. Flyway, the seed scripts and the test fixtures use
+the **owner** (`FLYWAY_USER` on the hosted environments, `metro` locally). The
+application uses **`metro_app`** through `DATABASE_URL`. `metro_app` can read and
+append to the incident log but can't change it, drop its triggers, or change the
+schema. What it may do with each table is in `docs/reference/incident-log.md`.
+
+Migration `V008` creates `metro_app` without a password or login, and grants it
+its privileges. Making it usable is a one-off step per environment, because a
+password can't be committed.
+
+Locally nothing is needed on a new database: `docker/db-init/` creates
+`metro_app` with the password `metro_app` the first time the container starts.
+`DATABASE_URL` in `.env.example` points at it. A local database created before
+this change has no login for the role. Either rebuild it with
+`npm run db:reset`, or keep your data and run:
+
+```bash
+docker compose exec db psql -U metro -d metro -c "ALTER ROLE metro_app LOGIN PASSWORD 'metro_app'"
+```
+
+Then change `DATABASE_URL` in your `.env` to
+`postgresql://metro_app:metro_app@localhost:5432/metro`.
+
+On staging, and then production, someone with owner access to the database does
+this once, and then points the Render service at the new user:
+
+1. Before the migration runs, or after it (the migration creates the role if it
+   is missing and the owner may create roles), set a login and a generated
+   password:
+
+   ```sql
+   -- Run as the owner, e.g. with psql. Use a generated password, not this one.
+   CREATE ROLE metro_app LOGIN PASSWORD '<generated>';     -- if it does not exist yet
+   ALTER ROLE metro_app LOGIN PASSWORD '<generated>';      -- if V008 already created it
+   ```
+
+2. Set `DATABASE_URL` on the Render service to the same database with
+   `metro_app` and that password. Redeploy.
+3. Leave `FLYWAY_URL`, `FLYWAY_USER` and `FLYWAY_PASSWORD` in `StagingEnv` and
+   `ProductionEnv` as they are.
+4. Check that it holds: connect as `metro_app` and run
+   `UPDATE incident_events SET type = type;`. It must fail with
+   `permission denied for table incident_events`.
+
+If the hosted Postgres doesn't let the owner create roles, the V008 migration
+fails with a message saying so. Create the role first, as in step 1, and
+re-run the migration.
 
 ## Fixture-backed stub API
 
@@ -249,7 +301,8 @@ npm run test:integration
 ```
 
 Integration tests start, reset and migrate their own disposable `metro_test`
-database automatically. They do not write to the local development database.
+database automatically. They migrate as the owner and connect as `metro_app`,
+like the hosted application. They do not write to the local development database.
 Use `npm run db:test:down` afterwards if you want to stop its container.
 
 Tests live in `tests/unit/`, `tests/jest/` and `tests/integration/`. GitHub Actions runs them as
