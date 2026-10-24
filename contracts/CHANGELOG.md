@@ -1,5 +1,20 @@
 # Scenario State Contract Changelog
 
+## 4.0.0 - 2026-10-21
+
+Breaking.
+
+- `GET /api/v1/me` now returns `userId` as an integer database identifier, where it previously returned a string username. Clients must update any parsing, storage, or comparisons of this field.
+
+Also includes the additive activation and position-report changes that were prepared as 3.3.0 and 3.2.0:
+
+Adds the activations list (additive, no breaking change).
+
+Includes:
+
+- `GET /api/v1/activations`, which requires a bearer token and returns an array of `scenario-state` objects. The optional `status` query parameter is `ACTIVE` or `CLOSED`; any other value, or a repeated `status`, answers 400 with error code `E0005`
+- `info.version` in `openapi.yaml` is now 4.0.0
+
 ## 3.2.0 - 2026-10-20
 
 `POST /api/v1/position-reports` documents its 403 (`E0002`, not a steward) and 409 (`E1001` no active scenario, `E1004` station not in an active scenario) responses. The server takes `staff` from the token and sets `reportedAt` to the time it accepted the report, ignoring the client's clock. Accepted reports go to connected operators only, and the Socket.IO connection needs the bearer token in `auth.token`.

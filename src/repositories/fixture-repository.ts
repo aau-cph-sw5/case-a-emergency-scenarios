@@ -62,12 +62,22 @@ type Activation = {
 
 // In-memory until the database is populated, so activations reset when the
 // server restarts. Seeded with the fixture's activation, like the stub.
+export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
+export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
+
 type StoredActivation = Pick<Activation, "scenarioId"> & {
+  status: ActivationStatus;
   deployments: { fulfills: string }[];
 };
 const activations: StoredActivation[] = [
   getScenarioState() as StoredActivation,
 ];
+
+export function listActivations(status?: ActivationStatus) {
+  return status === undefined
+    ? [...activations]
+    : activations.filter((a) => a.status === status);
+}
 
 // The stations that require manning in an active scenario.
 export function activeStations(): Set<string> {

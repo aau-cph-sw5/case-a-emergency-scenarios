@@ -8,6 +8,35 @@ The log is the `incident_events` table (`src/db/migrations/V005__create_incident
 All code writes to it through one function, `appendEvent` in
 `src/services/incident-log-service.ts`.
 
+## Append-only
+
+The database itself refuses to change the log. A trigger
+(`src/db/migrations/V007__incident_events_append_only.sql`) rejects `UPDATE`,
+`DELETE` and `TRUNCATE` on `incident_events` with error `23001`
+(`restrict_violation`) and the message "incident_events is append-only". The
+application, a script and a direct SQL connection all hit it, whichever
+database user they connect as.
+
+A mistaken event is not corrected by editing it. Write a new event that
+records the correction.
+
+The trigger is a safeguard, not tamper-proofing. The table owner and
+superusers can get around it:
+
+- `DROP TRIGGER` or `ALTER TABLE incident_events DISABLE TRIGGER ...`, which a
+  later migration can do too, because Flyway connects as the owner. A
+  migration that touches the trigger needs a careful review.
+- `SET session_replication_role = replica` (superuser), which switches
+  triggers off for the session.
+- `ALTER TABLE ... ALTER COLUMN ... TYPE` and similar statements that rewrite
+  the table, which don't fire row-level triggers.
+- `DROP TABLE` and `DROP SCHEMA`. `npm run db:test:reset` relies on this
+  (Flyway `clean`), and `npm run db:reset` deletes the local Docker volume.
+
+Real tamper-evidence against those users needs controls outside the
+application, such as restricting who may connect as the owner on the hosted
+environments.
+
 ## Writing an event
 
 Call `appendEvent` with the transaction that makes the change, the verified
@@ -77,6 +106,7 @@ version.
 
 | Type | Version | Subject | Payload | Written by |
 |---|---|---|---|---|
+| `POSITION_REPORTED` | 1 | `position-report` | `stationId` | `savePositionReport` in `src/services/position-report-service.ts`, the worked example of `appendEvent` inside a transaction |
 
 ## Payload rules
 
@@ -105,8 +135,10 @@ version.
 
 ## Time and order
 
-- `server_time` is set by the database clock (`clock_timestamp()`) and can't be
-  supplied by a caller.
+- `server_time` is set by the database clock (`clock_timestamp()`).
+  `appendEvent` has no way to pass it, so a caller can't supply it. The column
+  is only a default, so a direct `INSERT` can still set it. Write events
+  through `appendEvent`.
 - `client_time` is optional and is what the device claims.
 - Order events by `sequence`, not by time.
 - `sequence` arrives in TypeScript as a string, so `"10" < "9"`. Let the

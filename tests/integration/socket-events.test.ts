@@ -5,13 +5,21 @@ import type { AddressInfo } from "node:net";
 import { Server } from "socket.io";
 import { io as connect, type Socket } from "socket.io-client";
 import { app } from "../../src/app.js";
+import { getDatabase } from "../../src/db/client.js";
 import { attachSocketHandlers } from "../../src/realtime/socket-server.js";
+import { seedTestUsers } from "../../scripts/seed-test-users.js";
 
 let server: HttpServer;
 let baseUrl: string;
+let operatorUsername: string;
+let stewardUsername: string;
 const sockets: Socket[] = [];
 
 before(async () => {
+  const users = await seedTestUsers("socket-");
+  operatorUsername = users.find((user) => user.role === "OPERATOR")!.username;
+  stewardUsername = users.find((user) => user.role === "STEWARD")!.username;
+
   server = createServer(app);
   const io = new Server(server);
   app.locals.io = io;
@@ -27,13 +35,19 @@ after(async () => {
   const io = app.locals.io as Server;
   delete app.locals.io;
   await new Promise<void>((resolve) => io.close(() => resolve()));
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  await getDatabase().end();
 });
 
-async function login(username: string, password: string) {
+async function login(
+  username: string,
+  password: string,
+  expectedRole: "OPERATOR" | "STEWARD",
+) {
   const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, expectedRole }),
   });
   return ((await response.json()) as { token: string }).token;
 }
@@ -58,9 +72,15 @@ test("a socket without a valid token is refused with E0001", async () => {
 });
 
 test("an activation reaches stewards only", async () => {
-  const operatorToken = await login("operator-test", "operator-test-pw");
+  const operatorToken = await login(
+    operatorUsername,
+    "operator-test-pw",
+    "OPERATOR",
+  );
   const operator = await open(operatorToken);
-  const steward = await open(await login("steward-test", "steward-test-pw"));
+  const steward = await open(
+    await login(stewardUsername, "steward-test-pw", "STEWARD"),
+  );
 
   let operatorGotActivation = false;
   operator.on("scenario-activated", () => {
@@ -83,8 +103,14 @@ test("an activation reaches stewards only", async () => {
 });
 
 test("a position report reaches operators only, with the server's time", async () => {
-  const stewardToken = await login("steward-test", "steward-test-pw");
-  const operator = await open(await login("operator-test", "operator-test-pw"));
+  const stewardToken = await login(
+    stewardUsername,
+    "steward-test-pw",
+    "STEWARD",
+  );
+  const operator = await open(
+    await login(operatorUsername, "operator-test-pw", "OPERATOR"),
+  );
   const steward = await open(stewardToken);
 
   let stewardGotReport = false;

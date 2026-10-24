@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   activate,
+  getActivations,
   getCurrentScenarioState,
   getScenario,
   getScenarios,
@@ -17,6 +18,7 @@ scenarioRouter.get(
   requireAuth,
   getCurrentScenarioState,
 );
+scenarioRouter.get("/api/v1/activations", requireAuth, getActivations);
 scenarioRouter.post(
   "/api/v1/scenarios/:scenarioId/activate",
   requireAuth,
