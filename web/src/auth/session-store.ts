@@ -1,16 +1,7 @@
-import { isRole } from "../../../shared/auth/roles";
-import type { Session } from "../../../shared/auth/session";
+import { isSession } from "../../../shared/auth/session";
 import type { SessionStore } from "../../../shared/auth/use-session";
 
 const SESSION_STORAGE_KEY = "metro-session";
-
-function isSession(value: unknown): value is Session {
-  if (typeof value !== "object" || value === null) return false;
-
-  const { token, role } = value as Record<string, unknown>;
-
-  return typeof token === "string" && token !== "" && isRole(role);
-}
 
 export const webSessionStore: SessionStore = {
   async load() {

@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Role } from "./roles";
 import {
   getCurrentUser,
+  isRenewalDue,
+  renewSession,
   logout as revokeSession,
+  type RenewalResult,
   type Session,
 } from "./session";
 
@@ -33,40 +36,101 @@ export function useSession({
     status: "restoring",
   });
 
-  const restore = useCallback(async () => {
-    let storedSession: Session | null;
+  const restoreInFlightRef = useRef<Promise<void> | null>(null);
 
-    try {
-      storedSession = await store.load();
-    } catch {
-      setState({ status: "signed-out" });
-      return;
-    }
+  const restore = useCallback(async (): Promise<void> => {
+    const inFlight = restoreInFlightRef.current;
 
-    if (!storedSession) {
-      setState({ status: "signed-out" });
-      return;
-    }
+    if (inFlight) return inFlight;
 
-    try {
-      const currentUser = await getCurrentUser(apiBaseUrl, storedSession.token);
+    const operation = (async () => {
+      let storedSession: Session | null;
 
-      if (!currentUser || currentUser.role !== allowedRole) {
-        await store.clear();
+      try {
+        storedSession = await store.load();
+      } catch {
         setState({ status: "signed-out" });
         return;
       }
 
-      setState({
-        status: "signed-in",
-        session: {
-          token: storedSession.token,
-          role: currentUser.role,
-        },
-      });
-    } catch {
-      // Do not discard a possibly valid token merely because the API is offline.
-      setState({ status: "unavailable", session: storedSession });
+      if (!storedSession) {
+        setState({ status: "signed-out" });
+        return;
+      }
+
+      let currentUser;
+
+      try {
+        currentUser = await getCurrentUser(apiBaseUrl, storedSession.token);
+      } catch {
+        // Keep the locally stored token while the API is unreachable.
+        setState({ status: "unavailable", session: storedSession });
+        return;
+      }
+
+      if (!currentUser || currentUser.role !== allowedRole) {
+        try {
+          await store.clear();
+        } catch {
+          // The token is rejected locally.
+        }
+
+        setState({ status: "signed-out" });
+        return;
+      }
+
+      let session: Session = {
+        ...storedSession,
+        role: currentUser.role,
+      };
+
+      if (isRenewalDue(session)) {
+        let renewal: RenewalResult;
+
+        try {
+          renewal = await renewSession(apiBaseUrl, session.token);
+        } catch {
+          // /me accepted this token. A renewal failure is temporary, so retain
+          // it and retry when the app next restores its session.
+          setState({ status: "signed-in", session });
+          return;
+        }
+
+        if (
+          renewal.kind === "invalid" ||
+          (renewal.kind === "renewed" && renewal.session.role !== allowedRole)
+        ) {
+          try {
+            await store.clear();
+          } catch {
+            // The token is still rejected locally.
+          }
+
+          setState({ status: "signed-out" });
+          return;
+        }
+
+        if (renewal.kind === "renewed") {
+          session = renewal.session;
+
+          try {
+            await store.save(session);
+          } catch {
+            setState({ status: "signed-in", session });
+            return;
+          }
+        }
+      }
+
+      setState({ status: "signed-in", session });
+    })();
+
+    restoreInFlightRef.current = operation;
+
+    try {
+      await operation;
+    } finally {
+      restoreInFlightRef.current = null;
     }
   }, [allowedRole, apiBaseUrl, store]);
 

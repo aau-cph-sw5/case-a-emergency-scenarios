@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { LoginScreen } from "../../shared/LoginScreen";
 import { useSession } from "../../shared/auth/use-session";
 import { OperatorDashboard } from "./OperatorDashboard";
@@ -11,6 +12,24 @@ export function App() {
     allowedRole: "OPERATOR",
     store: webSessionStore,
   });
+
+  useEffect(() => {
+    const revalidate = () => void restore();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        revalidate();
+      }
+    };
+
+    window.addEventListener("online", revalidate);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("online", revalidate);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [restore]);
 
   if (state.status === "restoring") {
     return <main>Indlæser session…</main>;

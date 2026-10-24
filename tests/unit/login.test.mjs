@@ -17,15 +17,20 @@ function mockFetch(status, body) {
   return { fetchImpl, calls };
 }
 
-test("returns the token and role from a valid response", async () => {
+test("returns the token, role, and expiry from a valid response", async () => {
   const { fetchImpl, calls } = mockFetch(200, {
     token: "abc",
     role: "STEWARD",
+    expiresAt: "2026-11-20T12:00:00.000Z",
   });
 
   const session = await login(API, "steward-test", "pw", "STEWARD", fetchImpl);
 
-  assert.deepEqual(session, { token: "abc", role: "STEWARD" });
+  assert.deepEqual(session, {
+    token: "abc",
+    role: "STEWARD",
+    expiresAt: "2026-11-20T12:00:00.000Z",
+  });
   assert.equal(calls[0].url, `${API}/api/v1/auth/login`);
   assert.equal(calls[0].init.method, "POST");
   assert.deepEqual(JSON.parse(calls[0].init.body), {

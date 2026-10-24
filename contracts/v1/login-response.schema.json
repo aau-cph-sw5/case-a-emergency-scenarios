@@ -2,9 +2,10 @@
   "$id": "login-response.schema.json",
   "title": "Login Response",
   "type": "object",
-  "required": ["token", "role"],
+  "required": ["token", "role", "expiresAt"],
   "properties": {
     "token": { "type": "string" },
-    "role": { "type": "string", "enum": ["STEWARD", "OPERATOR"] }
+    "role": { "type": "string", "enum": ["STEWARD", "OPERATOR"] },
+    "expiresAt": { "type": "string", "format": "date-time" }
   }
 }
