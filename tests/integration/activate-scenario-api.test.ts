@@ -85,7 +85,7 @@ test("an operator activates scenarios, also on the same line", async () => {
     assert.equal(activation.status, "ACTIVE");
     assert.equal(activation.actor, OPERATOR_USERNAME);
     assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
-}
+  }
 });
 
 test("activating the same scenario twice is refused", async () => {
@@ -103,7 +103,7 @@ test("an unknown scenario is refused", async () => {
 });
 
 test("the activations list returns the active scenarios, filtered by status", async () => {
-  const token = await tokenFor("operator-test", "operator-test-pw");
+  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
 
   const active = await listActivations(token, "?status=ACTIVE");
   assert.equal(active.status, 200);
@@ -130,7 +130,7 @@ test("the activations list needs a token", async () => {
 });
 
 test("an unknown or repeated status filter is refused", async () => {
-  const token = await tokenFor("operator-test", "operator-test-pw");
+  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
   for (const query of [
     "?status=active",
     "?status=NOPE",
