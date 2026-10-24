@@ -107,7 +107,7 @@ test("an unknown scenario is refused", async () => {
 });
 
 test("the activations list returns the active scenarios, filtered by status", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
 
   const active = await listActivations(token, "?status=ACTIVE");
   assert.equal(active.status, 200);
@@ -134,7 +134,7 @@ test("the activations list needs a token", async () => {
 });
 
 test("an unknown or repeated status filter is refused", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
   for (const query of [
     "?status=active",
     "?status=NOPE",
