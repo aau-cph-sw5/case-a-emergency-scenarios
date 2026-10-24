@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { socket } from "./socket";
 import { useSocketState } from "../../shared/socket/useSocketState";
 import { usePositionReports } from "../../shared/socket/usePositionReports";
@@ -23,6 +24,14 @@ export function OperatorDashboard({
   const { isConnected, messages } = useSocketState(socket);
   // Every position report pushed by the server over the socket, newest first.
   const reports = usePositionReports(socket);
+  // The scenario the operator has selected in the list. It is held here, in
+  // the dashboard, rather than inside the list, so that other parts of the
+  // dashboard can use the same selection. The scenario preview, which shows
+  // what the selected scenario requires before it is activated, reads it from
+  // here.
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(
+    null,
+  );
 
   // The server refuses a socket without a valid token and uses its role to
   // decide which events this socket gets.
@@ -55,7 +64,11 @@ export function OperatorDashboard({
 
       <StewardPositions reports={reports} />
 
-      <ScenarioList token={token} />
+      <ScenarioList
+        token={token}
+        selectedId={selectedScenarioId}
+        onSelect={setSelectedScenarioId}
+      />
       <ScenarioStationList
         scenario={selectedScenario}
         activeDeployments={scenarioState}
