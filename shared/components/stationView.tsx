@@ -15,15 +15,20 @@ const STATION_RANK = new Map(
   STATION_ORDER.map((station, index) => [station, index]),
 );
 
-type Props = {
-  scenario: Scenario;
-  activeDeployments: ActiveDeployments;
-};
+type Props =
+  | {
+      scenario: Scenario;
+      mode: "needed-only";
+    }
+  | {
+      scenario: Scenario;
+      mode?: "live-coverage";
+      activeDeployments: ActiveDeployments;
+    };
 
-export default function ScenarioStationList({
-  scenario,
-  activeDeployments,
-}: Props) {
+export default function ScenarioStationList(props: Props) {
+  const { scenario } = props;
+
   const version = scenario.versions.find(
     (item) => item.version === scenario.currentVersion,
   );
@@ -34,7 +39,17 @@ export default function ScenarioStationList({
       (STATION_RANK.get(b.station) ?? Number.MAX_SAFE_INTEGER),
   );
 
-  const coveredCount = countManned(activeDeployments, stations);
+  //Sums the total required stewards in scenario
+  const totalStewards = stations.reduce(
+    (total, station) => total + station.minimumStaffing,
+    0,
+  );
+
+  //Only calculates live coverage when deployment information is available
+  const coveredCount =
+    props.mode === "needed-only"
+      ? null
+      : countManned(props.activeDeployments, stations);
 
   return (
     <FlatList // we dont currently have a station order.
@@ -42,14 +57,31 @@ export default function ScenarioStationList({
       keyExtractor={(item) => item.station}
       ListHeaderComponent={
         <View style={[box, { margin: 8 }]}>
-          <Text style={text.title}>
-            {coveredCount}/{stations.length} stations covered
-          </Text>
+          {props.mode === "needed-only" ? (
+            <>
+              <Text style={text.title}>Required coverage</Text>
+
+              <Text style={text.body}>
+                {stations.length} stations · {totalStewards} stewards needed
+              </Text>
+            </>
+          ) : (
+            <Text style={text.title}>
+              {coveredCount}/{stations.length} stations covered
+            </Text>
+          )}
         </View>
       }
-      renderItem={({ item }) => (
-        <StationRow requirement={item} deployments={activeDeployments} />
-      )}
+      renderItem={({ item }) =>
+        props.mode === "needed-only" ? (
+          <StationRow requirement={item} mode="needed-only" />
+        ) : (
+          <StationRow
+            requirement={item}
+            deployments={props.activeDeployments}
+          />
+        )
+      }
     />
   );
 }
