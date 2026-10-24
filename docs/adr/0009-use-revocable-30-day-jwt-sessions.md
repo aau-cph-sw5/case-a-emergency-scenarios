@@ -30,8 +30,9 @@ operators use web and stewards use mobile.
 
 While an unexpired session is online with seven days or less remaining, the
 client renews its token. It checks when the app opens, returns to the foreground
-or regains network access. Renewal issues a new JWT and JTI, replacing the
-active database session. This does not use a separate refresh token.
+or regains network access. Renewal issues a new JWT with the same JTI and
+atomically extends the active database session. This avoids concurrent renewal
+requests invalidating one another. It does not use a separate refresh token.
 
 The mobile app allows a cached, offline-only view for seven days after expiry.
 It may queue actions locally, but it cannot call the API, connect a socket or
