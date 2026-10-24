@@ -29,7 +29,14 @@ The Integration tests job starts a throwaway PostgreSQL 16 container, applies
 every migration in `src/db/migrations/` with Flyway, and sets
 `TEST_DATABASE_URL` for the tests. The database holds only what the migrations and tests create,
 exists only while the job runs, and never touches the staging or production
-databases, so its user and password (`metro`/`metro`) are not secrets.
+databases, so its users and passwords (`metro`/`metro` and `metro_app`/`metro_app`)
+are not secrets.
+
+The job creates the `metro_app` role with `docker/db-init/01-app-role.sql`
+before Flyway runs, migrates as `metro`, and gives the tests two URLs:
+`TEST_DATABASE_URL` for `metro_app`, as the application connects, and
+`TEST_OWNER_DATABASE_URL` for `metro`, used for fixtures the application may not
+write and for proving what `metro_app` is refused.
 
 Because of this, every new migration is applied on every pull request, before it
 reaches `staging`.

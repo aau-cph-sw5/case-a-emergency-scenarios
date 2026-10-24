@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { getDatabase } from "../src/db/client.js";
+import postgres from "postgres";
 
 const SALT_ROUNDS = 10;
 
@@ -17,7 +17,20 @@ const users = [
 ];
 
 async function main() {
-  const sql = getDatabase();
+  // Connects as the owner, like seed-scenarios.ts: the application's role may
+  // only read users.
+  if (!process.env.POSTGRES_PASSWORD) {
+    throw new Error(
+      "POSTGRES_PASSWORD is not set. Does .env exist, and is the script run with --env-file=.env?",
+    );
+  }
+  const sql = postgres({
+    host: "localhost",
+    port: Number(process.env.POSTGRES_PORT ?? 5432),
+    username: "metro",
+    password: process.env.POSTGRES_PASSWORD,
+    database: "metro",
+  });
 
   try {
     for (const user of users) {
