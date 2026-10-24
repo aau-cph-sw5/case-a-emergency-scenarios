@@ -26,20 +26,50 @@ const getStatusStyle = (status: string) =>
     ? STATUS[status as keyof typeof STATUS]
     : STATUS.UNKNOWN;
 
-type Props = {
+type Props = |{
   requirement: StationRequirement;
+  mode: "needed-only";
+}
+|{
+  requirement: StationRequirement;
+  mode?: "live-coverage";
   deployments: ActiveDeployments;
 };
 
-export default function StationRow({ requirement, deployments }: Props) {
-  const { statuses, current, lastUpdate } = getStationState(
-    deployments,
-    requirement.station,
-    requirement.minimumStaffing,
-  );
+export default function StationRow(props: Props) {
+  const { requirement } = props;
+  const mode = props.mode ?? "live-coverage";
+  const stationState =
+  props.mode === "needed-only"
+    ? null
+    : getStationState(
+        props.deployments,
+        requirement.station,
+        requirement.minimumStaffing,
+      );
+
+const statuses = stationState?.statuses ?? [];
+const current = stationState?.current ?? 0;
+const lastUpdate = stationState?.lastUpdate ?? null;
 
   const [open, setOpen] = useState(false);
+  if (props.mode === "needed-only") {
+  return (
+    <View style={[box, { margin: 8 }]}>
+      <Text style={text.title}>
+        {requirement.station}
+      </Text>
 
+      <Text style={text.body}>
+        Placement: {requirement.placement}
+      </Text>
+
+      <Text style={text.body}>
+        Minimum staffing: {requirement.minimumStaffing} stewards
+      </Text>
+    </View>
+  );
+}
   return (
     <Pressable
       onPress={() => setOpen(!open)}
