@@ -5,10 +5,7 @@ import type { Scenario } from "../../shared/types/v1/scenario.js";
 // This file is temporary until the real database is populated
 // Right now it just imports the fixture data from the fixtures folder
 // Then this will be the repository layer where the queries to the DB live.
-const fixturesDirectory = path.resolve(
-  process.cwd(),
-  "fixtures/v1",
-);
+const fixturesDirectory = path.resolve(process.cwd(), "fixtures/v1");
 
 function readJson(relativePath: string): unknown {
   return JSON.parse(
