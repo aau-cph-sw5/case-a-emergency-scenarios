@@ -120,7 +120,11 @@ export function OperatorDashboard({
           />
         </aside>
 
-        <section style={{...webBox, width: "50%",}}/>
+        <section style={{ ...webBox, width: "50%", textAlign: "center",}}>
+          <h2 style={{ ...text.title, marginTop: 0 }}>
+            {active?.scenario.name ?? "Intet aktivt scenarie."}
+          </h2>
+        </section>
 
         <aside style={{...webBox, width: "25%"}}>
           {active ? (
