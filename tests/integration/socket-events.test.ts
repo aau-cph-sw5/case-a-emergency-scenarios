@@ -130,7 +130,7 @@ test("a position report reaches operators only, with the server's time", async (
     operator.once("position-report", resolve),
   );
 
-  // Station B is in the fixture's active scenario. The phone's clock is wrong.
+  // Station G is in DEMO-002, activated by the test above. The phone's clock is wrong.
   const before = Date.now();
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",
@@ -140,14 +140,14 @@ test("a position report reaches operators only, with the server's time", async (
     },
     body: JSON.stringify({
       staff: "",
-      station: "Station B",
+      station: "Station G",
       reportedAt: "2099-01-01T00:00:00Z",
     }),
   });
   assert.equal(response.status, 202);
 
   const report = await received;
-  assert.equal(report.station, "Station B");
+  assert.equal(report.station, "Station G");
   assert.notEqual(report.staff, "");
   assert.ok(Date.parse(report.reportedAt) >= before);
   assert.ok(Date.parse(report.reportedAt) <= Date.now());

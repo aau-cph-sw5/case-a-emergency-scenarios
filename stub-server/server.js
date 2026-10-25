@@ -334,15 +334,13 @@ app.get("/api/v1/me", requireAuth, (req, res) => {
 // SCENARIO ACTIVATION
 // ============================================
 
-// In-memory, so activations reset when the stub restarts. Seeded with the
-// fixture's activation, so the store and GET /api/v1/scenario-state only agree
-// at startup: that endpoint keeps reading the fixture and never sees later
-// activations (see the follow-up for a list endpoint).
-const activations = [readJson(path.join(fixtures, "scenario-state.json"))];
+// In-memory, so activations reset when the stub restarts. Starts empty, like
+// the server, so GET /api/v1/scenario-state keeps reading the fixture and
+// never sees activations.
+const activations = [];
 
-// Metro's answer on MET-A-007: several scenarios may be active on the same
-// line, and activating never stands down another activation. Only activating
-// the same scenario twice is refused.
+// Only one scenario can be active at a time, so any activation is refused
+// while another is active.
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
 // matrix is #25's; this only keeps stewards out.
 app.post("/api/v1/scenarios/:scenarioId/activate", requireAuth, (req, res) => {
@@ -373,8 +371,7 @@ app.post("/api/v1/scenarios/:scenarioId/activate", requireAuth, (req, res) => {
   }
 
   const alreadyActive = activations.some(
-    (activation) =>
-      activation.scenarioId === scenarioId && activation.status === "ACTIVE",
+    (activation) => activation.status === "ACTIVE",
   );
 
   if (alreadyActive) {
@@ -383,7 +380,7 @@ app.post("/api/v1/scenarios/:scenarioId/activate", requireAuth, (req, res) => {
       .json(
         errorBody(
           ERROR_CODES.CONFLICT,
-          `Scenario '${scenarioId}' is already active`,
+          `A scenario is already active, so '${scenarioId}' cannot be activated`,
         ),
       );
   }

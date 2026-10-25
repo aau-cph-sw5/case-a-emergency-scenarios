@@ -60,6 +60,14 @@ async function activeScenarioIds(token: string) {
   return list.map((a) => a.scenarioId);
 }
 
+function eventsBy(username: string) {
+  return getDatabase()<{ activationId: string; serverTime: Date }[]>`
+    SELECT e.activation_id, e.server_time FROM incident_events e
+    JOIN users u ON e.actor_id = u.id::text
+    WHERE e.type = 'SCENARIO_ACTIVATED' AND u.username = ${username}
+  `;
+}
+
 test("without a token the activation is refused", async () => {
   const res = await activate("DEMO-002");
   assert.equal(res.status, 401);
@@ -72,33 +80,58 @@ test("a steward may not activate a scenario", async () => {
     await tokenFor(STEWARD_USERNAME, "steward-test-pw"),
   );
   assert.equal(res.status, 403);
+  assert.equal((await eventsBy(STEWARD_USERNAME)).length, 0);
   assert.equal((await res.json()).error.code, ERROR_CODES.ROLE_NOT_PERMITTED);
 });
 
-test("an operator activates scenarios, also on the same line", async () => {
+test("an operator activates a scenario", async () => {
   const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
-  for (const scenarioId of ["DEMO-002", "DEMO-003"]) {
-    const res = await activate(scenarioId, token);
-    const activation = await res.json();
-    assert.equal(res.status, 201);
-    assert.equal(activation.scenarioId, scenarioId);
-    assert.equal(activation.status, "ACTIVE");
-    assert.equal(activation.actor, OPERATOR_USERNAME);
-    assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
-  }
+  const before = (await eventsBy(OPERATOR_USERNAME)).length;
+  const res = await activate("DEMO-002", token);
+  const activation = await res.json();
+  assert.equal(res.status, 201);
+  const events = await eventsBy(OPERATOR_USERNAME);
+  assert.equal(events.length, before + 1);
+  assert.equal(events.at(-1)!.activationId, activation.activationId);
+  assert.ok(events.at(-1)!.serverTime instanceof Date);
+  assert.equal(activation.scenarioId, "DEMO-002");
+  assert.equal(activation.status, "ACTIVE");
+  assert.equal(activation.actor, OPERATOR_USERNAME);
+  assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
 });
 
-test("activating the same scenario twice is refused", async () => {
+test("the current scenario state is the active activation", async () => {
   const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
-  const res = await activate("DEMO-001", token);
-  assert.equal(res.status, 409);
-  assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
+  const res = await fetch(`${baseUrl}/api/v1/scenario-state`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  assert.equal(res.status, 200);
+  const state = await res.json();
+  assert.deepEqual(validate(state, "scenario-state.schema.json"), []);
+  const active = (await (
+    await listActivations(token, "?status=ACTIVE")
+  ).json()) as unknown[];
+  assert.deepEqual(active, [state]);
+});
+
+test("activating a scenario while another is active is refused", async () => {
+  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const before = (await eventsBy(OPERATOR_USERNAME)).length;
+  for (const scenarioId of ["DEMO-002", "DEMO-003"]) {
+    const res = await activate(scenarioId, token);
+    assert.equal(res.status, 409);
+    assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
+  }
+  assert.deepEqual(await activeScenarioIds(token), ["DEMO-002"]);
+  assert.equal((await eventsBy(OPERATOR_USERNAME)).length, before);
 });
 
 test("an unknown scenario is refused", async () => {
   const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const before = (await eventsBy(OPERATOR_USERNAME)).length;
   const res = await activate("NOPE", token);
   assert.equal(res.status, 404);
+  assert.equal((await eventsBy(OPERATOR_USERNAME)).length, before);
   assert.equal((await res.json()).error.code, ERROR_CODES.NOT_FOUND);
 });
 
@@ -111,7 +144,7 @@ test("the activations list returns the active scenarios, filtered by status", as
     scenarioId: string;
     status: string;
   }[];
-  assert.ok(list.some((a) => a.scenarioId === "DEMO-001"));
+  assert.ok(list.some((a) => a.scenarioId === "DEMO-002"));
   assert.ok(list.every((a) => a.status === "ACTIVE"));
   for (const activation of list) {
     assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);

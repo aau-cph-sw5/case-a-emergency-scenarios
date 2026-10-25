@@ -23,10 +23,6 @@ function readById(folder: string, id: string): unknown | undefined {
     : undefined;
 }
 
-export function getScenarioState(): unknown {
-  return readJson("scenario-state.json");
-}
-
 export function listScenarios(): unknown {
   return readJson("scenarios.json");
 }
@@ -61,7 +57,7 @@ type Activation = {
 };
 
 // In-memory until the database is populated, so activations reset when the
-// server restarts. Seeded with the fixture's activation, like the stub.
+// server restarts. Starts empty: only one scenario can be active at a time.
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 
@@ -69,9 +65,7 @@ type StoredActivation = Pick<Activation, "scenarioId"> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
 };
-const activations: StoredActivation[] = [
-  getScenarioState() as StoredActivation,
-];
+const activations: StoredActivation[] = [];
 
 export function listActivations(status?: ActivationStatus) {
   return status === undefined
@@ -91,20 +85,25 @@ export function latestActivation(): StoredActivation | undefined {
   return activations.at(-1);
 }
 
+// Takes back the activation that was just made, when its event could not be written.
+export function undoLastActivation() {
+  activations.pop();
+}
+
 export type ActivationResult =
   | { kind: "ok"; activation: Activation }
   | { kind: "not-found" }
   | { kind: "already-active" };
 
-// Several scenarios may be active on one line, so only the same scenario
-// twice is refused (Metro on MET-A-007).
+// Only one scenario can be active at a time, so any activation is refused
+// while another is active.
 export function activateScenario(
   scenarioId: string,
   actor: string,
 ): ActivationResult {
   const scenario = findScenario(scenarioId);
   if (scenario === undefined) return { kind: "not-found" };
-  if (activations.some((a) => a.scenarioId === scenarioId)) {
+  if (activations.some((a) => a.status === "ACTIVE")) {
     return { kind: "already-active" };
   }
 
