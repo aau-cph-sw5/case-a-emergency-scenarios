@@ -100,7 +100,7 @@ export function OperatorDashboard({
                 : palette.metroLineThree,
             }}
           >
-            {isConnected ? "Connected" : "Unconnected"}
+            {isConnected ? "Connected" : "Not Connected"}
           </button>
         </div>
         <button
