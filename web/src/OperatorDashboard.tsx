@@ -4,12 +4,19 @@ import { socket } from "./socket";
 import { useSocketState } from "../../shared/socket/useSocketState";
 import { usePositionReports } from "../../shared/socket/usePositionReports";
 import ScenarioStationList from "../../shared/components/stationView";
+import MapRender from "../../shared/components/mapRenderer";
+import { getLines } from "../../shared/components/lines";
+import {
+  affectedStretchAsMapLine,
+  networkWithoutStretch,
+} from "../../shared/components/affectedStations";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { ScenarioList } from "./ScenarioList";
 import { StewardPositions } from "./components/StewardPositions";
 import {
   colors,
+  lineColors,
   palette,
   text,
   webBox,
@@ -42,6 +49,26 @@ export function OperatorDashboard({
 
   // The latest activated scenario; null until one is active.
   const [active, setActive] = useState<Active | null>(null);
+  const mapLines = active
+    ? (() => {
+        const stretch = affectedStretchAsMapLine(active.scenario);
+        return [
+          ...networkWithoutStretch(getLines(), stretch.connections).map(
+            (line) => ({ ...line, tracks: [1, 2] }),
+          ),
+          stretch,
+        ];
+      })()
+    : [];
+  const mapColors: Record<string, string> = active
+    ? {
+        [active.scenario.name]: lineColors[0],
+        M1: palette.pageGrey,
+        M2: palette.pageGrey,
+        M3: palette.pageGrey,
+        M4: palette.pageGrey,
+      }
+    : {};
 
   // The scenario holds the stations; its activation holds the deployments.
   const showActivated = useCallback(
@@ -124,6 +151,15 @@ export function OperatorDashboard({
           <h2 style={{ ...text.title, marginTop: 0 }}>
             {active?.scenario.name ?? "Intet aktivt scenarie."}
           </h2>
+          {active && (
+            <div style={{ width: "100%", height: 320 }}>
+              <MapRender
+                lines={mapLines}
+                colors={mapColors}
+                showLineButtons={false}
+              />
+            </div>
+          )}
         </section>
 
         <aside style={{...webBox, width: "25%"}}>
