@@ -21,7 +21,7 @@ export const palette = {
 
 export const colors = {
   background: palette.metroWhite, // the one background colour used by every component surface
-  page: palette.pageGrey, // slightly grey page background behind the components
+  page: palette.metroWhite, // slightly grey page background behind the components
   text: palette.metroBlack,
   textInverse: palette.metroWhite,
   border: palette.metroBlack,
@@ -72,4 +72,75 @@ export const box = {
 export const page = {
   backgroundColor: colors.page,
   flex: 1,
+};
+
+export const webBox = {
+  ...box,
+  borderStyle: "solid" as const,
+  boxSizing: "border-box" as const,
+};
+
+export const webButton = {
+  ...webBox,
+  ...text.button,
+  padding: 10,
+  backgroundColor: colors.action,
+  cursor: "pointer" as const,
+};
+
+export const webPage = {
+  minHeight: "100vh",
+  display: "flex" as const,
+  flexDirection: "column" as const,
+  color: colors.text,
+  fontFamily: text.header.fontFamily,
+};
+
+export const webScenarioStyles = {
+  section: {
+    width: "100%",
+    boxSizing: "border-box" as const,
+    color: colors.text,
+    fontFamily: text.header.fontFamily,
+  },
+  label: {
+    ...text.header,
+    display: "block",
+    color: colors.text,
+  },
+  input: {
+    ...box,
+    borderStyle: "solid" as const,
+    boxSizing: "border-box" as const,
+    display: "block",
+    width: "100%",
+    marginTop: 4,
+    padding: 8,
+    backgroundColor: colors.background,
+    color: colors.text,
+    fontSize: 16,
+  },
+  message: {
+    ...text.header,
+    color: colors.text,
+  },
+  list: {
+    listStyle: "none",
+    margin: 0,
+    padding: 0,
+  },
+  listItem: {
+    marginTop: 8,
+  },
+  button: {
+    ...webButton,
+    display: "block",
+    width: "100%",
+  },
+  dialog: {
+    ...box,
+    borderStyle: "solid" as const,
+    boxSizing: "border-box" as const,
+    width: "min(100% - 32px, 420px)",
+  },
 };

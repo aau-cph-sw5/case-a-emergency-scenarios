@@ -8,6 +8,14 @@ import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { ScenarioList } from "./ScenarioList";
 import { StewardPositions } from "./components/StewardPositions";
+import {
+  colors,
+  palette,
+  text,
+  webBox,
+  webButton,
+  webPage,
+} from "../../shared/Theme";
 
 type Active = { scenario: Scenario; state: ScenarioState };
 
@@ -76,37 +84,64 @@ export function OperatorDashboard({
   }
 
   return (
-    <main>
-      <h1>Nødscenarier</h1>
-      <button onClick={onLogout} type="button">
-        Log ud
-      </button>
-      <p>Socket: {isConnected ? "connected" : "disconnected"}</p>
-      <button onClick={toggleSocket} type="button">
-        {isConnected ? "Disconnect socket" : "Connect socket"}
-      </button>
-      {messages.length > 0 && (
-        <ul>
-          {messages.map((message) => (
-            <li key={message.id}>{message.text}</li>
-          ))}
-        </ul>
-      )}
+    <div style={webPage}>
+      <header
+        style={{...webBox, display: "grid", gridTemplateColumns: "1fr auto 1fr",}}>
+        <h1 style={{ ...text.title, justifySelf: "start" }}>Emergency Scenario Dashboard</h1>
+        <div style={{ textAlign: "center", ...text.header }}>
+          <button
+            onClick={toggleSocket}
+            type="button"
+            style={{
+              ...webButton,
+              width: "100%",
+              backgroundColor: isConnected
+                ? webButton.backgroundColor
+                : palette.metroLineThree,
+            }}
+          >
+            {isConnected ? "Connected" : "Unconnected"}
+          </button>
+        </div>
+        <button
+          onClick={onLogout}
+          type="button"
+          style={{ ...webButton, justifySelf: "end" }}>
+          Log ud
+        </button>
+      </header>
 
-      <StewardPositions reports={reports} />
+      <main style={{ display: "flex", flex: 1}}>
+        <aside
+          style={{...webBox, width: "25%"}}>
+          <ScenarioList
+            token={token}
+            onActivated={(id) => showActivated(id).catch(console.error)}
+          />
+        </aside>
 
-      <ScenarioList
-        token={token}
-        onActivated={(id) => showActivated(id).catch(console.error)}
-      />
-      {active ? (
-        <ScenarioStationList
-          scenario={active.scenario}
-          activeDeployments={active.state}
-        />
-      ) : (
-        <p>Intet aktivt scenarie.</p>
-      )}
-    </main>
+        <section style={{...webBox, width: "50%",}}/>
+
+        <aside style={{...webBox, width: "25%"}}>
+          {active ? (
+            <ScenarioStationList
+              scenario={active.scenario}
+              activeDeployments={active.state}
+            />
+          ) : (<p>Intet aktivt scenarie.</p>)}
+        </aside>
+      </main>
+
+      <footer style={{ ...webBox }}>
+        <StewardPositions reports={reports} />
+        {messages.length > 0 && (
+          <ul style={{ ...text.header, color: colors.text }}>
+            {messages.map((message) => (
+              <li key={message.id}>{message.text}</li>
+            ))}
+          </ul>
+        )}
+      </footer>
+    </div>
   );
 }

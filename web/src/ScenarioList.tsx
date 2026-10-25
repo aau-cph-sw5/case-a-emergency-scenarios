@@ -3,6 +3,7 @@ import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
 import { isScenarioState, type ScenarioState } from "./scenario-state";
 import { fetchScenarios, type ScenarioSummary } from "./scenarios";
+import { text, webScenarioStyles } from "../../shared/Theme";
 
 type LoadState =
   | { status: "loading" }
@@ -62,27 +63,28 @@ export function ScenarioList({
   // The search field is always shown, so it is there whenever the list is
   // longer than one screen (MET-A-007 criterion 1 / #116 criterion 3).
   return (
-    <section aria-labelledby="scenario-list-heading">
-      <h2 id="scenario-list-heading">Nødscenarier</h2>
+    <section aria-labelledby="scenario-list-heading" style={webScenarioStyles.section}>
 
-      <label>
-        Søg efter scenarier{" "}
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
+      <input
+        style={webScenarioStyles.input}
+        type="search"
+        aria-label="Søg efter scenarier"
+        placeholder="Søg efter scenarier"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
 
-      {state.status === "loading" && <p role="status">Henter scenarier…</p>}
+      {state.status === "loading" && ( 
+        <p role="status" style={webScenarioStyles.message}>Henter scenarier…</p>
+        )}
 
       {state.status === "error" && (
-        <p role="alert">Kunne ikke hente scenarier: {state.message}</p>
+        <p role="alert" style={webScenarioStyles.message}>Kunne ikke hente scenarier: {state.message}</p>
       )}
 
       {state.status === "done" &&
         (state.scenarios.length === 0 ? (
-          <p role="status">Ingen scenarier tilgængelige.</p>
+          <p role="status" style={webScenarioStyles.message}>Ingen scenarier tilgængelige.</p>
         ) : (
           <ScenarioResults
             scenarios={filterScenarios(state.scenarios, query)}
@@ -110,14 +112,14 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
     case "idle":
       return null;
     case "activating":
-      return <p role="status">Aktiverer scenarie…</p>;
+      return (<p role="status" style={webScenarioStyles.message}> Aktiverer scenarie…</p>);
     case "error":
       return (
-        <p role="alert">Kunne ikke aktivere scenariet: {activation.message}</p>
+        <p role="alert" style={webScenarioStyles.message}>Kunne ikke aktivere scenariet: {activation.message}</p>
       );
     case "done":
       return (
-        <p role="status">
+        <p role="status" style={webScenarioStyles.message}>
           Scenarie {activation.state.scenarioId} er {activation.state.status},
           startet {activation.state.startedAt} af {activation.state.actor}.
         </p>
@@ -138,16 +140,17 @@ function ScenarioResults({
 }) {
   // No match is an empty list, not an error.
   if (scenarios.length === 0) {
-    return <p role="status">Ingen scenarier matcher “{query.trim()}”.</p>;
+    return (<p role="status" style={webScenarioStyles.message}>Ingen scenarier matcher “{query.trim()}”.</p>);
   }
   return (
-    <ul>
+    <ul style={webScenarioStyles.list}>
       {scenarios.map((scenario) => (
-        <li key={scenario.scenarioId}>
+        <li key={scenario.scenarioId} style={webScenarioStyles.listItem}>
           <button
             type="button"
             onClick={() => onSelect(scenario)}
             disabled={disabled}
+            style={{...webScenarioStyles.button, opacity: disabled ? 0.5 : 1,}}
           >
             {scenario.name}
           </button>
@@ -179,12 +182,13 @@ function ConfirmActivation({
       ref={dialogRef}
       onClose={onCancel}
       aria-labelledby="confirm-activation-heading"
+      style={webScenarioStyles.dialog}
     >
-      <h3 id="confirm-activation-heading">Aktivér “{scenario.name}”?</h3>
-      <button type="button" onClick={onConfirm}>
+      <h3 id="confirm-activation-heading" style={text.title}>Aktivér “{scenario.name}”?</h3>
+      <button type="button" onClick={onConfirm} style={webScenarioStyles.button}>
         Bekræft
       </button>{" "}
-      <button type="button" onClick={() => dialogRef.current?.close()}>
+      <button type="button" onClick={() => dialogRef.current?.close()} style={{ ...webScenarioStyles.button, marginTop: 8 }}>
         Annullér
       </button>
     </dialog>

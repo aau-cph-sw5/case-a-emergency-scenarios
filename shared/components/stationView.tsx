@@ -41,7 +41,7 @@ export default function ScenarioStationList({
       data={stations}
       keyExtractor={(item) => item.station}
       ListHeaderComponent={
-        <View style={[box, { margin: 8 }]}>
+        <View style={{ margin: 8 }}>
           <Text style={text.title}>
             {coveredCount}/{stations.length} stations covered
           </Text>

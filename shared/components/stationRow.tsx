@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { box, text, palette } from "../Theme";
+import { box, colors, text, palette } from "../Theme";
 import type { Scenario } from "../types/v1/scenario";
 import {
   getStationState,
@@ -73,7 +73,9 @@ export default function StationRow({ requirement, deployments }: Props) {
                 marginRight: 6,
               }}
             >
-              <Text style={{ color: "#fff", fontSize: 14 }}>{symbol}</Text>
+              <Text style={{ color: colors.textInverse, fontSize: 14 }}>
+                {symbol}
+              </Text>
             </View>
           );
         })}
