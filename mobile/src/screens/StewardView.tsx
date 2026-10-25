@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import { useActivatedScenario } from "../../../shared/socket/useActivatedScenario";
 import { socket } from "../socket";
@@ -7,6 +7,7 @@ import { RoleView } from "./RoleView";
 import { sendPositionReport } from "../api/position-report";
 import { currentStations } from "../../../shared/components/stationState";
 import { StationPicker } from "../components/StationPicker";
+import { ScenarioOverview } from "./ScenarioOverview";
 
 export function StewardView({
   token,
@@ -58,25 +59,25 @@ export function StewardView({
     >
       {activated ? (
         <>
-          <Text style={styles.scenario}>
-            Aktivt scenarie: {activated.scenario.name}
-          </Text>
+          <ScrollView style={styles.scenarioContent}>
+            <ScenarioOverview snapshot={{ scenario: activated.scenario }} />
 
-          <StationPicker
-            stations={stations}
-            selected={station}
-            onSelect={setStation}
-          />
+            <StationPicker
+              stations={stations}
+              selected={station}
+              onSelect={setStation}
+            />
 
-          <Pressable
-            accessibilityRole="button"
-            onPress={reportPosition}
-            disabled={station === ""}
-            style={styles.button}
-          >
-            <Text style={styles.buttonText}>Rapportér position</Text>
-          </Pressable>
-          {reportStatus && <Text>{reportStatus}</Text>}
+            <Pressable
+              accessibilityRole="button"
+              onPress={reportPosition}
+              disabled={station === ""}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>Rapportér position</Text>
+            </Pressable>
+            {reportStatus && <Text>{reportStatus}</Text>}
+          </ScrollView>
         </>
       ) : (
         <Text style={styles.noScenario}>Intet aktivt scenarie</Text>
@@ -125,10 +126,8 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "600",
   },
-  scenario: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 8,
+  scenarioContent: {
+    flex: 1,
   },
   label: {
     fontWeight: "600",

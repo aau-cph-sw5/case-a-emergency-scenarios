@@ -27,7 +27,6 @@ export function RoleView({
           <Text style={styles.buttonText}>Log ud</Text>
         </Pressable>
       </View>
-      <Text style={styles.description}>{description}</Text>
       {children}
     </View>
   );
