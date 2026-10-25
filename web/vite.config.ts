@@ -16,6 +16,23 @@ export default defineConfig(({ mode }) => {
   return {
     envDir: repoRoot,
     plugins: [react()],
+    optimizeDeps: {
+      rolldownOptions: {
+        resolve: {
+          extensions: [
+            ".web.mjs",
+            ".mjs",
+            ".web.js",
+            ".js",
+            ".web.ts",
+            ".ts",
+            ".web.tsx",
+            ".tsx",
+            ".json",
+          ],
+        },
+      },
+    },
     resolve: {
       extensions: [
         ".web.mjs",
