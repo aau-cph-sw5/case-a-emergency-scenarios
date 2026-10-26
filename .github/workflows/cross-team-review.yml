@@ -1,0 +1,125 @@
+name: Cross-team reviewer assignment
+
+on:
+  pull_request_target:
+    types: [opened, ready_for_review]
+    branches: [dev, staging, main]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  assign-reviewers:
+    name: Assign cross-team reviewers
+    runs-on: ubuntu-latest
+
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Request external team reviewers
+        uses: actions/github-script@v8
+        env:
+          REVIEW_TEAMS: ${{ vars.REVIEW_TEAMS }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.issue.number;
+            const author = context.payload.pull_request.user.login.toLowerCase();
+
+            // Load team mapping from repository variable.
+            if (!process.env.REVIEW_TEAMS?.trim()) {
+              core.setFailed("REVIEW_TEAMS variable is missing.");
+              return;
+            }
+
+            let rawTeams;
+
+            try {
+              rawTeams = JSON.parse(process.env.REVIEW_TEAMS);
+            } catch {
+              core.setFailed("REVIEW_TEAMS contains invalid JSON.");
+              return;
+            }
+
+            // Normalize team slugs and usernames.
+            const teams = {};
+
+            for (const [team, members] of Object.entries(rawTeams)) {
+              if (!Array.isArray(members) || members.some(
+                member => typeof member !== "string"
+              )) {
+                core.setFailed(`Invalid members for team ${team}.`);
+                return;
+              }
+
+              teams[team.toLowerCase()] =
+                members.map(member => member.toLowerCase());
+            }
+
+            // Determine which team(s) the author belongs to.
+            const authorTeams = Object.entries(teams)
+              .filter(([, members]) => members.includes(author))
+              .map(([team]) => team);
+
+            if (authorTeams.length === 0) {
+              core.setFailed(
+                `PR author ${author} is not listed in REVIEW_TEAMS.`
+              );
+              return;
+            }
+
+            // Exclude all teams containing the PR author.
+            const externalTeams = Object.keys(teams)
+              .filter(team => !authorTeams.includes(team));
+
+            if (externalTeams.length === 0) {
+              core.setFailed("No external teams available.");
+              return;
+            }
+
+            // Check existing review requests.
+            const { data: requested } =
+              await github.rest.pulls.listRequestedReviewers({
+                owner,
+                repo,
+                pull_number
+              });
+
+            const existingTeams = new Set(
+              requested.teams.map(team => team.slug.toLowerCase())
+            );
+
+            // GitHub may replace team requests with individual
+            // reviewers when team auto-assignment is enabled.
+            const existingUsers = new Set(
+              requested.users.map(user => user.login.toLowerCase())
+            );
+
+            const teamsToRequest = externalTeams.filter(team => {
+              if (existingTeams.has(team)) return false;
+
+              const teamAlreadyRepresented = teams[team].some(
+                user => existingUsers.has(user)
+              );
+
+              return !teamAlreadyRepresented;
+            });
+
+            if (teamsToRequest.length === 0) {
+              core.info("External reviewers already assigned.");
+              return;
+            }
+
+            // Request external teams.
+            // GitHub's native auto-assignment selects individuals.
+            await github.rest.pulls.requestReviewers({
+              owner,
+              repo,
+              pull_number,
+              team_reviewers: teamsToRequest
+            });
+
+            core.info(`PR author: ${author}`);
+            core.info(`Author teams: ${authorTeams.join(", ")}`);
+            core.info(`Requested teams: ${teamsToRequest.join(", ")}`);
