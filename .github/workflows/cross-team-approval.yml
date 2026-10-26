@@ -3,7 +3,6 @@ name: Cross-team approval
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review, edited]
-    branches: [dev, staging, main]
 
   pull_request_review:
     types: [submitted, dismissed, edited]
