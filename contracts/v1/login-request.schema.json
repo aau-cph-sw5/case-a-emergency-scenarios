@@ -2,9 +2,10 @@
   "$id": "login-request.schema.json",
   "title": "Login Request",
   "type": "object",
-  "required": ["username", "password"],
+  "required": ["username", "password", "expectedRole"],
   "properties": {
     "username": { "type": "string" },
-    "password": { "type": "string" }
+    "password": { "type": "string" },
+    "expectedRole": { "enum": ["STEWARD", "OPERATOR"] }
   }
 }

@@ -73,11 +73,15 @@ function eventsAbout(reportId: string) {
   `;
 }
 
-async function loginToken(username: string, password: string) {
+async function loginToken(
+  username: string,
+  password: string,
+  expectedRole: "STEWARD" | "OPERATOR",
+) {
   const login = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, expectedRole }),
   });
   return ((await login.json()) as { token: string }).token;
 }
@@ -85,7 +89,11 @@ async function loginToken(username: string, password: string) {
 test("a position report and its event are stored together, with the actor from the token", async () => {
   // The endpoint only accepts stations of an active scenario. Station C is only
   // in DEMO-003, and no other test file reports on it, so the row is ours.
-  const operatorToken = await loginToken(operatorUsername, "operator-test-pw");
+  const operatorToken = await loginToken(
+    operatorUsername,
+    "operator123",
+    "OPERATOR",
+  );
   const activation = await fetch(
     `${baseUrl}/api/v1/scenarios/DEMO-003/activate`,
     {
@@ -100,7 +108,11 @@ test("a position report and its event are stored together, with the actor from t
   assert.equal(activation.status, 201);
 
   await sql`DELETE FROM position_reports WHERE station = 'Station C'`;
-  const stewardToken = await loginToken(stewardUsername, "steward-test-pw");
+  const stewardToken = await loginToken(
+    stewardUsername,
+    "steward123",
+    "STEWARD",
+  );
 
   // The client claims `staff` is somebody else. The token decides.
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {

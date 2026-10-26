@@ -1,16 +1,18 @@
 import type { Request, Response } from "express";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
+import type { Role } from "../../shared/auth/roles.js";
 import { login, logout, type AuthUser } from "../services/auth-service.js";
 
 type AuthenticatedResponse = Response<unknown, { user: AuthUser }>;
 
 export async function postLogin(request: Request, response: Response) {
-  const { username, password } = request.body as {
+  const { username, password, expectedRole } = request.body as {
     username: string;
     password: string;
+    expectedRole: Role;
   };
 
-  const session = await login(username, password);
+  const session = await login(username, password, expectedRole);
 
   if (!session) {
     response
