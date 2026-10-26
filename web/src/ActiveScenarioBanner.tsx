@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { palette, radius } from "../../shared/Theme";
+import { box, colors, text } from "../../shared/Theme";
 import { fetchActiveActivations } from "./activations";
 import { fetchScenarios, type ScenarioSummary } from "./scenarios";
 import { socket } from "./socket";
@@ -74,7 +74,7 @@ export function ActiveScenarioBanner({ token }: { token: string }) {
       ) : (
         active.map((a) => (
           <View key={a.scenarioId} style={styles.item}>
-            <View style={styles.dot} />
+            <View style={[styles.dot, styles.dotActive]} />
             <Text style={[styles.title, styles.side]}>
               {names.get(a.scenarioId)?.name ?? a.scenarioId}
             </Text>
@@ -95,6 +95,10 @@ const styles = StyleSheet.create({
   // dashboard runs on the web.
   bar: {
     ...box,
+    position: "sticky" as "absolute",
+    top: 0,
+    zIndex: 10,
+    backgroundColor: colors.background,
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
@@ -110,58 +114,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  dot: {width: 9, height: 9, borderRadius: 5,},
+  dot: { width: 9, height: 9, borderRadius: 5 },
   dotActive: { backgroundColor: colors.statusGreen },
   dotIdle: { backgroundColor: colors.statusRed },
   // Equal side slots keep the middle text centred, with or without a line.
   side: { flex: 1 },
   line: { alignItems: "flex-end" },
-  title: { ...text.title},
-  meta: {...text.body},
-  // position sticky is web only, so the types do not know it. The control-room
-  // dashboard runs on the web.
-  bar: {
-    position: "sticky" as "absolute",
-    top: 0,
-    zIndex: 10,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    backgroundColor: palette.metroBlack,
-    borderBottomWidth: 1,
-    borderColor: palette.barBorder,
-  },
-  row: { flexDirection: "row", alignItems: "center", gap: 12 },
-  item: {
-    flex: 1,
-    flexBasis: 220,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: palette.barBorder,
-    borderRadius: radius,
-  },
-  dot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: palette.metroLineOne,
-  },
-  dotIdle: { backgroundColor: palette.metroLineThree },
-  // Equal side slots keep the middle text centred, with or without a line.
-  side: { flex: 1 },
-  line: { alignItems: "flex-end" },
-  title: { color: palette.metroWhite, fontSize: 18, fontWeight: "bold" },
-  meta: {
-    color: palette.metroWhite,
-    fontSize: 14,
-    opacity: 0.75,
-    textAlign: "center",
-  },
+  title: { ...text.title },
+  meta: { ...text.body },
 });

@@ -11,8 +11,6 @@ export const palette = {
   metroLineFour: "#00A0BE",
   metroSummerRed: "#E40037",
   metroWhite: "#FFFFFF",
-  // The control-room banner's grey border.
-  barBorder: "#454545",
 
   // Not in the metro set, kept so nothing changes visually. Swap for metro colours if you like.
   pageGrey: "#ecf0f1",
@@ -29,6 +27,9 @@ export const colors = {
   border: palette.metroBlack,
   active: palette.metroBlack, // selected / hovered state (inverted)
   action: palette.actionBlue, // confirm button
+  statusGreen: palette.metroLineOne,
+  statusYellow: palette.metroLineTwo,
+  statusRed: palette.metroLineThree,
 };
 
 export const lineColors = [
