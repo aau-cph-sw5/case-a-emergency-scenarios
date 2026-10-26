@@ -30,7 +30,12 @@ after(async () => {
 });
 
 test("a logged-in steward loads the active scenario from the real server", async () => {
-  const { token } = await login(baseUrl, STEWARD_USERNAME, "steward123");
+  const { token } = await login(
+    baseUrl,
+    STEWARD_USERNAME,
+    "steward123",
+    "STEWARD",
+  );
 
   const result = await loadActiveScenario(baseUrl, token);
 
