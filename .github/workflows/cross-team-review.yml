@@ -3,6 +3,7 @@ name: Cross-team reviewer assignment
 on:
   pull_request_target:
     types: [opened, ready_for_review]
+    branches: [dev, staging, main]
 
 permissions:
   pull-requests: write
