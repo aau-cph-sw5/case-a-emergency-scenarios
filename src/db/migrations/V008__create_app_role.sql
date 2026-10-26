@@ -22,6 +22,13 @@ $$;
 
 GRANT USAGE ON SCHEMA public TO metro_app;
 
+-- Start from nothing, so the result does not depend on what the role had before.
+-- Default privileges (below) survive a Flyway clean. On a database that is reset
+-- and migrated again, the tables from V001 to V007 are therefore created with
+-- full privileges for metro_app, and the grants below would only add to them.
+-- On a new database this revokes nothing.
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM metro_app;
+
 -- Tables that exist today get exactly what the application does with them.
 -- Reference data is loaded by the seed script, which connects as the owner, so
 -- the application only reads it.
