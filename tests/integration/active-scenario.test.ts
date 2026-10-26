@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { app } from "../../src/app.js";
+import { getDatabase } from "../../src/db/client.js";
 import { login, userIdFromToken } from "../../shared/auth/login.js";
 import { loadActiveScenario } from "../../shared/scenario/active-scenario.js";
 
@@ -16,14 +17,18 @@ before(async () => {
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
-after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+after(async () => {
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  await getDatabase().end();
+});
 
 test("a logged-in steward loads the active scenario from the real server", async () => {
   const { token } = await login(baseUrl, "steward-test", "steward-test-pw");
 
   const result = await loadActiveScenario(baseUrl, token);
 
-  assert.equal(userIdFromToken(token), "steward-test");
+  // The server signs the database id, read back as a string.
+  assert.match(userIdFromToken(token) ?? "", /^\d+$/);
   assert.equal(result.active, true);
   if (result.active) {
     assert.equal(result.scenario.scenarioId, result.state.scenarioId);
