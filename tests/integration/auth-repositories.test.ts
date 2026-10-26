@@ -4,6 +4,7 @@ import { after, afterEach, beforeEach, test } from "node:test";
 import { getDatabase } from "../../src/db/client.js";
 import { authSessionRepository } from "../../src/repositories/auth-session-repository.js";
 import { userRepository } from "../../src/repositories/user-repository.js";
+import { closeOwnerDatabase, getOwnerDatabase } from "./helpers.js";
 
 type CreatedUser = {
   id: number;
@@ -12,8 +13,9 @@ type CreatedUser = {
 
 let user: CreatedUser;
 
+// The application only reads users, so the fixture is written and removed as the owner.
 beforeEach(async () => {
-  const sql = getDatabase();
+  const sql = getOwnerDatabase();
   const username = `repository-test-${randomUUID()}`;
   const [createdUser] = await sql<CreatedUser[]>`
     INSERT INTO users (username, password_hash, role)
@@ -24,11 +26,12 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  const sql = getDatabase();
+  const sql = getOwnerDatabase();
   await sql`DELETE FROM users WHERE id = ${user.id}`;
 });
 
 after(async () => {
+  await closeOwnerDatabase();
   await getDatabase().end();
 });
 

@@ -12,6 +12,10 @@ import { authSessionRepository } from "../../src/repositories/auth-session-repos
 import { renew } from "../../src/services/auth-service.js";
 import { validate } from "../../src/validation/contract-validator.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
+import { closeOwnerDatabase, getOwnerDatabase } from "./helpers.js";
+
+// The application may only read users, so changing a role runs as the owner.
+const owner = getOwnerDatabase();
 
 let server: Server;
 let baseUrl: string;
@@ -35,6 +39,7 @@ before(async () => {
 after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await getDatabase().end();
+  await closeOwnerDatabase();
 });
 
 function postJson(
@@ -196,7 +201,7 @@ test("protected requests use the user's current database role", async () => {
   const headers = { Authorization: `Bearer ${session.token}` };
   const sql = getDatabase();
 
-  await sql`UPDATE users SET role = 'STEWARD' WHERE id = ${operatorId}`;
+  await owner`UPDATE users SET role = 'STEWARD' WHERE id = ${operatorId}`;
 
   try {
     const me = await fetch(`${baseUrl}/api/v1/me`, { headers });
@@ -212,7 +217,7 @@ test("protected requests use the user's current database role", async () => {
     });
     assert.equal(activation.status, 403);
   } finally {
-    await sql`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
+    await owner`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
   }
 });
 
@@ -477,7 +482,7 @@ test("POST /api/v1/auth/renew uses the account's current role", async () => {
     SET expires_at = NOW() + INTERVAL '1 day'
     WHERE user_id = ${operatorId}
   `;
-  await sql`UPDATE users SET role = 'STEWARD' WHERE id = ${operatorId}`;
+  await owner`UPDATE users SET role = 'STEWARD' WHERE id = ${operatorId}`;
 
   try {
     const response = await postJson(
@@ -493,7 +498,7 @@ test("POST /api/v1/auth/renew uses the account's current role", async () => {
     assert.ok(payload && typeof payload !== "string");
     assert.equal(payload.role, "STEWARD");
   } finally {
-    await sql`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
+    await owner`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
   }
 });
 
