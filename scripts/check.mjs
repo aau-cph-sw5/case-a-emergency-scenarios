@@ -1,11 +1,7 @@
-import { spawnSync } from "node:child_process";
+import { npm } from "./lib/run.mjs";
 
 function run(script) {
-  const result = spawnSync(
-    process.execPath,
-    [process.env.npm_execpath, "run", script],
-    { stdio: "inherit" },
-  );
+  const result = npm(["run", script]);
 
   if (result.error) {
     console.error(`Could not run "npm run ${script}": ${result.error.message}`);
