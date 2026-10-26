@@ -2,54 +2,16 @@
 // The one place the steward app fetches the active scenario (#157), so the
 // offline copy (MET-A-005) can wrap it.
 import { getJson } from "../api/http";
+import type { Scenario, TrackSegment } from "../types/v1/scenario";
+import type { ScenarioState } from "../types/v1/scenario-state";
 
-// contracts/v1/scenario-state.schema.json
-export type Deployment = {
-  status: "UNMANNED" | "PENDING" | "MANNED";
-  reportedAt?: string | null;
-  arrivedAt?: string | null;
-  staff?: string | null;
-  fulfills: string;
-};
-
-export type ScenarioState = {
-  activationId: string;
-  scenarioId: string;
-  startedAt: string;
-  endedAt?: string | null;
-  status: "ACTIVE" | "CLOSED";
-  actor: string;
-  deployments: Deployment[];
-};
-
-// The fields of contracts/v1/scenario.schema.json the steward app uses.
-export type TrackSegment = {
-  trackNumber: number;
-  stationA: string;
-  stationB: string;
-};
-
-export type StationRequirement = {
-  station: string;
-  placement: string;
-  minimumStaffing: number;
-  activeDuring?: { dayPattern: string; startTime: string; endTime: string }[];
-  actions?: { sequence: number; instruction: string }[];
-};
-
-export type ScenarioVersion = {
-  version: string;
-  stationRequirements: StationRequirement[];
-  passengerInformation?: unknown[];
-};
-
-export type ScenarioDefinition = {
-  scenarioId: string;
-  name: string;
-  currentVersion: string;
-  covers?: TrackSegment[];
-  versions: ScenarioVersion[];
-};
+// The types are generated from contracts/v1 (npm run generate:types), so the
+// contract stays the single source of truth.
+export type { ScenarioState, TrackSegment };
+export type ScenarioDefinition = Scenario;
+export type Deployment = ScenarioState["deployments"][number];
+export type ScenarioVersion = Scenario["versions"][number];
+export type StationRequirement = ScenarioVersion["stationRequirements"][number];
 
 export type ActiveScenario =
   | { active: false }
@@ -114,6 +76,8 @@ function isScenarioVersion(data: unknown): data is ScenarioVersion {
   if (!isObject(data)) return false;
   return (
     typeof data.version === "string" &&
+    typeof data.revision === "string" &&
+    isObject(data.operatingPlan) &&
     Array.isArray(data.stationRequirements) &&
     data.stationRequirements.every(isStationRequirement)
   );
