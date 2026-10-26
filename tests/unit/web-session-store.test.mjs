@@ -36,7 +36,11 @@ async function withSessionStorage(callback) {
 
 test("webSessionStore saves, loads, and clears a session", async () => {
   await withSessionStorage(async () => {
-    const session = { token: "token", role: "OPERATOR" };
+    const session = {
+      token: "token",
+      role: "OPERATOR",
+      expiresAt: "2026-11-20T12:00:00.000Z",
+    };
 
     await webSessionStore.save(session);
     assert.deepEqual(await webSessionStore.load(), session);

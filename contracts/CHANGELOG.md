@@ -1,5 +1,14 @@
 # Scenario State Contract Changelog
 
+## 5.0.0 - 2026-10-24
+
+Breaking.
+
+- `POST /api/v1/auth/login` and `POST /api/v1/auth/renew` now return a required
+  `expiresAt` timestamp. Clients that validate these responses must accept and
+  persist this field.
+- `info.version` in `openapi.yaml` is now 5.0.0.
+
 ## 4.0.0 - 2026-10-21
 
 Breaking.

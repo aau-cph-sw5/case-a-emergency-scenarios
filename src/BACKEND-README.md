@@ -47,10 +47,14 @@ rejected before its body is examined.
   returns a signed JWT with the user's numeric id and database role.
   `verifyToken()` checks both the token's signature and expiry and whether its
   JTI is still an active database session. A new login for an account replaces
-  its earlier session. `logout()` revokes the current session. The requested
-  role only selects the permitted client; the JWT role always comes from the
-  database. `JWT_SECRET` is required at startup; it must be a unique random
-  secret in every deployed environment.
+  its earlier session. `renew()` rechecks the account role, extends a valid
+  session only in its final seven days, and returns a fresh JWT with the same
+  JTI. Retrying a renewal after a lost response therefore remains safe;
+  otherwise the renew endpoint returns 204 without changing the session.
+  `logout()` revokes the current session. The requested role only selects the
+  permitted client; the JWT role always comes from the database. `JWT_SECRET`
+  is required at startup; it must be a unique random secret in every deployed
+  environment.
 - **`incident-log-service.ts`**: `appendEvent()` is the only way to write to
   the incident log. It takes the caller's transaction, so the change and its
   event commit together, and takes the actor from the verified user. See

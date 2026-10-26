@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { isRole, type Role } from "../../shared/auth/roles.js";
+import { RENEWAL_WINDOW_MS } from "../../shared/auth/renewal.js";
 import { authSessionRepository } from "../repositories/auth-session-repository.js";
 import { userRepository } from "../repositories/user-repository.js";
 
@@ -17,15 +18,100 @@ function requireJwtSecret(): string {
 
 const JWT_SECRET = requireJwtSecret();
 
-// Token expiry time
-const TOKEN_TTL = "30d";
-const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const TOKEN_TTL_DAYS = 30;
+const TOKEN_TTL: `${number}d` = `${TOKEN_TTL_DAYS}d`;
+const TOKEN_TTL_MS = TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+export type AuthSessionResponse = {
+  token: string;
+  role: Role;
+  expiresAt: string;
+};
+
+type IssuedSession = {
+  response: AuthSessionResponse;
+  jti: string;
+  expiresAt: Date;
+};
+
+function createToken(
+  userId: number,
+  role: Role,
+  jti: string,
+  expiresAt?: Date,
+): string {
+  const payload = expiresAt
+    ? { userId, role, jti, exp: Math.floor(expiresAt.getTime() / 1000) }
+    : { userId, role, jti };
+
+  return jwt.sign(
+    payload,
+    JWT_SECRET,
+    expiresAt ? undefined : { expiresIn: TOKEN_TTL },
+  );
+}
+
+function getTokenExpiry(token: string): Date {
+  const payload = jwt.decode(token);
+
+  if (
+    typeof payload === "string" ||
+    payload === null ||
+    typeof payload.exp !== "number"
+  ) {
+    throw new Error("Failed to create a JWT with an expiry.");
+  }
+
+  return new Date(payload.exp * 1000);
+}
+
+async function issueSession(
+  userId: number,
+  role: Role,
+): Promise<AuthSessionResponse> {
+  const session = createSession(userId, role);
+  await authSessionRepository.startSession(
+    userId,
+    session.jti,
+    session.expiresAt,
+  );
+  return session.response;
+}
+
+function createSession(userId: number, role: Role): IssuedSession {
+  const jti = randomUUID();
+  const token = createToken(userId, role, jti);
+  const expiresAt = getTokenExpiry(token);
+
+  return {
+    response: {
+      token,
+      role,
+      expiresAt: expiresAt.toISOString(),
+    },
+    jti,
+    expiresAt,
+  };
+}
+
+function createRenewedSession(
+  userId: number,
+  role: Role,
+  jti: string,
+  expiresAt: Date,
+): AuthSessionResponse {
+  return {
+    token: createToken(userId, role, jti, expiresAt),
+    role,
+    expiresAt: expiresAt.toISOString(),
+  };
+}
 
 export async function login(
   username: string,
   password: string,
   expectedRole: Role,
-): Promise<{ token: string; role: Role } | null> {
+): Promise<AuthSessionResponse | null> {
   const user = await userRepository.getUserByUsername(username);
 
   if (!user || !isRole(user.role)) return null;
@@ -34,18 +120,7 @@ export async function login(
   if (!passwordMatches) return null;
   if (user.role !== expectedRole) return null;
 
-  const jti = randomUUID();
-  const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
-
-  const token = jwt.sign(
-    { userId: user.id, role: user.role, jti },
-    JWT_SECRET,
-    { expiresIn: TOKEN_TTL },
-  );
-
-  await authSessionRepository.startSession(user.id, jti, expiresAt);
-
-  return { token, role: user.role };
+  return issueSession(user.id, user.role);
 }
 
 export type AuthUser = {
@@ -87,11 +162,77 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
 
   if (!session) return null;
 
+  const user = await userRepository.getUserById(payload.userId);
+
+  if (!user || !isRole(user.role)) return null;
+
   return {
-    userId: payload.userId,
-    role: payload.role,
+    userId: user.id,
+    role: user.role,
     jti: payload.jti,
   };
+}
+
+export type RenewalResult =
+  | { kind: "renewed"; session: AuthSessionResponse }
+  | { kind: "not-due" }
+  | { kind: "invalid" };
+
+export async function renew(user: AuthUser): Promise<RenewalResult> {
+  const session = await authSessionRepository.findActiveSession(
+    user.userId,
+    user.jti,
+  );
+
+  if (!session) return { kind: "invalid" };
+
+  const account = await userRepository.getUserById(user.userId);
+
+  if (!account || !isRole(account.role)) return { kind: "invalid" };
+
+  const remainingMs = session.expiresAt.getTime() - Date.now();
+
+  if (remainingMs > RENEWAL_WINDOW_MS) return { kind: "not-due" };
+
+  const renewedExpiresAt = new Date(Date.now() + TOKEN_TTL_MS);
+  const extended = await authSessionRepository.extendDueSession(
+    user.userId,
+    user.jti,
+    renewedExpiresAt,
+  );
+
+  if (extended) {
+    return {
+      kind: "renewed",
+      session: createRenewedSession(
+        user.userId,
+        account.role,
+        user.jti,
+        extended.expiresAt,
+      ),
+    };
+  }
+
+  const currentSession = await authSessionRepository.findActiveSession(
+    user.userId,
+    user.jti,
+  );
+
+  if (!currentSession) return { kind: "invalid" };
+
+  if (currentSession.expiresAt.getTime() - Date.now() > RENEWAL_WINDOW_MS) {
+    return {
+      kind: "renewed",
+      session: createRenewedSession(
+        user.userId,
+        account.role,
+        user.jti,
+        currentSession.expiresAt,
+      ),
+    };
+  }
+
+  return { kind: "not-due" };
 }
 
 export async function logout(user: AuthUser): Promise<void> {

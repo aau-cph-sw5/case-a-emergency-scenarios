@@ -1,20 +1,14 @@
 // No react-native imports here, so the unit tests can import this file.
 import { FormatError, HttpError } from "../api/http";
 import { REQUEST_TIMEOUT_MS } from "../http";
-import { isRole, type Role } from "./roles";
-import type { Session } from "./session";
+import type { Role } from "./roles";
+import { isSession, type Session } from "./session";
 
 export class InvalidCredentialsError extends Error {
   constructor() {
     super("invalid username or password");
     this.name = "InvalidCredentialsError";
   }
-}
-
-function isLoginResponse(data: unknown): data is Session {
-  if (typeof data !== "object" || data === null) return false;
-  const { token, role } = data as Record<string, unknown>;
-  return typeof token === "string" && token !== "" && isRole(role);
 }
 
 export async function login(
@@ -37,10 +31,10 @@ export async function login(
     throw new HttpError("POST /api/v1/auth/login", response.status);
   }
   const data: unknown = await response.json();
-  if (!isLoginResponse(data)) {
+  if (!isSession(data)) {
     throw new FormatError("a login response");
   }
-  return { token: data.token, role: data.role };
+  return data;
 }
 
 // The user id the server put in the token ({ userId, role } in
