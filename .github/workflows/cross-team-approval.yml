@@ -43,11 +43,6 @@ jobs:
               return;
             }
 
-            if (!["dev", "staging", "main"].includes(pr.base.ref)) {
-              core.info("Branch is outside the protected branches.");
-              return;
-            }
-
             if (!process.env.REVIEW_TEAMS?.trim()) {
               core.setFailed("REVIEW_TEAMS variable is missing.");
               return;
