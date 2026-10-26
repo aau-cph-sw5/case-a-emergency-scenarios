@@ -94,6 +94,33 @@ const styles = StyleSheet.create({
   // position sticky is web only, so the types do not know it. The control-room
   // dashboard runs on the web.
   bar: {
+    ...box,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 12,
+  },
+  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  item: {
+    flex: 1,
+    flexBasis: 220,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  dot: {width: 9, height: 9, borderRadius: 5,},
+  dotActive: { backgroundColor: colors.statusGreen },
+  dotIdle: { backgroundColor: colors.statusRed },
+  // Equal side slots keep the middle text centred, with or without a line.
+  side: { flex: 1 },
+  line: { alignItems: "flex-end" },
+  title: { ...text.title},
+  meta: {...text.body},
+  // position sticky is web only, so the types do not know it. The control-room
+  // dashboard runs on the web.
+  bar: {
     position: "sticky" as "absolute",
     top: 0,
     zIndex: 10,
