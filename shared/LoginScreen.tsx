@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { InvalidCredentialsError, login } from "./auth/login";
-import type { Role, Session } from "./auth/login";
 import { box, colors, palette, radius, surface, text } from "./Theme";
+import { InvalidCredentialsError, login } from "./auth/login";
+import type { Role } from "./auth/roles";
+import type { Session } from "./auth/session";
 
 type LoginState =
   | { status: "idle" }
@@ -10,17 +11,15 @@ type LoginState =
   | { status: "error"; message: string };
 
 // Shared by the steward app (mobile/) and the control-room dashboard (web/).
-// Each app only lets in its own role; the other role sees wrongRoleMessage.
+// The server denies accounts that do not have the role expected by this client.
 export function LoginScreen({
   apiBaseUrl,
   allowedRole,
-  wrongRoleMessage,
   onLoggedIn,
 }: {
   apiBaseUrl: string;
   allowedRole: Role;
-  wrongRoleMessage: string;
-  onLoggedIn: (session: Session) => void;
+  onLoggedIn: (session: Session) => Promise<void>;
 }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -33,12 +32,13 @@ export function LoginScreen({
     if (!canSubmit) return;
     setState({ status: "submitting" });
     try {
-      const session = await login(apiBaseUrl, username.trim(), password);
-      if (session.role !== allowedRole) {
-        setState({ status: "error", message: wrongRoleMessage });
-        return;
-      }
-      onLoggedIn(session);
+      const session = await login(
+        apiBaseUrl,
+        username.trim(),
+        password,
+        allowedRole,
+      );
+      await onLoggedIn(session);
     } catch (error) {
       setState({
         status: "error",
