@@ -1,6 +1,6 @@
 # Case A. Emergency Scenarios
 
-*Nød-scenarier*  ·  5th Semester, BSc Software Engineering, AAU Copenhagen  ·  Autumn 2026
+_Nød-scenarier_ · 5th Semester, BSc Software Engineering, AAU Copenhagen · Autumn 2026
 
 A shared situational-awareness tool that lets the control room select the active emergency or alternative-operation scenario and gives both the control room and the stewards a live graphical overview, replacing a document that is hard to navigate under pressure and reducing radio traffic.
 
@@ -45,11 +45,11 @@ npm run setup
 npm run dev:web
 ```
 
-`npm run setup` installs dependencies, creates `.env`, starts the local
-PostgreSQL database, applies the migrations and seeds scenario data when the
-seed files are present (see [the seed loader guide](scripts/README.md)). It is
-safe to re-run at any time, for example after pulling new migrations. If the
-local database gets into a bad state, `npm run db:reset` deletes it and
+`npm run setup` installs dependencies, creates `.env` and a local JWT secret,
+starts the local PostgreSQL database, applies the migrations and seeds scenario
+data when the seed files are present (see [the seed loader guide](scripts/README.md)).
+It is safe to re-run at any time, for example after pulling new migrations. If
+the local database gets into a bad state, `npm run db:reset` deletes it and
 rebuilds it from scratch.
 
 The browser-based web client opens at `http://localhost:5173`; the API and
@@ -133,6 +133,7 @@ Titles must use the following format:
 `<type>: <description> [<ticket>]`
 
 **Allowed types:**
+
 - `feat` — New feature
 - `fix` — Bug fix
 - `docs` — Documentation changes
@@ -171,12 +172,23 @@ The automated description checker verifies that the required sections are comple
 MIT, per Section 7 of the AAU and Metro Service collaboration framework.
 
 ### Authentication
+
 ```bash
-npm run seed:accounts
-npm run stub
+npm run setup # creates .env and a local JWT_SECRET when needed
+npm run seed:users
+npm run dev
 ```
-POST /api/v1/auth/login  (body: username, password → token, role)
+
+```text
+POST /api/v1/auth/login
+body: username, password, expectedRole → token, role
 
 GET  /api/v1/me  (Authorization: Bearer <token>)
 
-Test-konti oprettes af `npm run seed:accounts` — se konsol-output for brugernavn/password pr. rolle.
+POST /api/v1/auth/logout  (Authorization: Bearer <token>)
+```
+
+`expectedRole` is `STEWARD` for the mobile app and `OPERATOR` for the web
+dashboard. The server checks that the database account has that role before it
+creates a session. Test accounts are created by `npm run seed:users`; see its
+console output for usernames and passwords.

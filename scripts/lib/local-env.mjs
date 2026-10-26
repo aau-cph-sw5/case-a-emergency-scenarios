@@ -2,7 +2,7 @@
 // Used by scripts/setup.mjs and scripts/db-reset.mjs.
 // Uses only Node built-ins so it can run before `npm ci`.
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -82,6 +82,29 @@ export function ensureEnvFile() {
     copyFileSync(path.join(root, ".env.example"), envFile);
     note("Created .env from .env.example.");
   }
+}
+
+// A development-only secret lets a new clone start without copying a sensitive
+// value into the repository. An existing secret must remain stable: changing it
+// would invalidate all local sessions.
+export function ensureJwtSecret(dir = root) {
+  const envFile = path.join(dir, ".env");
+  const env = readFileSync(envFile, "utf8");
+  const match = /^JWT_SECRET\s*=\s*(.*)$/m.exec(env);
+
+  if (match && match[1].trim() !== "") {
+    note("JWT_SECRET already exists, leaving it untouched.");
+    return;
+  }
+
+  const secret = randomBytes(48).toString("base64url");
+  const line = `JWT_SECRET=${secret}`;
+  const updated = match
+    ? `${env.slice(0, match.index)}${line}${env.slice(match.index + match[0].length)}`
+    : `${env}${env.endsWith("\n") ? "" : "\n"}${line}\n`;
+
+  writeFileSync(envFile, updated);
+  note("Generated a local JWT_SECRET.");
 }
 
 export function checkDocker() {

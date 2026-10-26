@@ -1,17 +1,40 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { LoginScreen } from "../../shared/LoginScreen";
-import type { Session } from "../../shared/auth/login";
+import { useSession } from "../../shared/auth/use-session";
 import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
 import { OperatorDashboard } from "./OperatorDashboard";
+import { webSessionStore } from "./auth/session-store";
 import { socket } from "./socket";
 
 // The control-room dashboard. Stewards use the app in mobile/.
 export function App() {
-  // Kept in memory only: reloading the page asks for a new login.
-  const [session, setSession] = useState<Session | null>(null);
+  const { state, completeLogin, restore, signOut } = useSession({
+    // "" makes API calls go to /api, which vite.config forwards.
+    apiBaseUrl: "",
+    allowedRole: "OPERATOR",
+    store: webSessionStore,
+  });
+
+  useEffect(() => {
+    const revalidate = () => void restore();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        revalidate();
+      }
+    };
+
+    window.addEventListener("online", revalidate);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("online", revalidate);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [restore]);
 
   // One socket per login, shared by the banner and the dashboard.
-  const token = session?.token;
+  const token = state.status === "signed-in" ? state.session.token : undefined;
   useEffect(() => {
     if (token === undefined) return;
     socket.auth = { token };
@@ -21,25 +44,41 @@ export function App() {
     };
   }, [token]);
 
-  if (session === null) {
+  if (state.status === "restoring") {
+    return <main>Indlæser session…</main>;
+  }
+
+  if (state.status === "signed-out") {
     return (
-      // "" makes the login call go to /api, which vite.config forwards.
       <LoginScreen
         apiBaseUrl=""
         allowedRole="OPERATOR"
-        wrongRoleMessage="Stewards logger ind i appen."
-        onLoggedIn={setSession}
+        onLoggedIn={completeLogin}
       />
+    );
+  }
+
+  if (state.status === "unavailable") {
+    return (
+      <main>
+        <p>Kan ikke bekræfte din session uden forbindelse.</p>
+        <button onClick={() => void restore()} type="button">
+          Prøv igen
+        </button>
+        <button onClick={() => void signOut()} type="button">
+          Log ud
+        </button>
+      </main>
     );
   }
 
   // The banner sits outside any view, so every view added below it keeps it.
   return (
     <>
-      <ActiveScenarioBanner token={session.token} />
+      <ActiveScenarioBanner token={state.session.token} />
       <OperatorDashboard
-        token={session.token}
-        onLogout={() => setSession(null)}
+        token={state.session.token}
+        onLogout={() => void signOut()}
       />
     </>
   );
