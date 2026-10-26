@@ -1,7 +1,7 @@
 // No react-native imports here, so the unit tests can import this file.
 // The one place the steward app fetches the active scenario (#157), so the
 // offline copy (MET-A-005) can wrap it.
-import { getJson } from "../api/http";
+import { FormatError, getJson } from "../api/http";
 import type { Scenario, TrackSegment } from "../types/v1/scenario";
 import type { ScenarioState } from "../types/v1/scenario-state";
 
@@ -122,5 +122,10 @@ export async function loadActiveScenario(
     isScenarioDefinition,
     fetchImpl,
   );
+  // State and scenario are saved together as the offline copy, so another
+  // scenario must not end up under this activation.
+  if (scenario.scenarioId !== state.scenarioId) {
+    throw new FormatError("a scenario whose id does not match scenario-state");
+  }
   return { active: true, state, scenario };
 }

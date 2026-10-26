@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { HttpError } from "../../shared/api/http.ts";
+import { FormatError, HttpError } from "../../shared/api/http.ts";
 import {
   isScenarioState,
   loadActiveScenario,
@@ -83,6 +83,22 @@ test("rejects a scenario whose station requirement is malformed", async () => {
   await assert.rejects(
     loadActiveScenario(API, "abc", fetchImpl),
     /unexpected format/,
+  );
+});
+
+test("rejects a scenario whose id does not match the active one", async () => {
+  const { fetchImpl } = mockFetch({
+    "/api/v1/scenario-state": [200, activeState],
+    "/api/v1/scenarios/DEMO-001": [
+      200,
+      { ...scenario, scenarioId: "DEMO-002" },
+    ],
+  });
+
+  await assert.rejects(
+    loadActiveScenario(API, "abc", fetchImpl),
+    (error) =>
+      error instanceof FormatError && /does not match/.test(error.message),
   );
 });
 
