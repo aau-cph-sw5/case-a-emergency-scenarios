@@ -4,13 +4,20 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { app } from "../../src/app.js";
 import { getDatabase } from "../../src/db/client.js";
+import { seedTestUsers } from "../../scripts/seed-test-users.js";
 import { login, userIdFromToken } from "../../shared/auth/login.js";
 import { loadActiveScenario } from "../../shared/scenario/active-scenario.js";
 
 let server: Server;
 let baseUrl: string;
+let stewardId: number;
+
+const STEWARD_USERNAME = "offline-steward-test";
 
 before(async () => {
+  const users = await seedTestUsers("offline-");
+  stewardId = users.find((user) => user.username === STEWARD_USERNAME)!.id;
+
   server = await new Promise<Server>((resolve) => {
     const listening = app.listen(0, "127.0.0.1", () => resolve(listening));
   });
@@ -23,12 +30,12 @@ after(async () => {
 });
 
 test("a logged-in steward loads the active scenario from the real server", async () => {
-  const { token } = await login(baseUrl, "steward-test", "steward-test-pw");
+  const { token } = await login(baseUrl, STEWARD_USERNAME, "steward-test-pw");
 
   const result = await loadActiveScenario(baseUrl, token);
 
   // The server signs the database id, read back as a string.
-  assert.match(userIdFromToken(token) ?? "", /^\d+$/);
+  assert.equal(userIdFromToken(token), String(stewardId));
   assert.equal(result.active, true);
   if (result.active) {
     assert.equal(result.scenario.scenarioId, result.state.scenarioId);
