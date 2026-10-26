@@ -1,6 +1,6 @@
 # Case A. Emergency Scenarios
 
-*Nød-scenarier*  ·  5th Semester, BSc Software Engineering, AAU Copenhagen  ·  Autumn 2026
+_Nød-scenarier_ · 5th Semester, BSc Software Engineering, AAU Copenhagen · Autumn 2026
 
 A shared situational-awareness tool that lets the control room select the active emergency or alternative-operation scenario and gives both the control room and the stewards a live graphical overview, replacing a document that is hard to navigate under pressure and reducing radio traffic.
 
@@ -38,12 +38,19 @@ This case now carries the semester's machine-intelligence work: `MET-A-019`, sce
 > and get the system running by following this README alone. Test that by handing it to
 > somebody on another team and watching where they get stuck.
 
+Requires Node.js 20.19 or later and a running Docker Desktop.
+
 ```bash
-# requires Node.js 20 or later
-npm ci
-cp .env.example .env
+npm run setup
 npm run dev:web
 ```
+
+`npm run setup` installs dependencies, creates `.env` and a local JWT secret,
+starts the local PostgreSQL database, applies the migrations and seeds scenario
+data when the seed files are present (see [the seed loader guide](scripts/README.md)).
+It is safe to re-run at any time, for example after pulling new migrations. If
+the local database gets into a bad state, `npm run db:reset` deletes it and
+rebuilds it from scratch.
 
 The browser-based web client opens at `http://localhost:5173`; the API and
 Socket.IO server run at `http://localhost:3000`. Use
@@ -71,6 +78,11 @@ Start Command: npm start
 Render provides `PORT`; do not set it manually. Visit the relevant Render URL
 to use the browser-based web client. The deployed web client connects to
 Socket.IO on that same origin, so it needs no deployment-specific URL variable.
+
+Set `DATABASE_URL` on each service to the connection string of that
+environment's own database, the one the Database migrations workflow migrates.
+Routes that use the database fail without it; `POST /api/v1/position-reports`
+is the first.
 
 For Expo to connect to a hosted environment, set `API_URL` in the repository
 root `.env` before starting or building the mobile app, then restart Expo:
@@ -121,6 +133,7 @@ Titles must use the following format:
 `<type>: <description> [<ticket>]`
 
 **Allowed types:**
+
 - `feat` — New feature
 - `fix` — Bug fix
 - `docs` — Documentation changes
@@ -159,12 +172,23 @@ The automated description checker verifies that the required sections are comple
 MIT, per Section 7 of the AAU and Metro Service collaboration framework.
 
 ### Authentication
+
 ```bash
-npm run seed:accounts
-npm run stub
+npm run setup # creates .env and a local JWT_SECRET when needed
+npm run seed:users
+npm run dev
 ```
-POST /api/v1/auth/login  (body: username, password → token, role)
+
+```text
+POST /api/v1/auth/login
+body: username, password, expectedRole → token, role
 
 GET  /api/v1/me  (Authorization: Bearer <token>)
 
-Test-konti oprettes af `npm run seed:accounts` — se konsol-output for brugernavn/password pr. rolle.
+POST /api/v1/auth/logout  (Authorization: Bearer <token>)
+```
+
+`expectedRole` is `STEWARD` for the mobile app and `OPERATOR` for the web
+dashboard. The server checks that the database account has that role before it
+creates a session. Test accounts are created by `npm run seed:users`; see its
+console output for usernames and passwords.

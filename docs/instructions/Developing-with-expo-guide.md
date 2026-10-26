@@ -25,6 +25,14 @@ API_URL=https://case-a-emergency-scenarios-staging.onrender.com
 Use the production Render URL only when building or testing the production
 mobile app. This file is local configuration and must not be committed.
 
+## Sessions
+
+The mobile app stores a successful login token in Expo SecureStore. When the
+app opens while online, it validates that token with the API before showing the
+steward view. If the API cannot be reached, the token is kept so it can be
+validated after reconnection; the current app does not yet show cached scenario
+data in that state.
+
 ## Before you start
 
 1. Make sure your `.env` in the repository root contains:

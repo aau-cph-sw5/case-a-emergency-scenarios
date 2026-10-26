@@ -1,50 +1,42 @@
 import "dotenv/config";
-import test, { after } from "node:test";
+import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import express from "express";
-import { getDatabase, type Db } from "../../src/db/client.js";
+import { getDatabase } from "../../src/db/client.js";
 import { requireAuth } from "../../src/middleware/require-auth.js";
 import { login, type AuthUser } from "../../src/services/auth-service.js";
+import { seedTestUsers } from "../../scripts/seed-test-users.js";
 import {
   appendEvent,
   listIncidentEvents,
-  type NewIncidentEvent,
 } from "../../src/services/incident-log-service.js";
+import { anEvent, inRolledBackTransaction } from "./helpers.js";
 
 const sql = getDatabase();
-const operator: AuthUser = { userId: "operator-test", role: "OPERATOR" };
+const OPERATOR_USERNAME = "incident-log-operator";
+let operator: AuthUser;
+
+before(async () => {
+  const users = await seedTestUsers("incident-log-");
+  const seededOperator = users.find(
+    (user) => user.username === OPERATOR_USERNAME,
+  );
+
+  if (!seededOperator) {
+    throw new Error("The incident-log operator test user was not seeded.");
+  }
+
+  operator = {
+    userId: seededOperator.id,
+    role: "OPERATOR",
+    jti: randomUUID(),
+  };
+});
 
 after(() => sql.end());
-
-class Rollback extends Error {}
-
-// Every test runs in a transaction that is rolled back, so the tests leave no
-// rows behind.
-async function inRolledBackTransaction(run: (tx: Db) => Promise<void>) {
-  try {
-    await sql.begin(async (tx) => {
-      await run(tx);
-      throw new Rollback();
-    });
-  } catch (error) {
-    if (!(error instanceof Rollback)) throw error;
-  }
-}
-
-function anEvent(overrides: Partial<NewIncidentEvent> = {}): NewIncidentEvent {
-  return {
-    type: "SCENARIO_ACTIVATED",
-    schemaVersion: 1,
-    subject: { type: "activation", id: "ACT-TEST-1" },
-    activationId: "ACT-TEST-1",
-    line: "M1",
-    payload: { scenarioId: "DEMO-001", some_key: 1 },
-    ...overrides,
-  };
-}
 
 test("an event is stored with the actor from the user and the server's time", () =>
   inRolledBackTransaction(async (tx) => {
@@ -55,7 +47,7 @@ test("an event is stored with the actor from the user and the server's time", ()
     assert.equal(event.type, "SCENARIO_ACTIVATED");
     assert.equal(event.schemaVersion, 1);
     assert.equal(event.actorType, "USER");
-    assert.equal(event.actorId, "operator-test");
+    assert.equal(event.actorId, String(operator.userId));
     assert.equal(event.actorRole, "OPERATOR");
     assert.equal(event.subjectType, "activation");
     assert.equal(event.subjectId, "ACT-TEST-1");
@@ -83,7 +75,7 @@ test("an actor in the request body is ignored; the token decides", async () => {
   });
   try {
     const { port } = server.address() as AddressInfo;
-    const session = login("operator-test", "operator-test-pw");
+    const session = await login(OPERATOR_USERNAME, "operator123", "OPERATOR");
     assert.ok(session);
 
     const response = await fetch(`http://127.0.0.1:${port}/test/events`, {
@@ -101,7 +93,7 @@ test("an actor in the request body is ignored; the token decides", async () => {
 
     assert.equal(response.status, 201);
     const event = await response.json();
-    assert.equal(event.actorId, "operator-test");
+    assert.equal(event.actorId, String(operator.userId));
     assert.equal(event.actorRole, "OPERATOR");
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));

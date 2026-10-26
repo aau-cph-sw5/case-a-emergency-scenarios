@@ -15,8 +15,12 @@ export function authenticateSocket(
   socket: Socket,
   next: (error?: Error) => void,
 ) {
+  void authenticate(socket, next);
+}
+
+async function authenticate(socket: Socket, next: (error?: Error) => void) {
   const token: unknown = socket.handshake.auth?.token;
-  const user = typeof token === "string" ? verifyToken(token) : null;
+  const user = typeof token === "string" ? await verifyToken(token) : null;
   if (!user) {
     next(new Error(ERROR_CODES.AUTH_TOKEN_INVALID));
     return;

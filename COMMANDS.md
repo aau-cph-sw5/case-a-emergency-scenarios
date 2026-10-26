@@ -6,6 +6,22 @@ application; the fixture-backed stub is a separate development tool.
 
 ## First-time setup
 
+Prepare everything for local development with one command:
+
+```bash
+npm run setup
+```
+
+This installs dependencies when `package-lock.json` has changed, creates
+`.env` from `.env.example` if it is missing, generates a local `JWT_SECRET`
+when it is blank, starts the local PostgreSQL container, applies the Flyway
+migrations, and seeds scenario data when the seed files are present in
+`docs/scenario-state/`. Docker Desktop must be running. Every step skips work
+that is already done, so re-run it after pulling.
+
+The individual steps are described below for when you need to run one on its
+own.
+
 Install the exact dependency versions recorded in `package-lock.json`:
 
 ```bash
@@ -117,6 +133,11 @@ Render supplies `PORT` automatically. The staging service should deploy the
 `staging` branch and the production service should deploy `main`. The deployed
 web client connects to Socket.IO on its own origin automatically.
 
+Set `DATABASE_URL` on each service to the connection string of that
+environment's own database, the one the migrations below are applied to. Routes
+that use the database fail without it; `POST /api/v1/position-reports` is the
+first.
+
 For Expo to use a hosted environment, set the matching URL in the local root
 `.env` before starting or building the mobile app:
 
@@ -148,6 +169,15 @@ Stop the local database container:
 
 ```bash
 npm run db:down
+```
+
+Delete the local database, including all its data, and rebuild it from the
+migrations and seed data. It asks for confirmation first; add `-- --yes` to
+skip the question, for example in a script:
+
+```bash
+npm run db:reset
+npm run db:reset -- --yes
 ```
 
 The container uses the `POSTGRES_PASSWORD` and `POSTGRES_PORT` values from
