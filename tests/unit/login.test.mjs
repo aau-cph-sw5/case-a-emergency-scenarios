@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { InvalidCredentialsError, login } from "../../shared/auth/login.ts";
+import {
+  InvalidCredentialsError,
+  login,
+  userIdFromToken,
+} from "../../shared/auth/login.ts";
 
 const API = "http://localhost:4010";
 
@@ -63,5 +67,30 @@ test("rejects a response with an unknown role or no token", async () => {
       login(API, "u", "p", "STEWARD", fetchImpl),
       /unexpected format/,
     );
+  }
+});
+
+// An unsigned token with the payload the server signs ({ userId, role }).
+const tokenWith = (payload) =>
+  [
+    Buffer.from('{"alg":"HS256"}').toString("base64url"),
+    Buffer.from(JSON.stringify(payload)).toString("base64url"),
+    "signature",
+  ].join(".");
+
+test("userIdFromToken reads the user id without a request", () => {
+  assert.equal(
+    userIdFromToken(tokenWith({ userId: "steward-test", role: "STEWARD" })),
+    "steward-test",
+  );
+});
+
+test("userIdFromToken returns the database id as a string", () => {
+  assert.equal(userIdFromToken(tokenWith({ userId: 7, role: "STEWARD" })), "7");
+});
+
+test("userIdFromToken returns null for a token it cannot read", () => {
+  for (const token of ["", "not-a-jwt", tokenWith({ role: "STEWARD" })]) {
+    assert.equal(userIdFromToken(token), null);
   }
 });

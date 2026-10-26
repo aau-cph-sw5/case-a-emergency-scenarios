@@ -1,13 +1,10 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { Ajv } from "ajv";
 import addFormats from "ajv-formats";
 
 // Every JSON schema in contracts/v1, registered under its $id
-const contractsDirectory = fileURLToPath(
-  new URL("../../contracts/v1/", import.meta.url),
-);
+const contractsDirectory = path.resolve(process.cwd(), "contracts/v1");
 
 const ajv = new Ajv({ allErrors: true });
 addFormats.default(ajv);
