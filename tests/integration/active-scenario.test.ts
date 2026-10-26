@@ -12,7 +12,7 @@ let server: Server;
 let baseUrl: string;
 let stewardId: number;
 
-const STEWARD_USERNAME = "offline-steward-test";
+const STEWARD_USERNAME = "offline-steward";
 
 before(async () => {
   const users = await seedTestUsers("offline-");
@@ -30,7 +30,7 @@ after(async () => {
 });
 
 test("a logged-in steward loads the active scenario from the real server", async () => {
-  const { token } = await login(baseUrl, STEWARD_USERNAME, "steward-test-pw");
+  const { token } = await login(baseUrl, STEWARD_USERNAME, "steward123");
 
   const result = await loadActiveScenario(baseUrl, token);
 
