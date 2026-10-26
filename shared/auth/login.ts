@@ -1,6 +1,5 @@
 // No react-native imports here, so the unit tests can import this file.
-import { FormatError, HttpError, REQUEST_TIMEOUT_MS } from "../api/http";
-
+import { FormatError, HttpError } from "../api/http";
 import { REQUEST_TIMEOUT_MS } from "../http";
 
 export type Role = "STEWARD" | "OPERATOR";
@@ -63,6 +62,11 @@ export function userIdFromToken(token: string): string | null {
     const data: unknown = JSON.parse(atob(base64));
     if (typeof data !== "object" || data === null) return null;
     const { userId } = data as Record<string, unknown>;
+    // The server signs the database id (a number); older tokens and the stub
+    // use a string. Both are returned as a string.
+    if (typeof userId === "number" && Number.isFinite(userId)) {
+      return String(userId);
+    }
     return typeof userId === "string" && userId !== "" ? userId : null;
   } catch {
     return null;

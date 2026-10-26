@@ -1,8 +1,7 @@
 // No react-native imports here, so the unit tests can import this file.
 // How the clients talk to the API: one timeout and one set of error types,
 // so callers can tell "no answer" from "the server answered with an error".
-
-export const REQUEST_TIMEOUT_MS = 10_000;
+import { REQUEST_TIMEOUT_MS } from "../http";
 
 // The server answered with an error status, e.g. 401 for an expired token.
 export class HttpError extends Error {

@@ -81,6 +81,10 @@ test("userIdFromToken reads the user id without a request", () => {
   );
 });
 
+test("userIdFromToken returns the database id as a string", () => {
+  assert.equal(userIdFromToken(tokenWith({ userId: 7, role: "STEWARD" })), "7");
+});
+
 test("userIdFromToken returns null for a token it cannot read", () => {
   for (const token of ["", "not-a-jwt", tokenWith({ role: "STEWARD" })]) {
     assert.equal(userIdFromToken(token), null);
