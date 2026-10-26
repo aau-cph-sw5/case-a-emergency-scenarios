@@ -5,7 +5,7 @@ import { fetchActiveActivations } from "./activations";
 import { fetchScenarios, type ScenarioSummary } from "./scenarios";
 import { socket } from "./socket";
 import { userMessage } from "./get-json";
-import type { ScenarioState } from "./scenario-state";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
 function startedLabel(startedAt: string) {
   return new Date(startedAt).toLocaleString("da-DK", {
