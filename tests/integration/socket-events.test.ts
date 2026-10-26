@@ -126,7 +126,19 @@ test("a position report reaches operators only, with the server's time", async (
     operator.once("position-report", resolve),
   );
 
-  // Station B is in the fixture's active scenario. The phone's clock is wrong.
+  // Station B is in DEMO-001, which nothing has activated yet.
+  const activation = await fetch(
+    `${baseUrl}/api/v1/scenarios/DEMO-001/activate`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${await login(operatorUsername, "operator123", "OPERATOR")}`,
+      },
+    },
+  );
+  assert.equal(activation.status, 201);
+
+  // The phone's clock is wrong.
   const before = Date.now();
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",
