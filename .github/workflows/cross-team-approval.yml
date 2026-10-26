@@ -1,0 +1,182 @@
+
+name: Cross-team approval
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, edited]
+    branches: [dev, staging, main]
+
+  pull_request_review:
+    types: [submitted, dismissed, edited]
+
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  cross-team-approval:
+    name: Cross-team approval
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify external approval
+        uses: actions/github-script@v8
+        env:
+          REVIEW_TEAMS: ${{ vars.REVIEW_TEAMS }}
+        with:
+          script: |
+            // The merge queue requires a separate check.
+            // Actual approval validation happens on the PR.
+            if (context.eventName === "merge_group") {
+              core.info(
+                "Merge group: approval was checked on the PR."
+              );
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+
+            if (!pr) {
+              core.setFailed("Pull request data is missing.");
+              return;
+            }
+
+            if (!["dev", "staging", "main"].includes(pr.base.ref)) {
+              core.info("Branch is outside the protected branches.");
+              return;
+            }
+
+            if (!process.env.REVIEW_TEAMS?.trim()) {
+              core.setFailed("REVIEW_TEAMS variable is missing.");
+              return;
+            }
+
+            let rawTeams;
+
+            try {
+              rawTeams = JSON.parse(process.env.REVIEW_TEAMS);
+            } catch {
+              core.setFailed("Invalid REVIEW_TEAMS JSON.");
+              return;
+            }
+
+            if (
+              !rawTeams ||
+              typeof rawTeams !== "object" ||
+              Array.isArray(rawTeams)
+            ) {
+              core.setFailed("REVIEW_TEAMS must be an object.");
+              return;
+            }
+
+            // Normalize usernames and team names.
+            const teams = {};
+
+            for (const [name, members] of Object.entries(rawTeams)) {
+              if (
+                !Array.isArray(members) ||
+                members.some(user => typeof user !== "string")
+              ) {
+                core.setFailed(`Invalid members in ${name}.`);
+                return;
+              }
+
+              teams[name.toLowerCase()] =
+                members.map(user => user.toLowerCase());
+            }
+
+            const author = pr.user.login.toLowerCase();
+            const pull_number = pr.number;
+
+            // Find the author's teams.
+            const authorTeams = Object.entries(teams)
+              .filter(([, members]) => members.includes(author))
+              .map(([name]) => name);
+
+            if (authorTeams.length === 0) {
+              core.setFailed(
+                `PR author ${author} is missing from REVIEW_TEAMS.`
+              );
+              return;
+            }
+
+            // Find eligible reviewers outside author's teams.
+            const externalReviewers = new Set(
+              Object.entries(teams)
+                .filter(([name]) => !authorTeams.includes(name))
+                .flatMap(([, members]) => members)
+            );
+
+            // Exclude any person who also belongs to an
+            // author's team, even if listed in another team.
+            for (const name of authorTeams) {
+              for (const member of teams[name]) {
+                externalReviewers.delete(member);
+              }
+            }
+
+            if (externalReviewers.size === 0) {
+              core.setFailed("No eligible external reviewers.");
+              return;
+            }
+
+            // Retrieve every review (including paginated results).
+            const reviews = await github.paginate(
+              github.rest.pulls.listReviews,
+              {
+                owner,
+                repo,
+                pull_number,
+                per_page: 100
+              }
+            );
+
+            // Track each reviewer's latest meaningful state.
+            const latestReviews = new Map();
+
+            for (const review of reviews) {
+              if (!review.user) continue;
+
+              const username = review.user.login.toLowerCase();
+              const state = review.state.toUpperCase();
+
+              // Comments do not cancel earlier approvals.
+              if (state === "COMMENTED" || state === "PENDING") {
+                continue;
+              }
+
+              latestReviews.set(username, state);
+            }
+
+            // Require at least one external approval.
+            const validApprovers = [];
+
+            for (const [username, state] of latestReviews) {
+              if (
+                state === "APPROVED" &&
+                externalReviewers.has(username)
+              ) {
+                validApprovers.push(username);
+              }
+            }
+
+            core.info(`PR author: ${author}`);
+            core.info(`Author teams: ${authorTeams.join(", ")}`);
+            core.info(
+              `External approvals: ${validApprovers.join(", ") || "none"}`
+            );
+
+            if (validApprovers.length === 0) {
+              core.setFailed(
+                "At least one approval from another team is required."
+              );
+              return;
+            }
+
+            core.info(
+              `Cross-team approval satisfied by: ${validApprovers.join(", ")}`
+            );
