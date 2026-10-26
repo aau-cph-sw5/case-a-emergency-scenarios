@@ -10,7 +10,7 @@ import { fetchScenarios } from "../../web/src/scenarios.js";
 let server: Server;
 let baseUrl: string;
 
-const OPERATOR_USERNAME = "web-operator-test";
+const OPERATOR_USERNAME = "web-operator";
 
 before(async () => {
   await seedTestUsers("web-");
@@ -35,7 +35,8 @@ async function operatorToken() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       username: OPERATOR_USERNAME,
-      password: "operator-test-pw",
+      password: "operator123",
+      expectedRole: "OPERATOR",
     }),
   });
   return ((await response.json()) as { token: string }).token;

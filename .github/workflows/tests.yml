@@ -80,6 +80,7 @@ jobs:
     env:
       TEST_DATABASE_URL: postgresql://metro_app:metro_app@localhost:5432/metro
       TEST_OWNER_DATABASE_URL: postgresql://metro:metro@localhost:5432/metro
+      JWT_SECRET: test-only-jwt-secret-not-for-production
 
     steps:
       - name: Check out repository
