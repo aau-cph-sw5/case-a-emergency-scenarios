@@ -45,7 +45,7 @@ const isObject = (data: unknown): data is Record<string, unknown> =>
 
 // Checked down to the fields the steward view renders, so a malformed entry
 // is refused here instead of being saved and crashing the view.
-function isStationRequirement(data: unknown): data is StationRequirement {
+export function isStationRequirement(data: unknown): data is StationRequirement {
   if (!isObject(data)) return false;
   const { station, placement, minimumStaffing, activeDuring, actions } = data;
   return (
