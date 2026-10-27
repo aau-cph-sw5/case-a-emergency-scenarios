@@ -7,6 +7,7 @@ import path from "node:path";
 
 export const SEED_DATA_DIR = "docs/scenario-state";
 export const STATIONS_FILE = "stations.json";
+export const SHAFTS_FILE = "shafts.json";
 const SCENARIO_PREFIX = "SeedDataScenario_";
 const SCENARIO_FILES = `${SCENARIO_PREFIX}*.json`;
 
