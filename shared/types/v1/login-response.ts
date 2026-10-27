@@ -8,5 +8,6 @@
 export interface LoginResponse {
   token: string;
   role: "STEWARD" | "OPERATOR";
+  expiresAt: string;
   [k: string]: unknown;
 }

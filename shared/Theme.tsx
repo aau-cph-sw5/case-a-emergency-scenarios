@@ -30,6 +30,9 @@ export const colors = {
   border: palette.metroBlack,
   active: palette.metroBlack, // selected / hovered state (inverted)
   action: palette.actionBlue, // confirm button
+  statusGreen: palette.metroLineOne,
+  statusYellow: palette.metroLineTwo,
+  statusRed: palette.metroLineThree,
 };
 
 export const lineColors = [

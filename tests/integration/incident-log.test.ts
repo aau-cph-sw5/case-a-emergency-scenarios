@@ -16,7 +16,7 @@ import {
 import { anEvent, inRolledBackTransaction } from "./helpers.js";
 
 const sql = getDatabase();
-const OPERATOR_USERNAME = "incident-log-operator-test";
+const OPERATOR_USERNAME = "incident-log-operator";
 let operator: AuthUser;
 
 before(async () => {
@@ -75,11 +75,7 @@ test("an actor in the request body is ignored; the token decides", async () => {
   });
   try {
     const { port } = server.address() as AddressInfo;
-    const session = await login(
-      OPERATOR_USERNAME,
-      "operator-test-pw",
-      "OPERATOR",
-    );
+    const session = await login(OPERATOR_USERNAME, "operator123", "OPERATOR");
     assert.ok(session);
 
     const response = await fetch(`http://127.0.0.1:${port}/test/events`, {

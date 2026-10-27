@@ -74,12 +74,12 @@ test("a socket without a valid token is refused with E0001", async () => {
 test("an activation reaches stewards in full and operators as a signal", async () => {
   const operatorToken = await login(
     operatorUsername,
-    "operator-test-pw",
+    "operator123",
     "OPERATOR",
   );
   const operator = await open(operatorToken);
   const steward = await open(
-    await login(stewardUsername, "steward-test-pw", "STEWARD"),
+    await login(stewardUsername, "steward123", "STEWARD"),
   );
 
   let operatorGotScenario = false;
@@ -112,13 +112,9 @@ test("an activation reaches stewards in full and operators as a signal", async (
 });
 
 test("a position report reaches operators only, with the server's time", async () => {
-  const stewardToken = await login(
-    stewardUsername,
-    "steward-test-pw",
-    "STEWARD",
-  );
+  const stewardToken = await login(stewardUsername, "steward123", "STEWARD");
   const operator = await open(
-    await login(operatorUsername, "operator-test-pw", "OPERATOR"),
+    await login(operatorUsername, "operator123", "OPERATOR"),
   );
   const steward = await open(stewardToken);
 
@@ -130,7 +126,19 @@ test("a position report reaches operators only, with the server's time", async (
     operator.once("position-report", resolve),
   );
 
-  // Station B is in the fixture's active scenario. The phone's clock is wrong.
+  // Station B is in DEMO-001, which nothing has activated yet.
+  const activation = await fetch(
+    `${baseUrl}/api/v1/scenarios/DEMO-001/activate`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${await login(operatorUsername, "operator123", "OPERATOR")}`,
+      },
+    },
+  );
+  assert.equal(activation.status, 201);
+
+  // The phone's clock is wrong.
   const before = Date.now();
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",

@@ -7,7 +7,12 @@ import {
   appendEvent,
   type NewIncidentEvent,
 } from "../../src/services/incident-log-service.js";
-import { anEvent, inRolledBackTransaction } from "./helpers.js";
+import {
+  anEvent,
+  closeOwnerDatabase,
+  getOwnerDatabase,
+  inRolledBackTransaction,
+} from "./helpers.js";
 
 const sql = getDatabase();
 const operator: AuthUser = { userId: "operator-test", role: "OPERATOR" };
@@ -15,7 +20,15 @@ const operator: AuthUser = { userId: "operator-test", role: "OPERATOR" };
 // PostgreSQL's restrict_violation, which the append-only trigger raises.
 const RESTRICT_VIOLATION = "23001";
 
-after(() => sql.end());
+// The trigger tests run as the owner. The application's role is refused by its
+// grants before the trigger fires, which app-role-privileges.test.ts covers.
+// Here the trigger must hold for a user that has the privileges.
+const owner = getOwnerDatabase();
+
+after(async () => {
+  await sql.end();
+  await closeOwnerDatabase();
+});
 
 // The failing statement runs in a savepoint, so the transaction survives it and
 // the test can check that the row is unchanged afterwards.
@@ -48,7 +61,7 @@ test("an event cannot be updated", () =>
     `;
     assert.equal(stored.type, "SCENARIO_ACTIVATED");
     assert.equal(stored.actorId, "operator-test");
-  }));
+  }, owner));
 
 test("an event cannot be deleted", () =>
   inRolledBackTransaction(async (tx) => {
@@ -62,7 +75,7 @@ test("an event cannot be deleted", () =>
     const stored =
       await tx`SELECT 1 FROM incident_events WHERE id = ${event.id}`;
     assert.equal(stored.length, 1);
-  }));
+  }, owner));
 
 test("the log cannot be truncated", () =>
   inRolledBackTransaction(async (tx) => {
@@ -73,7 +86,7 @@ test("the log cannot be truncated", () =>
     const stored =
       await tx`SELECT 1 FROM incident_events WHERE id = ${event.id}`;
     assert.equal(stored.length, 1);
-  }));
+  }, owner));
 
 test("a client-supplied time is stored only in client_time", () =>
   inRolledBackTransaction(async (tx) => {

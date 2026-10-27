@@ -7,10 +7,12 @@ const respondWith =
   (body, status = 200) =>
   async () => ({ ok: status < 400, status, json: async () => body });
 const active = {
+  activationId: "ACT-DEMO-001-1",
   scenarioId: "DEMO-001",
   status: "ACTIVE",
   actor: "u1",
   startedAt: "2026-01-01T00:00:00Z",
+  deployments: [],
 };
 
 test("returns the active activations", async () => {

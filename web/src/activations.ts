@@ -1,6 +1,7 @@
 import { REQUEST_TIMEOUT_MS } from "../../shared/http";
 import { ApiError } from "./get-json";
-import { isScenarioState, type ScenarioState } from "./scenario-state";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state";
+import { isScenarioState } from "./scenario-state";
 
 function isActivationList(data: unknown): data is ScenarioState[] {
   return Array.isArray(data) && data.every(isScenarioState);
