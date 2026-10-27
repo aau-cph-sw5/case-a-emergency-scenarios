@@ -1,20 +1,22 @@
+import type { ReactNode } from "react";
 import "./OperatorSections.css";
 
-// The operator dashboard is split into three sections: scenario selection, map, and steward coverage.
-export function OperatorSections() {
+// The operator dashboard is split into three sections: scenario selection, map,
+// and steward coverage. OperatorDashboard decides what goes in each.
+export function OperatorSections({
+  scenarioSelection,
+  map,
+  coverage,
+}: {
+  scenarioSelection: ReactNode;
+  map: ReactNode;
+  coverage: ReactNode;
+}) {
   return (
     <div className="operator-sections">
-      <section aria-label="Scenario selection">
-        <p>Insert scenario selection here...</p>
-      </section>
-
-      <section aria-label="Map">
-        <p>Insert map here...</p>
-      </section>
-
-      <section aria-label="Steward coverage">
-        <p>Insert steward coverage here...</p>
-      </section>
+      <section aria-label="Scenario selection">{scenarioSelection}</section>
+      <section aria-label="Map">{map}</section>
+      <section aria-label="Steward coverage">{coverage}</section>
     </div>
   );
 }
