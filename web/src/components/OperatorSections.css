@@ -1,13 +1,23 @@
+body {
+  margin: 0;
+}
+
 .operator-sections {
+  box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(0, 6fr) minmax(190px, 1.1fr);
+  /* Keep the side panels responsive within set width limits; the center fills the remaining space. */
+  grid-template-columns: clamp(180px, 14vw, 240px) minmax(0, 1fr) clamp(190px, 16vw, 270px);
   gap: 10px;
-  min-height: 85vh;
+  min-height: 100vh;
   padding: 10px;
   background: #1E1E1E;
 }
 
 .operator-sections section {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
   padding: 16px;
   border-radius: 8px;
   background: white;
