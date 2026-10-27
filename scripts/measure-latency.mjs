@@ -20,11 +20,11 @@ const TARGET_MS = 3000;
 const TIMEOUT_MS = 10_000;
 
 // Signs in over HTTP and returns the bearer token.
-async function login(username, password) {
+async function login(username, password, expectedRole) {
   const response = await fetch(`${URL}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, expectedRole }),
   });
   if (!response.ok)
     throw new Error(`Login as ${username} failed: ${response.status}`);
@@ -98,8 +98,8 @@ async function main() {
   // Wake staging before measuring since render sleeps when inactive
   await fetch(`${URL}/healthcheck`);
   // One token per role, shared by all simulated clients of that role.
-  const operatorToken = await login("operator-test", "operator-test-pw");
-  const stewardToken = await login("steward-test", "steward-test-pw");
+  const operatorToken = await login("operator", "operator123", "OPERATOR");
+  const stewardToken = await login("steward", "steward123", "STEWARD");
 
   // Connect the simulated steward clients and one operator client.
   const stewards = await Promise.all(
