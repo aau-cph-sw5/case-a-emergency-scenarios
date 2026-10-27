@@ -74,8 +74,12 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+    # The tests connect as metro_app, as the application does, and migrate as
+    # the owner. The owner URL is for fixtures and for proving what metro_app
+    # is refused.
     env:
-      TEST_DATABASE_URL: postgresql://metro:metro@localhost:5432/metro
+      TEST_DATABASE_URL: postgresql://metro_app:metro_app@localhost:5432/metro
+      TEST_OWNER_DATABASE_URL: postgresql://metro:metro@localhost:5432/metro
       JWT_SECRET: test-only-jwt-secret-not-for-production
 
     steps:
@@ -90,6 +94,10 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # The same file the local Docker databases run on first start.
+      - name: Create the application role
+        run: psql "$TEST_OWNER_DATABASE_URL" --file docker/db-init/01-app-role.sql
 
       - name: Apply database migrations
         run: |

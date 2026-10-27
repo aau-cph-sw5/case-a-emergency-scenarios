@@ -109,7 +109,8 @@ export async function activate(
         ),
       );
   } else {
-    // Push the whole activated scenario to the connected stewards.
+    // Push the whole activated scenario to the connected stewards. Operators
+    // get an empty signal, so their active-scenario banner refetches at once.
     const io = request.app.locals.io as Server | undefined;
     if (!io) {
       console.warn("Socket.IO not attached; scenario-activated not sent");
@@ -118,10 +119,8 @@ export async function activate(
       scenario: findScenario(scenarioId),
       sentAt: new Date().toISOString(),
     });
+    io?.to("OPERATOR").emit("activations-changed");
     console.log("Scenario activated:", result.activation);
-    console.log(
-      `scenario-activated sent to ${io?.sockets.adapter.rooms.get("STEWARD")?.size ?? 0} steward(s)`,
-    );
     response.status(201).json(result.activation);
   }
 }

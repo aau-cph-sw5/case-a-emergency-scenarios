@@ -25,7 +25,9 @@ The server pushes changes to clients over Socket.IO, and clients send their own
 changes to the server over the HTTP API.
 
 An operator activates a scenario with `POST /api/v1/scenarios/{scenarioId}/activate`,
-and the server then emits `scenario-activated` to the connected stewards. A
+and the server then emits `scenario-activated` to the connected stewards and an
+empty `activations-changed` to the connected operators, who refetch the active
+activations for their banner. A
 steward sends `POST /api/v1/position-reports`, and the server forwards the
 report to the connected operators as `position-report`.
 

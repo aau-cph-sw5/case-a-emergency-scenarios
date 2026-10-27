@@ -110,6 +110,7 @@ test("an operator activates a second scenario on the same line as DEMO-001", asy
 });
 
 test("activating the same scenario twice is refused with E0007", async () => {
+  assert.equal((await activate("DEMO-001", operator)).status, 201);
   const res = await activate("DEMO-001", operator);
   assert.equal(res.status, 409);
   assert.equal(res.json().error.code, "E0007");

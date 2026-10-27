@@ -90,5 +90,14 @@ export default defineConfig([
       },
     },
   },
+  {
+    files: ["scripts/**"],
+    rules: {
+      "n/no-unsupported-features/node-builtins": [
+        "error",
+        { ignores: ["fetch"] },
+      ],
+    },
+  },
   eslintConfigPrettier,
 ]);
