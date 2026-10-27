@@ -13,6 +13,8 @@ export const palette = {
   metroWhite: "#FFFFFF",
   // The control-room banner's grey border.
   barBorder: "#454545",
+  // Dims the page behind a dialog.
+  scrim: "rgba(0,0,0,0.5)",
 
   // Not in the metro set, kept so nothing changes visually. Swap for metro colours if you like.
   pageGrey: "#ecf0f1",
@@ -43,6 +45,12 @@ export const lineColors = [
 // Controls the corner rounding of every element (the app currently has none).
 export const radius = 0;
 
+// The status dot in the control-room banner.
+export const dotSize = 9;
+
+// Gaps and paddings, so layouts share one scale.
+export const spacing = { xs: 8, sm: 12, md: 14, lg: 24 };
+
 export const text = {
   body: {},
   title: { fontSize: 18, fontWeight: "600" as const },
@@ -51,6 +59,7 @@ export const text = {
     fontFamily: Platform.select({ web: "Arial, sans-serif" }),
     fontSize: 16,
   },
+  meta: { fontSize: 14, opacity: 0.75 },
   button: {
     color: colors.textInverse,
     fontSize: 16,
@@ -69,6 +78,13 @@ export const box = {
   borderColor: colors.border,
   padding: 6,
   borderRadius: radius,
+};
+
+// A section heading of the control-room dashboard.
+export const heading = {
+  ...text.title,
+  color: colors.text,
+  marginVertical: spacing.xs,
 };
 
 export const page = {

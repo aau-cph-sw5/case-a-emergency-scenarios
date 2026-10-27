@@ -21,21 +21,13 @@ paths:
         - bearerAuth: []
       responses:
         "200":
-          description: Current scenario state
+          description: Current scenario state, or null while no scenario is active
           content:
             application/json:
               schema:
-                $ref: "./scenario-state.schema.json"
-        "404":
-          description: No scenario is active
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E0004"
-                  message: "No scenario is active"
+                oneOf:
+                  - $ref: "./scenario-state.schema.json"
+                  - type: "null"
         "401":
           description: Missing, invalid or expired bearer token
           content:

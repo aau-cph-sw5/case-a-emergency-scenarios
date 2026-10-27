@@ -29,15 +29,10 @@ export function getScenario(
 }
 
 // Reads the same store as GET /api/v1/activations, so the two never disagree.
+// No active scenario is a normal state, so it answers 200 with null, not 404.
 export function getCurrentScenarioState(_request: Request, response: Response) {
   const [active] = listActivations("ACTIVE");
-  if (active === undefined) {
-    response
-      .status(404)
-      .json(errorBody(ERROR_CODES.NOT_FOUND, "No scenario is active"));
-    return;
-  }
-  response.json(active);
+  response.json(active ?? null);
 }
 
 export function getActivations(request: Request, response: Response) {

@@ -106,6 +106,7 @@ version.
 
 | Type | Version | Subject | Payload | Written by |
 |---|---|---|---|---|
+| `SCENARIO_ACTIVATED` | 1 | `activation` | `scenarioId` | `activateAndLog` in `src/services/activation-service.ts`. The activation is in memory, so it is undone if this write fails |
 | `POSITION_REPORTED` | 1 | `position-report` | `stationId` | `savePositionReport` in `src/services/position-report-service.ts`, the worked example of `appendEvent` inside a transaction |
 
 ## Payload rules

@@ -199,13 +199,13 @@ test("GET /api/v1/scenarios/:scenarioId returns 404 for an unknown id", async ()
   assert.equal(traversal.status, 404);
 });
 
-test("GET /api/v1/scenario-state is 404 while no scenario is active", async () => {
+test("GET /api/v1/scenario-state is 200 with null while no scenario is active", async () => {
   const response = await fetch(`${baseUrl}/api/v1/scenario-state`, {
     headers: await operatorHeaders(),
   });
 
-  assert.equal(response.status, 404);
-  assert.equal((await response.json()).error.code, "E0004");
+  assert.equal(response.status, 200);
+  assert.equal(await response.json(), null);
 });
 
 test("GET /api/v1/metro-lines/:lineId returns the line or 404", async () => {

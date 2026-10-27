@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { palette, radius } from "../../shared/Theme";
+import { dotSize, palette, radius, spacing, text } from "../../shared/Theme";
 import type { ActiveActivations } from "./useActiveActivations";
 
 function startedLabel(startedAt: string) {
@@ -16,6 +16,7 @@ export function ActiveScenarioBanner({
   active,
   names,
   error,
+  loading,
 }: ActiveActivations) {
   return (
     <View aria-label="Aktive scenarier" role="complementary" style={styles.bar}>
@@ -25,6 +26,10 @@ export function ActiveScenarioBanner({
           <Text style={styles.meta}>
             Kunne ikke hente aktive scenarier: {error}
           </Text>
+        </View>
+      ) : loading ? (
+        <View role="status" style={styles.row}>
+          <Text style={styles.meta}>Henter aktive scenarier…</Text>
         </View>
       ) : active.length === 0 ? (
         <View role="status" style={styles.row}>
@@ -60,41 +65,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     backgroundColor: palette.metroBlack,
     borderBottomWidth: 1,
     borderColor: palette.barBorder,
   },
-  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   item: {
     flex: 1,
     flexBasis: 220,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: palette.barBorder,
     borderRadius: radius,
   },
   dot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
+    width: dotSize,
+    height: dotSize,
+    borderRadius: dotSize / 2,
     backgroundColor: palette.metroLineOne,
   },
   dotIdle: { backgroundColor: palette.metroLineThree },
   // Equal side slots keep the middle text centred, with or without a line.
   side: { flex: 1 },
   line: { alignItems: "flex-end" },
-  title: { color: palette.metroWhite, fontSize: 18, fontWeight: "bold" },
-  meta: {
-    color: palette.metroWhite,
-    fontSize: 14,
-    opacity: 0.75,
-    textAlign: "center",
-  },
+  title: { ...text.title, color: palette.metroWhite },
+  meta: { ...text.meta, color: palette.metroWhite, textAlign: "center" },
 });

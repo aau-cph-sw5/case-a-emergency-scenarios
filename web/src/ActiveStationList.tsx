@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Text } from "react-native";
 import ScenarioStationList from "../../shared/components/stationView";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
@@ -40,8 +41,8 @@ export function ActiveStationList({
     return () => controller.abort();
   }, [token, scenarioId]);
 
-  if (error !== null) return <p role="alert">{error}</p>;
-  if (scenario === null) return <p>Henter stationer…</p>;
+  if (error !== null) return <Text role="alert">{error}</Text>;
+  if (scenario === null) return <Text>Henter stationer…</Text>;
   return (
     <ScenarioStationList scenario={scenario} activeDeployments={activation} />
   );

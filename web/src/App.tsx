@@ -52,6 +52,8 @@ function ControlRoom({
       <OperatorDashboard
         token={token}
         activation={activations.active[0]}
+        loading={activations.loading}
+        error={activations.error}
         onLogout={onLogout}
       />
     </>

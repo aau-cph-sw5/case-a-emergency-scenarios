@@ -1,8 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { Modal, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  box,
+  colors,
+  heading,
+  palette,
+  spacing,
+  surface,
+  text,
+} from "../../shared/Theme";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
-import { isScenarioState, type ScenarioState } from "./scenario-state";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state";
+import { isScenarioState } from "./scenario-state";
 import { fetchScenarios, type ScenarioSummary } from "./scenarios";
+import { Button } from "./components/Button";
 
 type LoadState =
   | { status: "loading" }
@@ -55,27 +67,37 @@ export function ScenarioList({ token }: { token: string }) {
   // The search field is always shown, so it is there whenever the list is
   // longer than one screen (MET-A-007 criterion 1 / #116 criterion 3).
   return (
-    <section aria-labelledby="scenario-list-heading">
-      <h2 id="scenario-list-heading">Nødscenarier</h2>
+    <View role="region" aria-label="Nødscenarier">
+      <Text role="heading" aria-level={2} style={heading}>
+        Nødscenarier
+      </Text>
 
-      <label>
-        Søg efter scenarier{" "}
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
+      <Text style={styles.text}>Søg efter scenarier</Text>
+      <TextInput
+        role="searchbox"
+        aria-label="Søg efter scenarier"
+        value={query}
+        onChangeText={setQuery}
+        style={styles.input}
+      />
 
-      {state.status === "loading" && <p role="status">Henter scenarier…</p>}
+      {state.status === "loading" && (
+        <Text role="status" style={styles.text}>
+          Henter scenarier…
+        </Text>
+      )}
 
       {state.status === "error" && (
-        <p role="alert">Kunne ikke hente scenarier: {state.message}</p>
+        <Text role="alert" style={styles.text}>
+          Kunne ikke hente scenarier: {state.message}
+        </Text>
       )}
 
       {state.status === "done" &&
         (state.scenarios.length === 0 ? (
-          <p role="status">Ingen scenarier tilgængelige.</p>
+          <Text role="status" style={styles.text}>
+            Ingen scenarier tilgængelige.
+          </Text>
         ) : (
           <ScenarioResults
             scenarios={filterScenarios(state.scenarios, query)}
@@ -94,7 +116,7 @@ export function ScenarioList({ token }: { token: string }) {
       )}
 
       <ActivationStatus activation={activation} />
-    </section>
+    </View>
   );
 }
 
@@ -103,17 +125,23 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
     case "idle":
       return null;
     case "activating":
-      return <p role="status">Aktiverer scenarie…</p>;
+      return (
+        <Text role="status" style={styles.text}>
+          Aktiverer scenarie…
+        </Text>
+      );
     case "error":
       return (
-        <p role="alert">Kunne ikke aktivere scenariet: {activation.message}</p>
+        <Text role="alert" style={styles.text}>
+          Kunne ikke aktivere scenariet: {activation.message}
+        </Text>
       );
     case "done":
       return (
-        <p role="status">
+        <Text role="status" style={styles.text}>
           Scenarie {activation.state.scenarioId} er {activation.state.status},
           startet {activation.state.startedAt} af {activation.state.actor}.
-        </p>
+        </Text>
       );
   }
 }
@@ -131,26 +159,28 @@ function ScenarioResults({
 }) {
   // No match is an empty list, not an error.
   if (scenarios.length === 0) {
-    return <p role="status">Ingen scenarier matcher “{query.trim()}”.</p>;
+    return (
+      <Text role="status" style={styles.text}>
+        Ingen scenarier matcher “{query.trim()}”.
+      </Text>
+    );
   }
   return (
-    <ul>
+    <View role="list" style={styles.list}>
       {scenarios.map((scenario) => (
-        <li key={scenario.scenarioId}>
-          <button
-            type="button"
-            onClick={() => onSelect(scenario)}
+        <View role="listitem" key={scenario.scenarioId}>
+          <Button
+            label={scenario.name}
+            onPress={() => onSelect(scenario)}
             disabled={disabled}
-          >
-            {scenario.name}
-          </button>
-        </li>
+          />
+        </View>
       ))}
-    </ul>
+    </View>
   );
 }
 
-// A native modal <dialog> traps focus and closes on Escape, which counts as
+// A modal traps focus and closes on Escape (onRequestClose), which counts as
 // Cancel. Nothing is activated unless Confirm is pressed (MET-A-007, criterion 2).
 function ConfirmActivation({
   scenario,
@@ -161,25 +191,38 @@ function ConfirmActivation({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
-
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onCancel}
-      aria-labelledby="confirm-activation-heading"
-    >
-      <h3 id="confirm-activation-heading">Aktivér “{scenario.name}”?</h3>
-      <button type="button" onClick={onConfirm}>
-        Bekræft
-      </button>{" "}
-      <button type="button" onClick={() => dialogRef.current?.close()}>
-        Annullér
-      </button>
-    </dialog>
+    <Modal transparent visible onRequestClose={onCancel}>
+      <View style={styles.backdrop}>
+        <View role="dialog" aria-modal style={styles.dialog}>
+          <Text role="heading" aria-level={3} style={heading}>
+            Aktivér “{scenario.name}”?
+          </Text>
+          <View style={styles.buttons}>
+            <Button label="Bekræft" onPress={onConfirm} />
+            <Button label="Annullér" onPress={onCancel} secondary />
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  text: { color: colors.text },
+  input: {
+    ...box,
+    ...text.header,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  list: { gap: spacing.xs },
+  backdrop: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: palette.scrim,
+  },
+  dialog: { ...surface, ...box, padding: spacing.lg, gap: spacing.sm },
+  buttons: { flexDirection: "row", gap: spacing.xs },
+});
