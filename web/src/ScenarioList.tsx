@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
-import { isScenarioState, type ScenarioState } from "./scenario-state";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state";
+import { isScenarioState } from "./scenario-state";
 import { fetchScenarios, type ScenarioSummary } from "./scenarios";
 
 type LoadState =

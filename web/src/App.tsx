@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { LoginScreen } from "../../shared/LoginScreen";
 import { useSession } from "../../shared/auth/use-session";
+import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
 import { OperatorDashboard } from "./OperatorDashboard";
 import { webSessionStore } from "./auth/session-store";
+import { socket } from "./socket";
 
 // The control-room dashboard. Stewards use the app in mobile/.
 export function App() {
@@ -30,6 +32,17 @@ export function App() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [restore]);
+
+  // One socket per login, shared by the banner and the dashboard.
+  const token = state.status === "signed-in" ? state.session.token : undefined;
+  useEffect(() => {
+    if (token === undefined) return;
+    socket.auth = { token };
+    socket.connect();
+    return () => {
+      socket.disconnect();
+    };
+  }, [token]);
 
   if (state.status === "restoring") {
     return <main>Indlæser session…</main>;
@@ -59,10 +72,14 @@ export function App() {
     );
   }
 
+  // The banner sits outside any view, so every view added below it keeps it.
   return (
-    <OperatorDashboard
-      token={state.session.token}
-      onLogout={() => void signOut()}
-    />
+    <>
+      <ActiveScenarioBanner token={state.session.token} />
+      <OperatorDashboard
+        token={state.session.token}
+        onLogout={() => void signOut()}
+      />
+    </>
   );
 }

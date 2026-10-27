@@ -615,8 +615,23 @@ test("POST /api/v1/position-reports refuses an operator with E0002", async () =>
   assert.equal((await response.json()).error.code, "E0002");
 });
 
-// One test, so the refusal always runs before DEMO-002 is activated.
-test("POST /api/v1/position-reports refuses Station G with E1004 until DEMO-002 is activated, then accepts it with 202", async () => {
+// One test, so the refusals always run before DEMO-002 is activated.
+test("POST /api/v1/position-reports refuses Station G with E1001 while nothing is active and E1004 until DEMO-002 is activated, then accepts it with 202", async () => {
+  const none = await postJson(
+    "/api/v1/position-reports",
+    stationGReport,
+    await stewardHeaders(),
+  );
+  assert.equal(none.status, 409);
+  assert.equal((await none.json()).error.code, "E1001");
+
+  const demo001 = await postJson(
+    "/api/v1/scenarios/DEMO-001/activate",
+    {},
+    await operatorHeaders(),
+  );
+  assert.equal(demo001.status, 201);
+
   const before = await postJson(
     "/api/v1/position-reports",
     stationGReport,
