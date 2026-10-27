@@ -111,11 +111,13 @@ export async function findScenario(
             route: route ?? [],
           })),
         },
-        stationRequirements: requirements.map(({ activeDuring, actions, ...r }) => ({
-          ...r,
-          activeDuring: activeDuring ?? [],
-          actions: actions ?? [],
-        })),
+        stationRequirements: requirements.map(
+          ({ activeDuring, actions, ...r }) => ({
+            ...r,
+            activeDuring: activeDuring ?? [],
+            actions: actions ?? [],
+          }),
+        ),
         passengerInformation,
       },
     ],

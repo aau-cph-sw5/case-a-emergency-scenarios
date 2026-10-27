@@ -1,9 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { verifyToken, type AuthUser } from "../services/auth-service.js";
-import {
-  latestActivation,
-} from "../repositories/fixture-repository.js";
+import { latestActivation } from "../repositories/fixture-repository.js";
 
 import { findScenario } from "../repositories/scenario-repository.js";
 
@@ -59,4 +57,3 @@ export function attachSocketHandlers(io: Server) {
     }
   });
 }
-

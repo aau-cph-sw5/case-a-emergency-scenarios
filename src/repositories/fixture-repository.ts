@@ -27,14 +27,6 @@ export function getScenarioState(): unknown {
   return readJson("scenario-state.json");
 }
 
-export function listScenarios(): unknown {
-  return readJson("scenarios.json");
-}
-
-export function findScenario(scenarioId: string): Scenario | undefined {
-  return readById("scenarios", scenarioId) as Scenario | undefined;
-}
-
 export function findMetroLine(lineId: string): unknown | undefined {
   return readById("metro-lines", lineId);
 }
