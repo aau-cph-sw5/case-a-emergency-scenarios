@@ -1,31 +1,22 @@
-import { StyleSheet, Text, View } from "react-native";
-import { colors, heading } from "../../../shared/Theme";
 import type { PositionReport } from "../../../shared/types/v1/position-report";
 
+// Every position report, newest first, updated live over the socket.
 export function StewardPositions({ reports }: { reports: PositionReport[] }) {
   return (
-    <View role="region" aria-label="Stewardpositioner">
-      <Text role="heading" aria-level={2} style={heading}>
-        Stewardpositioner
-      </Text>
+    <section aria-labelledby="positions-heading">
+      <h2 id="positions-heading">Stewardpositioner</h2>
       {reports.length === 0 ? (
-        <Text style={styles.text}>Ingen positioner endnu.</Text>
+        <p>Ingen positioner endnu.</p>
       ) : (
-        <View role="list">
+        <ul>
           {reports.map((report) => (
-            <Text
-              role="listitem"
-              key={`${report.staff}-${report.reportedAt}`}
-              style={styles.text}
-            >
+            <li key={`${report.staff}-${report.reportedAt}`}>
               {report.staff} er ved {report.station}, rapporteret{" "}
               {new Date(report.reportedAt).toLocaleTimeString("da-DK")}
-            </Text>
+            </li>
           ))}
-        </View>
+        </ul>
       )}
-    </View>
+    </section>
   );
 }
-
-const styles = StyleSheet.create({ text: { color: colors.text } });

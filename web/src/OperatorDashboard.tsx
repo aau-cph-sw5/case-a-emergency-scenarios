@@ -1,14 +1,12 @@
-import { StyleSheet, Text, View } from "react-native";
 import { socket } from "./socket";
 import { useSocketState } from "../../shared/socket/useSocketState";
 import { usePositionReports } from "../../shared/socket/usePositionReports";
-import { colors, heading, page, spacing } from "../../shared/Theme";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { ActiveStationList } from "./ActiveStationList";
 import { ScenarioList } from "./ScenarioList";
-import { Button } from "./components/Button";
 import { StewardPositions } from "./components/StewardPositions";
 
+// The control-room dashboard. App opens the socket.
 export function OperatorDashboard({
   token,
   activation,
@@ -23,39 +21,32 @@ export function OperatorDashboard({
   onLogout: () => void;
 }) {
   const { messages } = useSocketState(socket);
+  // Every position report pushed by the server over the socket, newest first.
   const reports = usePositionReports(socket);
 
   return (
-    <View role="main" style={styles.page}>
-      <Text role="heading" aria-level={1} style={heading}>
-        Nødscenarier
-      </Text>
-      <Button label="Log ud" onPress={onLogout} />
+    <main>
+      <h1>Nødscenarier</h1>
+      <button onClick={onLogout} type="button">
+        Log ud
+      </button>
       {messages.length > 0 && (
-        <View role="list">
+        <ul>
           {messages.map((message) => (
-            <Text role="listitem" key={message.id} style={styles.text}>
-              {message.text}
-            </Text>
+            <li key={message.id}>{message.text}</li>
           ))}
-        </View>
+        </ul>
       )}
 
       <StewardPositions reports={reports} />
 
       <ScenarioList token={token} />
       {error !== null ? (
-        <Text role="alert" style={styles.text}>
-          Kunne ikke hente aktive scenarier: {error}
-        </Text>
+        <p role="alert">Kunne ikke hente aktive scenarier: {error}</p>
       ) : loading ? (
-        <Text role="status" style={styles.text}>
-          Henter aktive scenarier…
-        </Text>
+        <p role="status">Henter aktive scenarier…</p>
       ) : activation === undefined ? (
-        <Text style={styles.text}>
-          Ingen aktive scenarier, så ingen stationer at vise.
-        </Text>
+        <p>Ingen aktive scenarier, så ingen stationer at vise.</p>
       ) : (
         <ActiveStationList
           key={activation.scenarioId}
@@ -63,11 +54,6 @@ export function OperatorDashboard({
           activation={activation}
         />
       )}
-    </View>
+    </main>
   );
 }
-
-const styles = StyleSheet.create({
-  page: { ...page, padding: spacing.lg, gap: spacing.sm },
-  text: { color: colors.text },
-});
