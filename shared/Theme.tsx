@@ -11,9 +11,6 @@ export const palette = {
   metroLineFour: "#00A0BE",
   metroSummerRed: "#E40037",
   metroWhite: "#FFFFFF",
-  // The control-room banner's grey border and hover background.
-  barBorder: "#454545",
-  barHover: "#2B2B2B",
 
   // Not in the metro set, kept so nothing changes visually. Swap for metro colours if you like.
   pageGrey: "#ecf0f1",
