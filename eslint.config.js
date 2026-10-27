@@ -62,6 +62,7 @@ export default defineConfig([
     // Frontends (web/, mobile/) and the shared UI and auth code they import.
     files: [
       "{web,mobile}/**/*.{ts,tsx}",
+      "shared/api/**/*.ts",
       "shared/auth/**/*.ts",
       "shared/LoginScreen.tsx",
       "shared/Theme.tsx",
@@ -87,6 +88,15 @@ export default defineConfig([
       globals: {
         ...globals.node,
       },
+    },
+  },
+  {
+    files: ["scripts/**"],
+    rules: {
+      "n/no-unsupported-features/node-builtins": [
+        "error",
+        { ignores: ["fetch"] },
+      ],
     },
   },
   eslintConfigPrettier,

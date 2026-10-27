@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 import { verifyToken } from "../services/auth-service.js";
 
-export function requireAuth(
+export async function requireAuth(
   request: Request,
   response: Response,
   next: NextFunction,
@@ -16,7 +16,8 @@ export function requireAuth(
     return;
   }
 
-  const user = verifyToken(token);
+  const user = await verifyToken(token);
+
   if (!user) {
     response
       .status(401)

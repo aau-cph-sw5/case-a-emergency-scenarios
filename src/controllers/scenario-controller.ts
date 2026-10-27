@@ -3,11 +3,15 @@ import type { Request, Response } from "express";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 
 import {
+  ACTIVATION_STATUSES,
+  type ActivationStatus,
   activateScenario,
   findScenario,
   getScenarioState,
+  listActivations,
   listScenarios,
 } from "../repositories/fixture-repository.js";
+import { userRepository } from "../repositories/user-repository.js";
 
 export function getScenarios(_request: Request, response: Response) {
   response.json(listScenarios());
@@ -29,9 +33,33 @@ export function getCurrentScenarioState(_request: Request, response: Response) {
   response.json(getScenarioState());
 }
 
+export function getActivations(request: Request, response: Response) {
+  const { status } = request.query;
+  if (status === undefined) {
+    response.json(listActivations());
+    return;
+  }
+  // A repeated or unknown status is refused, not silently treated as no filter.
+  if (
+    typeof status !== "string" ||
+    !ACTIVATION_STATUSES.includes(status as ActivationStatus)
+  ) {
+    response
+      .status(400)
+      .json(
+        errorBody(
+          ERROR_CODES.INVALID_REQUEST,
+          `status must be one of ${ACTIVATION_STATUSES.join(", ")}`,
+        ),
+      );
+    return;
+  }
+  response.json(listActivations(status as ActivationStatus));
+}
+
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
 // matrix is #25's; this only keeps stewards out.
-export function activate(
+export async function activate(
   request: Request<{ scenarioId: string }>,
   response: Response,
 ) {
@@ -50,7 +78,18 @@ export function activate(
     return;
   }
 
-  const result = activateScenario(scenarioId, userId);
+  const user = await userRepository.getUserById(userId);
+
+  if (!user) {
+    response
+      .status(401)
+      .json(
+        errorBody(ERROR_CODES.AUTH_TOKEN_INVALID, "Invalid or expired token"),
+      );
+    return;
+  }
+
+  const result = activateScenario(scenarioId, user.username);
   if (result.kind === "not-found") {
     response
       .status(404)
@@ -70,7 +109,8 @@ export function activate(
         ),
       );
   } else {
-    // Push the whole activated scenario to the connected stewards.
+    // Push the whole activated scenario to the connected stewards. Operators
+    // get an empty signal, so their active-scenario banner refetches at once.
     const io = request.app.locals.io as Server | undefined;
     if (!io) {
       console.warn("Socket.IO not attached; scenario-activated not sent");
@@ -79,10 +119,8 @@ export function activate(
       scenario: findScenario(scenarioId),
       sentAt: new Date().toISOString(),
     });
+    io?.to("OPERATOR").emit("activations-changed");
     console.log("Scenario activated:", result.activation);
-    console.log(
-      `scenario-activated sent to ${io?.sockets.adapter.rooms.get("STEWARD")?.size ?? 0} steward(s)`,
-    );
     response.status(201).json(result.activation);
   }
 }

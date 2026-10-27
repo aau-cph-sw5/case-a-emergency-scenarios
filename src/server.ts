@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { createServer } from "node:http";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 import express from "express";
 import { Server } from "socket.io";
 import { app } from "./app.js";
@@ -8,9 +8,7 @@ import { attachSocketHandlers } from "./realtime/socket-server.js";
 
 const server = createServer(app);
 const port = Number(process.env.PORT) || 3000;
-const webDistDirectory = fileURLToPath(
-  new URL("../web/dist/", import.meta.url),
-);
+const webDistDirectory = path.resolve(process.cwd(), "web/dist");
 const webOrigins = (process.env.WEB_ORIGIN || "http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim())
