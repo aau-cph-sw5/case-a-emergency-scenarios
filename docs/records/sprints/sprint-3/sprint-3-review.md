@@ -203,11 +203,3 @@ The highest-priority items are MET-A-011, MET-A-010 and MET-A-013. MET-A-009 and
 - Raised concerns about stacked PRs, merge conflicts and excessive parallel work.
 - Asked the teams to consider how Nexus and its integration practices can help manage shared-repository bottlenecks.
 
-### Process observations to carry forward
-
-- Several PRs remained open too long, causing dependencies and merge conflicts.
-- Review assignment after absences resulted in an uneven review workload.
-- Dependency updates and package changes need better coordination.
-- Reducing work in progress may help prevent PR queues.
-- Sprint commitments should be more realistic, with scope reassessed during the sprint.
-- Future reviews should include more direct customer interaction and a prepared list of questions.
