@@ -12,7 +12,7 @@ import { StewardPositions } from "./components/StewardPositions";
 const selectedScenario = scenarioFixture as Scenario;
 const scenarioState = scenarioStateFixture as ScenarioState;
 
-// The control-room dashboard. The socket demo is from MET-A-004.
+// The control-room dashboard. App opens the socket.
 export function OperatorDashboard({
   token,
   onLogout,
@@ -20,30 +20,15 @@ export function OperatorDashboard({
   token: string;
   onLogout: () => void;
 }) {
-  const { isConnected, messages } = useSocketState(socket);
+  const { messages } = useSocketState(socket);
   // Every position report pushed by the server over the socket, newest first.
   const reports = usePositionReports(socket);
-
-  // The server refuses a socket without a valid token and uses its role to
-  // decide which events this socket gets.
-  function toggleSocket() {
-    if (isConnected) {
-      socket.disconnect();
-      return;
-    }
-    socket.auth = { token };
-    socket.connect();
-  }
 
   return (
     <main>
       <h1>Nødscenarier</h1>
       <button onClick={onLogout} type="button">
         Log ud
-      </button>
-      <p>Socket: {isConnected ? "connected" : "disconnected"}</p>
-      <button onClick={toggleSocket} type="button">
-        {isConnected ? "Disconnect socket" : "Connect socket"}
       </button>
       {messages.length > 0 && (
         <ul>

@@ -61,7 +61,8 @@ type Activation = {
 };
 
 // In-memory until the database is populated, so activations reset when the
-// server restarts. Seeded with the fixture's activation, like the stub.
+// server restarts. Starts empty: no scenario is active until an operator
+// activates one.
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 
@@ -69,9 +70,7 @@ type StoredActivation = Pick<Activation, "scenarioId"> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
 };
-const activations: StoredActivation[] = [
-  getScenarioState() as StoredActivation,
-];
+const activations: StoredActivation[] = [];
 
 export function listActivations(status?: ActivationStatus) {
   return status === undefined

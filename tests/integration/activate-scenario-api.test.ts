@@ -94,6 +94,7 @@ test("an operator activates scenarios, also on the same line", async () => {
 
 test("activating the same scenario twice is refused", async () => {
   const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  assert.equal((await activate("DEMO-001", token)).status, 201);
   const res = await activate("DEMO-001", token);
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
