@@ -184,7 +184,9 @@ const stationList: { code: string; name: string }[] = JSON.parse(
 const shaftList: { code: string; name: string }[] = JSON.parse(
   readFileSync(join(SEED_DATA_DIR, SHAFTS_FILE), "utf8"),
 );
-const stationNames = new Map([...stationList,...shaftList].map((s) => [s.code, s.name]));
+const stationNames = new Map(
+  [...stationList, ...shaftList].map((s) => [s.code, s.name]),
+);
 const allowedStations = new Set(stationNames.keys());
 const allErrors: string[] = [];
 const seenIds = new Map<string, string>();
