@@ -1,6 +1,8 @@
 import { REQUEST_TIMEOUT_MS } from "../../shared/http";
 import { ApiError } from "./get-json";
 import type { ScenarioList } from "../../shared/types/v1/scenario-list";
+import type { Scenario } from "../../shared/types/v1/scenario";
+import { version } from "os";
 
 // The fields of contracts/v1/scenario-list.schema.json this list uses.
 export type ScenarioSummary = Pick<
@@ -52,6 +54,65 @@ export async function fetchScenarios(
   const data: unknown = await response.json();
   if (!isScenarioList(data)) {
     throw new Error("the server sent a scenario list in an unexpected format");
+  }
+  return data;
+}
+
+function isScenario(data: unknown): data is Scenario {
+  const scenario = data as Partial<Scenario> | null;
+  return (
+    typeof scenario?.scenarioId === "string" &&
+    typeof scenario?.name === "string" &&
+    Array.isArray(scenario.versions) &&
+    scenario.versions.every(
+      (version) =>
+        typeof version?.version === "string" &&
+        Array.isArray(version.stationRequirements) &&
+        version.stationRequirements.every(
+          (r) =>
+            typeof r?.station === "string" &&
+            typeof r?.minimumStaffing === "number",
+        ),
+    )
+  );
+}
+
+export async function fetchScenario(
+  token: string,
+  scenarioId: string,
+  signal: AbortSignal,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Scenario> {
+  const path = `/api/v1/scenarios/${encodeURIComponent(scenarioId)}`;
+  let response: Response;
+  try {
+    response = await fetchImpl(path, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.any([
+        signal,
+        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      ]),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new Error(
+        `no answer from the server within ${REQUEST_TIMEOUT_MS / 1000} seconds`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+  if (!response.ok) {
+    throw new ApiError(
+      `GET ${path} failed with ${response.status}`,
+      response.status,
+    );
+  }
+  const data: unknown = await response.json();
+  if (!isScenario(data)) {
+    throw new Error(
+      `the server sent a scenario in an unexpected format for ${scenarioId}`,
+    );
   }
   return data;
 }
