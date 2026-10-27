@@ -300,6 +300,16 @@ jobs:
           # Full history, so SonarQube can tell new code from old and blame lines.
           fetch-depth: 0
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # The analyser resolves each tsconfig.json, and mobile extends one from expo.
+      - name: Install dependencies
+        run: npm ci
+
       - name: Download coverage
         uses: actions/download-artifact@v8
         with:
