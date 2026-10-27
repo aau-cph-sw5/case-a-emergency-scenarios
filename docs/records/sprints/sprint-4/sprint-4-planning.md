@@ -12,6 +12,7 @@ Complete the core MVP workflow connecting the control-room interface and the ste
 A steward should be able to check in at a station and have their status reflected live in the operator interface, allowing operators to see which required stations are manned. 
 Operators should also be able to update and stop an active scenario.
 
+An interactive demo for Carsten that showcases the MVP.  
 ## Selected PBIs
 
 | PBI | Short title | Owner(s) | Estimate |
