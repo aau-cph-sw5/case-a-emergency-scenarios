@@ -16,9 +16,6 @@ export function OperatorSections({
       <section aria-label="Scenario selection">{scenarioSelection}</section>
       <section aria-label="Map">{map}</section>
       <section aria-label="Steward coverage">{coverage}</section>
-      <section aria-label="Scenario selection">{scenarioSelection}</section>
-      <section aria-label="Map">{map}</section>
-      <section aria-label="Steward coverage">{coverage}</section>
     </div>
   );
 }
