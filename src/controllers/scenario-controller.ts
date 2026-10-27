@@ -5,13 +5,12 @@ import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 import {
   ACTIVATION_STATUSES,
   type ActivationStatus,
-  activateScenario,
   findScenario,
-  getScenarioState,
   listActivations,
   listScenarios,
 } from "../repositories/fixture-repository.js";
 import { userRepository } from "../repositories/user-repository.js";
+import { activateAndLog } from "../services/activation-service.js";
 
 export function getScenarios(_request: Request, response: Response) {
   response.json(listScenarios());
@@ -29,8 +28,16 @@ export function getScenario(
   response.json(scenario);
 }
 
+// Reads the same store as GET /api/v1/activations, so the two never disagree.
 export function getCurrentScenarioState(_request: Request, response: Response) {
-  response.json(getScenarioState());
+  const [active] = listActivations("ACTIVE");
+  if (active === undefined) {
+    response
+      .status(404)
+      .json(errorBody(ERROR_CODES.NOT_FOUND, "No scenario is active"));
+    return;
+  }
+  response.json(active);
 }
 
 export function getActivations(request: Request, response: Response) {
@@ -89,7 +96,11 @@ export async function activate(
     return;
   }
 
-  const result = activateScenario(scenarioId, user.username);
+  const result = await activateAndLog(
+    response.locals.user,
+    scenarioId,
+    user.username,
+  );
   if (result.kind === "not-found") {
     response
       .status(404)
@@ -105,7 +116,7 @@ export async function activate(
       .json(
         errorBody(
           ERROR_CODES.CONFLICT,
-          `Scenario '${scenarioId}' is already active`,
+          `A scenario is already active, so '${scenarioId}' cannot be activated`,
         ),
       );
   } else {

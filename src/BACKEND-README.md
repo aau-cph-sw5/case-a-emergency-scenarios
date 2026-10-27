@@ -59,6 +59,8 @@ rejected before its body is examined.
   the incident log. It takes the caller's transaction, so the change and its
   event commit together, and takes the actor from the verified user. See
   [the incident log reference](../docs/reference/incident-log.md).
+  A successful scenario activation writes a `SCENARIO_ACTIVATED` event;
+  refused ones (403, 404, 409) write none.
 
 ### Repositories
 

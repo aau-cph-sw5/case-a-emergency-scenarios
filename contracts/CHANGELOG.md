@@ -1,5 +1,15 @@
 # Scenario State Contract Changelog
 
+## 5.1.0 - 2026-10-25
+
+Only one scenario can be active at a time. Behaviour change to `POST /api/v1/scenarios/{scenarioId}/activate`: it now answers 409 (`E0007`) while any scenario is active, not only when the same scenario is active. `GET /api/v1/activations` therefore holds at most one `ACTIVE` entry. The server and stub start with no active scenario. Standing a scenario down is a separate action (MET-A-009).
+
+`GET /api/v1/scenario-state` now returns the active activation from the same store as `GET /api/v1/activations`, and answers 404 (`E0004`) while no scenario is active, instead of always returning the fixture.
+
+Includes:
+
+- `info.version` in `openapi.yaml` is now 5.1.0
+
 ## 5.0.0 - 2026-10-24
 
 Breaking.

@@ -1,23 +1,19 @@
 import { socket } from "./socket";
 import { useSocketState } from "../../shared/socket/useSocketState";
 import { usePositionReports } from "../../shared/socket/usePositionReports";
-import ScenarioStationList from "../../shared/components/stationView";
-import scenarioFixture from "../../fixtures/v1/scenarios/DEMO-001.json";
-import scenarioStateFixture from "../../fixtures/v1/scenario-state.json";
-import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
+import { ActiveStationList } from "./ActiveStationList";
 import { ScenarioList } from "./ScenarioList";
 import { StewardPositions } from "./components/StewardPositions";
-
-const selectedScenario = scenarioFixture as Scenario;
-const scenarioState = scenarioStateFixture as ScenarioState;
 
 // The control-room dashboard. App opens the socket.
 export function OperatorDashboard({
   token,
+  activation,
   onLogout,
 }: {
   token: string;
+  activation: ScenarioState | undefined;
   onLogout: () => void;
 }) {
   const { messages } = useSocketState(socket);
@@ -41,10 +37,15 @@ export function OperatorDashboard({
       <StewardPositions reports={reports} />
 
       <ScenarioList token={token} />
-      <ScenarioStationList
-        scenario={selectedScenario}
-        activeDeployments={scenarioState}
-      />
+      {activation === undefined ? (
+        <p>Ingen aktive scenarier, så ingen stationer at vise.</p>
+      ) : (
+        <ActiveStationList
+          key={activation.scenarioId}
+          token={token}
+          activation={activation}
+        />
+      )}
     </main>
   );
 }

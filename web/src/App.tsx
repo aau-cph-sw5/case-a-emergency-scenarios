@@ -5,6 +5,7 @@ import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
 import { OperatorDashboard } from "./OperatorDashboard";
 import { webSessionStore } from "./auth/session-store";
 import { socket } from "./socket";
+import { useActiveActivations } from "./useActiveActivations";
 
 // The control-room dashboard. Stewards use the app in mobile/.
 export function App() {
@@ -33,17 +34,6 @@ export function App() {
     };
   }, [restore]);
 
-  // One socket per login, shared by the banner and the dashboard.
-  const token = state.status === "signed-in" ? state.session.token : undefined;
-  useEffect(() => {
-    if (token === undefined) return;
-    socket.auth = { token };
-    socket.connect();
-    return () => {
-      socket.disconnect();
-    };
-  }, [token]);
-
   if (state.status === "restoring") {
     return <main>Indlæser session…</main>;
   }
@@ -57,6 +47,28 @@ export function App() {
       />
     );
   }
+  return (
+    <ControlRoom token={session.token} onLogout={() => setSession(null)} />
+  );
+}
+
+function ControlRoom({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
+  // One socket per login, shared by the banner and the dashboard.
+  useEffect(() => {
+    socket.auth = { token };
+    socket.connect();
+    return () => {
+      socket.disconnect();
+    };
+  }, [token]);
+
+  const activations = useActiveActivations(token);
 
   if (state.status === "unavailable") {
     return (
@@ -75,10 +87,11 @@ export function App() {
   // The banner sits outside any view, so every view added below it keeps it.
   return (
     <>
-      <ActiveScenarioBanner token={state.session.token} />
+      <ActiveScenarioBanner {...activations} />
       <OperatorDashboard
-        token={state.session.token}
-        onLogout={() => void signOut()}
+        token={token}
+        activation={activations.active[0]}
+        onLogout={onLogout}
       />
     </>
   );
