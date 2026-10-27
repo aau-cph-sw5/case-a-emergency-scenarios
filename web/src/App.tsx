@@ -77,7 +77,7 @@ export function App() {
     <>
       <ActiveScenarioBanner token={state.session.token} />
       <OperatorDashboard
-        token={state.session.token}
+        //token={state.session.token}
         onLogout={() => void signOut()}
       />
     </>

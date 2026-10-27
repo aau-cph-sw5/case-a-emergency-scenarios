@@ -1,0 +1,20 @@
+.operator-sections {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 6fr) minmax(190px, 1.1fr);
+  gap: 10px;
+  min-height: 85vh;
+  padding: 10px;
+  background: #222;
+}
+
+.operator-sections section {
+  padding: 16px;
+  border-radius: 8px;
+  background: white;
+}
+
+@media (max-width: 700px) {
+  .operator-sections {
+    grid-template-columns: 1fr;
+  }
+}
