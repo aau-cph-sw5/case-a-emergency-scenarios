@@ -10,8 +10,11 @@ import type { AuthUser } from "../../src/services/auth-service.js";
 import { appendEvent } from "../../src/services/incident-log-service.js";
 import { savePositionReport } from "../../src/services/position-report-service.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
+import { closeOwnerDatabase, getOwnerDatabase } from "./helpers.js";
 
 const sql = getDatabase();
+// The application may not delete position reports, so cleanup runs as the owner.
+const owner = getOwnerDatabase();
 let steward: AuthUser;
 let operatorUsername: string;
 let stewardUsername: string;
@@ -40,6 +43,7 @@ before(async () => {
 after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await sql.end();
+  await closeOwnerDatabase();
 });
 
 class Rollback extends Error {}
@@ -107,7 +111,7 @@ test("a position report and its event are stored together, with the actor from t
   );
   assert.equal(activation.status, 201);
 
-  await sql`DELETE FROM position_reports WHERE station = 'Station C'`;
+  await owner`DELETE FROM position_reports WHERE station = 'Station C'`;
   const stewardToken = await loginToken(
     stewardUsername,
     "steward123",
@@ -147,7 +151,7 @@ test("a position report and its event are stored together, with the actor from t
     );
   } finally {
     // The event stays: the log is append-only.
-    await sql`DELETE FROM position_reports WHERE id = ${saved[0].id}`;
+    await owner`DELETE FROM position_reports WHERE id = ${saved[0].id}`;
   }
 });
 
