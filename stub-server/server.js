@@ -334,11 +334,11 @@ app.get("/api/v1/me", requireAuth, (req, res) => {
 // SCENARIO ACTIVATION
 // ============================================
 
-// In-memory, so activations reset when the stub restarts. Seeded with the
-// fixture's activation, so the store and GET /api/v1/scenario-state only agree
-// at startup: that endpoint keeps reading the fixture and never sees later
-// activations (see the follow-up for a list endpoint).
-const activations = [readJson(path.join(fixtures, "scenario-state.json"))];
+// In-memory, so activations reset when the stub restarts. Starts empty: no
+// scenario is active until one is activated. GET /api/v1/scenario-state keeps
+// reading the fixture and never sees these activations (see the follow-up for
+// a list endpoint).
+const activations = [];
 
 // Metro's answer on MET-A-007: several scenarios may be active on the same
 // line, and activating never stands down another activation. Only activating

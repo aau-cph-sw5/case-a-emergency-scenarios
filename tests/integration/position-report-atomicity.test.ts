@@ -9,14 +9,31 @@ import { getDatabase } from "../../src/db/client.js";
 import type { AuthUser } from "../../src/services/auth-service.js";
 import { appendEvent } from "../../src/services/incident-log-service.js";
 import { savePositionReport } from "../../src/services/position-report-service.js";
+import { seedTestUsers } from "../../scripts/seed-test-users.js";
+import { closeOwnerDatabase, getOwnerDatabase } from "./helpers.js";
 
 const sql = getDatabase();
-const steward: AuthUser = { userId: "steward-test", role: "STEWARD" };
+// The application may not delete position reports, so cleanup runs as the owner.
+const owner = getOwnerDatabase();
+let steward: AuthUser;
+let operatorUsername: string;
+let stewardUsername: string;
 
 let server: Server;
 let baseUrl: string;
 
 before(async () => {
+  const users = await seedTestUsers("atomic-");
+  const operator = users.find((user) => user.role === "OPERATOR")!;
+  const stewardAccount = users.find((user) => user.role === "STEWARD")!;
+  operatorUsername = operator.username;
+  stewardUsername = stewardAccount.username;
+  steward = {
+    userId: stewardAccount.id,
+    role: stewardAccount.role,
+    jti: "test-only-jti",
+  };
+
   server = await new Promise<Server>((resolve) => {
     const listening = app.listen(0, "127.0.0.1", () => resolve(listening));
   });
@@ -26,6 +43,7 @@ before(async () => {
 after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await sql.end();
+  await closeOwnerDatabase();
 });
 
 class Rollback extends Error {}
@@ -59,11 +77,15 @@ function eventsAbout(reportId: string) {
   `;
 }
 
-async function loginToken(username: string, password: string) {
+async function loginToken(
+  username: string,
+  password: string,
+  expectedRole: "STEWARD" | "OPERATOR",
+) {
   const login = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, expectedRole }),
   });
   return ((await login.json()) as { token: string }).token;
 }
@@ -71,7 +93,11 @@ async function loginToken(username: string, password: string) {
 test("a position report and its event are stored together, with the actor from the token", async () => {
   // The endpoint only accepts stations of an active scenario. Station C is only
   // in DEMO-003, and no other test file reports on it, so the row is ours.
-  const operatorToken = await loginToken("operator-test", "operator-test-pw");
+  const operatorToken = await loginToken(
+    operatorUsername,
+    "operator123",
+    "OPERATOR",
+  );
   const activation = await fetch(
     `${baseUrl}/api/v1/scenarios/DEMO-003/activate`,
     {
@@ -85,8 +111,12 @@ test("a position report and its event are stored together, with the actor from t
   );
   assert.equal(activation.status, 201);
 
-  await sql`DELETE FROM position_reports WHERE station = 'Station C'`;
-  const stewardToken = await loginToken("steward-test", "steward-test-pw");
+  await owner`DELETE FROM position_reports WHERE station = 'Station C'`;
+  const stewardToken = await loginToken(
+    stewardUsername,
+    "steward123",
+    "STEWARD",
+  );
 
   // The client claims `staff` is somebody else. The token decides.
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
@@ -108,11 +138,11 @@ test("a position report and its event are stored together, with the actor from t
   `;
   assert.equal(saved.length, 1);
   try {
-    assert.equal(saved[0].staff, "steward-test");
+    assert.equal(saved[0].staff, String(steward.userId));
     const events = await eventsAbout(saved[0].id);
     assert.equal(events.length, 1);
     assert.equal(events[0].type, "POSITION_REPORTED");
-    assert.equal(events[0].actorId, "steward-test");
+    assert.equal(events[0].actorId, String(steward.userId));
     // The station stays in the log even if the report row is replaced later.
     assert.deepEqual(events[0].payload, { stationId: "Station C" });
     assert.equal(
@@ -121,7 +151,7 @@ test("a position report and its event are stored together, with the actor from t
     );
   } finally {
     // The event stays: the log is append-only.
-    await sql`DELETE FROM position_reports WHERE id = ${saved[0].id}`;
+    await owner`DELETE FROM position_reports WHERE id = ${saved[0].id}`;
   }
 });
 

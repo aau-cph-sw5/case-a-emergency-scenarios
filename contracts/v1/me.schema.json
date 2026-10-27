@@ -4,7 +4,7 @@
   "type": "object",
   "required": ["userId", "role"],
   "properties": {
-    "userId": { "type": "string" },
+    "userId": { "type": "integer" },
     "role": { "type": "string", "enum": ["STEWARD", "OPERATOR"] }
   }
 }

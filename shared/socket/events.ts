@@ -1,10 +1,13 @@
 import type { Scenario } from "../types/v1/scenario";
 import type { PositionReport } from "../types/v1/position-report";
 
-// Events the server pushes: activations to stewards, position reports to operators.
+// Events the server pushes: activations to stewards, position reports and the
+// "activations changed" signal to operators.
 export interface ServerToClientEvents {
   welcome: (message: string) => void;
   "scenario-activated": (activation: ScenarioActivated) => void;
+  // No payload: operators refetch GET /api/v1/activations.
+  "activations-changed": () => void;
   "position-report": (
     PositionReport: PositionReport & { sentAt: string },
   ) => void;

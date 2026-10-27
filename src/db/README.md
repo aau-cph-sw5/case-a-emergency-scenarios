@@ -62,14 +62,18 @@ Username: metro
 Password: the POSTGRES_PASSWORD value in .env
 ```
 
+The application connects as `metro_app` (password `metro_app`), which can't
+change the incident log; `metro` is the owner that migrates. See "Database
+roles" in `COMMANDS.md`.
+
 Integration tests use a separate, disposable database:
 
 ```text
 Host:     localhost
 Port:     5433
 Database: metro_test
-Username: metro
-Password: metro
+Username: metro (owner, migrations and fixtures) or metro_app (the application)
+Password: metro or metro_app
 ```
 
 `npm run test:integration` starts it, clears only its schema, applies every

@@ -30,7 +30,7 @@ export async function appendEvent(
     type: event.type,
     schemaVersion: event.schemaVersion,
     actorType: "USER",
-    actorId: user.userId,
+    actorId: String(user.userId),
     actorRole: user.role,
     subjectType: event.subject.type,
     subjectId: event.subject.id,

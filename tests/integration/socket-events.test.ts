@@ -7,12 +7,19 @@ import { io as connect, type Socket } from "socket.io-client";
 import { app } from "../../src/app.js";
 import { getDatabase } from "../../src/db/client.js";
 import { attachSocketHandlers } from "../../src/realtime/socket-server.js";
+import { seedTestUsers } from "../../scripts/seed-test-users.js";
 
 let server: HttpServer;
 let baseUrl: string;
+let operatorUsername: string;
+let stewardUsername: string;
 const sockets: Socket[] = [];
 
 before(async () => {
+  const users = await seedTestUsers("socket-");
+  operatorUsername = users.find((user) => user.role === "OPERATOR")!.username;
+  stewardUsername = users.find((user) => user.role === "STEWARD")!.username;
+
   server = createServer(app);
   const io = new Server(server);
   app.locals.io = io;
@@ -28,15 +35,19 @@ after(async () => {
   const io = app.locals.io as Server;
   delete app.locals.io;
   await new Promise<void>((resolve) => io.close(() => resolve()));
-  // A position report is stored in the database, so the pool is open by now.
+  await new Promise<void>((resolve) => server.close(() => resolve()));
   await getDatabase().end();
 });
 
-async function login(username: string, password: string) {
+async function login(
+  username: string,
+  password: string,
+  expectedRole: "OPERATOR" | "STEWARD",
+) {
   const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, expectedRole }),
   });
   return ((await response.json()) as { token: string }).token;
 }
@@ -60,17 +71,30 @@ test("a socket without a valid token is refused with E0001", async () => {
   await assert.rejects(open("not-a-token"), { message: "E0001" });
 });
 
-test("an activation reaches stewards only", async () => {
-  const operatorToken = await login("operator-test", "operator-test-pw");
+test("an activation reaches stewards in full and operators as a signal", async () => {
+  const operatorToken = await login(
+    operatorUsername,
+    "operator123",
+    "OPERATOR",
+  );
   const operator = await open(operatorToken);
-  const steward = await open(await login("steward-test", "steward-test-pw"));
+  const steward = await open(
+    await login(stewardUsername, "steward123", "STEWARD"),
+  );
 
-  let operatorGotActivation = false;
+  let operatorGotScenario = false;
   operator.on("scenario-activated", () => {
-    operatorGotActivation = true;
+    operatorGotScenario = true;
   });
-  const received = new Promise<{ scenario: { scenarioId: string } }>(
+  let stewardGotSignal = false;
+  steward.on("activations-changed", () => {
+    stewardGotSignal = true;
+  });
+  const stewardGot = new Promise<{ scenario: { scenarioId: string } }>(
     (resolve) => steward.once("scenario-activated", resolve),
+  );
+  const operatorGot = new Promise<unknown[]>((resolve) =>
+    operator.once("activations-changed", (...args) => resolve(args)),
   );
 
   const response = await fetch(
@@ -78,16 +102,20 @@ test("an activation reaches stewards only", async () => {
     { method: "POST", headers: { Authorization: `Bearer ${operatorToken}` } },
   );
   assert.equal(response.status, 201);
-  assert.equal((await received).scenario.scenarioId, "DEMO-002");
+  assert.equal((await stewardGot).scenario.scenarioId, "DEMO-002");
+  assert.deepEqual(await operatorGot, []);
 
   // Give a wrongly sent event time to arrive before checking it did not.
   await new Promise((resolve) => setTimeout(resolve, 100));
-  assert.equal(operatorGotActivation, false);
+  assert.equal(operatorGotScenario, false);
+  assert.equal(stewardGotSignal, false);
 });
 
 test("a position report reaches operators only, with the server's time", async () => {
-  const stewardToken = await login("steward-test", "steward-test-pw");
-  const operator = await open(await login("operator-test", "operator-test-pw"));
+  const stewardToken = await login(stewardUsername, "steward123", "STEWARD");
+  const operator = await open(
+    await login(operatorUsername, "operator123", "OPERATOR"),
+  );
   const steward = await open(stewardToken);
 
   let stewardGotReport = false;
@@ -98,7 +126,19 @@ test("a position report reaches operators only, with the server's time", async (
     operator.once("position-report", resolve),
   );
 
-  // Station B is in the fixture's active scenario. The phone's clock is wrong.
+  // Station B is in DEMO-001, which nothing has activated yet.
+  const activation = await fetch(
+    `${baseUrl}/api/v1/scenarios/DEMO-001/activate`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${await login(operatorUsername, "operator123", "OPERATOR")}`,
+      },
+    },
+  );
+  assert.equal(activation.status, 201);
+
+  // The phone's clock is wrong.
   const before = Date.now();
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",

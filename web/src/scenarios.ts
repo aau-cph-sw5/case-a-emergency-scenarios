@@ -1,11 +1,13 @@
 import { REQUEST_TIMEOUT_MS } from "../../shared/http";
 import { ApiError } from "./get-json";
+import type { ScenarioList } from "../../shared/types/v1/scenario-list";
 
 // The fields of contracts/v1/scenario-list.schema.json this list uses.
-export type ScenarioSummary = {
-  scenarioId: string;
-  name: string;
-};
+export type ScenarioSummary = Pick<
+  ScenarioList[number],
+  "scenarioId" | "name"
+> &
+  Partial<Pick<ScenarioList[number], "covers">>;
 
 function isScenarioList(data: unknown): data is ScenarioSummary[] {
   return (

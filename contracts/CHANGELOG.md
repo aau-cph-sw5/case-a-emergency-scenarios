@@ -1,13 +1,29 @@
 # Scenario State Contract Changelog
 
-## 3.3.0 - 2026-10-21
+## 5.0.0 - 2026-10-24
+
+Breaking.
+
+- `POST /api/v1/auth/login` and `POST /api/v1/auth/renew` now return a required
+  `expiresAt` timestamp. Clients that validate these responses must accept and
+  persist this field.
+- `info.version` in `openapi.yaml` is now 5.0.0.
+
+## 4.0.0 - 2026-10-21
+
+Breaking.
+
+- `GET /api/v1/me` now returns `userId` as an integer database identifier, where it previously returned a string username. Clients must update any parsing, storage, or comparisons of this field.
+- `POST /api/v1/auth/login` now requires `expectedRole` (`STEWARD` or `OPERATOR`). Clients must send the role for the interface they are opening.
+
+Also includes the additive activation and position-report changes that were prepared as 3.3.0 and 3.2.0:
 
 Adds the activations list (additive, no breaking change).
 
 Includes:
 
 - `GET /api/v1/activations`, which requires a bearer token and returns an array of `scenario-state` objects. The optional `status` query parameter is `ACTIVE` or `CLOSED`; any other value, or a repeated `status`, answers 400 with error code `E0005`
-- `info.version` in `openapi.yaml` is now 3.3.0
+- `info.version` in `openapi.yaml` is now 4.0.0
 
 ## 3.2.0 - 2026-10-20
 

@@ -6,7 +6,7 @@
  */
 
 export interface Me {
-  userId: string;
+  userId: number;
   role: "STEWARD" | "OPERATOR";
   [k: string]: unknown;
 }

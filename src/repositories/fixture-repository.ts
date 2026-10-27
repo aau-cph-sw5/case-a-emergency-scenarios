@@ -1,14 +1,11 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
 import type { Scenario } from "../../shared/types/v1/scenario.js";
 
 // This file is temporary until the real database is populated
 // Right now it just imports the fixture data from the fixtures folder
 // Then this will be the repository layer where the queries to the DB live.
-const fixturesDirectory = fileURLToPath(
-  new URL("../../fixtures/v1/", import.meta.url),
-);
+const fixturesDirectory = path.resolve(process.cwd(), "fixtures/v1");
 
 function readJson(relativePath: string): unknown {
   return JSON.parse(
@@ -64,7 +61,8 @@ type Activation = {
 };
 
 // In-memory until the database is populated, so activations reset when the
-// server restarts. Seeded with the fixture's activation, like the stub.
+// server restarts. Starts empty: no scenario is active until an operator
+// activates one.
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 
@@ -72,9 +70,7 @@ type StoredActivation = Pick<Activation, "scenarioId"> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
 };
-const activations: StoredActivation[] = [
-  getScenarioState() as StoredActivation,
-];
+const activations: StoredActivation[] = [];
 
 export function listActivations(status?: ActivationStatus) {
   return status === undefined
