@@ -1,6 +1,5 @@
 import { socket } from "./socket";
 import { useSocketState } from "../../shared/socket/useSocketState";
-import { usePositionReports } from "../../shared/socket/usePositionReports";
 import ScenarioStationList from "../../shared/components/stationView";
 import scenarioFixture from "../../fixtures/v1/scenarios/DEMO-001.json";
 import scenarioStateFixture from "../../fixtures/v1/scenario-state.json";
@@ -21,8 +20,6 @@ export function OperatorDashboard({
   onLogout: () => void;
 }) {
   const { messages } = useSocketState(socket);
-  // Every position report pushed by the server over the socket, newest first.
-  const reports = usePositionReports(socket);
 
   return (
     <main>
@@ -38,7 +35,7 @@ export function OperatorDashboard({
         </ul>
       )}
 
-      <StewardPositions reports={reports} />
+      <StewardPositions />
 
       <ScenarioList token={token} />
       <ScenarioStationList
