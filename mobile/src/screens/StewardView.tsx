@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import { useActivatedScenario } from "../../../shared/socket/useActivatedScenario";
 import { socket } from "../socket";
 import { RoleView } from "./RoleView";
 import { sendPositionReport } from "../api/position-report";
+import { fetchCurrentActivation } from "../api/current-activation";
 import { currentStations } from "../../../shared/components/stationState";
 import { StationPicker } from "../components/StationPicker";
 
@@ -17,7 +18,11 @@ export function StewardView({
 }) {
   // Data from the socketstate
   const { isConnected, messages } = useSocketState(socket);
-  const activated = useActivatedScenario(socket);
+  const fetchCurrent = useCallback(
+    () => fetchCurrentActivation(token),
+    [token],
+  );
+  const activated = useActivatedScenario(socket, fetchCurrent);
   const [station, setStation] = useState<string>("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
 

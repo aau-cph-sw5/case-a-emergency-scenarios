@@ -42,11 +42,13 @@ export function attachSocketHandlers(io: Server) {
       console.log("Socket disconnected:", socket.id, reason);
     });
 
+    // Always shows the latest scenario activation to a steward when they connect.
     const latest = latestActivation();
-    if (role === "STEWARD" && latest) {
+    if (role === "STEWARD" && latest?.sequence !== undefined) {
       socket.emit("scenario-activated", {
         scenario: findScenario(latest.scenarioId),
         sentAt: new Date().toISOString(),
+        sequence: latest.sequence,
       });
     }
   });

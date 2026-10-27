@@ -129,6 +129,7 @@ export async function activate(
     io?.to("STEWARD").emit("scenario-activated", {
       scenario: findScenario(scenarioId),
       sentAt: new Date().toISOString(),
+      sequence: result.sequence,
     });
     io?.to("OPERATOR").emit("activations-changed");
     console.log("Scenario activated:", result.activation);

@@ -47,8 +47,23 @@ export function App() {
       />
     );
   }
+
+  if (state.status === "unavailable") {
+    return (
+      <main>
+        <p>Kan ikke bekræfte din session uden forbindelse.</p>
+        <button onClick={() => void restore()} type="button">
+          Prøv igen
+        </button>
+        <button onClick={() => void signOut()} type="button">
+          Log ud
+        </button>
+      </main>
+    );
+  }
+
   return (
-    <ControlRoom token={session.token} onLogout={() => setSession(null)} />
+    <ControlRoom token={state.session.token} onLogout={() => void signOut()} />
   );
 }
 
@@ -69,20 +84,6 @@ function ControlRoom({
   }, [token]);
 
   const activations = useActiveActivations(token);
-
-  if (state.status === "unavailable") {
-    return (
-      <main>
-        <p>Kan ikke bekræfte din session uden forbindelse.</p>
-        <button onClick={() => void restore()} type="button">
-          Prøv igen
-        </button>
-        <button onClick={() => void signOut()} type="button">
-          Log ud
-        </button>
-      </main>
-    );
-  }
 
   // The banner sits outside any view, so every view added below it keeps it.
   return (

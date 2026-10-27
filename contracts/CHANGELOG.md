@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 5.2.0 - 2026-10-27
+
+Additive. Activations carry the incident log `sequence` of their `SCENARIO_ACTIVATED` event (MET-A-004).
+
+- `scenario-state.schema.json` has an optional integer `sequence`. `POST /api/v1/scenarios/{scenarioId}/activate`, `GET /api/v1/scenario-state` and `GET /api/v1/activations` return it. A higher sequence is a newer activation.
+- The `scenario-activated` socket event carries the same `sequence`.
+- `info.version` in `openapi.yaml` is now 5.2.0
+
 ## 5.1.0 - 2026-10-25
 
 Only one scenario can be active at a time. Behaviour change to `POST /api/v1/scenarios/{scenarioId}/activate`: it now answers 409 (`E0007`) while any scenario is active, not only when the same scenario is active. `GET /api/v1/activations` therefore holds at most one `ACTIVE` entry. The server and stub start with no active scenario. Standing a scenario down is a separate action (MET-A-009).

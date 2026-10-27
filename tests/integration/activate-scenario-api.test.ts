@@ -65,10 +65,13 @@ async function activeScenarioIds(token: string) {
 }
 
 function eventsBy(username: string) {
-  return getDatabase()<{ activationId: string; serverTime: Date }[]>`
-    SELECT e.activation_id, e.server_time FROM incident_events e
+  return getDatabase()<
+    { activationId: string; serverTime: Date; sequence: string }[]
+  >`
+    SELECT e.activation_id, e.server_time, e.sequence FROM incident_events e
     JOIN users u ON e.actor_id = u.id::text
     WHERE e.type = 'SCENARIO_ACTIVATED' AND u.username = ${username}
+    ORDER BY e.sequence
   `;
 }
 
@@ -98,6 +101,8 @@ test("an operator activates a scenario", async () => {
   assert.equal(events.length, before + 1);
   assert.equal(events.at(-1)!.activationId, activation.activationId);
   assert.ok(events.at(-1)!.serverTime instanceof Date);
+  // The activation carries its event's sequence, for ordering (MET-A-004).
+  assert.equal(activation.sequence, Number(events.at(-1)!.sequence));
   assert.equal(activation.scenarioId, "DEMO-002");
   assert.equal(activation.status, "ACTIVE");
   assert.equal(activation.actor, OPERATOR_USERNAME);
@@ -112,6 +117,7 @@ test("the current scenario state is the active activation", async () => {
   assert.equal(res.status, 200);
   const state = await res.json();
   assert.deepEqual(validate(state, "scenario-state.schema.json"), []);
+  assert.equal(typeof state.sequence, "number");
   const active = (await (
     await listActivations(token, "?status=ACTIVE")
   ).json()) as unknown[];

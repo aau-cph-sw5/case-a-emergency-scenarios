@@ -61,9 +61,10 @@ type Activation = {
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 
-type StoredActivation = Pick<Activation, "scenarioId"> & {
+type StoredActivation = Pick<Activation, "activationId" | "scenarioId"> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
+  sequence?: number;
 };
 const activations: StoredActivation[] = [];
 
@@ -83,6 +84,11 @@ export function activeStations(): Set<string> {
 // The most recently activated scenario, for clients that connect later.
 export function latestActivation(): StoredActivation | undefined {
   return activations.at(-1);
+}
+
+export function setActivationSequence(activationId: string, sequence: number) {
+  const activation = activations.find((a) => a.activationId === activationId);
+  if (activation) activation.sequence = sequence;
 }
 
 // Takes back the activation that was just made, when its event could not be written.

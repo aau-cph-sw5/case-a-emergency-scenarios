@@ -12,6 +12,7 @@ export interface ScenarioState {
   endedAt?: string | null;
   status: "ACTIVE" | "CLOSED";
   actor: string;
+  sequence?: number;
   deployments: {
     status: "UNMANNED" | "PENDING" | "MANNED";
     reportedAt?: string | null;
