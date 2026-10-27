@@ -1,6 +1,6 @@
 # Scenario State Contract Changelog
 
-## 4.1.0 - 2026-10-25
+## 5.1.0 - 2026-10-28
 
 Only one scenario can be active at a time. Behaviour change to `POST /api/v1/scenarios/{scenarioId}/activate`: it now answers 409 (`E0007`) while any scenario is active, not only when the same scenario is active. `GET /api/v1/activations` therefore holds at most one `ACTIVE` entry. The server and stub start with no active scenario. Standing a scenario down is a separate action (MET-A-009).
 
@@ -8,13 +8,23 @@ Only one scenario can be active at a time. Behaviour change to `POST /api/v1/sce
 
 Includes:
 
-- `info.version` in `openapi.yaml` is now 4.1.0
+- `info.version` in `openapi.yaml` is now 5.1.0
+
+## 5.0.0 - 2026-10-24
+
+Breaking.
+
+- `POST /api/v1/auth/login` and `POST /api/v1/auth/renew` now return a required
+  `expiresAt` timestamp. Clients that validate these responses must accept and
+  persist this field.
+- `info.version` in `openapi.yaml` is now 5.0.0.
 
 ## 4.0.0 - 2026-10-21
 
 Breaking.
 
 - `GET /api/v1/me` now returns `userId` as an integer database identifier, where it previously returned a string username. Clients must update any parsing, storage, or comparisons of this field.
+- `POST /api/v1/auth/login` now requires `expectedRole` (`STEWARD` or `OPERATOR`). Clients must send the role for the interface they are opening.
 
 Also includes the additive activation and position-report changes that were prepared as 3.3.0 and 3.2.0:
 

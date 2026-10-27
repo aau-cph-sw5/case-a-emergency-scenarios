@@ -74,12 +74,12 @@ test("a socket without a valid token is refused with E0001", async () => {
 test("an activation reaches stewards in full and operators as a signal", async () => {
   const operatorToken = await login(
     operatorUsername,
-    "operator-test-pw",
+    "operator123",
     "OPERATOR",
   );
   const operator = await open(operatorToken);
   const steward = await open(
-    await login(stewardUsername, "steward-test-pw", "STEWARD"),
+    await login(stewardUsername, "steward123", "STEWARD"),
   );
 
   let operatorGotScenario = false;
@@ -112,13 +112,9 @@ test("an activation reaches stewards in full and operators as a signal", async (
 });
 
 test("a position report reaches operators only, with the server's time", async () => {
-  const stewardToken = await login(
-    stewardUsername,
-    "steward-test-pw",
-    "STEWARD",
-  );
+  const stewardToken = await login(stewardUsername, "steward123", "STEWARD");
   const operator = await open(
-    await login(operatorUsername, "operator-test-pw", "OPERATOR"),
+    await login(operatorUsername, "operator123", "OPERATOR"),
   );
   const steward = await open(stewardToken);
 

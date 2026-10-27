@@ -4,6 +4,7 @@ import { after, afterEach, beforeEach, test } from "node:test";
 import { getDatabase } from "../../src/db/client.js";
 import { authSessionRepository } from "../../src/repositories/auth-session-repository.js";
 import { userRepository } from "../../src/repositories/user-repository.js";
+import { closeOwnerDatabase, getOwnerDatabase } from "./helpers.js";
 
 type CreatedUser = {
   id: number;
@@ -12,8 +13,9 @@ type CreatedUser = {
 
 let user: CreatedUser;
 
+// The application only reads users, so the fixture is written and removed as the owner.
 beforeEach(async () => {
-  const sql = getDatabase();
+  const sql = getOwnerDatabase();
   const username = `repository-test-${randomUUID()}`;
   const [createdUser] = await sql<CreatedUser[]>`
     INSERT INTO users (username, password_hash, role)
@@ -24,11 +26,12 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  const sql = getDatabase();
+  const sql = getOwnerDatabase();
   await sql`DELETE FROM users WHERE id = ${user.id}`;
 });
 
 after(async () => {
+  await closeOwnerDatabase();
   await getDatabase().end();
 });
 
@@ -65,6 +68,53 @@ test("replaces the active session when the same user signs in again", async () =
   );
 });
 
+test("extends a due session only when its JTI still matches", async () => {
+  const currentJti = randomUUID();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  const renewedExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  await authSessionRepository.startSession(user.id, currentJti, expiresAt);
+
+  const replacement = await authSessionRepository.extendDueSession(
+    user.id,
+    currentJti,
+    renewedExpiresAt,
+  );
+  const staleReplacement = await authSessionRepository.extendDueSession(
+    user.id,
+    randomUUID(),
+    renewedExpiresAt,
+  );
+
+  assert.equal(replacement?.jti, currentJti);
+  assert.equal(replacement?.expiresAt.getTime(), renewedExpiresAt.getTime());
+  assert.equal(staleReplacement, null);
+});
+
+test("renewing a session preserves its creation time", async () => {
+  const jti = randomUUID();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  const renewedExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const createdAt = new Date("2026-01-01T12:00:00.000Z");
+  const sql = getDatabase();
+
+  await authSessionRepository.startSession(user.id, jti, expiresAt);
+  await sql`
+    UPDATE auth_sessions
+    SET created_at = ${createdAt}
+    WHERE user_id = ${user.id}
+  `;
+  await authSessionRepository.extendDueSession(user.id, jti, renewedExpiresAt);
+
+  const [session] = await sql<{ createdAt: Date }[]>`
+    SELECT created_at AS "createdAt"
+    FROM auth_sessions
+    WHERE user_id = ${user.id}
+  `;
+
+  assert.equal(session.createdAt.getTime(), createdAt.getTime());
+});
+
 test("does not return a revoked session as active", async () => {
   const jti = randomUUID();
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
@@ -75,22 +125,6 @@ test("does not return a revoked session as active", async () => {
   assert.equal(
     await authSessionRepository.findActiveSession(user.id, jti),
     null,
-  );
-});
-
-test("extends an active session", async () => {
-  const jti = randomUUID();
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-  const extendedExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
-
-  await authSessionRepository.startSession(user.id, jti, expiresAt);
-  await authSessionRepository.extendSession(user.id, jti, extendedExpiresAt);
-
-  assert.equal(
-    (
-      await authSessionRepository.findActiveSession(user.id, jti)
-    )?.expiresAt.getTime(),
-    extendedExpiresAt.getTime(),
   );
 });
 

@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 4.1.0
+  version: 5.1.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -225,6 +225,7 @@ paths:
             example:
               username: "steward-test"
               password: "steward-test-pw"
+              expectedRole: "STEWARD"
       responses:
         "200":
           description: Login successful
@@ -243,7 +244,7 @@ paths:
                   code: "E0006"
                   message: "Request body does not match contract schema"
         "401":
-          description: Invalid username or password
+          description: Invalid credentials or account role for this client
           content:
             application/json:
               schema:
@@ -252,6 +253,31 @@ paths:
                 error:
                   code: "E0102"
                   message: "Invalid credentials"
+
+  /api/v1/auth/renew:
+    post:
+      summary: Replace a valid session with a renewed token
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Session renewed
+          content:
+            application/json:
+              schema:
+                $ref: "./login-response.schema.json"
+        "204":
+          description: Session remains valid but is not due for renewal
+        "401":
+          description: Missing, invalid, replaced or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
 
   /api/v1/me:
     get:

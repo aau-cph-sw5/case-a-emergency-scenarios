@@ -11,8 +11,6 @@ export const palette = {
   metroLineFour: "#00A0BE",
   metroSummerRed: "#E40037",
   metroWhite: "#FFFFFF",
-  // The control-room banner's grey border.
-  barBorder: "#454545",
   // Dims the page behind a dialog.
   scrim: "rgba(0,0,0,0.5)",
 
@@ -31,6 +29,9 @@ export const colors = {
   border: palette.metroBlack,
   active: palette.metroBlack, // selected / hovered state (inverted)
   action: palette.actionBlue, // confirm button
+  statusGreen: palette.metroLineOne,
+  statusYellow: palette.metroLineTwo,
+  statusRed: palette.metroLineThree,
 };
 
 export const lineColors = [
@@ -44,9 +45,6 @@ export const lineColors = [
 
 // Controls the corner rounding of every element (the app currently has none).
 export const radius = 0;
-
-// The status dot in the control-room banner.
-export const dotSize = 9;
 
 // Gaps and paddings, so layouts share one scale.
 export const spacing = { xs: 8, sm: 12, md: 14, lg: 24 };

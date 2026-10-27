@@ -334,9 +334,10 @@ app.get("/api/v1/me", requireAuth, (req, res) => {
 // SCENARIO ACTIVATION
 // ============================================
 
-// In-memory, so activations reset when the stub restarts. Starts empty, like
-// the server, so GET /api/v1/scenario-state keeps reading the fixture and
-// never sees activations.
+// In-memory, so activations reset when the stub restarts. Starts empty: no
+// scenario is active until one is activated. GET /api/v1/scenario-state keeps
+// reading the fixture and never sees these activations (see the follow-up for
+// a list endpoint).
 const activations = [];
 
 // Only one scenario can be active at a time, so any activation is refused

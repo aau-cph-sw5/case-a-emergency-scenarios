@@ -12,8 +12,8 @@ import { seedTestUsers } from "../../scripts/seed-test-users.js";
 let server: Server;
 let baseUrl: string;
 
-const OPERATOR_USERNAME = "activation-operator-test";
-const STEWARD_USERNAME = "activation-steward-test";
+const OPERATOR_USERNAME = "activation-operator";
+const STEWARD_USERNAME = "activation-steward";
 
 before(async () => {
   await seedTestUsers("activation-");
@@ -29,11 +29,15 @@ after(async () => {
   await getDatabase().end();
 });
 
-async function tokenFor(username: string, password: string) {
+async function tokenFor(
+  username: string,
+  password: string,
+  expectedRole: "STEWARD" | "OPERATOR",
+) {
   const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, expectedRole }),
   });
   return ((await response.json()) as { token: string }).token;
 }
@@ -77,7 +81,7 @@ test("without a token the activation is refused", async () => {
 test("a steward may not activate a scenario", async () => {
   const res = await activate(
     "DEMO-002",
-    await tokenFor(STEWARD_USERNAME, "steward-test-pw"),
+    await tokenFor(STEWARD_USERNAME, "steward123", "STEWARD"),
   );
   assert.equal(res.status, 403);
   assert.equal((await eventsBy(STEWARD_USERNAME)).length, 0);
@@ -85,7 +89,7 @@ test("a steward may not activate a scenario", async () => {
 });
 
 test("an operator activates a scenario", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
   const before = (await eventsBy(OPERATOR_USERNAME)).length;
   const res = await activate("DEMO-002", token);
   const activation = await res.json();
@@ -101,7 +105,7 @@ test("an operator activates a scenario", async () => {
 });
 
 test("the current scenario state is the active activation", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
   const res = await fetch(`${baseUrl}/api/v1/scenario-state`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -115,7 +119,7 @@ test("the current scenario state is the active activation", async () => {
 });
 
 test("activating a scenario while another is active is refused", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
   const before = (await eventsBy(OPERATOR_USERNAME)).length;
   for (const scenarioId of ["DEMO-002", "DEMO-003"]) {
     const res = await activate(scenarioId, token);
@@ -127,7 +131,7 @@ test("activating a scenario while another is active is refused", async () => {
 });
 
 test("an unknown scenario is refused", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
   const before = (await eventsBy(OPERATOR_USERNAME)).length;
   const res = await activate("NOPE", token);
   assert.equal(res.status, 404);
@@ -136,7 +140,7 @@ test("an unknown scenario is refused", async () => {
 });
 
 test("the activations list returns the active scenarios, filtered by status", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
 
   const active = await listActivations(token, "?status=ACTIVE");
   assert.equal(active.status, 200);
@@ -163,7 +167,7 @@ test("the activations list needs a token", async () => {
 });
 
 test("an unknown or repeated status filter is refused", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator-test-pw");
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "OPERATOR");
   for (const query of [
     "?status=active",
     "?status=NOPE",

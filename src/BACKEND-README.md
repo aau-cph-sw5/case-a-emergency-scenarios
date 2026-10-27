@@ -41,13 +41,20 @@ rejected before its body is examined.
 
 ### Services
 
-- **`auth-service.ts`**: `login()` checks the bcrypt password hash stored in
-  PostgreSQL, creates a unique session identifier (JTI), records that active
-  session, and returns a signed JWT with the user's numeric id and role.
+- **`auth-service.ts`**: `login()` checks the bcrypt password hash and the
+  client's expected role against the account stored in PostgreSQL before it
+  creates a unique session identifier (JTI), records that active session, and
+  returns a signed JWT with the user's numeric id and database role.
   `verifyToken()` checks both the token's signature and expiry and whether its
   JTI is still an active database session. A new login for an account replaces
-  its earlier session. `logout()` revokes the current session. The role always
-  comes from the verified token, never from anything else the client sends.
+  its earlier session. `renew()` rechecks the account role, extends a valid
+  session only in its final seven days, and returns a fresh JWT with the same
+  JTI. Retrying a renewal after a lost response therefore remains safe;
+  otherwise the renew endpoint returns 204 without changing the session.
+  `logout()` revokes the current session. The requested role only selects the
+  permitted client; the JWT role always comes from the database. `JWT_SECRET`
+  is required at startup; it must be a unique random secret in every deployed
+  environment.
 - **`incident-log-service.ts`**: `appendEvent()` is the only way to write to
   the incident log. It takes the caller's transaction, so the change and its
   event commit together, and takes the actor from the verified user. See
@@ -89,11 +96,11 @@ Every error response has the contract's shape:
 
 Codes that have been added:
 
-| Code    | Name                  | Sent when                                              |
-| ------- | --------------------- | ------------------------------------------------------ |
-| `E0001` | `AUTH_TOKEN_INVALID`  | The bearer token is missing, invalid or expired (401)  |
-| `E0102` | `INVALID_CREDENTIALS` | The username or password is wrong at login (401)       |
-| `E0006` | `MISSING_PARAMETER`   | A request body doesn't match its contract schema (400) |
+| Code    | Name                  | Sent when                                                       |
+| ------- | --------------------- | --------------------------------------------------------------- |
+| `E0001` | `AUTH_TOKEN_INVALID`  | The bearer token is missing, invalid or expired (401)           |
+| `E0102` | `INVALID_CREDENTIALS` | Credentials or expected account role are invalid at login (401) |
+| `E0006` | `MISSING_PARAMETER`   | A request body doesn't match its contract schema (400)          |
 
 Build error responses with `errorBody()` and the `ERROR_CODES` constants
 instead of typing codes as strings:

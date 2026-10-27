@@ -40,7 +40,21 @@ export function login(username, password) {
     { expiresIn: TOKEN_TTL },
   );
 
-  return { token, role: account.role };
+  const payload = jwt.decode(token);
+
+  if (
+    typeof payload === "string" ||
+    payload === null ||
+    typeof payload.exp !== "number"
+  ) {
+    throw new Error("Failed to create a token with an expiry");
+  }
+
+  return {
+    token,
+    role: account.role,
+    expiresAt: new Date(payload.exp * 1000).toISOString(),
+  };
 }
 
 // Role comes only from the verified JWT payload — never from a header, query

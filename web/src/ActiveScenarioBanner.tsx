@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { dotSize, palette, radius, spacing, text } from "../../shared/Theme";
+import { box, colors, text } from "../../shared/Theme";
 import type { ActiveActivations } from "./useActiveActivations";
 
 function startedLabel(startedAt: string) {
@@ -39,7 +39,7 @@ export function ActiveScenarioBanner({
       ) : (
         active.map((a) => (
           <View key={a.scenarioId} style={styles.item}>
-            <View style={styles.dot} />
+            <View style={[styles.dot, styles.dotActive]} />
             <Text style={[styles.title, styles.side]}>
               {names.get(a.scenarioId)?.name ?? a.scenarioId}
             </Text>
@@ -59,42 +59,32 @@ const styles = StyleSheet.create({
   // position sticky is web only, so the types do not know it. The control-room
   // dashboard runs on the web.
   bar: {
+    ...box,
     position: "sticky" as "absolute",
     top: 0,
     zIndex: 10,
+    backgroundColor: colors.background,
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: palette.metroBlack,
-    borderBottomWidth: 1,
-    borderColor: palette.barBorder,
+    gap: 12,
   },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  row: { flexDirection: "row", alignItems: "center", gap: 12 },
   item: {
     flex: 1,
     flexBasis: 220,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: palette.barBorder,
-    borderRadius: radius,
+    gap: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
   },
-  dot: {
-    width: dotSize,
-    height: dotSize,
-    borderRadius: dotSize / 2,
-    backgroundColor: palette.metroLineOne,
-  },
-  dotIdle: { backgroundColor: palette.metroLineThree },
+  dot: { width: 9, height: 9, borderRadius: 5 },
+  dotActive: { backgroundColor: colors.statusGreen },
+  dotIdle: { backgroundColor: colors.statusRed },
   // Equal side slots keep the middle text centred, with or without a line.
   side: { flex: 1 },
   line: { alignItems: "flex-end" },
-  title: { ...text.title, color: palette.metroWhite },
-  meta: { ...text.meta, color: palette.metroWhite, textAlign: "center" },
+  title: { ...text.title },
+  meta: { ...text.body },
 });
