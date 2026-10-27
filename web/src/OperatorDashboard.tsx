@@ -10,7 +10,6 @@ import { ScenarioList } from "./ScenarioList";
 import { StewardPositions } from "./components/StewardPositions"; */
 import { OperatorSections } from "./components/OperatorSections";
 
-
 // const selectedScenario = scenarioFixture as Scenario;
 // const scenarioState = scenarioStateFixture as ScenarioState;
 
@@ -26,12 +25,12 @@ export function OperatorDashboard({
   // Every position report pushed by the server over the socket, newest first.
   usePositionReports(socket);
 
-return (
-  <main>
-    <button onClick={onLogout} type="button">
-      Log ud
-    </button>
-    <OperatorSections />
-  </main>
-);
+  return (
+    <main>
+      <button onClick={onLogout} type="button">
+        Log ud
+      </button>
+      <OperatorSections />
+    </main>
+  );
 }
