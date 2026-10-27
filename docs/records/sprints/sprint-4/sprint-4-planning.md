@@ -33,7 +33,7 @@ An interactive demo for Carsten that showcases the MVP.
 Theo considered Sprint 3 somewhat optimistic in scope, although significant progress had been made. 
 The Sprint 4 scope should reflect the remaining integration work and potential PR delays.
 
-The backlog and sprint scope can be looked at again during the regular Monday meeting with Theo.
+The backlog and sprint scope can be looked at again during the regular Monday meeting with Theo. Only the integration team and a few representatives from each group attend it. Nobody is blocked from attending, but it is mainly the integration team's responsibility.
 
 ## Cross-group dependencies
 
