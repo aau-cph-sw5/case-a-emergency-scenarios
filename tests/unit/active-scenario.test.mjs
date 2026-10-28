@@ -50,6 +50,17 @@ test("loads the state and the scenario when a scenario is active", async () => {
   }
 });
 
+test("treats a null answer as no active scenario", async () => {
+  const { fetchImpl, calls } = mockFetch({
+    "/api/v1/scenario-state": [200, null],
+  });
+
+  assert.deepEqual(await loadActiveScenario(API, "abc", fetchImpl), {
+    active: false,
+  });
+  assert.equal(calls.length, 1);
+});
+
 test("fetches nothing more when no scenario is active", async () => {
   const { fetchImpl, calls } = mockFetch({
     "/api/v1/scenario-state": [200, { ...activeState, status: "CLOSED" }],

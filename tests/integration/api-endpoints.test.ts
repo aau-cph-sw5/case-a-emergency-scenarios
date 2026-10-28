@@ -565,16 +565,13 @@ test("GET /api/v1/scenarios/:scenarioId returns 404 for an unknown id", async ()
   assert.equal(traversal.status, 404);
 });
 
-test("GET /api/v1/scenario-state returns the current state", async () => {
+test("GET /api/v1/scenario-state is 200 with null while no scenario is active", async () => {
   const response = await fetch(`${baseUrl}/api/v1/scenario-state`, {
     headers: await operatorHeaders(),
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(
-    validate(await response.json(), "scenario-state.schema.json"),
-    [],
-  );
+  assert.equal(await response.json(), null);
 });
 
 test("GET /api/v1/metro-lines/:lineId returns the line or 404", async () => {
@@ -620,30 +617,15 @@ test("POST /api/v1/position-reports refuses an operator with E0002", async () =>
   assert.equal((await response.json()).error.code, "E0002");
 });
 
-// One test, so the refusals always run before DEMO-002 is activated.
-test("POST /api/v1/position-reports refuses Station G with E1001 while nothing is active and E1004 until DEMO-002 is activated, then accepts it with 202", async () => {
-  const none = await postJson(
-    "/api/v1/position-reports",
-    stationGReport,
-    await stewardHeaders(),
-  );
-  assert.equal(none.status, 409);
-  assert.equal((await none.json()).error.code, "E1001");
-
-  const demo001 = await postJson(
-    "/api/v1/scenarios/DEMO-001/activate",
-    {},
-    await operatorHeaders(),
-  );
-  assert.equal(demo001.status, 201);
-
+// One test, so the refusal always runs before DEMO-002 is activated.
+test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 is activated, then accepts it with 202 and refuses Station B with E1004", async () => {
   const before = await postJson(
     "/api/v1/position-reports",
     stationGReport,
     await stewardHeaders(),
   );
   assert.equal(before.status, 409);
-  assert.equal((await before.json()).error.code, "E1004");
+  assert.equal((await before.json()).error.code, "E1001");
 
   const activation = await postJson(
     "/api/v1/scenarios/DEMO-002/activate",
@@ -659,6 +641,15 @@ test("POST /api/v1/position-reports refuses Station G with E1001 while nothing i
   );
   assert.equal(after.status, 202);
   assert.deepEqual(await after.json(), { accepted: true });
+
+  // Station B is in DEMO-001, but DEMO-002 is the active scenario.
+  const other = await postJson(
+    "/api/v1/position-reports",
+    { ...stationGReport, station: "Station B" },
+    await stewardHeaders(),
+  );
+  assert.equal(other.status, 409);
+  assert.equal((await other.json()).error.code, "E1004");
 });
 
 test("protected endpoints reject requests without a token", async () => {
