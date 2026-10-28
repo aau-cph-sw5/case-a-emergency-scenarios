@@ -14,7 +14,7 @@ import {
 // (open question on MET-A-005). Change it here only.
 export const STALE_AFTER_MS = 60 * 60 * 1000;
 
-const STORAGE_KEY = "metro-active-scenario-copy";
+export const STORAGE_KEY = "metro-active-scenario-copy";
 
 // The scenario as the copy keeps it: only the current version, without its
 // revision and operating plan.

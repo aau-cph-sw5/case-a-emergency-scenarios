@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   STALE_AFTER_MS,
+  STORAGE_KEY,
   ageInMinutes,
   buildSnapshot,
   createSnapshotStore,
@@ -79,7 +80,7 @@ test("a copy with a malformed station requirement counts as no copy", async () =
     { station: "Station B", actions: {} },
   ];
 
-  await storage.setItem("metro-active-scenario-copy", JSON.stringify(snapshot));
+  await storage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
   assert.equal(await store.load("steward-test"), null);
 });
 
@@ -105,10 +106,10 @@ test("a damaged copy counts as no copy", async () => {
   const storage = memoryStorage();
   const store = createSnapshotStore(storage);
 
-  await storage.setItem("metro-active-scenario-copy", "{not json");
+  await storage.setItem(STORAGE_KEY, "{not json");
   assert.equal(await store.load("steward-test"), null);
 
-  await storage.setItem("metro-active-scenario-copy", JSON.stringify({}));
+  await storage.setItem(STORAGE_KEY, JSON.stringify({}));
   assert.equal(await store.load("steward-test"), null);
 });
 
