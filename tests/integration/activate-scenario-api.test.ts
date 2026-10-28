@@ -1,4 +1,3 @@
-
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
@@ -111,10 +110,7 @@ test("activating another scenario while one is active is refused", async () => {
     assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
   }
 
-  assert.equal(
-    (await eventsBy(OPERATOR_USERNAME)).length,
-    beforeCount,
-  );
+  assert.equal((await eventsBy(OPERATOR_USERNAME)).length, beforeCount);
 });
 
 test("an unknown scenario is refused without writing an event", async () => {
@@ -125,10 +121,7 @@ test("an unknown scenario is refused without writing an event", async () => {
   assert.equal(res.status, 404);
   assert.equal((await res.json()).error.code, ERROR_CODES.NOT_FOUND);
 
-  assert.equal(
-    (await eventsBy(OPERATOR_USERNAME)).length,
-    beforeCount,
-  );
+  assert.equal((await eventsBy(OPERATOR_USERNAME)).length, beforeCount);
 });
 
 test("the activations list returns the active scenario, filtered by status", async () => {
