@@ -7,6 +7,7 @@ import path from "node:path";
 
 export const SEED_DATA_DIR = "docs/scenario-state";
 export const STATIONS_FILE = "stations.json";
+export const SHAFTS_FILE = "shafts.json";
 const SCENARIO_PREFIX = "SeedDataScenario_";
 const SCENARIO_FILES = `${SCENARIO_PREFIX}*.json`;
 
@@ -22,6 +23,7 @@ export function isScenarioFile(fileName) {
 // cannot run at all, and false when it can run but has no scenarios to load.
 export function findSeedData(dir) {
   const hasStations = existsSync(path.join(dir, STATIONS_FILE));
+  const hasShafts = existsSync(path.join(dir, SHAFTS_FILE));
   const scenarioFiles = existsSync(dir)
     ? readdirSync(dir).filter(isScenarioFile).sort()
     : [];
@@ -33,6 +35,9 @@ export function findSeedData(dir) {
     fatal = true;
   } else if (!hasStations) {
     problem = `${SEED_DATA_DIR}/${STATIONS_FILE} is missing. The seed loader needs it to check the stations in the scenario files.`;
+    fatal = true;
+  } else if (!hasShafts) {
+    problem = `${SEED_DATA_DIR}/${SHAFTS_FILE} is missing. The seed loader needs it, together with ${STATIONS_FILE}, to check the stations in the scenario files.`;
     fatal = true;
   } else if (scenarioFiles.length === 0) {
     problem = `No ${SCENARIO_FILES} files in ${SEED_DATA_DIR}/, so there are no scenarios to seed.`;

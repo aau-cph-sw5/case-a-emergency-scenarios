@@ -4,6 +4,7 @@ import pg from "pg";
 import {
   FETCH_HINT,
   SEED_DATA_DIR,
+  SHAFTS_FILE,
   STATIONS_FILE,
   findSeedData,
 } from "./lib/seed-data.mjs";
@@ -180,7 +181,12 @@ if (problem) {
 const stationList: { code: string; name: string }[] = JSON.parse(
   readFileSync(join(SEED_DATA_DIR, STATIONS_FILE), "utf8"),
 );
-const stationNames = new Map(stationList.map((s) => [s.code, s.name]));
+const shaftList: { code: string; name: string }[] = JSON.parse(
+  readFileSync(join(SEED_DATA_DIR, SHAFTS_FILE), "utf8"),
+);
+const stationNames = new Map(
+  [...stationList, ...shaftList].map((s) => [s.code, s.name]),
+);
 const allowedStations = new Set(stationNames.keys());
 const allErrors: string[] = [];
 const seenIds = new Map<string, string>();

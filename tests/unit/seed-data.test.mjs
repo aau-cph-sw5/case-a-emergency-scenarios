@@ -14,6 +14,7 @@ function seedDir(files) {
 test("finds no problem when stations.json and a scenario file exist", () => {
   const dir = seedDir([
     "stations.json",
+    "shafts.json",
     "SeedDataScenario_2.json",
     "SeedDataScenario_1.json",
     "notes.txt",
@@ -26,7 +27,9 @@ test("finds no problem when stations.json and a scenario file exist", () => {
 });
 
 test("reports that the scenario files are missing, without being fatal", () => {
-  const { problem, fatal } = findSeedData(seedDir(["stations.json"]));
+  const { problem, fatal } = findSeedData(
+    seedDir(["stations.json", "shafts.json"]),
+  );
   assert.match(problem, /No SeedDataScenario_\*\.json files/);
   assert.equal(fatal, false);
 });
@@ -43,4 +46,12 @@ test("reports that both are missing, also when the folder does not exist", () =>
     assert.match(problem, /^No seed data in .*stations\.json and the/);
     assert.equal(fatal, true);
   }
+});
+
+test("reports that shafts.json is missing, as fatal", () => {
+  const { problem, fatal } = findSeedData(
+    seedDir(["stations.json", "SeedDataScenario_1.json"]),
+  );
+  assert.match(problem, /shafts\.json is missing/);
+  assert.equal(fatal, true);
 });
