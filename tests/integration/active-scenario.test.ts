@@ -34,7 +34,7 @@ test("a logged-in steward loads the active scenario from the real server", async
     baseUrl,
     STEWARD_USERNAME,
     "steward123",
-    "STEWARD",
+    "mobile",
   );
 
   const result = await loadActiveScenario(baseUrl, token);
