@@ -44,5 +44,4 @@ export function findSeedData(dir) {
   }
 
   return { scenarioFiles, problem, fatal };
-  
 }
