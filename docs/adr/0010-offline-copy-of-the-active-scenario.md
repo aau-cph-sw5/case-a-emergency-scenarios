@@ -49,6 +49,8 @@ kopi" and "Sidst opdateret HH:MM", with the date when the copy is not from
 today. After 60 minutes the banner turns red and shows the age. The 60
 minutes is a placeholder until Metro answers how long a copy can be trusted;
 it lives in `STALE_AFTER_MS` in `shared/offline/scenario-snapshot.ts`.
+A copy saved more than 2 minutes in the future means the phone's clock has
+been turned back; its age is unknown, so the banner is red and says so.
 Position reports and the socket controls are hidden while the copy is shown,
 since they need the server.
 
