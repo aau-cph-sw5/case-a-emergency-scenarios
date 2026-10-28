@@ -5,7 +5,10 @@ import * as SecureStore from "expo-secure-store";
 import App from "../../mobile/App";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
-import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
+import {
+  STORAGE_KEY,
+  buildSnapshot,
+} from "../../shared/offline/scenario-snapshot";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
@@ -32,8 +35,6 @@ jest.mock("expo-secure-store", () => {
   };
 });
 
-const COPY_KEY = "metro-active-scenario-copy";
-
 // A stored steward session whose token carries user id 7.
 async function storeSession() {
   const payload = Buffer.from(JSON.stringify({ userId: 7 })).toString(
@@ -59,7 +60,7 @@ async function storeCopy() {
     "7",
     new Date(),
   );
-  await AsyncStorage.setItem(COPY_KEY, JSON.stringify(snapshot));
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
 }
 
 function response(status: number, body: unknown = {}) {
@@ -100,7 +101,7 @@ describe("App", () => {
 
     expect(await screen.findByText("Log ind")).toBeTruthy();
     await waitFor(async () =>
-      expect(await AsyncStorage.getItem(COPY_KEY)).toBeNull(),
+      expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull(),
     );
   });
 });
