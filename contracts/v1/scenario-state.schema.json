@@ -34,8 +34,7 @@
     },
     "sequence": {
       "type": "integer",
-      "minimum": 1,
-      "description": "The incident log sequence of this activation's SCENARIO_ACTIVATED event. A higher sequence is a newer activation, so a client can apply activations in the order they were made, however they arrive."
+      "minimum": 1
     },
     "deployments": {
       "type": "array",
