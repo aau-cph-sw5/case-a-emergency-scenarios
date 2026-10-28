@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { box, colors, text } from "../../shared/Theme";
-import type { ActiveActivations } from "./useActiveActivations";
+import { useLiveData } from "./data/liveData";
 
 function startedLabel(startedAt: string) {
   return new Date(startedAt).toLocaleString("da-DK", {
@@ -12,12 +12,15 @@ function startedLabel(startedAt: string) {
 // Shown by App above every view, so an active scenario is visible wherever
 // the operator is (MET-A-007 criterion 3). Shows the scenario name, falling
 // back to scenarioId; the line is not shown yet.
-export function ActiveScenarioBanner({
-  active,
-  names,
-  error,
-  loading,
-}: ActiveActivations) {
+export function ActiveScenarioBanner() {
+  const {
+    activations: active,
+    scenarios,
+    error,
+    isLoading: loading,
+  } = useLiveData();
+  const names = new Map((scenarios ?? []).map((s) => [s.scenarioId, s]));
+
   return (
     <View aria-label="Aktive scenarier" role="complementary" style={styles.bar}>
       {error !== null ? (

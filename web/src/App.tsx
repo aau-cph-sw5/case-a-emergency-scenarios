@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { LoginScreen } from "../../shared/LoginScreen";
 import { useSession } from "../../shared/auth/use-session";
 import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
+import { LiveDataProvider } from "./data/liveData";
 import { OperatorDashboard } from "./OperatorDashboard";
 import { webSessionStore } from "./auth/session-store";
 import { socket } from "./socket";
-import { useActiveActivations } from "./useActiveActivations";
 
 // The control-room dashboard. Stewards use the app in mobile/.
 export function App() {
@@ -85,13 +85,12 @@ function ControlRoom({
   token: string;
   onLogout: () => void;
 }) {
-  const activations = useActiveActivations(token);
-
   // The banner sits outside any view, so every view added below it keeps it.
+  // LiveDataProvider loads the server data once for both.
   return (
-    <>
-      <ActiveScenarioBanner {...activations} />
+    <LiveDataProvider socket={socket} token={token}>
+      <ActiveScenarioBanner />
       <OperatorDashboard token={token} onLogout={onLogout} />
-    </>
+    </LiveDataProvider>
   );
 }
