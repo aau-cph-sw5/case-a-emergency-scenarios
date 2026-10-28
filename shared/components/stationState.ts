@@ -46,8 +46,16 @@ export function formatTime(iso?: string | null) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-// The stations that require manning in the scenario's current version.
-export function currentStations(scenario: Scenario): string[] {
+// The stations that require manning in the scenario's current version. Takes
+// only what it reads, so the steward's offline copy fits too.
+export function currentStations(
+  scenario: Pick<Scenario, "currentVersion"> & {
+    versions: Pick<
+      Scenario["versions"][number],
+      "version" | "stationRequirements"
+    >[];
+  },
+): string[] {
   const version = scenario.versions.find(
     (v) => v.version === scenario.currentVersion,
   );

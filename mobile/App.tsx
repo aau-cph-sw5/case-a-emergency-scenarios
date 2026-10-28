@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import {
   ActivityIndicator,
   AppState,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -14,6 +13,8 @@ import { page } from "../shared/Theme";
 import { useSession } from "../shared/auth/use-session";
 import { apiBaseUrl } from "./src/api-base-url";
 import { mobileSessionStore } from "./src/auth/session-store";
+import { snapshotStore } from "./src/offline/snapshot-store";
+import { useConnectivity } from "./src/offline/useConnectivity";
 import { StewardView } from "./src/screens/StewardView";
 
 // The steward app. Operators use the control-room dashboard in web/.
@@ -23,6 +24,7 @@ export default function App() {
     allowedRole: "STEWARD",
     store: mobileSessionStore,
   });
+  const online = useConnectivity();
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
@@ -33,6 +35,20 @@ export default function App() {
 
     return () => subscription.remove();
   }, [restore]);
+
+  // A session that could not be confirmed offline is confirmed as soon as
+  // the connection returns (MET-A-005).
+  useEffect(() => {
+    if (online === true && state.status === "unavailable") {
+      void restore();
+    }
+  }, [online, state.status, restore]);
+
+  // A signed-out phone keeps no scenario data. Cleared after signing out, so
+  // a fetch still in flight cannot save the copy again.
+  function logOut() {
+    void signOut().finally(() => snapshotStore.clear().catch(() => undefined));
+  }
 
   return (
     <SafeAreaProvider>
@@ -52,32 +68,17 @@ export default function App() {
           />
         )}
 
-        {state.status === "unavailable" && (
-          <View style={styles.status}>
-            <Text>Kan ikke bekræfte din session uden forbindelse.</Text>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void restore()}
-              style={styles.button}
-            >
-              <Text style={styles.buttonText}>Prøv igen</Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void signOut()}
-              style={styles.button}
-            >
-              <Text style={styles.buttonText}>Log ud</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {state.status === "signed-in" && (
+        {/* Without a connection the session cannot be confirmed, so the
+            steward reads the saved copy until it can (MET-A-005). */}
+        {(state.status === "signed-in" || state.status === "unavailable") && (
           <StewardView
             token={state.session.token}
-            onLogout={() => void signOut()}
+            online={state.status === "signed-in" && online !== false}
+            onLogout={logOut}
+            onUnauthorized={() => void restore()}
+            onRetry={
+              state.status === "unavailable" ? () => void restore() : undefined
+            }
           />
         )}
         <StatusBar style="auto" />
@@ -96,15 +97,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 16,
     padding: 24,
-  },
-  button: {
-    backgroundColor: "#1b7f3b",
-    borderRadius: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  buttonText: {
-    color: "#ffffff",
-    fontWeight: "600",
   },
 });
