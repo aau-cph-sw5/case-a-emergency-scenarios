@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
-import { describe, expect, it, jest } from "@jest/globals";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import type { ReactElement } from "react";
-import { formatTime } from "../../shared/components/stationState";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import {
+  formatAge,
   StewardPositions,
   stewardPositions,
 } from "../../web/src/components/StewardPositions";
@@ -77,6 +77,25 @@ function renderWithLive(ui: ReactElement, live: Partial<LiveData>) {
   );
 }
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
+describe("formatAge", () => {
+  it("shows minutes, then hours and minutes", () => {
+    expect(formatAge(minutesAgo(0), NOW)).toBe("lige nu");
+    expect(formatAge(minutesAgo(2), NOW)).toBe("for 2 min siden");
+    expect(formatAge(minutesAgo(65), NOW)).toBe("for 1 t 5 min siden");
+  });
+
+  it("shows a missing time and a time from the future sensibly", () => {
+    expect(formatAge(null, NOW)).toBe("ingen rapport");
+    expect(formatAge(new Date(NOW + 60_000).toISOString(), NOW)).toBe(
+      "lige nu",
+    );
+  });
+});
+
 describe("stewardPositions", () => {
   it("lists staffed deployments across activations, oldest first, with the time that fits the status", () => {
     const positions = stewardPositions([
@@ -118,7 +137,8 @@ describe("StewardPositions pop-up", () => {
     expect(screen.queryByText(/steward-002/)).toBeNull();
   });
 
-  it("opens to one row per steward with status, station and time, and closes again", () => {
+  it("opens to one row per steward with status, station and age, and closes again", () => {
+    jest.useFakeTimers({ now: NOW });
     renderWithLive(<StewardPositions />, {
       activations: [
         activation("ACT-1", [
@@ -132,11 +152,31 @@ describe("StewardPositions pop-up", () => {
 
     expect(screen.getByText("steward-002 | På vej | Nørreport")).toBeTruthy();
     expect(screen.getByText("steward-003 | Ankommet | Vanløse")).toBeTruthy();
-    expect(screen.getByText(formatTime(minutesAgo(10)))).toBeTruthy();
+    expect(screen.getByText("for 2 min siden")).toBeTruthy();
+    expect(screen.getByText("for 10 min siden")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("Luk status"));
     expect(screen.queryByText(/steward-002/)).toBeNull();
+  });
+
+  it("counts the age up without a new report", () => {
+    jest.useFakeTimers({ now: NOW });
+    renderWithLive(<StewardPositions />, {
+      activations: [
+        activation("ACT-1", [
+          onTheWay("steward-002", "Nørreport", minutesAgo(2)),
+        ]),
+      ],
+    });
+    fireEvent.press(screen.getByText("Status (1)"));
+    expect(screen.getByText("for 2 min siden")).toBeTruthy();
+
+    act(() => {
+      jest.advanceTimersByTime(60_000);
+    });
+
+    expect(screen.getByText("for 3 min siden")).toBeTruthy();
   });
 
   it("updates when a steward moves to another station", () => {

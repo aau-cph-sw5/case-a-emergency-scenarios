@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { colors, palette, text } from "../../../shared/Theme";
-import {
-  formatTime,
-  type ActiveDeployments,
-} from "../../../shared/components/stationState";
+import type { ActiveDeployments } from "../../../shared/components/stationState";
 import { useLiveData } from "../data/liveData";
+
+// How often the ages are recomputed, so "for 2 min siden" counts up without a
+// new report.
+const TICK_MS = 15_000;
 
 // The word on each row. PENDING and MANNED come from the contract today. The
 // other two only exist in the temporary mock below, until check-out and lost
@@ -118,12 +119,35 @@ export function stewardPositions(
     );
 }
 
+// How long ago the steward reported or arrived, as the operator reads it.
+export function formatAge(time: string | null | undefined, now: number) {
+  const parsed = time ? Date.parse(time) : Number.NaN;
+  if (Number.isNaN(parsed)) return "ingen rapport";
+  // A phone clock ahead of the server's would give a negative age.
+  const minutes = Math.max(0, Math.floor((now - parsed) / 60_000));
+  if (minutes < 1) return "lige nu";
+  if (minutes < 60) return `for ${minutes} min siden`;
+  return `for ${Math.floor(minutes / 60)} t ${minutes % 60} min siden`;
+}
+
+// The current time, updated every intervalMs, so the component re-renders and
+// its ages move on.
+function useNow(intervalMs: number) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
+
 // The status pop-up in the bottom right corner: a button that opens a list of
 // where each steward is. Stewards are shown by user id, because Metro avoids
 // identifying them by name.
 export function StewardPositions({ mock = false }: { mock?: boolean }) {
   const { activations, isConnected, error } = useLiveData();
   const [open, setOpen] = useState(mock);
+  const now = useNow(TICK_MS);
   const positions = mock ? MOCK_LOG : stewardPositions(activations);
 
   return (
@@ -196,7 +220,7 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
                       {p.staff} | {STATUS_LABEL[p.status]} | {p.station}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 14 }}>{formatTime(p.time)}</Text>
+                  <Text style={{ fontSize: 14 }}>{formatAge(p.time, now)}</Text>
                 </View>
               ))
             )}
