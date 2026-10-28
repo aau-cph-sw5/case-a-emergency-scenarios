@@ -127,13 +127,13 @@ export function LiveDataProvider({
 
   // The scenario list does not change while the app runs, so it is loaded
   // once per login, and again only when the operator asks after a failure.
-  const scenariosLoad = useRef<AbortController | null>(null);
+  const scenariosLoadRef = useRef<AbortController | null>(null);
   const reloadScenarios = useCallback(() => {
     // Aborting the older load makes its answer count as ignored, so a slow
     // older answer cannot overwrite a newer one.
-    scenariosLoad.current?.abort();
+    scenariosLoadRef.current?.abort();
     const controller = new AbortController();
-    scenariosLoad.current = controller;
+    scenariosLoadRef.current = controller;
     fetchScenarios(token, controller.signal).then(
       (loaded) => {
         if (controller.signal.aborted) return;
@@ -149,7 +149,7 @@ export function LiveDataProvider({
   }, [token]);
   useEffect(() => {
     reloadScenarios();
-    return () => scenariosLoad.current?.abort();
+    return () => scenariosLoadRef.current?.abort();
   }, [reloadScenarios]);
 
   const loadScenario = useMemo(() => scenarioLoader(token), [token]);
