@@ -1,3 +1,4 @@
+
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
@@ -41,6 +42,7 @@ async function tokenFor(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password, client }),
   });
+  assert.equal(response.status, 200);
   return ((await response.json()) as { token: string }).token;
 }
 
@@ -55,15 +57,6 @@ function listActivations(token?: string, query = "") {
   return fetch(`${baseUrl}/api/v1/activations${query}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-}
-
-async function activeScenarioIds(token: string) {
-  const list = (await (
-    await listActivations(token, "?status=ACTIVE")
-  ).json()) as {
-    scenarioId: string;
-  }[];
-  return list.map((a) => a.scenarioId);
 }
 
 function eventsBy(username: string) {
@@ -90,46 +83,69 @@ test("a steward may not activate a scenario", async () => {
   assert.equal((await res.json()).error.code, ERROR_CODES.ROLE_NOT_PERMITTED);
 });
 
-test("an operator activates scenarios, also on the same line", async () => {
+test("an operator activates a scenario and writes an incident event", async () => {
   const token = await tokenFor(OPERATOR_USERNAME, "operator123", "web");
-  for (const scenarioId of ["DEMO-002", "DEMO-003"]) {
+  const beforeCount = (await eventsBy(OPERATOR_USERNAME)).length;
+
+  const res = await activate("DEMO-002", token);
+  assert.equal(res.status, 201);
+
+  const activation = await res.json();
+  assert.equal(activation.scenarioId, "DEMO-002");
+  assert.equal(activation.status, "ACTIVE");
+  assert.equal(activation.actor, OPERATOR_USERNAME);
+  assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
+
+  const events = await eventsBy(OPERATOR_USERNAME);
+  assert.equal(events.length, beforeCount + 1);
+  assert.equal(events.at(-1)?.activationId, activation.activationId);
+});
+
+test("activating another scenario while one is active is refused", async () => {
+  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "web");
+  const beforeCount = (await eventsBy(OPERATOR_USERNAME)).length;
+
+  for (const scenarioId of ["DEMO-001", "DEMO-003", "DEMO-002"]) {
     const res = await activate(scenarioId, token);
-    const activation = await res.json();
-    assert.equal(res.status, 201);
-    assert.equal(activation.scenarioId, scenarioId);
-    assert.equal(activation.status, "ACTIVE");
-    assert.equal(activation.actor, OPERATOR_USERNAME);
-    assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
+    assert.equal(res.status, 409);
+    assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
   }
+
+  assert.equal(
+    (await eventsBy(OPERATOR_USERNAME)).length,
+    beforeCount,
+  );
 });
 
-test("activating the same scenario twice is refused", async () => {
+test("an unknown scenario is refused without writing an event", async () => {
   const token = await tokenFor(OPERATOR_USERNAME, "operator123", "web");
-  assert.equal((await activate("DEMO-001", token)).status, 201);
-  const res = await activate("DEMO-001", token);
-  assert.equal(res.status, 409);
-  assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
-});
+  const beforeCount = (await eventsBy(OPERATOR_USERNAME)).length;
 
-test("an unknown scenario is refused", async () => {
-  const token = await tokenFor(OPERATOR_USERNAME, "operator123", "web");
   const res = await activate("NOPE", token);
   assert.equal(res.status, 404);
-  assert.equal((await eventsBy(OPERATOR_USERNAME)).length, before);
   assert.equal((await res.json()).error.code, ERROR_CODES.NOT_FOUND);
+
+  assert.equal(
+    (await eventsBy(OPERATOR_USERNAME)).length,
+    beforeCount,
+  );
 });
 
-test("the activations list returns the active scenarios, filtered by status", async () => {
+test("the activations list returns the active scenario, filtered by status", async () => {
   const token = await tokenFor(OPERATOR_USERNAME, "operator123", "web");
 
   const active = await listActivations(token, "?status=ACTIVE");
   assert.equal(active.status, 200);
+
   const list = (await active.json()) as {
     scenarioId: string;
     status: string;
   }[];
-  assert.ok(list.some((a) => a.scenarioId === "DEMO-002"));
-  assert.ok(list.every((a) => a.status === "ACTIVE"));
+
+  assert.equal(list.length, 1);
+  assert.equal(list[0].scenarioId, "DEMO-002");
+  assert.equal(list[0].status, "ACTIVE");
+
   for (const activation of list) {
     assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
   }
@@ -148,6 +164,7 @@ test("the activations list needs a token", async () => {
 
 test("an unknown or repeated status filter is refused", async () => {
   const token = await tokenFor(OPERATOR_USERNAME, "operator123", "web");
+
   for (const query of [
     "?status=active",
     "?status=NOPE",
