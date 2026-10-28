@@ -1,6 +1,7 @@
 // No react-native imports here, so the unit tests can import this file.
 // The steward's offline copy of the active scenario (MET-A-005). See
 // docs/adr/0010-offline-copy-of-the-active-scenario.md.
+import { FormatError } from "../api/http";
 import {
   isPassengerInformation,
   isScenarioState,
@@ -47,6 +48,8 @@ export type SnapshotStore = ReturnType<typeof createSnapshotStore>;
 
 // Keeps only what the steward reads: the activation and the scenario's
 // current version without its operating plan. One snapshot at a time.
+// loadActiveScenario already rejects a scenario without its current version;
+// this throws too, so no path can save an empty copy over a good one.
 export function buildSnapshot(
   active: Extract<ActiveScenario, { active: true }>,
   userId: string,
@@ -56,6 +59,9 @@ export function buildSnapshot(
   const current = scenario.versions.find(
     (version) => version.version === scenario.currentVersion,
   );
+  if (!current) {
+    throw new FormatError("a scenario without its current version");
+  }
   return {
     savedAt: now.toISOString(),
     userId,
@@ -65,15 +71,13 @@ export function buildSnapshot(
       name: scenario.name,
       currentVersion: scenario.currentVersion,
       covers: scenario.covers ?? [],
-      versions: current
-        ? [
-            {
-              version: current.version,
-              stationRequirements: current.stationRequirements,
-              passengerInformation: current.passengerInformation ?? [],
-            },
-          ]
-        : [],
+      versions: [
+        {
+          version: current.version,
+          stationRequirements: current.stationRequirements,
+          passengerInformation: current.passengerInformation ?? [],
+        },
+      ],
     },
   };
 }
@@ -95,6 +99,7 @@ function isSnapshotScenario(data: unknown): data is SnapshotScenario {
         typeof segment.stationB === "string",
     ) &&
     Array.isArray(data.versions) &&
+    data.versions.length === 1 &&
     data.versions.every(
       (version) =>
         isObject(version) &&

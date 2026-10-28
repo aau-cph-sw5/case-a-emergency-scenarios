@@ -61,16 +61,29 @@ test("keeps only the current version, without the operating plan", () => {
   assert.deepEqual(snapshot.state, state);
 });
 
-test("a scenario without its current version keeps no versions", () => {
+test("a scenario without its current version is never made a copy", () => {
   const withoutCurrent = { ...scenario, currentVersion: "99" };
 
-  const snapshot = buildSnapshot(
-    { ...active, scenario: withoutCurrent },
-    "steward-test",
-    now,
+  assert.throws(
+    () => buildSnapshot({ ...active, scenario: withoutCurrent }, "x", now),
+    /without its current version/,
+  );
+});
+
+test("a copy without its version counts as no copy", async () => {
+  const storage = memoryStorage();
+  const store = createSnapshotStore(storage);
+  const snapshot = buildSnapshot(active, "steward-test", now);
+
+  await storage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      ...snapshot,
+      scenario: { ...snapshot.scenario, versions: [] },
+    }),
   );
 
-  assert.deepEqual(snapshot.scenario.versions, []);
+  assert.equal(await store.load("steward-test"), null);
 });
 
 test("a copy with a malformed station requirement counts as no copy", async () => {

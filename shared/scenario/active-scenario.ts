@@ -151,5 +151,14 @@ export async function loadActiveScenario(
   if (scenario.scenarioId !== state.scenarioId) {
     throw new FormatError("a scenario whose id does not match scenario-state");
   }
+  // Without its current version there is nothing for the steward to read, and
+  // saving it would replace a good copy with an empty one.
+  if (
+    !scenario.versions.some(
+      (version) => version.version === scenario.currentVersion,
+    )
+  ) {
+    throw new FormatError("a scenario without its current version");
+  }
   return { active: true, state, scenario };
 }
