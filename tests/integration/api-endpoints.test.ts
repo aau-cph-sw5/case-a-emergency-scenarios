@@ -12,7 +12,11 @@ import { authSessionRepository } from "../../src/repositories/auth-session-repos
 import { renew } from "../../src/services/auth-service.js";
 import { validate } from "../../src/validation/contract-validator.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
-import { closeOwnerDatabase, getOwnerDatabase } from "./helpers.js";
+import {
+  closeOwnerDatabase,
+  getOwnerDatabase,
+  seedTestScenarios,
+} from "./helpers.js";
 
 // The application may only read users, so changing a role runs as the owner.
 const owner = getOwnerDatabase();
@@ -27,6 +31,7 @@ const STEWARD_USERNAME = "api-steward";
 
 before(async () => {
   const users = await seedTestUsers("api-");
+  await seedTestScenarios();
   operatorId = users.find((user) => user.username === OPERATOR_USERNAME)!.id;
   stewardId = users.find((user) => user.username === STEWARD_USERNAME)!.id;
 

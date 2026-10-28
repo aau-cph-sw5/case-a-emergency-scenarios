@@ -4,6 +4,7 @@ import {
   undoLastActivation,
   type ActivationResult,
 } from "../repositories/fixture-repository.js";
+import type { Scenario } from "../../shared/types/v1/scenario.js";
 import type { AuthUser } from "./auth-service.js";
 import { appendEvent } from "./incident-log-service.js";
 
@@ -16,11 +17,11 @@ type WriteEvent = typeof appendEvent;
 // activation writes no event.
 export async function activateAndLog(
   user: AuthUser,
-  scenarioId: string,
+  scenario: Scenario,
   username: string,
   writeEvent: WriteEvent = appendEvent,
 ): Promise<ActivationResult> {
-  const result = activateScenario(scenarioId, username);
+  const result = activateScenario(scenario, username);
   if (result.kind !== "ok") return result;
 
   const { activationId } = result.activation;
@@ -31,7 +32,7 @@ export async function activateAndLog(
         schemaVersion: 1,
         subject: { type: "activation", id: activationId },
         activationId,
-        payload: { scenarioId },
+        payload: { scenarioId: scenario.scenarioId },
       }),
     );
   } catch (error) {

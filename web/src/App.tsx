@@ -91,13 +91,7 @@ function ControlRoom({
   return (
     <>
       <ActiveScenarioBanner {...activations} />
-      <OperatorDashboard
-        token={token}
-        activation={activations.active[0]}
-        loading={activations.loading}
-        error={activations.error}
-        onLogout={onLogout}
-      />
+      <OperatorDashboard token={token} onLogout={onLogout} />
     </>
   );
 }

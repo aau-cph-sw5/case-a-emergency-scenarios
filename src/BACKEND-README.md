@@ -22,7 +22,7 @@ For example, `GET /api/v1/scenarios/DEMO-001`:
 routes/scenario-routes.ts           matches the URL
 middleware/require-auth.ts          rejects the request without a valid token
 controllers/scenario-controller.ts  getScenario: 200 with the scenario, or 404
-repositories/fixture-repository.ts  findScenario: reads fixtures/v1/scenarios/DEMO-001.json
+repositories/fixture-repository.ts  findScenario: reads the scenario from the database
 ```
 
 ### Middleware

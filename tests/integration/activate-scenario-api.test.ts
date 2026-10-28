@@ -7,6 +7,7 @@ import { getDatabase } from "../../src/db/client.js";
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { validate } from "../../src/validation/contract-validator.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
+import { seedTestScenarios } from "./helpers.js";
 
 // The same rules as activate-scenario.test.mjs, against the real app.
 let server: Server;
@@ -17,6 +18,7 @@ const STEWARD_USERNAME = "activation-steward";
 
 before(async () => {
   await seedTestUsers("activation-");
+  await seedTestScenarios();
 
   server = await new Promise<Server>((resolve) => {
     const listening = app.listen(0, "127.0.0.1", () => resolve(listening));

@@ -23,14 +23,6 @@ function readById(folder: string, id: string): unknown | undefined {
     : undefined;
 }
 
-export function listScenarios(): unknown {
-  return readJson("scenarios.json");
-}
-
-export function findScenario(scenarioId: string): Scenario | undefined {
-  return readById("scenarios", scenarioId) as Scenario | undefined;
-}
-
 export function findMetroLine(lineId: string): unknown | undefined {
   return readById("metro-lines", lineId);
 }
@@ -92,18 +84,15 @@ export function undoLastActivation() {
 }
 
 export type ActivationResult =
-  | { kind: "ok"; activation: Activation }
-  | { kind: "not-found" }
-  | { kind: "already-active" };
+  { kind: "ok"; activation: Activation } | { kind: "already-active" };
 
 // Only one scenario can be active at a time, so any activation is refused
 // while another is active.
 export function activateScenario(
-  scenarioId: string,
+  scenario: Scenario,
   actor: string,
 ): ActivationResult {
-  const scenario = findScenario(scenarioId);
-  if (scenario === undefined) return { kind: "not-found" };
+  const { scenarioId } = scenario;
   if (activations.some((a) => a.status === "ACTIVE")) {
     return { kind: "already-active" };
   }

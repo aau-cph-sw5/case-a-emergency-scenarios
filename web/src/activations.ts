@@ -3,7 +3,7 @@ import { ApiError } from "./get-json";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { isScenarioState } from "./scenario-state";
 
-function isActivationList(data: unknown): data is ScenarioState[] {
+export function isActivationList(data: unknown): data is ScenarioState[] {
   return Array.isArray(data) && data.every(isScenarioState);
 }
 
