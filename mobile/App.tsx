@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -15,6 +15,7 @@ import { useSession } from "../shared/auth/use-session";
 import { useActivatedScenario } from "../shared/socket/useActivatedScenario";
 import { useAuthenticatedSocket } from "../shared/socket/useAuthenticatedSocket";
 import { apiBaseUrl } from "./src/api-base-url";
+import { fetchCurrentActivation } from "./src/api/current-activation";
 import { mobileSessionStore } from "./src/auth/session-store";
 import { StewardView } from "./src/screens/StewardView";
 import { socket } from "./src/socket";
@@ -40,7 +41,15 @@ export default function App() {
       ? state.session.token
       : undefined;
 
-  const activated = useActivatedScenario(socket, token !== undefined);
+  const fetchCurrent = useCallback(
+    () => (token ? fetchCurrentActivation(token) : Promise.resolve(null)),
+    [token],
+  );
+  const activated = useActivatedScenario(
+    socket,
+    token !== undefined,
+    fetchCurrent,
+  );
   useAuthenticatedSocket(socket, token, restore);
   useSessionNetworkRecovery(state.status !== "signed-out", restore);
 
