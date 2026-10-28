@@ -40,4 +40,25 @@ export function findSeedData(dir) {
   }
 
   return { scenarioFiles, problem, fatal };
+  const hasShafts = existsSync(path.join(dir, SHAFTS_FILE));
+  const scenarioFiles = existsSync(dir)
+    ? readdirSync(dir).filter(isScenarioFile).sort()
+    : [];
+
+  let problem = null;
+  let fatal = false;
+  if (!hasStations && scenarioFiles.length === 0) {
+    problem = `No seed data in ${SEED_DATA_DIR}/: ${STATIONS_FILE} and the ${SCENARIO_FILES} files are missing.`;
+    fatal = true;
+  } else if (!hasStations) {
+    problem = `${SEED_DATA_DIR}/${STATIONS_FILE} is missing. The seed loader needs it to check the stations in the scenario files.`;
+    fatal = true;
+  } else if (!hasShafts) {
+    problem = `${SEED_DATA_DIR}/${SHAFTS_FILE} is missing. The seed loader needs it, together with ${STATIONS_FILE}, to check the stations in the scenario files.`;
+    fatal = true;
+  } else if (scenarioFiles.length === 0) {
+    problem = `No ${SCENARIO_FILES} files in ${SEED_DATA_DIR}/, so there are no scenarios to seed.`;
+  }
+
+  return { scenarioFiles, problem, fatal };
 }
