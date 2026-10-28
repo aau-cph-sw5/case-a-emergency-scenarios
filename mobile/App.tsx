@@ -44,11 +44,14 @@ export default function App() {
     }
   }, [online, state.status, restore]);
 
-  // A signed-out phone keeps no scenario data. Cleared after signing out, so
-  // a fetch still in flight cannot save the copy again.
-  function logOut() {
-    void signOut().finally(() => snapshotStore.clear().catch(() => undefined));
-  }
+  // A signed-out phone keeps no scenario data, however the session ended:
+  // logging out, or a token the server no longer accepts. The steward view
+  // has closed by then, so a fetch still in flight cannot save the copy again.
+  useEffect(() => {
+    if (state.status === "signed-out") {
+      void snapshotStore.clear().catch(() => undefined);
+    }
+  }, [state.status]);
 
   return (
     <SafeAreaProvider>
@@ -74,7 +77,7 @@ export default function App() {
           <StewardView
             token={state.session.token}
             online={state.status === "signed-in" && online !== false}
-            onLogout={logOut}
+            onLogout={() => void signOut()}
             onUnauthorized={() => void restore()}
             onRetry={
               state.status === "unavailable" ? () => void restore() : undefined
