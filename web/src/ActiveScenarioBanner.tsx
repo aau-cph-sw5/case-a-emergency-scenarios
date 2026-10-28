@@ -13,7 +13,12 @@ function startedLabel(startedAt: string) {
 // the operator is (MET-A-007 criterion 3). Shows the scenario name, falling
 // back to scenarioId; the line is not shown yet.
 export function ActiveScenarioBanner() {
-  const { activations: active, scenarios, error } = useLiveData();
+  const {
+    activations: active,
+    scenarios,
+    error,
+    isLoading: loading,
+  } = useLiveData();
   const names = new Map((scenarios ?? []).map((s) => [s.scenarioId, s]));
 
   return (
@@ -24,6 +29,10 @@ export function ActiveScenarioBanner() {
           <Text style={styles.meta}>
             Kunne ikke hente aktive scenarier: {error}
           </Text>
+        </View>
+      ) : loading ? (
+        <View role="status" style={styles.row}>
+          <Text style={styles.meta}>Henter aktive scenarier…</Text>
         </View>
       ) : active.length === 0 ? (
         <View role="status" style={styles.row}>

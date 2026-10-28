@@ -40,6 +40,10 @@ export function isScenarioState(data: unknown): data is ScenarioState {
   );
 }
 
+// The server answers null while no scenario is active.
+const isScenarioStateOrNull = (data: unknown): data is ScenarioState | null =>
+  data === null || isScenarioState(data);
+
 const isObject = (data: unknown): data is Record<string, unknown> =>
   typeof data === "object" && data !== null;
 
@@ -109,10 +113,10 @@ export async function loadActiveScenario(
     apiBaseUrl,
     "/api/v1/scenario-state",
     token,
-    isScenarioState,
+    isScenarioStateOrNull,
     fetchImpl,
   );
-  if (state.status !== "ACTIVE") {
+  if (state === null || state.status !== "ACTIVE") {
     return { active: false };
   }
   const scenario = await getJson(

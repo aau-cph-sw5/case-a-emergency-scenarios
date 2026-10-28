@@ -22,7 +22,7 @@ For example, `GET /api/v1/scenarios/DEMO-001`:
 routes/scenario-routes.ts           matches the URL
 middleware/require-auth.ts          rejects the request without a valid token
 controllers/scenario-controller.ts  getScenario: 200 with the scenario, or 404
-repositories/fixture-repository.ts  findScenario: reads fixtures/v1/scenarios/DEMO-001.json
+repositories/fixture-repository.ts  findScenario: reads the scenario from the database
 ```
 
 ### Middleware
@@ -59,6 +59,8 @@ rejected before its body is examined.
   the incident log. It takes the caller's transaction, so the change and its
   event commit together, and takes the actor from the verified user. See
   [the incident log reference](../docs/reference/incident-log.md).
+  A successful scenario activation writes a `SCENARIO_ACTIVATED` event;
+  refused ones (403, 404, 409) write none.
 
 ### Repositories
 
