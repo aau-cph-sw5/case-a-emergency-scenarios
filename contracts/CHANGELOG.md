@@ -1,12 +1,20 @@
 # Scenario State Contract Changelog
 
-## 5.2.0 - 2026-10-28
+## 6.1.0 - 2026-10-28
 
 Additive. Activations carry the incident log `sequence` of their `SCENARIO_ACTIVATED` event (MET-A-004).
 
 - `scenario-state.schema.json` has a required integer `sequence`. `POST /api/v1/scenarios/{scenarioId}/activate`, `GET /api/v1/scenario-state` and `GET /api/v1/activations` return it. A higher sequence is a newer activation. Clients only gain a field, so this is not breaking.
 - The `scenario-activated` socket event carries the same `sequence`.
-- `info.version` in `openapi.yaml` is now 5.2.0
+- `info.version` in `openapi.yaml` is now 6.1.0
+
+## 6.0.0 - 2026-10-27
+
+Breaking.
+
+- Login requests now require `client` (`web` or `mobile`) instead of `expectedRole`.
+  The server checks the account's role against the roles allowed for that client.
+- `info.version` in `openapi.yaml` is now 6.0.0.
 
 ## 5.1.0 - 2026-10-28
 

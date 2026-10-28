@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fetchScenarios } from "../../web/src/scenarios.ts";
+import { fetchScenario, fetchScenarios } from "../../web/src/scenarios.ts";
 const token = "test-token";
 // Only the parts of a Response that fetchScenarios reads.
 const respondWith =
@@ -36,5 +36,37 @@ test("reports the status when the server answers with an error", async () => {
   await assert.rejects(
     fetchScenarios(token, signal, respondWith({}, 500)),
     /500/,
+  );
+});
+
+const scenario = {
+  scenarioId: "DEMO-001",
+  name: "Synthetic fallback scenario",
+  currentVersion: "1",
+  versions: [],
+};
+
+test("fetchScenario returns the scenario", async () => {
+  assert.deepEqual(
+    await fetchScenario(token, "DEMO-001", respondWith(scenario)),
+    scenario,
+  );
+});
+
+test("fetchScenario rejects a scenario without versions", async () => {
+  await assert.rejects(
+    fetchScenario(
+      token,
+      "DEMO-001",
+      respondWith({ ...scenario, versions: undefined }),
+    ),
+    /unexpected format/,
+  );
+});
+
+test("fetchScenario reports the status when the scenario is unknown", async () => {
+  await assert.rejects(
+    fetchScenario(token, "NOPE", respondWith({}, 404)),
+    /404/,
   );
 });

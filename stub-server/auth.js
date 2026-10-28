@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { ERROR_CODES, errorBody } from "../shared/error-codes.ts";
+import { isRoleAllowedForClient } from "../shared/auth/client-access.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const accountsPath = path.join(__dirname, "../fixtures/v1/test-accounts.json");
@@ -29,10 +30,11 @@ function loadAccounts() {
   return JSON.parse(fs.readFileSync(accountsPath, "utf8"));
 }
 
-export function login(username, password) {
+export function login(username, password, client) {
   const account = loadAccounts().find((a) => a.username === username);
   if (!account) return null;
   if (!bcrypt.compareSync(password, account.passwordHash)) return null;
+  if (!isRoleAllowedForClient(client, account.role)) return null;
 
   const token = jwt.sign(
     { userId: account.userId, role: account.role },

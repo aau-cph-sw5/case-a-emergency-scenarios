@@ -2,9 +2,10 @@ import { getDatabase } from "../db/client.js";
 import {
   activateScenario,
   setActivationSequence,
-  undoLastActivation,
+  undoActivation,
   type ActivationResult,
 } from "../repositories/fixture-repository.js";
+import type { Scenario } from "../../shared/types/v1/scenario.js";
 import type { AuthUser } from "./auth-service.js";
 import { appendEvent } from "./incident-log-service.js";
 
@@ -22,11 +23,11 @@ export type LoggedActivationResult =
 // activation writes no event.
 export async function activateAndLog(
   user: AuthUser,
-  scenarioId: string,
+  scenario: Scenario,
   username: string,
   writeEvent: WriteEvent = appendEvent,
 ): Promise<LoggedActivationResult> {
-  const result = activateScenario(scenarioId, username);
+  const result = activateScenario(scenario, username);
   if (result.kind !== "ok") return result;
 
   const { activationId } = result.activation;
@@ -38,13 +39,12 @@ export async function activateAndLog(
         schemaVersion: 1,
         subject: { type: "activation", id: activationId },
         activationId,
-        payload: { scenarioId },
+        payload: { scenarioId: scenario.scenarioId },
       }),
     );
     sequence = Number(event.sequence);
   } catch (error) {
-    // Safe: while this activation is active, no other can be added after it.
-    undoLastActivation();
+    undoActivation(activationId);
     throw error;
   }
   setActivationSequence(activationId, sequence);

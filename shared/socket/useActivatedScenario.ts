@@ -14,11 +14,16 @@ export function applyScenarioActivated(
 // The latest scenario an operator activated, for the steward view.
 export function useActivatedScenario(
   socket: AppSocket,
+  enabled = true,
   fetchCurrent?: () => Promise<ScenarioActivated | null>,
 ) {
   const [activated, setActivated] = useState<ScenarioActivated | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      setActivated(null);
+      return;
+    }
     let cancelled = false;
 
     function apply(event: ScenarioActivated) {
@@ -47,7 +52,7 @@ export function useActivatedScenario(
       socket.off("scenario-activated", apply);
       socket.off("connect", onConnect);
     };
-  }, [socket, fetchCurrent]);
+  }, [socket, enabled, fetchCurrent]);
 
   return activated;
 }

@@ -41,10 +41,13 @@ async function fetchWithTimeout(
 // vite.config forwards /api to the server
 export async function getJson<T>(
   path: string,
+  token: string,
   isValid: (data: unknown) => data is T,
   ...signals: AbortSignal[]
 ): Promise<T> {
-  const response = await fetchWithTimeout(path, signals);
+  const response = await fetchWithTimeout(path, signals, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!response.ok) {
     throw new ApiError(
       `GET ${path} failed with ${response.status}`,

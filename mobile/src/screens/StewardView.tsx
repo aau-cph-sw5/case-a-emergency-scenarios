@@ -1,28 +1,24 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { useSocketState } from "../../../shared/socket/useSocketState";
-import { useActivatedScenario } from "../../../shared/socket/useActivatedScenario";
+import type { ScenarioActivated } from "../../../shared/socket/events";
 import { socket } from "../socket";
 import { RoleView } from "./RoleView";
 import { sendPositionReport } from "../api/position-report";
-import { fetchCurrentActivation } from "../api/current-activation";
 import { currentStations } from "../../../shared/components/stationState";
 import { StationPicker } from "../components/StationPicker";
 
 export function StewardView({
   token,
   onLogout,
+  activated,
 }: {
   token: string;
   onLogout: () => void;
+  activated: ScenarioActivated | null;
 }) {
   // Data from the socketstate
   const { isConnected, messages } = useSocketState(socket);
-  const fetchCurrent = useCallback(
-    () => fetchCurrentActivation(token),
-    [token],
-  );
-  const activated = useActivatedScenario(socket, fetchCurrent);
   const [station, setStation] = useState<string>("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
 
@@ -37,17 +33,6 @@ export function StewardView({
 
   // The stations of the activated scenario's current version, for the picker.
   const stations = activated ? currentStations(activated.scenario) : [];
-
-  // The server refuses a socket without a valid token and uses its role to
-  // decide which events this socket gets.
-  function toggleSocket() {
-    if (isConnected) {
-      socket.disconnect();
-      return;
-    }
-    socket.auth = { token };
-    socket.connect();
-  }
 
   // Reports the chosen station and shows the answer.
   async function reportPosition() {
@@ -90,16 +75,6 @@ export function StewardView({
       <Text style={isConnected ? styles.ok : styles.offline}>
         Socket: {isConnected ? "connected" : "disconnected"}
       </Text>
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={toggleSocket}
-        style={styles.button}
-      >
-        <Text style={styles.buttonText}>
-          {isConnected ? "Disconnect socket" : "Connect socket"}
-        </Text>
-      </Pressable>
 
       {messages.map((message) => (
         <Text key={message.id}>Socket: {message.text}</Text>
