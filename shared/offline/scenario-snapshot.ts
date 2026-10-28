@@ -2,6 +2,7 @@
 // The steward's offline copy of the active scenario (MET-A-005). See
 // docs/adr/0010-offline-copy-of-the-active-scenario.md.
 import {
+  isPassengerInformation,
   isScenarioState,
   isStationRequirement,
   type ActiveScenario,
@@ -99,7 +100,10 @@ function isSnapshotScenario(data: unknown): data is SnapshotScenario {
         isObject(version) &&
         typeof version.version === "string" &&
         Array.isArray(version.stationRequirements) &&
-        version.stationRequirements.every(isStationRequirement),
+        version.stationRequirements.every(isStationRequirement) &&
+        (version.passengerInformation === undefined ||
+          (Array.isArray(version.passengerInformation) &&
+            version.passengerInformation.every(isPassengerInformation))),
     )
   );
 }

@@ -97,6 +97,37 @@ test("rejects a scenario whose station requirement is malformed", async () => {
   );
 });
 
+test("accepts a scenario with passenger information", async () => {
+  const withInformation = structuredClone(scenario);
+  withInformation.versions[0].passengerInformation = [
+    { channel: "PA", language: "da", message: "Toget kører ikke." },
+  ];
+  const { fetchImpl } = mockFetch({
+    "/api/v1/scenario-state": [200, activeState],
+    "/api/v1/scenarios/DEMO-001": [200, withInformation],
+  });
+
+  const result = await loadActiveScenario(API, "abc", fetchImpl);
+
+  assert.deepEqual(result.scenario, withInformation);
+});
+
+test("rejects a scenario whose passenger information is malformed", async () => {
+  const broken = structuredClone(scenario);
+  broken.versions[0].passengerInformation = [
+    { channel: "PA", language: "da", message: { text: "Toget kører ikke." } },
+  ];
+  const { fetchImpl } = mockFetch({
+    "/api/v1/scenario-state": [200, activeState],
+    "/api/v1/scenarios/DEMO-001": [200, broken],
+  });
+
+  await assert.rejects(
+    loadActiveScenario(API, "abc", fetchImpl),
+    /unexpected format/,
+  );
+});
+
 test("rejects a scenario whose id does not match the active one", async () => {
   const { fetchImpl } = mockFetch({
     "/api/v1/scenario-state": [200, activeState],
