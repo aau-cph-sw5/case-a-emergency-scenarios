@@ -223,7 +223,7 @@ test("a failed write does not stop the next one", async () => {
     store.save(buildSnapshot(active, "steward-test", now)),
     /disk full/,
   );
-  await storage.setItem("metro-active-scenario-copy", "{}");
+  await storage.setItem(STORAGE_KEY, "{}");
   await store.clear();
-  assert.equal(storage.items.has("metro-active-scenario-copy"), false);
+  assert.equal(storage.items.has(STORAGE_KEY), false);
 });
