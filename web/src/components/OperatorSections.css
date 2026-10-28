@@ -6,15 +6,11 @@ body {
   box-sizing: border-box;
   display: grid;
   /* Keep the side panels responsive within set width limits; the center fills the remaining space. */
-  grid-template-columns: clamp(180px, 14vw, 240px) minmax(0, 1fr) clamp(
-      190px,
-      16vw,
-      270px
-    );
+  grid-template-columns: clamp(180px, 14vw, 240px) minmax(0, 1fr) clamp(190px, 16vw, 270px);
   gap: 10px;
   min-height: 100vh;
   padding: 10px;
-  background: #1e1e1e;
+  background: #1E1E1E;
 }
 
 .operator-sections section {

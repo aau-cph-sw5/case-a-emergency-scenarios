@@ -618,7 +618,7 @@ test("POST /api/v1/position-reports refuses an operator with E0002", async () =>
 });
 
 // One test, so the refusal always runs before DEMO-002 is activated.
-test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 is activated, then accepts it with 202", async () => {
+test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 is activated, then accepts it with 202 and refuses Station B with E1004", async () => {
   const before = await postJson(
     "/api/v1/position-reports",
     stationGReport,
@@ -641,6 +641,15 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   );
   assert.equal(after.status, 202);
   assert.deepEqual(await after.json(), { accepted: true });
+
+  // Station B is in DEMO-001, but DEMO-002 is the active scenario.
+  const other = await postJson(
+    "/api/v1/position-reports",
+    { ...stationGReport, station: "Station B" },
+    await stewardHeaders(),
+  );
+  assert.equal(other.status, 409);
+  assert.equal((await other.json()).error.code, "E1004");
 });
 
 test("protected endpoints reject requests without a token", async () => {
