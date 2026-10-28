@@ -159,6 +159,52 @@ describe("useLiveData", () => {
     expect(scenariosMock).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a failed scenario list and loads it again on reloadScenarios", async () => {
+    activationsMock.mockResolvedValue([]);
+    const summary = { scenarioId: "DEMO-001", name: "Demo" };
+    scenariosMock
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce([summary]);
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    const { socket } = fakeSocket();
+
+    const { result } = renderHook(() => useLiveData(), {
+      wrapper: wrapperFor(socket),
+    });
+    await waitFor(() => expect(result.current.scenariosError).not.toBeNull());
+    expect(result.current.scenarios).toBeNull();
+
+    act(() => result.current.reloadScenarios());
+    await waitFor(() => expect(result.current.scenarios).toEqual([summary]));
+    expect(result.current.scenariosError).toBeNull();
+    expect(scenariosMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores an older scenario list that arrives after a newer one", async () => {
+    activationsMock.mockResolvedValue([]);
+    const newer = [{ scenarioId: "NEW", name: "New" }];
+    let answerOld: (
+      value: { scenarioId: string; name: string }[],
+    ) => void = () => {};
+    scenariosMock
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          answerOld = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(newer);
+    const { socket } = fakeSocket();
+
+    const { result } = renderHook(() => useLiveData(), {
+      wrapper: wrapperFor(socket),
+    });
+    act(() => result.current.reloadScenarios());
+    await waitFor(() => expect(result.current.scenarios).toEqual(newer));
+
+    await act(async () => answerOld([{ scenarioId: "OLD", name: "Old" }]));
+    expect(result.current.scenarios).toEqual(newer);
+  });
+
   it("refuses to run outside LiveDataProvider", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     expect(() => renderHook(() => useLiveData())).toThrow(

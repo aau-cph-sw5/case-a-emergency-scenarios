@@ -20,6 +20,10 @@ const { activations, scenarios, isConnected, isLoading, error } =
 `web/src/App.tsx` puts around the banner and the dashboard. Your component
 needs no token and no socket.
 
+The scenario list is loaded once per login. When that load fails,
+`scenariosError` holds the message and `reloadScenarios()` loads the list
+again, so a component can offer the operator a "try again" button.
+
 ### Read one scenario definition with `useScenario(scenarioId)`
 
 ```tsx
@@ -34,7 +38,7 @@ Pass `null` when nothing is selected.
 
 | Issue | Hook | Fields |
 |---|---|---|
-| #182 Scenario list | `useLiveData()` | `scenarios` and `scenariosError`, and `activations` to mark the active ones |
+| #182 Scenario list | `useLiveData()` | `scenarios`, `scenariosError` and `reloadScenarios`, and `activations` to mark the active ones |
 | #183 Metro map | `useScenario(selectedId)` | `stationRequirements` of the current version |
 | #184 Station coverage | `useLiveData()` and `useScenario(activation.scenarioId)` | `activations[].deployments`, and `stationRequirements` with `minimumStaffing` |
 | #185 Status bar | `useLiveData()` | `activations`, `scenarios` for the name, `isConnected`, `lastUpdatedAt` |

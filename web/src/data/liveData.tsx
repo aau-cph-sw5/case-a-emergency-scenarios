@@ -1,8 +1,10 @@
 import {
   createContext,
   use,
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -37,6 +39,9 @@ export type LiveData = {
   error: string | null;
   // A message for the operator when the scenario list could not be loaded.
   scenariosError: string | null;
+  // Loads the scenario list again, for the operator's "try again" after a
+  // failed load. The newest call wins.
+  reloadScenarios: () => void;
 };
 
 // useScenario() reads loadScenario; components read live through useLiveData().
@@ -121,11 +126,17 @@ export function LiveDataProvider({
   }, [socket, token]);
 
   // The scenario list does not change while the app runs, so it is loaded
-  // once per login.
-  useEffect(() => {
+  // once per login, and again only when the operator asks after a failure.
+  const scenariosLoad = useRef<AbortController | null>(null);
+  const reloadScenarios = useCallback(() => {
+    // Aborting the older load makes its answer count as ignored, so a slow
+    // older answer cannot overwrite a newer one.
+    scenariosLoad.current?.abort();
     const controller = new AbortController();
+    scenariosLoad.current = controller;
     fetchScenarios(token, controller.signal).then(
       (loaded) => {
+        if (controller.signal.aborted) return;
         setScenarios(loaded);
         setScenariosError(null);
       },
@@ -135,8 +146,11 @@ export function LiveDataProvider({
         setScenariosError(userMessage(e));
       },
     );
-    return () => controller.abort();
   }, [token]);
+  useEffect(() => {
+    reloadScenarios();
+    return () => scenariosLoad.current?.abort();
+  }, [reloadScenarios]);
 
   const loadScenario = useMemo(() => scenarioLoader(token), [token]);
 
@@ -150,6 +164,7 @@ export function LiveDataProvider({
         lastUpdatedAt,
         error: activationsError,
         scenariosError,
+        reloadScenarios,
       },
       loadScenario,
     }),
@@ -161,6 +176,7 @@ export function LiveDataProvider({
       lastUpdatedAt,
       activationsError,
       scenariosError,
+      reloadScenarios,
       loadScenario,
     ],
   );
