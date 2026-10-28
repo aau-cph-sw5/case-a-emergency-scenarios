@@ -6,6 +6,7 @@ import { app } from "../../src/app.js";
 import { getDatabase } from "../../src/db/client.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
 import { fetchScenarios } from "../../web/src/scenarios.js";
+import { seedTestScenarios } from "./helpers.js";
 
 let server: Server;
 let baseUrl: string;
@@ -14,6 +15,7 @@ const OPERATOR_USERNAME = "web-operator";
 
 before(async () => {
   await seedTestUsers("web-");
+  await seedTestScenarios();
 
   server = await new Promise<Server>((resolve) => {
     const listening = app.listen(0, "127.0.0.1", () => resolve(listening));

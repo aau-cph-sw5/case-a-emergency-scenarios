@@ -12,7 +12,13 @@ type ActivationState =
   | { status: "error"; message: string }
   | { status: "done"; state: ScenarioState };
 
-export function ScenarioList({ token }: { token: string }) {
+export function ScenarioList({
+  token,
+  onActivated,
+}: {
+  token: string;
+  onActivated: (scenarioId: string) => void;
+}) {
   // The scenario list comes from LiveDataProvider, which loads it once.
   const { scenarios, scenariosError, reloadScenarios } = useLiveData();
   const [query, setQuery] = useState("");
@@ -31,6 +37,7 @@ export function ScenarioList({ token }: { token: string }) {
         isScenarioState,
       );
       setActivation({ status: "done", state });
+      onActivated(state.scenarioId);
     } catch (error) {
       console.error(error);
       setActivation({ status: "error", message: userMessage(error) });

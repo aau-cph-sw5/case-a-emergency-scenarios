@@ -8,6 +8,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { root, run, npm } from "./run.mjs";
 import { FETCH_HINT, SEED_DATA_DIR, findSeedData } from "./seed-data.mjs";
+import { warn } from "./output.mjs";
 
 const MIN_NODE = [20, 19, 0];
 // Fingerprint of the lockfile that node_modules was last installed from.
@@ -251,10 +252,23 @@ export function migrateDatabase() {
   }
 }
 
+export function seedUsers() {
+  if (npm(["run", "seed:users"]).status !== 0) {
+    throw new SetupError("Seeding the test users failed");
+  }
+}
 export function seedDatabase() {
-  const { problem } = findSeedData(path.join(root, SEED_DATA_DIR));
+  // SEED_SCENARIOS_DIR from the same .env that `npm run seed` reads.
+  const envFile = path.join(root, ".env");
+  const env = existsSync(envFile) ? readFileSync(envFile, "utf8") : "";
+  const configured = /^SEED_SCENARIOS_DIR\s*=\s*(.*)$/m.exec(env)?.[1].trim();
+  const scenariosDir = configured ? path.resolve(root, configured) : undefined;
+  const { problem } = findSeedData(
+    path.join(root, SEED_DATA_DIR),
+    scenariosDir,
+  );
   if (problem) {
-    note(`Skipped: ${problem}`);
+    warn(`Skipped: ${problem}`);
     note(`${FETCH_HINT} Then run \`npm run seed\`.`);
     return;
   }
