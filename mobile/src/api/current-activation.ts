@@ -1,15 +1,17 @@
-import { getJson, HttpError } from "../../../shared/api/http";
+import { getJson } from "../../../shared/api/http";
 import type { ScenarioActivated } from "../../../shared/socket/events";
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
 import { apiBaseUrl } from "../api-base-url";
 
-function isNumberedState(
-  data: unknown,
-): data is ScenarioState & { sequence: number } {
-  const state = data as Partial<ScenarioState> | null;
+type NumberedState = ScenarioState & { sequence: number };
+
+// The server answers null while no scenario is active.
+function isNumberedStateOrNull(data: unknown): data is NumberedState | null {
+  if (data === null) return true;
+  const state = data as Partial<ScenarioState>;
   return (
-    typeof state?.scenarioId === "string" && typeof state.sequence === "number"
+    typeof state.scenarioId === "string" && typeof state.sequence === "number"
   );
 }
 
@@ -25,18 +27,13 @@ function isScenario(data: unknown): data is Scenario {
 export async function fetchCurrentActivation(
   token: string,
 ): Promise<ScenarioActivated | null> {
-  let state: ScenarioState & { sequence: number };
-  try {
-    state = await getJson(
-      apiBaseUrl,
-      "/api/v1/scenario-state",
-      token,
-      isNumberedState,
-    );
-  } catch (error) {
-    if (error instanceof HttpError && error.status === 404) return null;
-    throw error;
-  }
+  const state = await getJson(
+    apiBaseUrl,
+    "/api/v1/scenario-state",
+    token,
+    isNumberedStateOrNull,
+  );
+  if (state === null) return null;
   const scenario = await getJson(
     apiBaseUrl,
     `/api/v1/scenarios/${encodeURIComponent(state.scenarioId)}`,
