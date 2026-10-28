@@ -34,7 +34,7 @@ test("a logged-in steward loads the active scenario from the real server", async
     baseUrl,
     STEWARD_USERNAME,
     "steward123",
-    "STEWARD",
+    "mobile",
   );
 
   // The server starts with no active scenario and answers null.
@@ -44,7 +44,7 @@ test("a logged-in steward loads the active scenario from the real server", async
     baseUrl,
     "offline-operator",
     "operator123",
-    "OPERATOR",
+    "web",
   );
   const activation = await fetch(
     `${baseUrl}/api/v1/scenarios/DEMO-001/activate`,

@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 6.0.0 - 2026-10-27
+
+Breaking.
+
+- Login requests now require `client` (`web` or `mobile`) instead of `expectedRole`.
+  The server checks the account's role against the roles allowed for that client.
+- `info.version` in `openapi.yaml` is now 6.0.0.
+
 ## 5.1.0 - 2026-10-28
 
 Only one scenario can be active at a time. Behaviour change to `POST /api/v1/scenarios/{scenarioId}/activate`: it now answers 409 (`E0007`) while any scenario is active, not only when the same scenario is active. `GET /api/v1/activations` therefore holds at most one `ACTIVE` entry. The server and stub start with no active scenario. Standing a scenario down is a separate action (MET-A-009).

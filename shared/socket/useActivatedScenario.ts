@@ -3,10 +3,14 @@ import type { AppSocket } from "./createSocket";
 import type { ScenarioActivated } from "./events";
 
 // The latest scenario an operator activated, for the steward view.
-export function useActivatedScenario(socket: AppSocket) {
+export function useActivatedScenario(socket: AppSocket, enabled = true) {
   const [activated, setActivated] = useState<ScenarioActivated | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      setActivated(null);
+      return;
+    }
     function onScenarioActivated(event: ScenarioActivated) {
       console.log(
         "Scenario activated:",
@@ -19,7 +23,7 @@ export function useActivatedScenario(socket: AppSocket) {
     return () => {
       socket.off("scenario-activated", onScenarioActivated);
     };
-  }, [socket]);
+  }, [socket, enabled]);
 
   return activated;
 }

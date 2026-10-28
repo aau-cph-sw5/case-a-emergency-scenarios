@@ -318,7 +318,7 @@ app.post("/api/v1/auth/login", (req, res) => {
       );
   }
 
-  const result = login(req.body.username, req.body.password);
+  const result = login(req.body.username, req.body.password, req.body.client);
   if (!result) {
     return res
       .status(401)
