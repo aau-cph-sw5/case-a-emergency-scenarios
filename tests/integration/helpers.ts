@@ -1,4 +1,7 @@
+import { readdirSync, readFileSync } from "node:fs";
+import pg from "pg";
 import postgres from "postgres";
+import { seedScenarios, type Scenario } from "../../scripts/seed-scenarios.js";
 import { getDatabase, type Db } from "../../src/db/client.js";
 import type { NewIncidentEvent } from "../../src/services/incident-log-service.js";
 
@@ -27,6 +30,39 @@ export function getOwnerDatabase(): postgres.Sql {
 export async function closeOwnerDatabase() {
   await owner?.end();
   owner = undefined;
+}
+
+const SCENARIO_FIXTURES = new URL(
+  "../../fixtures/v1/scenarios/",
+  import.meta.url,
+);
+
+// Synthetic stations for the DEMO fixtures.
+const TEST_STATIONS = ["A", "B", "C", "D", "E", "F", "G"].map((letter) => ({
+  code: `Station ${letter}`,
+  name: `Station ${letter}`,
+}));
+
+// Loads the synthetic DEMO scenarios from fixtures/v1/scenarios/ into the test database
+export async function seedTestScenarios() {
+  const scenarios = readdirSync(SCENARIO_FIXTURES)
+    .filter((file) => file.endsWith(".json"))
+    .map(
+      (file) =>
+        JSON.parse(
+          readFileSync(new URL(file, SCENARIO_FIXTURES), "utf8"),
+        ) as Scenario,
+    );
+
+  const client = new pg.Client({
+    connectionString: process.env.OWNER_DATABASE_URL,
+  });
+  await client.connect();
+  try {
+    await seedScenarios(client, scenarios, TEST_STATIONS);
+  } finally {
+    await client.end();
+  }
 }
 
 // Runs the test in a transaction that is always rolled back, so it leaves no

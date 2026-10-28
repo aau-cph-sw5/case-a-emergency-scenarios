@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { LoginScreen } from "../../shared/LoginScreen";
 import { useSession } from "../../shared/auth/use-session";
 import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
+import { LiveDataProvider } from "./data/liveData";
 import { OperatorDashboard } from "./OperatorDashboard";
 import { webSessionStore } from "./auth/session-store";
 import { socket } from "./socket";
@@ -72,14 +73,24 @@ export function App() {
     );
   }
 
-  // The banner sits outside any view, so every view added below it keeps it.
   return (
-    <>
-      <ActiveScenarioBanner token={state.session.token} />
-      <OperatorDashboard
-        token={state.session.token}
-        onLogout={() => void signOut()}
-      />
-    </>
+    <ControlRoom token={state.session.token} onLogout={() => void signOut()} />
+  );
+}
+
+function ControlRoom({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
+  // The banner sits outside any view, so every view added below it keeps it.
+  // LiveDataProvider loads the server data once for both.
+  return (
+    <LiveDataProvider socket={socket} token={token}>
+      <ActiveScenarioBanner />
+      <OperatorDashboard token={token} onLogout={onLogout} />
+    </LiveDataProvider>
   );
 }

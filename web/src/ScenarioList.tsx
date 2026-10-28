@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { colors } from "../../shared/Theme";
-import { fetchActiveScenarioIds } from "./activations";
+import { useLiveData } from "./data/liveData";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { isScenarioState } from "./scenario-state";
-import { fetchScenarios, type ScenarioSummary } from "./scenarios";
+import type { ScenarioSummary } from "./scenarios";
 import { canActivate, keepSelection } from "./selection";
-
-type LoadState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "done"; scenarios: ScenarioSummary[] };
 
 type ActivationState =
   | { status: "idle" }
@@ -26,69 +21,41 @@ export function ScenarioList({
   token,
   selectedId,
   onSelect,
+  onActivated,
 }: {
   token: string;
   selectedId: string | null;
   onSelect: (scenarioId: string | null) => void;
+  onActivated: (scenarioId: string) => void;
 }) {
-  const [state, setState] = useState<LoadState>({ status: "loading" });
+  // The scenario list and the active activations come from LiveDataProvider,
+  // which loads them once and reloads the activations when they change.
+  const { scenarios, scenariosError, reloadScenarios, activations, error } =
+    useLiveData();
   const [query, setQuery] = useState("");
   // True while the confirmation dialog is open for the selected scenario.
   const [confirming, setConfirming] = useState(false);
   const [activation, setActivation] = useState<ActivationState>({
     status: "idle",
   });
-  // The scenarios that are already active, and whether loading them failed.
-  const [activeIds, setActiveIds] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
-  const [activeFailed, setActiveFailed] = useState(false);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchScenarios(token, controller.signal).then(
-      (scenarios) => setState({ status: "done", scenarios }),
-      (error: unknown) => {
-        if (controller.signal.aborted) return;
-        console.error(error);
-        setState({ status: "error", message: userMessage(error) });
-      },
-    );
-    return () => controller.abort();
-  }, [token]);
-
-  // The active scenarios are loaded separately from the scenario list. If
-  // they cannot be loaded, the operator can still find and activate
-  // scenarios, and a message says that active scenarios could not be shown.
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchActiveScenarioIds(token, controller.signal).then(
-      (ids) => {
-        setActiveIds(ids);
-        setActiveFailed(false);
-      },
-      (error: unknown) => {
-        if (controller.signal.aborted) return;
-        console.error(error);
-        setActiveFailed(true);
-      },
-    );
-    return () => controller.abort();
-  }, [token]);
+  // The scenarios that are already active. A scenario activated here counts
+  // as active straight away, so the operator cannot try to activate it again
+  // before the reloaded activations arrive.
+  const activeIds = new Set(activations.map((a) => a.scenarioId));
+  if (activation.status === "done") activeIds.add(activation.state.scenarioId);
+  // If the active scenarios cannot be loaded, the operator can still find and
+  // activate scenarios, and a message says that they could not be shown.
+  const activeFailed = error !== null;
 
   // Clear the selection if the selected scenario is no longer in the list.
   useEffect(() => {
-    if (state.status !== "done") return;
-    const kept = keepSelection(selectedId, state.scenarios);
+    if (scenarios === null) return;
+    const kept = keepSelection(selectedId, scenarios);
     if (kept !== selectedId) onSelect(kept);
-  }, [state, selectedId, onSelect]);
+  }, [scenarios, selectedId, onSelect]);
 
   const selected =
-    state.status === "done"
-      ? (state.scenarios.find(
-          (scenario) => scenario.scenarioId === selectedId,
-        ) ?? null)
-      : null;
+    scenarios?.find((scenario) => scenario.scenarioId === selectedId) ?? null;
 
   async function activate(scenario: ScenarioSummary) {
     setConfirming(false);
@@ -100,9 +67,7 @@ export function ScenarioList({
         isScenarioState,
       );
       setActivation({ status: "done", state });
-      // Mark the scenario active straight away, so the operator sees it
-      // without reloading the page and cannot try to activate it again.
-      setActiveIds((ids) => new Set(ids).add(state.scenarioId));
+      onActivated(state.scenarioId);
     } catch (error) {
       console.error(error);
       setActivation({ status: "error", message: userMessage(error) });
@@ -124,18 +89,25 @@ export function ScenarioList({
         />
       </label>
 
-      {state.status === "loading" && <p role="status">Henter scenarier…</p>}
-
-      {state.status === "error" && (
-        <p role="alert">Kunne ikke hente scenarier: {state.message}</p>
+      {scenarios === null && scenariosError === null && (
+        <p role="status">Henter scenarier…</p>
       )}
 
-      {state.status === "done" &&
-        (state.scenarios.length === 0 ? (
+      {scenariosError !== null && (
+        <>
+          <p role="alert">Kunne ikke hente scenarier: {scenariosError}</p>
+          <button type="button" onClick={reloadScenarios}>
+            Prøv igen
+          </button>
+        </>
+      )}
+
+      {scenarios !== null &&
+        (scenarios.length === 0 ? (
           <p role="status">Ingen scenarier tilgængelige.</p>
         ) : (
           <ScenarioResults
-            scenarios={filterScenarios(state.scenarios, query)}
+            scenarios={filterScenarios(scenarios, query)}
             query={query}
             selectedId={selectedId}
             activeIds={activeIds}

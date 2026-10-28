@@ -64,6 +64,7 @@ export default defineConfig([
       "{web,mobile}/**/*.{ts,tsx}",
       "shared/api/**/*.ts",
       "shared/auth/**/*.ts",
+      "shared/scenario/**/*.ts",
       "shared/LoginScreen.tsx",
       "shared/Theme.tsx",
     ],
@@ -88,6 +89,15 @@ export default defineConfig([
       globals: {
         ...globals.node,
       },
+    },
+  },
+  {
+    files: ["scripts/**"],
+    rules: {
+      "n/no-unsupported-features/node-builtins": [
+        "error",
+        { ignores: ["fetch"] },
+      ],
     },
   },
   eslintConfigPrettier,
