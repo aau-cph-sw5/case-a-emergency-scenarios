@@ -16,7 +16,13 @@ type ActivationState =
   | { status: "error"; message: string }
   | { status: "done"; state: ScenarioState };
 
-export function ScenarioList({ token }: { token: string }) {
+export function ScenarioList({
+  token,
+  onActivated,
+}: {
+  token: string;
+  onActivated: (scenarioId: string) => void;
+}) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ScenarioSummary | null>(null);
@@ -47,6 +53,7 @@ export function ScenarioList({ token }: { token: string }) {
         isScenarioState,
       );
       setActivation({ status: "done", state });
+      onActivated(state.scenarioId);
     } catch (error) {
       console.error(error);
       setActivation({ status: "error", message: userMessage(error) });
