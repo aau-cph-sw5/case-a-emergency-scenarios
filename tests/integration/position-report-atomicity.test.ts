@@ -80,12 +80,12 @@ function eventsAbout(reportId: string) {
 async function loginToken(
   username: string,
   password: string,
-  expectedRole: "STEWARD" | "OPERATOR",
+  client: "web" | "mobile",
 ) {
   const login = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password, expectedRole }),
+    body: JSON.stringify({ username, password, client }),
   });
   return ((await login.json()) as { token: string }).token;
 }
@@ -96,7 +96,7 @@ test("a position report and its event are stored together, with the actor from t
   const operatorToken = await loginToken(
     operatorUsername,
     "operator123",
-    "OPERATOR",
+    "web",
   );
   const activation = await fetch(
     `${baseUrl}/api/v1/scenarios/DEMO-003/activate`,
@@ -115,7 +115,7 @@ test("a position report and its event are stored together, with the actor from t
   const stewardToken = await loginToken(
     stewardUsername,
     "steward123",
-    "STEWARD",
+    "mobile",
   );
 
   // The client claims `staff` is somebody else. The token decides.

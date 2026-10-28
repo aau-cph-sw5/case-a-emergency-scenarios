@@ -54,29 +54,32 @@ function postJson(
   });
 }
 
-async function bearer(username: string, password: string) {
-  const expectedRole = username === OPERATOR_USERNAME ? "OPERATOR" : "STEWARD";
-  const { token } = await loginAs(username, password, expectedRole);
+async function bearer(
+  username: string,
+  password: string,
+  client: "web" | "mobile",
+) {
+  const { token } = await loginAs(username, password, client);
   return { Authorization: `Bearer ${token}` };
 }
 
 function operatorHeaders() {
-  return bearer(OPERATOR_USERNAME, "operator123");
+  return bearer(OPERATOR_USERNAME, "operator123", "web");
 }
 
 function stewardHeaders() {
-  return bearer(STEWARD_USERNAME, "steward123");
+  return bearer(STEWARD_USERNAME, "steward123", "mobile");
 }
 
 async function loginAs(
   username: string,
   password: string,
-  expectedRole: "STEWARD" | "OPERATOR",
+  client: "web" | "mobile",
 ) {
   const response = await postJson("/api/v1/auth/login", {
     username,
     password,
-    expectedRole,
+    client,
   });
   return (await response.json()) as {
     token: string;
@@ -89,7 +92,7 @@ test("POST /api/v1/auth/login returns a token and role", async () => {
   const response = await postJson("/api/v1/auth/login", {
     username: OPERATOR_USERNAME,
     password: "operator123",
-    expectedRole: "OPERATOR",
+    client: "web",
   });
   const body = await response.json();
 
@@ -109,7 +112,7 @@ test("POST /api/v1/auth/login matches usernames without regard to casing", async
   const response = await postJson("/api/v1/auth/login", {
     username: OPERATOR_USERNAME.toUpperCase(),
     password: "operator123",
-    expectedRole: "OPERATOR",
+    client: "web",
   });
 
   assert.equal(response.status, 200);
@@ -120,7 +123,7 @@ test("POST /api/v1/auth/login rejects a wrong password with 401", async () => {
   const response = await postJson("/api/v1/auth/login", {
     username: OPERATOR_USERNAME,
     password: "wrong",
-    expectedRole: "OPERATOR",
+    client: "web",
   });
 
   assert.equal(response.status, 401);
@@ -131,7 +134,7 @@ test("POST /api/v1/auth/login rejects an account for the wrong client role", asy
   const originalLogin = await postJson("/api/v1/auth/login", {
     username: OPERATOR_USERNAME,
     password: "operator123",
-    expectedRole: "OPERATOR",
+    client: "web",
   });
   const originalToken = ((await originalLogin.json()) as { token: string })
     .token;
@@ -139,7 +142,7 @@ test("POST /api/v1/auth/login rejects an account for the wrong client role", asy
   const response = await postJson("/api/v1/auth/login", {
     username: OPERATOR_USERNAME,
     password: "operator123",
-    expectedRole: "STEWARD",
+    client: "mobile",
   });
 
   assert.equal(response.status, 401);
@@ -155,7 +158,7 @@ test("POST /api/v1/auth/login rejects an unknown username with 401", async () =>
   const response = await postJson("/api/v1/auth/login", {
     username: "not-a-user",
     password: "not-a-password",
-    expectedRole: "OPERATOR",
+    client: "web",
   });
 
   assert.equal(response.status, 401);
@@ -169,6 +172,32 @@ test("POST /api/v1/auth/login rejects an invalid body with 400", async () => {
 
   assert.equal(response.status, 400);
   assert.equal((await response.json()).error.code, "E0006");
+});
+
+test("POST /api/v1/auth/login rejects an unknown client", async () => {
+  const response = await postJson("/api/v1/auth/login", {
+    username: OPERATOR_USERNAME,
+    password: "operator123",
+    client: "unknown",
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error.code, "E0006");
+});
+
+test("a steward cannot use the web login or replace their mobile session", async () => {
+  const session = await loginAs(STEWARD_USERNAME, "steward123", "mobile");
+  const response = await postJson("/api/v1/auth/login", {
+    username: STEWARD_USERNAME,
+    password: "steward123",
+    client: "web",
+  });
+
+  assert.equal(response.status, 401);
+  const stillValid = await fetch(`${baseUrl}/api/v1/me`, {
+    headers: { Authorization: `Bearer ${session.token}` },
+  });
+  assert.equal(stillValid.status, 200);
 });
 
 test("GET /api/v1/me returns the signed-in user", async () => {
@@ -197,7 +226,7 @@ test("GET /api/v1/me rejects a signed token with an invalid payload", async () =
 });
 
 test("protected requests use the user's current database role", async () => {
-  const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const session = await loginAs(OPERATOR_USERNAME, "operator123", "web");
   const headers = { Authorization: `Bearer ${session.token}` };
   const sql = getDatabase();
 
@@ -231,7 +260,7 @@ test("POST /api/v1/auth/logout revokes the current session", async () => {
 });
 
 test("POST /api/v1/auth/renew extends a due session without replacing its JTI", async () => {
-  const first = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const first = await loginAs(OPERATOR_USERNAME, "operator123", "web");
   const firstPayload = jwt.decode(first.token);
 
   assert.ok(firstPayload && typeof firstPayload !== "string");
@@ -271,7 +300,7 @@ test("POST /api/v1/auth/renew extends a due session without replacing its JTI", 
 });
 
 test("POST /api/v1/auth/renew keeps concurrent requests usable", async () => {
-  const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const session = await loginAs(OPERATOR_USERNAME, "operator123", "web");
   const sql = getDatabase();
   await sql`
     UPDATE auth_sessions
@@ -319,7 +348,7 @@ test("POST /api/v1/auth/renew keeps concurrent requests usable", async () => {
 });
 
 test("POST /api/v1/auth/renew does not replace a session that is not due", async () => {
-  const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const session = await loginAs(OPERATOR_USERNAME, "operator123", "web");
 
   const response = await postJson(
     "/api/v1/auth/renew",
@@ -474,7 +503,7 @@ test("renew rejects a session that disappears during renewal", async () => {
 });
 
 test("POST /api/v1/auth/renew uses the account's current role", async () => {
-  const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const session = await loginAs(OPERATOR_USERNAME, "operator123", "web");
   const sql = getDatabase();
 
   await sql`
@@ -503,8 +532,8 @@ test("POST /api/v1/auth/renew uses the account's current role", async () => {
 });
 
 test("a second login replaces the first session for an account", async () => {
-  const first = await bearer(OPERATOR_USERNAME, "operator123");
-  const second = await bearer(OPERATOR_USERNAME, "operator123");
+  const first = await bearer(OPERATOR_USERNAME, "operator123", "web");
+  const second = await bearer(OPERATOR_USERNAME, "operator123", "web");
   const firstMe = await fetch(`${baseUrl}/api/v1/me`, { headers: first });
   const secondMe = await fetch(`${baseUrl}/api/v1/me`, { headers: second });
 

@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 6.0.0 - 2026-10-27
+
+Breaking.
+
+- Login requests now require `client` (`web` or `mobile`) instead of `expectedRole`.
+  The server checks the account's role against the roles allowed for that client.
+- `info.version` in `openapi.yaml` is now 6.0.0.
+
 ## 5.0.0 - 2026-10-24
 
 Breaking.
