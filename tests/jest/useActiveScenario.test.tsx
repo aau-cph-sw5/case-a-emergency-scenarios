@@ -165,6 +165,34 @@ describe("useActiveScenario", () => {
     );
   });
 
+  it("keeps the copy when the scenario lacks its current version", async () => {
+    jest
+      .spyOn(global, "fetch")
+      .mockImplementation(async (input) =>
+        String(input).endsWith("/api/v1/scenario-state")
+          ? response(200, state)
+          : response(200, { ...definition, currentVersion: "99" }),
+      );
+    const store = memoryStore();
+    await store.save(
+      buildSnapshot(
+        { active: true, state, scenario: definition },
+        "7",
+        savedEarlier,
+      ),
+    );
+    const { result } = render({ online: true, store });
+
+    await waitFor(() =>
+      expect(result.current.view).toMatchObject({
+        status: "copy",
+        reason: "server",
+        snapshot: { savedAt: savedEarlier.toISOString() },
+      }),
+    );
+    expect((await store.load("7"))?.savedAt).toBe(savedEarlier.toISOString());
+  });
+
   it("reports a refused token and shows the copy meanwhile", async () => {
     jest.spyOn(global, "fetch").mockResolvedValue(response(401));
     const store = memoryStore();
