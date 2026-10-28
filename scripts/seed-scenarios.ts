@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fail, warn, succeed } from "./lib/output.mjs";
 import pg from "pg";
 import {
   FETCH_HINT,
   SEED_DATA_DIR,
+  SEED_SCENARIOS_DIR,
   SHAFTS_FILE,
   STATIONS_FILE,
   findSeedData,
@@ -177,11 +179,17 @@ function readSeedData() {
     scenarioFiles: seedFiles,
     problem,
     fatal,
-  } = findSeedData(SEED_DATA_DIR);
+  } = findSeedData(SEED_DATA_DIR, SEED_SCENARIOS_DIR);
   if (problem) {
-    console.error(`${problem}\n${FETCH_HINT}`);
-    if (fatal) process.exit(1);
+    if (fatal) {
+      fail(problem);
+      console.error(FETCH_HINT);
+      process.exit(1);
+    }
+    warn(problem);
+    console.warn(FETCH_HINT);
   }
+  if (!SEED_SCENARIOS_DIR) process.exit(1);
   const stations: { code: string; name: string }[] = JSON.parse(
     readFileSync(join(SEED_DATA_DIR, STATIONS_FILE), "utf8"),
   );
@@ -196,7 +204,7 @@ function readSeedData() {
 
   for (const fileName of seedFiles) {
     const scenario: Scenario = JSON.parse(
-      readFileSync(join(SEED_DATA_DIR, fileName), "utf8"),
+      readFileSync(join(SEED_SCENARIOS_DIR, fileName), "utf8"),
     );
     allErrors.push(...validate(scenario, fileName, allowedStations));
     scenarios.push(scenario);
@@ -212,7 +220,7 @@ function readSeedData() {
   }
 
   if (allErrors.length > 0) {
-    console.error(allErrors.join("\n"));
+    fail(allErrors.join("\n"));
     process.exit(1);
   }
   return { scenarios, stationList };
@@ -409,7 +417,7 @@ async function main() {
 
   try {
     await seedScenarios(client, scenarios, stationList);
-    console.log(`Seeded ${scenarios.length} scenario(s).`);
+    succeed(`Seeded ${scenarios.length} scenario(s).`);
   } finally {
     await client.end();
   }
