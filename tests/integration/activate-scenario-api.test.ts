@@ -66,6 +66,14 @@ async function activeScenarioIds(token: string) {
   return list.map((a) => a.scenarioId);
 }
 
+function eventsBy(username: string) {
+  return getDatabase()<{ activationId: string; serverTime: Date }[]>`
+    SELECT e.activation_id, e.server_time FROM incident_events e
+    JOIN users u ON e.actor_id = u.id::text
+    WHERE e.type = 'SCENARIO_ACTIVATED' AND u.username = ${username}
+  `;
+}
+
 test("without a token the activation is refused", async () => {
   const res = await activate("DEMO-002");
   assert.equal(res.status, 401);
@@ -78,6 +86,7 @@ test("a steward may not activate a scenario", async () => {
     await tokenFor(STEWARD_USERNAME, "steward123", "mobile"),
   );
   assert.equal(res.status, 403);
+  assert.equal((await eventsBy(STEWARD_USERNAME)).length, 0);
   assert.equal((await res.json()).error.code, ERROR_CODES.ROLE_NOT_PERMITTED);
 });
 
@@ -106,6 +115,7 @@ test("an unknown scenario is refused", async () => {
   const token = await tokenFor(OPERATOR_USERNAME, "operator123", "web");
   const res = await activate("NOPE", token);
   assert.equal(res.status, 404);
+  assert.equal((await eventsBy(OPERATOR_USERNAME)).length, before);
   assert.equal((await res.json()).error.code, ERROR_CODES.NOT_FOUND);
 });
 
@@ -118,7 +128,7 @@ test("the activations list returns the active scenarios, filtered by status", as
     scenarioId: string;
     status: string;
   }[];
-  assert.ok(list.some((a) => a.scenarioId === "DEMO-001"));
+  assert.ok(list.some((a) => a.scenarioId === "DEMO-002"));
   assert.ok(list.every((a) => a.status === "ACTIVE"));
   for (const activation of list) {
     assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);

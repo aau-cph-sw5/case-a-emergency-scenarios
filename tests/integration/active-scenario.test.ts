@@ -37,6 +37,24 @@ test("a logged-in steward loads the active scenario from the real server", async
     "mobile",
   );
 
+  // The server starts with no active scenario and answers null.
+  assert.deepEqual(await loadActiveScenario(baseUrl, token), { active: false });
+
+  const operator = await login(
+    baseUrl,
+    "offline-operator",
+    "operator123",
+    "OPERATOR",
+  );
+  const activation = await fetch(
+    `${baseUrl}/api/v1/scenarios/DEMO-001/activate`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${operator.token}` },
+    },
+  );
+  assert.equal(activation.status, 201);
+
   const result = await loadActiveScenario(baseUrl, token);
 
   // The server signs the database id, read back as a string.

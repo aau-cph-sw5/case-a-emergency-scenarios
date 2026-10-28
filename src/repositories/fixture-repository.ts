@@ -23,10 +23,6 @@ function readById(folder: string, id: string): unknown | undefined {
     : undefined;
 }
 
-export function getScenarioState(): unknown {
-  return readJson("scenario-state.json");
-}
-
 export function findMetroLine(lineId: string): unknown | undefined {
   return readById("metro-lines", lineId);
 }
@@ -58,7 +54,7 @@ type Activation = {
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 
-type StoredActivation = Pick<Activation, "scenarioId"> & {
+type StoredActivation = Pick<Activation, "activationId" | "scenarioId"> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
 };
@@ -82,17 +78,23 @@ export function latestActivation(): StoredActivation | undefined {
   return activations.at(-1);
 }
 
+// Takes back an activation whose event could not be written.
+export function undoActivation(activationId: string) {
+  const index = activations.findIndex((a) => a.activationId === activationId);
+  if (index !== -1) activations.splice(index, 1);
+}
+
 export type ActivationResult =
   { kind: "ok"; activation: Activation } | { kind: "already-active" };
 
-// Several scenarios may be active on one line, so only the same scenario
-// twice is refused (Metro on MET-A-007).
+// Only one scenario can be active at a time, so any activation is refused
+// while another is active.
 export function activateScenario(
   scenario: Scenario,
   actor: string,
 ): ActivationResult {
   const { scenarioId } = scenario;
-  if (activations.some((a) => a.scenarioId === scenarioId)) {
+  if (activations.some((a) => a.status === "ACTIVE")) {
     return { kind: "already-active" };
   }
 

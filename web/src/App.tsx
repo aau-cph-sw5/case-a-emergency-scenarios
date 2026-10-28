@@ -6,6 +6,7 @@ import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
 import { OperatorDashboard } from "./OperatorDashboard";
 import { webSessionStore } from "./auth/session-store";
 import { socket } from "./socket";
+import { useActiveActivations } from "./useActiveActivations";
 
 // The control-room dashboard. Stewards use the app in mobile/.
 export function App() {
@@ -85,14 +86,25 @@ export function App() {
     );
   }
 
+  return (
+    <ControlRoom token={state.session.token} onLogout={() => void signOut()} />
+  );
+}
+
+function ControlRoom({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
+  const activations = useActiveActivations(token);
+
   // The banner sits outside any view, so every view added below it keeps it.
   return (
     <>
-      <ActiveScenarioBanner token={state.session.token} />
-      <OperatorDashboard
-        token={state.session.token}
-        onLogout={() => void signOut()}
-      />
+      <ActiveScenarioBanner {...activations} />
+      <OperatorDashboard token={token} onLogout={onLogout} />
     </>
   );
 }
