@@ -73,15 +73,24 @@ export function App() {
     );
   }
 
+  return (
+    <ControlRoom token={state.session.token} onLogout={() => void signOut()} />
+  );
+}
+
+function ControlRoom({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
   // The banner sits outside any view, so every view added below it keeps it.
   // LiveDataProvider loads the server data once for both.
   return (
-    <LiveDataProvider socket={socket} token={state.session.token}>
+    <LiveDataProvider socket={socket} token={token}>
       <ActiveScenarioBanner />
-      <OperatorDashboard
-        token={state.session.token}
-        onLogout={() => void signOut()}
-      />
+      <OperatorDashboard token={token} onLogout={onLogout} />
     </LiveDataProvider>
   );
 }

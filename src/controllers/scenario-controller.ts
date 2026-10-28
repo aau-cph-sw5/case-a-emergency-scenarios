@@ -5,23 +5,24 @@ import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 import {
   ACTIVATION_STATUSES,
   type ActivationStatus,
-  activateScenario,
-  findScenario,
-  getScenarioState,
   listActivations,
-  listScenarios,
 } from "../repositories/fixture-repository.js";
+import {
+  findScenario,
+  getAllScenarios,
+} from "../repositories/scenario-repository.js";
 import { userRepository } from "../repositories/user-repository.js";
+import { activateAndLog } from "../services/activation-service.js";
 
-export function getScenarios(_request: Request, response: Response) {
-  response.json(listScenarios());
+export async function getScenarios(_request: Request, response: Response) {
+  response.json(await getAllScenarios());
 }
 
-export function getScenario(
+export async function getScenario(
   request: Request<{ scenarioId: string }>,
   response: Response,
 ) {
-  const scenario = findScenario(request.params.scenarioId);
+  const scenario = await findScenario(request.params.scenarioId);
   if (scenario === undefined) {
     response.status(404).json({ error: "Scenario not found" });
     return;
@@ -29,8 +30,11 @@ export function getScenario(
   response.json(scenario);
 }
 
+// Reads the same store as GET /api/v1/activations, so the two never disagree.
+// No active scenario is a normal state, so it answers 200 with null, not 404.
 export function getCurrentScenarioState(_request: Request, response: Response) {
-  response.json(getScenarioState());
+  const [active] = listActivations("ACTIVE");
+  response.json(active ?? null);
 }
 
 export function getActivations(request: Request, response: Response) {
@@ -89,8 +93,8 @@ export async function activate(
     return;
   }
 
-  const result = activateScenario(scenarioId, user.username);
-  if (result.kind === "not-found") {
+  const scenario = await findScenario(scenarioId);
+  if (scenario === undefined) {
     response
       .status(404)
       .json(
@@ -99,13 +103,21 @@ export async function activate(
           `No scenario with id '${scenarioId}' exists`,
         ),
       );
-  } else if (result.kind === "already-active") {
+    return;
+  }
+
+  const result = await activateAndLog(
+    response.locals.user,
+    scenario,
+    user.username,
+  );
+  if (result.kind === "already-active") {
     response
       .status(409)
       .json(
         errorBody(
           ERROR_CODES.CONFLICT,
-          `Scenario '${scenarioId}' is already active`,
+          `A scenario is already active, so '${scenarioId}' cannot be activated`,
         ),
       );
   } else {
@@ -116,7 +128,7 @@ export async function activate(
       console.warn("Socket.IO not attached; scenario-activated not sent");
     }
     io?.to("STEWARD").emit("scenario-activated", {
-      scenario: findScenario(scenarioId),
+      scenario,
       sentAt: new Date().toISOString(),
     });
     io?.to("OPERATOR").emit("activations-changed");

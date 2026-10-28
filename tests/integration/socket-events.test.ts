@@ -8,6 +8,7 @@ import { app } from "../../src/app.js";
 import { getDatabase } from "../../src/db/client.js";
 import { attachSocketHandlers } from "../../src/realtime/socket-server.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
+import { seedTestScenarios } from "./helpers.js";
 
 let server: HttpServer;
 let baseUrl: string;
@@ -17,6 +18,7 @@ const sockets: Socket[] = [];
 
 before(async () => {
   const users = await seedTestUsers("socket-");
+  await seedTestScenarios();
   operatorUsername = users.find((user) => user.role === "OPERATOR")!.username;
   stewardUsername = users.find((user) => user.role === "STEWARD")!.username;
 
@@ -126,19 +128,7 @@ test("a position report reaches operators only, with the server's time", async (
     operator.once("position-report", resolve),
   );
 
-  // Station B is in DEMO-001, which nothing has activated yet.
-  const activation = await fetch(
-    `${baseUrl}/api/v1/scenarios/DEMO-001/activate`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${await login(operatorUsername, "operator123", "OPERATOR")}`,
-      },
-    },
-  );
-  assert.equal(activation.status, 201);
-
-  // The phone's clock is wrong.
+  // Station G is in DEMO-002, activated by the test above. The phone's clock is wrong.
   const before = Date.now();
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",
@@ -148,14 +138,14 @@ test("a position report reaches operators only, with the server's time", async (
     },
     body: JSON.stringify({
       staff: "",
-      station: "Station B",
+      station: "Station G",
       reportedAt: "2099-01-01T00:00:00Z",
     }),
   });
   assert.equal(response.status, 202);
 
   const report = await received;
-  assert.equal(report.station, "Station B");
+  assert.equal(report.station, "Station G");
   assert.notEqual(report.staff, "");
   assert.ok(Date.parse(report.reportedAt) >= before);
   assert.ok(Date.parse(report.reportedAt) <= Date.now());

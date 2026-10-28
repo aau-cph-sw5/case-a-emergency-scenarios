@@ -12,9 +12,15 @@ type ActivationState =
   | { status: "error"; message: string }
   | { status: "done"; state: ScenarioState };
 
-export function ScenarioList({ token }: { token: string }) {
+export function ScenarioList({
+  token,
+  onActivated,
+}: {
+  token: string;
+  onActivated: (scenarioId: string) => void;
+}) {
   // The scenario list comes from LiveDataProvider, which loads it once.
-  const { scenarios, scenariosError } = useLiveData();
+  const { scenarios, scenariosError, reloadScenarios } = useLiveData();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ScenarioSummary | null>(null);
   const [activation, setActivation] = useState<ActivationState>({
@@ -31,6 +37,7 @@ export function ScenarioList({ token }: { token: string }) {
         isScenarioState,
       );
       setActivation({ status: "done", state });
+      onActivated(state.scenarioId);
     } catch (error) {
       console.error(error);
       setActivation({ status: "error", message: userMessage(error) });
@@ -57,7 +64,12 @@ export function ScenarioList({ token }: { token: string }) {
       )}
 
       {scenariosError !== null && (
-        <p role="alert">Kunne ikke hente scenarier: {scenariosError}</p>
+        <>
+          <p role="alert">Kunne ikke hente scenarier: {scenariosError}</p>
+          <button type="button" onClick={reloadScenarios}>
+            Prøv igen
+          </button>
+        </>
       )}
 
       {scenarios !== null &&

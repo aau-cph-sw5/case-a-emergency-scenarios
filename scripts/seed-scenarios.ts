@@ -1,14 +1,18 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { fail, warn, succeed } from "./lib/output.mjs";
 import pg from "pg";
 import {
   FETCH_HINT,
   SEED_DATA_DIR,
+  SEED_SCENARIOS_DIR,
+  SHAFTS_FILE,
   STATIONS_FILE,
   findSeedData,
 } from "./lib/seed-data.mjs";
 
-interface Scenario {
+export interface Scenario {
   scenarioId: string;
   name: string;
   currentVersion: string;
@@ -168,44 +172,58 @@ function validate(
   return errors;
 }
 
-const {
-  scenarioFiles: seedFiles,
-  problem,
-  fatal,
-} = findSeedData(SEED_DATA_DIR);
-if (problem) {
-  console.error(`${problem}\n${FETCH_HINT}`);
-  if (fatal) process.exit(1);
-}
-const stationList: { code: string; name: string }[] = JSON.parse(
-  readFileSync(join(SEED_DATA_DIR, STATIONS_FILE), "utf8"),
-);
-const stationNames = new Map(stationList.map((s) => [s.code, s.name]));
-const allowedStations = new Set(stationNames.keys());
-const allErrors: string[] = [];
-const seenIds = new Map<string, string>();
-const scenarios: Scenario[] = [];
+let stationNames = new Map<string, string>();
 
-for (const fileName of seedFiles) {
-  const scenario: Scenario = JSON.parse(
-    readFileSync(join(SEED_DATA_DIR, fileName), "utf8"),
-  );
-  allErrors.push(...validate(scenario, fileName, allowedStations));
-  scenarios.push(scenario);
-
-  const firstFile = seenIds.get(scenario.scenarioId);
-  if (firstFile !== undefined) {
-    allErrors.push(
-      `${fileName}: scenarioId "${scenario.scenarioId}" is already used in ${firstFile}.`,
-    );
-  } else {
-    seenIds.set(scenario.scenarioId, fileName);
+function readSeedData() {
+  const {
+    scenarioFiles: seedFiles,
+    problem,
+    fatal,
+  } = findSeedData(SEED_DATA_DIR, SEED_SCENARIOS_DIR);
+  if (problem) {
+    if (fatal) {
+      fail(problem);
+      console.error(FETCH_HINT);
+      process.exit(1);
+    }
+    warn(problem);
+    console.warn(FETCH_HINT);
   }
-}
+  if (!SEED_SCENARIOS_DIR) process.exit(1);
+  const stations: { code: string; name: string }[] = JSON.parse(
+    readFileSync(join(SEED_DATA_DIR, STATIONS_FILE), "utf8"),
+  );
+  const shafts: { code: string; name: string }[] = JSON.parse(
+    readFileSync(join(SEED_DATA_DIR, SHAFTS_FILE), "utf8"),
+  );
+  const stationList = [...stations, ...shafts];
+  const allowedStations = new Set(stationList.map((s) => s.code));
+  const allErrors: string[] = [];
+  const seenIds = new Map<string, string>();
+  const scenarios: Scenario[] = [];
 
-if (allErrors.length > 0) {
-  console.error(allErrors.join("\n"));
-  process.exit(1);
+  for (const fileName of seedFiles) {
+    const scenario: Scenario = JSON.parse(
+      readFileSync(join(SEED_SCENARIOS_DIR, fileName), "utf8"),
+    );
+    allErrors.push(...validate(scenario, fileName, allowedStations));
+    scenarios.push(scenario);
+
+    const firstFile = seenIds.get(scenario.scenarioId);
+    if (firstFile !== undefined) {
+      allErrors.push(
+        `${fileName}: scenarioId "${scenario.scenarioId}" is already used in ${firstFile}.`,
+      );
+    } else {
+      seenIds.set(scenario.scenarioId, fileName);
+    }
+  }
+
+  if (allErrors.length > 0) {
+    fail(allErrors.join("\n"));
+    process.exit(1);
+  }
+  return { scenarios, stationList };
 }
 async function getStationId(client: pg.Client, code: string): Promise<number> {
   const name = stationNames.get(code);
@@ -359,6 +377,24 @@ async function loadScenario(
   );
 }
 
+export async function seedScenarios(
+  client: pg.Client,
+  scenarios: Scenario[],
+  stations: { code: string; name: string }[],
+): Promise<void> {
+  stationNames = new Map(stations.map((s) => [s.code, s.name]));
+  await client.query("BEGIN");
+  try {
+    for (const scenario of scenarios) {
+      await loadScenario(client, scenario);
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  }
+}
+
 async function main() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("Refusing to seed");
@@ -376,26 +412,20 @@ async function main() {
     password: process.env.POSTGRES_PASSWORD,
     database: "metro",
   });
+  const { scenarios, stationList } = readSeedData();
   await client.connect();
 
   try {
-    await client.query("BEGIN");
-
-    for (const scenario of scenarios) {
-      await loadScenario(client, scenario);
-    }
-
-    await client.query("COMMIT");
-    console.log(`Seeded ${scenarios.length} scenario(s).`);
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
+    await seedScenarios(client, scenarios, stationList);
+    succeed(`Seeded ${scenarios.length} scenario(s).`);
   } finally {
     await client.end();
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
