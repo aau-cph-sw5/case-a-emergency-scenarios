@@ -33,6 +33,7 @@ export function OfflineBanner({
   }, []);
 
   const stale = isStale(savedAt, now);
+  const age = ageInMinutes(savedAt, now);
   const textStyle = [styles.text, stale && styles.staleText];
 
   return (
@@ -49,8 +50,9 @@ export function OfflineBanner({
         </Text>
         {stale && (
           <Text style={[textStyle, styles.label]}>
-            Kopien er {ageInMinutes(savedAt, now)} min gammel og kan være
-            forældet
+            {age === null
+              ? "Telefonens ur er ændret, kopiens alder er ukendt"
+              : `Kopien er ${age} min gammel og kan være forældet`}
           </Text>
         )}
       </View>
