@@ -34,6 +34,17 @@ export function App() {
     };
   }, [restore]);
 
+  // One socket per login, shared by the banner and the dashboard.
+  const token = state.status === "signed-in" ? state.session.token : undefined;
+  useEffect(() => {
+    if (token === undefined) return;
+    socket.auth = { token };
+    socket.connect();
+    return () => {
+      socket.disconnect();
+    };
+  }, [token]);
+
   if (state.status === "restoring") {
     return <main>Indlæser session…</main>;
   }
@@ -74,15 +85,6 @@ function ControlRoom({
   token: string;
   onLogout: () => void;
 }) {
-  // One socket per login, shared by the banner and the dashboard.
-  useEffect(() => {
-    socket.auth = { token };
-    socket.connect();
-    return () => {
-      socket.disconnect();
-    };
-  }, [token]);
-
   const activations = useActiveActivations(token);
 
   // The banner sits outside any view, so every view added below it keeps it.
@@ -92,6 +94,8 @@ function ControlRoom({
       <OperatorDashboard
         token={token}
         activation={activations.active[0]}
+        loading={activations.loading}
+        error={activations.error}
         onLogout={onLogout}
       />
     </>

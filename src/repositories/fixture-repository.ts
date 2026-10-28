@@ -57,7 +57,8 @@ type Activation = {
 };
 
 // In-memory until the database is populated, so activations reset when the
-// server restarts. Starts empty: only one scenario can be active at a time.
+// server restarts. Starts empty: no scenario is active until an operator
+// activates one.
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 

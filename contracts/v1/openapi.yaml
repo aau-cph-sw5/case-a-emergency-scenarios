@@ -16,26 +16,18 @@ paths:
       summary: Get current scenario state
       description: >
         Returns the active activation, the same one GET /api/v1/activations
-        lists as ACTIVE. Answers 404 while no scenario is active.
+        lists as ACTIVE. Answers 200 with null while no scenario is active.
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: Current scenario state
+          description: Current scenario state, or null while no scenario is active
           content:
             application/json:
               schema:
-                $ref: "./scenario-state.schema.json"
-        "404":
-          description: No scenario is active
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E0004"
-                  message: "No scenario is active"
+                oneOf:
+                  - $ref: "./scenario-state.schema.json"
+                  - type: "null"
         "401":
           description: Missing, invalid or expired bearer token
           content:

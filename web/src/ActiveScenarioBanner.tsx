@@ -16,6 +16,7 @@ export function ActiveScenarioBanner({
   active,
   names,
   error,
+  loading,
 }: ActiveActivations) {
   return (
     <View aria-label="Aktive scenarier" role="complementary" style={styles.bar}>
@@ -25,6 +26,10 @@ export function ActiveScenarioBanner({
           <Text style={styles.meta}>
             Kunne ikke hente aktive scenarier: {error}
           </Text>
+        </View>
+      ) : loading ? (
+        <View role="status" style={styles.row}>
+          <Text style={styles.meta}>Henter aktive scenarier…</Text>
         </View>
       ) : active.length === 0 ? (
         <View role="status" style={styles.row}>

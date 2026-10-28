@@ -13,6 +13,7 @@ export function useActiveActivations(token: string) {
     () => new Map(),
   );
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -30,10 +31,12 @@ export function useActiveActivations(token: string) {
         setNames(new Map(scenarios.map((s) => [s.scenarioId, s])));
         setActive(activations);
         setError(null);
+        setLoading(false);
       } catch (e) {
         if (controller.signal.aborted || mine !== latest) return;
         console.error(e);
         setError(userMessage(e));
+        setLoading(false);
       }
     }
     // App opens the socket. "connect" also fires on a reconnect, which catches up on missed events.
@@ -47,7 +50,7 @@ export function useActiveActivations(token: string) {
     };
   }, [token]);
 
-  return { active, names, error };
+  return { active, names, error, loading };
 }
 
 export type ActiveActivations = ReturnType<typeof useActiveActivations>;

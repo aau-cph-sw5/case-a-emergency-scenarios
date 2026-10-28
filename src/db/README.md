@@ -1,4 +1,3 @@
-
 # Local database migrations
 
 This folder contains versioned Flyway migrations for the application's
@@ -32,7 +31,6 @@ production credentials here.
    ```bash
    npm run db:info
    ```
-
 
 Run `npm run db:validate` before committing a new migration. Stop the local
 database with `npm run db:down`; its Docker volume is retained, so your local

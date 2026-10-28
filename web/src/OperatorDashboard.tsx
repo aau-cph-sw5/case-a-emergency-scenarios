@@ -10,10 +10,14 @@ import { StewardPositions } from "./components/StewardPositions";
 export function OperatorDashboard({
   token,
   activation,
+  loading,
+  error,
   onLogout,
 }: {
   token: string;
   activation: ScenarioState | undefined;
+  loading: boolean;
+  error: string | null;
   onLogout: () => void;
 }) {
   const { messages } = useSocketState(socket);
@@ -37,7 +41,11 @@ export function OperatorDashboard({
       <StewardPositions reports={reports} />
 
       <ScenarioList token={token} />
-      {activation === undefined ? (
+      {error !== null ? (
+        <p role="alert">Kunne ikke hente aktive scenarier: {error}</p>
+      ) : loading ? (
+        <p role="status">Henter aktive scenarier…</p>
+      ) : activation === undefined ? (
         <p>Ingen aktive scenarier, så ingen stationer at vise.</p>
       ) : (
         <ActiveStationList
