@@ -16,7 +16,7 @@ paths:
       summary: Get current scenario state
       description: >
         Returns the active activation, the same one GET /api/v1/activations
-        lists as ACTIVE. Answers 404 while no scenario is active.
+        lists as ACTIVE. Answers 200 with null while no scenario is active.
       security:
         - bearerAuth: []
       responses:
