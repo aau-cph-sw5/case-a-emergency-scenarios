@@ -3,7 +3,7 @@
 **Status.** Proposed
 **Date.** 2026-10-27
 **Deciders.** Andreas Foverskov, Group 7
-**Related backlog items.** MET-A-005 (#5), MET-A-004, MET-A-010 (#157, #158)
+**Related backlog items.** MET-A-005 (#5), MET-A-004 (#4), MET-A-010 (#10, #157, #158)
 
 ## Context
 
@@ -17,8 +17,8 @@ storage for 30 days, but `useSession` confirms it with `GET /api/v1/me` when the
 app opens. Without a connection that check fails and the session is
 `unavailable`, which until now showed a screen with nothing to read.
 
-This ADR builds on an earlier proposal for MET-A-005 (PRs #177 to #179), which
-predated the stored session and opened the copy in place of the login screen.
+This ADR builds on the first version of this work, written before the stored
+session existed, which opened the copy in place of the login screen.
 
 ## Decision
 
@@ -33,6 +33,8 @@ id, name, `covers` and the current version's station requirements and
 passenger information. Other versions and the operating plan are left out.
 It is stamped with the time it was saved and the steward's user id, read from
 the stored token. Another steward's copy, or a damaged one, counts as no copy.
+A response without the scenario's current version is rejected, so it never
+replaces a good copy with an empty one.
 
 The copy is shown when the server cannot be reached:
 
