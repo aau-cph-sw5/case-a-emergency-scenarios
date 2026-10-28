@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { renderHook, waitFor } from "@testing-library/react-native";
+import { act, renderHook, waitFor } from "@testing-library/react-native";
 import {
   buildSnapshot,
   createSnapshotStore,
@@ -184,6 +184,54 @@ describe("useActiveScenario", () => {
       }),
     );
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  it("a save from an older refresh cannot land after a newer clear", async () => {
+    let scenarioState = state;
+    jest.spyOn(global, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/scenario-state")) {
+        return response(200, scenarioState);
+      }
+      if (url.endsWith(`/api/v1/scenarios/${definition.scenarioId}`)) {
+        return response(200, definition);
+      }
+      return response(404);
+    });
+    // The first write is slow, as a busy disk can be; later ones are fast.
+    const items = new Map<string, string>();
+    let releaseFirstSave = () => {};
+    let firstSave = true;
+    const store = createSnapshotStore({
+      getItem: async (key) => items.get(key) ?? null,
+      setItem: (key, value) => {
+        if (!firstSave) {
+          items.set(key, value);
+          return Promise.resolve();
+        }
+        firstSave = false;
+        return new Promise<void>((resolve) => {
+          releaseFirstSave = () => {
+            items.set(key, value);
+            resolve();
+          };
+        });
+      },
+      removeItem: async (key) => void items.delete(key),
+    });
+    const { result } = render({ online: true, store });
+    await waitFor(() => expect(result.current.view.status).toBe("live"));
+
+    // The scenario closes, and the next refresh removes the copy while the
+    // first save is still writing.
+    scenarioState = { ...state, status: "CLOSED" };
+    act(() => {
+      void result.current.refresh();
+    });
+    await waitFor(() => expect(result.current.view.status).toBe("none"));
+    releaseFirstSave();
+
+    await waitFor(async () => expect(await store.load("7")).toBeNull());
   });
 
   it("switches to the copy when the connection drops", async () => {

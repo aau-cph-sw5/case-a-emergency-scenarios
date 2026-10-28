@@ -125,13 +125,27 @@ function isSnapshot(data: unknown): data is ScenarioSnapshot {
 }
 
 export function createSnapshotStore(storage: SnapshotStorage) {
+  // Writes run one after another in the order they were made, so a save from
+  // an older refresh cannot land after a newer save or clear, whatever order
+  // the storage finishes them in. A failed write does not stop the next one.
+  let lastWrite: Promise<void> = Promise.resolve();
+  function write(operation: () => Promise<void>): Promise<void> {
+    const next = lastWrite.then(operation, operation);
+    lastWrite = next.catch(() => undefined);
+    return next;
+  }
+
   return {
     save(snapshot: ScenarioSnapshot): Promise<void> {
-      return storage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+      return write(() =>
+        storage.setItem(STORAGE_KEY, JSON.stringify(snapshot)),
+      );
     },
 
-    // Another steward's copy, or a damaged one, counts as no copy.
+    // Another steward's copy, or a damaged one, counts as no copy. Waits for
+    // the writes already made, so it reads the newest copy.
     async load(userId: string): Promise<ScenarioSnapshot | null> {
+      await lastWrite;
       const raw = await storage.getItem(STORAGE_KEY);
       if (raw === null) return null;
       let data: unknown;
@@ -145,7 +159,7 @@ export function createSnapshotStore(storage: SnapshotStorage) {
     },
 
     clear(): Promise<void> {
-      return storage.removeItem(STORAGE_KEY);
+      return write(() => storage.removeItem(STORAGE_KEY));
     },
   };
 }
