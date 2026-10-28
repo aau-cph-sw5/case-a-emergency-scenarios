@@ -9,7 +9,7 @@ const hoursAndMinutes = (time: string) => time.slice(0, 5);
 // The graphical overview from #157 replaces this view.
 export function ScenarioSummary({ snapshot }: { snapshot: ScenarioSnapshot }) {
   const { scenario } = snapshot;
-  // The copy keeps only the current version, or none if the server had none.
+  // The copy keeps exactly one version, the current one.
   const version = scenario.versions[0];
   const where = (scenario.covers ?? [])
     .map((segment) => `${segment.stationA} - ${segment.stationB}`)
@@ -21,7 +21,7 @@ export function ScenarioSummary({ snapshot }: { snapshot: ScenarioSnapshot }) {
       {where !== "" && <Text style={styles.body}>Strækning: {where}</Text>}
 
       <Text style={styles.heading}>Stationer der skal bemandes</Text>
-      {(version?.stationRequirements ?? []).map((requirement) => (
+      {version.stationRequirements.map((requirement) => (
         <View
           key={`${requirement.station}-${requirement.placement}`}
           style={styles.card}
@@ -50,7 +50,7 @@ export function ScenarioSummary({ snapshot }: { snapshot: ScenarioSnapshot }) {
         </View>
       ))}
 
-      {version?.passengerInformation &&
+      {version.passengerInformation &&
         version.passengerInformation.length > 0 && (
           <>
             <Text style={styles.heading}>Passagerinformation</Text>

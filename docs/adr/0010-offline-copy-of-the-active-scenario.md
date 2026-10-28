@@ -1,6 +1,6 @@
 # ADR 0010. Keep a Bounded Copy of the Active Scenario on the Steward's Phone
 
-**Status.** Proposed
+**Status.** Accepted
 **Date.** 2026-10-27
 **Deciders.** Andreas Foverskov, Group 7
 **Related backlog items.** MET-A-005 (#5), MET-A-004 (#4), MET-A-010 (#10, #157, #158)
