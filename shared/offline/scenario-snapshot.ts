@@ -145,12 +145,22 @@ export function createSnapshotStore(storage: SnapshotStorage) {
   };
 }
 
-export function ageInMinutes(savedAt: string, now: Date): number {
-  return Math.floor((now.getTime() - Date.parse(savedAt)) / 60_000);
+// How far in the future a copy may be saved before its age counts as
+// unknown. Absorbs small clock adjustments, such as a network time sync.
+export const CLOCK_TOLERANCE_MS = 2 * 60 * 1000;
+
+// Null when the copy was saved further in the future than the tolerance: the
+// phone's clock has been turned back since, so the age cannot be known.
+export function ageInMinutes(savedAt: string, now: Date): number | null {
+  const age = now.getTime() - Date.parse(savedAt);
+  if (age < -CLOCK_TOLERANCE_MS) return null;
+  return Math.max(0, Math.floor(age / 60_000));
 }
 
+// A copy of unknown age is stale, so it never passes for a fresh one.
 export function isStale(savedAt: string, now: Date): boolean {
-  return now.getTime() - Date.parse(savedAt) > STALE_AFTER_MS;
+  const age = now.getTime() - Date.parse(savedAt);
+  return age > STALE_AFTER_MS || age < -CLOCK_TOLERANCE_MS;
 }
 
 const pad = (value: number) => String(value).padStart(2, "0");

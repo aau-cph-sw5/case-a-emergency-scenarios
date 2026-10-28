@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  CLOCK_TOLERANCE_MS,
   STALE_AFTER_MS,
   STORAGE_KEY,
   ageInMinutes,
@@ -133,6 +134,19 @@ test("a copy becomes stale after 60 minutes", () => {
   assert.equal(isStale(savedAt, later(STALE_AFTER_MS)), false);
   assert.equal(isStale(savedAt, later(STALE_AFTER_MS + 1)), true);
   assert.equal(ageInMinutes(savedAt, later(75 * 60 * 1000)), 75);
+});
+
+test("a copy from the future is stale with an unknown age", () => {
+  const savedAt = now.toISOString();
+  const earlier = (ms) => new Date(now.getTime() - ms);
+
+  assert.equal(CLOCK_TOLERANCE_MS, 2 * 60 * 1000);
+  // Within the tolerance the copy counts as just saved.
+  assert.equal(isStale(savedAt, earlier(CLOCK_TOLERANCE_MS)), false);
+  assert.equal(ageInMinutes(savedAt, earlier(CLOCK_TOLERANCE_MS)), 0);
+  // Beyond it the clock was turned back, so the age is unknown.
+  assert.equal(isStale(savedAt, earlier(CLOCK_TOLERANCE_MS + 1)), true);
+  assert.equal(ageInMinutes(savedAt, earlier(CLOCK_TOLERANCE_MS + 1)), null);
 });
 
 test("formats the sync time as HH:MM, with the date when not today", () => {
