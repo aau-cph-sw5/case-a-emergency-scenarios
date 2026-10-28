@@ -54,7 +54,7 @@ type Activation = {
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 
-type StoredActivation = Pick<Activation, "scenarioId"> & {
+type StoredActivation = Pick<Activation, "activationId" | "scenarioId"> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
 };
@@ -78,9 +78,10 @@ export function latestActivation(): StoredActivation | undefined {
   return activations.at(-1);
 }
 
-// Takes back the activation that was just made, when its event could not be written.
-export function undoLastActivation() {
-  activations.pop();
+// Takes back an activation whose event could not be written.
+export function undoActivation(activationId: string) {
+  const index = activations.findIndex((a) => a.activationId === activationId);
+  if (index !== -1) activations.splice(index, 1);
 }
 
 export type ActivationResult =

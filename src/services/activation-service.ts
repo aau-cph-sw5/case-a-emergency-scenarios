@@ -1,7 +1,7 @@
 import { getDatabase } from "../db/client.js";
 import {
   activateScenario,
-  undoLastActivation,
+  undoActivation,
   type ActivationResult,
 } from "../repositories/fixture-repository.js";
 import type { Scenario } from "../../shared/types/v1/scenario.js";
@@ -36,8 +36,7 @@ export async function activateAndLog(
       }),
     );
   } catch (error) {
-    // Safe: while this activation is active, no other can be added after it.
-    undoLastActivation();
+    undoActivation(activationId);
     throw error;
   }
   return result;
