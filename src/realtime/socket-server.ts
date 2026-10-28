@@ -1,10 +1,9 @@
 import type { Server, Socket } from "socket.io";
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { verifyToken, type AuthUser } from "../services/auth-service.js";
-import {
-  findScenario,
-  latestActivation,
-} from "../repositories/fixture-repository.js";
+import { latestActivation } from "../repositories/fixture-repository.js";
+
+import { findScenario } from "../repositories/scenario-repository.js";
 
 // Each socket joins the room named after its role, so an event can be sent to
 // one role only: io.to("OPERATOR") or io.to("STEWARD").
@@ -80,7 +79,7 @@ export function attachSocketHandlers(io: Server) {
     // Recheck after joining the user room so a concurrent login cannot miss
     // a socket whose handshake was already in progress.
     void verifyToken(socket.handshake.auth.token)
-      .then((current) => {
+      .then(async (current) => {
         if (!current || current.role !== role || !socket.connected) {
           socket.disconnect();
           return;
@@ -90,10 +89,17 @@ export function attachSocketHandlers(io: Server) {
         socket.emit("welcome", "Connected to the emergency scenarios server.");
         const latest = latestActivation();
         if (role === "STEWARD" && latest) {
-          socket.emit("scenario-activated", {
-            scenario: findScenario(latest.scenarioId),
-            sentAt: new Date().toISOString(),
-          });
+          try {
+            const scenario = await findScenario(latest.scenarioId);
+            if (scenario && socket.connected) {
+              socket.emit("scenario-activated", {
+                scenario,
+                sentAt: new Date().toISOString(),
+              });
+            }
+          } catch (error) {
+            console.error("Could not send the latest activation:", error);
+          }
         }
       })
       .catch(() => socket.disconnect());

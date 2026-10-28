@@ -13,6 +13,7 @@ import {
   userRoom,
 } from "../../src/realtime/socket-server.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
+import { seedTestScenarios } from "./helpers.js";
 
 let server: HttpServer;
 let baseUrl: string;
@@ -23,6 +24,7 @@ const sockets: Socket[] = [];
 
 before(async () => {
   const users = await seedTestUsers("socket-");
+  await seedTestScenarios();
   operatorUsername = users.find((user) => user.role === "OPERATOR")!.username;
   stewardUsername = users.find((user) => user.role === "STEWARD")!.username;
   stewardId = users.find((user) => user.role === "STEWARD")!.id;
