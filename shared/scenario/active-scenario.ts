@@ -12,6 +12,9 @@ export type ScenarioDefinition = Scenario;
 export type Deployment = ScenarioState["deployments"][number];
 export type ScenarioVersion = Scenario["versions"][number];
 export type StationRequirement = ScenarioVersion["stationRequirements"][number];
+export type PassengerInformation = NonNullable<
+  ScenarioVersion["passengerInformation"]
+>[number];
 
 export type ActiveScenario =
   | { active: false }
@@ -78,6 +81,20 @@ export function isStationRequirement(
   );
 }
 
+// The steward view renders the message, so a malformed entry is refused here
+// instead of being saved and crashing the view.
+export function isPassengerInformation(
+  data: unknown,
+): data is PassengerInformation {
+  if (!isObject(data)) return false;
+  const { channel, language, message } = data;
+  return (
+    (channel === "PA" || channel === "PID") &&
+    typeof language === "string" &&
+    typeof message === "string"
+  );
+}
+
 function isScenarioVersion(data: unknown): data is ScenarioVersion {
   if (!isObject(data)) return false;
   return (
@@ -85,7 +102,10 @@ function isScenarioVersion(data: unknown): data is ScenarioVersion {
     typeof data.revision === "string" &&
     isObject(data.operatingPlan) &&
     Array.isArray(data.stationRequirements) &&
-    data.stationRequirements.every(isStationRequirement)
+    data.stationRequirements.every(isStationRequirement) &&
+    (data.passengerInformation === undefined ||
+      (Array.isArray(data.passengerInformation) &&
+        data.passengerInformation.every(isPassengerInformation)))
   );
 }
 
