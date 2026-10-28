@@ -4,7 +4,7 @@
 
 Additive. Activations carry the incident log `sequence` of their `SCENARIO_ACTIVATED` event (MET-A-004).
 
-- `scenario-state.schema.json` has an optional integer `sequence`. `POST /api/v1/scenarios/{scenarioId}/activate`, `GET /api/v1/scenario-state` and `GET /api/v1/activations` return it. A higher sequence is a newer activation.
+- `scenario-state.schema.json` has a required integer `sequence`. `POST /api/v1/scenarios/{scenarioId}/activate`, `GET /api/v1/scenario-state` and `GET /api/v1/activations` return it. A higher sequence is a newer activation. Clients only gain a field, so this is not breaking.
 - The `scenario-activated` socket event carries the same `sequence`.
 - `info.version` in `openapi.yaml` is now 5.2.0
 

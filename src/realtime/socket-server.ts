@@ -44,7 +44,7 @@ export function attachSocketHandlers(io: Server) {
 
     // Always shows the latest scenario activation to a steward when they connect.
     const latest = latestActivation();
-    if (role === "STEWARD" && latest?.sequence !== undefined) {
+    if (role === "STEWARD" && latest) {
       socket.emit("scenario-activated", {
         scenario: findScenario(latest.scenarioId),
         sentAt: new Date().toISOString(),

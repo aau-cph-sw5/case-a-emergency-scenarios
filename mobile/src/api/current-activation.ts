@@ -4,10 +4,8 @@ import type { Scenario } from "../../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
 import { apiBaseUrl } from "../api-base-url";
 
-type NumberedState = ScenarioState & { sequence: number };
-
 // The server answers null while no scenario is active.
-function isNumberedStateOrNull(data: unknown): data is NumberedState | null {
+function isScenarioStateOrNull(data: unknown): data is ScenarioState | null {
   if (data === null) return true;
   const state = data as Partial<ScenarioState>;
   return (
@@ -31,7 +29,7 @@ export async function fetchCurrentActivation(
     apiBaseUrl,
     "/api/v1/scenario-state",
     token,
-    isNumberedStateOrNull,
+    isScenarioStateOrNull,
   );
   if (state === null) return null;
   const scenario = await getJson(

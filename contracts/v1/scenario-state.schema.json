@@ -8,6 +8,7 @@
     "startedAt",
     "status",
     "actor",
+    "sequence",
     "deployments"
   ],
   "properties": {
