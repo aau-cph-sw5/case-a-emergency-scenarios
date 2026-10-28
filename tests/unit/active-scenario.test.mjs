@@ -144,6 +144,20 @@ test("rejects a scenario whose id does not match the active one", async () => {
   );
 });
 
+test("rejects a scenario without its current version", async () => {
+  const { fetchImpl } = mockFetch({
+    "/api/v1/scenario-state": [200, activeState],
+    "/api/v1/scenarios/DEMO-001": [200, { ...scenario, currentVersion: "99" }],
+  });
+
+  await assert.rejects(
+    loadActiveScenario(API, "abc", fetchImpl),
+    (error) =>
+      error instanceof FormatError &&
+      /without its current version/.test(error.message),
+  );
+});
+
 test("rejects a scenario-state in an unexpected format", async () => {
   const { fetchImpl } = mockFetch({
     "/api/v1/scenario-state": [200, { status: "ACTIVE" }],
