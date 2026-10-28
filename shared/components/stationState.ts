@@ -53,12 +53,3 @@ export function currentStations(scenario: Scenario): string[] {
   );
   return version?.stationRequirements.map((r) => r.station) ?? [];
 }
-
-// How old a position report may be before the steward is shown as stale.
-export const STALE_AFTER_MS = 5 * 60 * 1000;
-
-// A missing or unreadable report counts as stale, so bad data never looks fresh.
-export function isStale(reportedAt: string | null | undefined, now: number) {
-  const time = reportedAt ? Date.parse(reportedAt) : Number.NaN;
-  return Number.isNaN(time) || now - time > STALE_AFTER_MS;
-}

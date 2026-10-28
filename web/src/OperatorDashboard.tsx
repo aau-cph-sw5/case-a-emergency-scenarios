@@ -1,5 +1,3 @@
-import { socket } from "./socket";
-import { usePositionReports } from "../../shared/socket/usePositionReports";
 import ScenarioStationList from "../../shared/components/stationView";
 import scenarioFixture from "../../fixtures/v1/scenarios/DEMO-001.json";
 import scenarioStateFixture from "../../fixtures/v1/scenario-state.json";
@@ -19,8 +17,6 @@ export function OperatorDashboard({
   token: string;
   onLogout: () => void;
 }) {
-  // Every position report pushed by the server over the socket, newest first.
-  const reports = usePositionReports(socket);
   return (
     <main>
       <button onClick={onLogout} type="button">
@@ -30,15 +26,18 @@ export function OperatorDashboard({
         scenarioSelection={<ScenarioList token={token} />}
         map={<p>Insert map here...</p>}
         coverage={
-          <>
-            <ScenarioStationList
-              scenario={selectedScenario}
-              activeDeployments={scenarioState}
-            />
-            <StewardPositions reports={reports} />
-          </>
+          <ScenarioStationList
+            scenario={selectedScenario}
+            activeDeployments={scenarioState}
+          />
         }
       />
+      {/* Fixed in the bottom right corner, so it follows the wireframe whatever
+          the section layout does. */}
+      <div className="status-popup">
+        {/* TEMPORARY: mock shows hardcoded rows. Remove the prop for live data. */}
+        <StewardPositions mock />
+      </div>
     </main>
   );
 }
