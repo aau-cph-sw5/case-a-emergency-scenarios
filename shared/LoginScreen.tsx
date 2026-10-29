@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { box, colors, palette, radius, surface, text } from "./Theme";
 import { InvalidCredentialsError, login } from "./auth/login";
-import type { Role } from "./auth/roles";
+import type { Client } from "./auth/client-access";
 import type { Session } from "./auth/session";
 
 type LoginState =
@@ -14,11 +14,11 @@ type LoginState =
 // The server denies accounts that do not have the role expected by this client.
 export function LoginScreen({
   apiBaseUrl,
-  allowedRole,
+  client,
   onLoggedIn,
 }: {
   apiBaseUrl: string;
-  allowedRole: Role;
+  client: Client;
   onLoggedIn: (session: Session) => Promise<void>;
 }) {
   const [username, setUsername] = useState("");
@@ -36,7 +36,7 @@ export function LoginScreen({
         apiBaseUrl,
         username.trim(),
         password,
-        allowedRole,
+        client,
       );
       await onLoggedIn(session);
     } catch (error) {

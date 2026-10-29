@@ -8,6 +8,7 @@
     "startedAt",
     "status",
     "actor",
+    "sequence",
     "deployments"
   ],
   "properties": {
@@ -31,6 +32,10 @@
     },
     "actor": {
       "type": "string"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
     },
     "deployments": {
       "type": "array",

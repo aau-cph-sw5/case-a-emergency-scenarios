@@ -1,7 +1,7 @@
 // No react-native imports here, so the unit tests can import this file.
 import { FormatError, HttpError } from "../api/http";
 import { REQUEST_TIMEOUT_MS } from "../http";
-import type { Role } from "./roles";
+import type { Client } from "./client-access";
 import { isSession, type Session } from "./session";
 
 export class InvalidCredentialsError extends Error {
@@ -15,13 +15,13 @@ export async function login(
   apiBaseUrl: string,
   username: string,
   password: string,
-  expectedRole: Role,
+  client: Client,
   fetchImpl: typeof fetch = fetch,
 ): Promise<Session> {
   const response = await fetchImpl(`${apiBaseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password, expectedRole }),
+    body: JSON.stringify({ username, password, client }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (response.status === 401) {
