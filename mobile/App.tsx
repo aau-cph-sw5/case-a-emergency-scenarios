@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -12,11 +12,11 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { LoginScreen } from "../shared/LoginScreen";
 import { page } from "../shared/Theme";
 import { useSession } from "../shared/auth/use-session";
-import { useActivatedScenario } from "../shared/socket/useActivatedScenario";
 import { useAuthenticatedSocket } from "../shared/socket/useAuthenticatedSocket";
 import { apiBaseUrl } from "./src/api-base-url";
-import { fetchCurrentActivation } from "./src/api/current-activation";
 import { mobileSessionStore } from "./src/auth/session-store";
+import { snapshotStore } from "./src/offline/snapshot-store";
+import { useConnectivity } from "./src/offline/useConnectivity";
 import { StewardView } from "./src/screens/StewardView";
 import { socket } from "./src/socket";
 import { useSessionNetworkRecovery } from "./src/useSessionNetworkRecovery";
@@ -35,21 +35,13 @@ export default function App() {
     client: "mobile",
     store: mobileSessionStore,
   });
+  const online = useConnectivity();
 
   const token =
     state.status === "signed-in" || state.status === "unavailable"
       ? state.session.token
       : undefined;
 
-  const fetchCurrent = useCallback(
-    () => (token ? fetchCurrentActivation(token) : Promise.resolve(null)),
-    [token],
-  );
-  const activated = useActivatedScenario(
-    socket,
-    token !== undefined,
-    fetchCurrent,
-  );
   useAuthenticatedSocket(socket, token, restore);
   useSessionNetworkRecovery(state.status !== "signed-out", restore);
 
@@ -62,6 +54,23 @@ export default function App() {
 
     return () => subscription.remove();
   }, [restore]);
+
+  // A session that could not be confirmed offline is confirmed as soon as
+  // the connection returns (MET-A-005).
+  useEffect(() => {
+    if (online === true && state.status === "unavailable") {
+      void restore();
+    }
+  }, [online, state.status, restore]);
+
+  // A signed-out phone keeps no scenario data, however the session ended:
+  // logging out, or a token the server no longer accepts. The steward view
+  // has closed by then, so a fetch still in flight cannot save the copy again.
+  useEffect(() => {
+    if (state.status === "signed-out") {
+      void snapshotStore.clear().catch(() => undefined);
+    }
+  }, [state.status]);
 
   return (
     <SafeAreaProvider>
@@ -97,33 +106,17 @@ export default function App() {
           />
         )}
 
-        {state.status === "unavailable" && (
-          <View style={styles.status}>
-            <Text>Kan ikke bekræfte din session uden forbindelse.</Text>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void restore()}
-              style={styles.button}
-            >
-              <Text style={styles.buttonText}>Prøv igen</Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void signOut()}
-              style={styles.button}
-            >
-              <Text style={styles.buttonText}>Log ud</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {state.status === "signed-in" && (
+        {/* Without a connection the session cannot be confirmed, so the
+            steward reads the saved copy until it can (MET-A-005). */}
+        {(state.status === "signed-in" || state.status === "unavailable") && (
           <StewardView
             token={state.session.token}
+            online={state.status === "signed-in" && online !== false}
             onLogout={() => void signOut()}
-            activated={activated}
+            onUnauthorized={() => void restore()}
+            onRetry={
+              state.status === "unavailable" ? () => void restore() : undefined
+            }
           />
         )}
         <StatusBar style="auto" />

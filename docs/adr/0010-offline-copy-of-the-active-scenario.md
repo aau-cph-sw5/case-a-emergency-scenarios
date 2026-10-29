@@ -1,6 +1,6 @@
 # ADR 0010. Keep a Bounded Copy of the Active Scenario on the Steward's Phone
 
-**Status.** Proposed
+**Status.** Accepted
 **Date.** 2026-10-27
 **Deciders.** Andreas Foverskov, Group 7
 **Related backlog items.** MET-A-005 (#5), MET-A-004 (#4), MET-A-010 (#10, #157, #158)
@@ -63,7 +63,9 @@ meant for small secrets, not a scenario. The logic is in `shared/offline/`
 with the storage passed in, so it is tested in Node and Jest with an in-memory
 fake.
 
-Logging out removes the copy, so a signed-out phone holds no scenario data.
+Signing out removes the copy, so a signed-out phone holds no scenario data.
+That covers logging out and a session the server no longer accepts, e.g.
+because it expired or the steward signed in on another phone.
 
 ## Consequences
 
