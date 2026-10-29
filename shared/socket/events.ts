@@ -16,5 +16,8 @@ export interface ServerToClientEvents {
 // Empty: clients send their changes over HTTP, not the socket (ADR 0008).
 export interface ClientToServerEvents {}
 
-// The whole activated scenario, plus when the server sent it.
-export type ScenarioActivated = { scenario: Scenario; sentAt: string };
+export type ScenarioActivated = {
+  scenario: Scenario;
+  sentAt: string;
+  sequence: number;
+};

@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 5.1.0
+  version: 6.1.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -225,7 +225,7 @@ paths:
             example:
               username: "steward-test"
               password: "steward-test-pw"
-              expectedRole: "STEWARD"
+              client: "mobile"
       responses:
         "200":
           description: Login successful
