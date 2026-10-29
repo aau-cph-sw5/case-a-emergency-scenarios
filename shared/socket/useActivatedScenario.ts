@@ -2,8 +2,21 @@ import { useEffect, useState } from "react";
 import type { AppSocket } from "./createSocket";
 import type { ScenarioActivated } from "./events";
 
+// Keeps the current activation unless the incoming one is newer.
+export function applyScenarioActivated(
+  current: ScenarioActivated | null,
+  incoming: ScenarioActivated,
+): ScenarioActivated | null {
+  if (current && incoming.sequence <= current.sequence) return current;
+  return incoming;
+}
+
 // The latest scenario an operator activated, for the steward view.
-export function useActivatedScenario(socket: AppSocket, enabled = true) {
+export function useActivatedScenario(
+  socket: AppSocket,
+  enabled = true,
+  fetchCurrent?: () => Promise<ScenarioActivated | null>,
+) {
   const [activated, setActivated] = useState<ScenarioActivated | null>(null);
 
   useEffect(() => {
@@ -11,19 +24,35 @@ export function useActivatedScenario(socket: AppSocket, enabled = true) {
       setActivated(null);
       return;
     }
-    function onScenarioActivated(event: ScenarioActivated) {
+    let cancelled = false;
+
+    function apply(event: ScenarioActivated) {
       console.log(
         "Scenario activated:",
-        JSON.stringify(event.scenario, null, 2),
+        event.scenario.scenarioId,
+        event.sequence,
       );
-      setActivated(event);
+      setActivated((current) => applyScenarioActivated(current, event));
     }
 
-    socket.on("scenario-activated", onScenarioActivated);
+    function onConnect() {
+      fetchCurrent?.().then(
+        (event) => {
+          if (!cancelled && event) apply(event);
+        },
+        (error: unknown) => console.warn("Could not fetch activation:", error),
+      );
+    }
+
+    socket.on("scenario-activated", apply);
+    socket.on("connect", onConnect);
+    if (socket.connected) onConnect();
     return () => {
-      socket.off("scenario-activated", onScenarioActivated);
+      cancelled = true;
+      socket.off("scenario-activated", apply);
+      socket.off("connect", onConnect);
     };
-  }, [socket, enabled]);
+  }, [socket, enabled, fetchCurrent]);
 
   return activated;
 }

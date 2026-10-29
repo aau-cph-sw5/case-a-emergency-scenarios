@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 6.0.0
+  version: 6.1.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.

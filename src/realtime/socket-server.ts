@@ -95,6 +95,7 @@ export function attachSocketHandlers(io: Server) {
               socket.emit("scenario-activated", {
                 scenario,
                 sentAt: new Date().toISOString(),
+                sequence: latest.sequence,
               });
             }
           } catch (error) {

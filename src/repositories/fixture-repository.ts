@@ -54,16 +54,26 @@ type Activation = {
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 
-type StoredActivation = Pick<Activation, "activationId" | "scenarioId"> & {
+// An activation gets its sequence once its SCENARIO_ACTIVATED event is written.
+type PendingActivation = Pick<Activation, "activationId" | "scenarioId"> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
+  sequence?: number;
 };
-const activations: StoredActivation[] = [];
+type StoredActivation = PendingActivation & { sequence: number };
+const activations: PendingActivation[] = [];
 
-export function listActivations(status?: ActivationStatus) {
+function isLogged(
+  activation: PendingActivation,
+): activation is StoredActivation {
+  return activation.sequence !== undefined;
+}
+
+export function listActivations(status?: ActivationStatus): StoredActivation[] {
+  const logged = activations.filter(isLogged);
   return status === undefined
-    ? [...activations]
-    : activations.filter((a) => a.status === status);
+    ? logged
+    : logged.filter((a) => a.status === status);
 }
 
 // The stations that require manning in an active scenario.
@@ -75,7 +85,12 @@ export function activeStations(): Set<string> {
 
 // The most recently activated scenario, for clients that connect later.
 export function latestActivation(): StoredActivation | undefined {
-  return activations.at(-1);
+  return activations.filter(isLogged).at(-1);
+}
+
+export function setActivationSequence(activationId: string, sequence: number) {
+  const activation = activations.find((a) => a.activationId === activationId);
+  if (activation) activation.sequence = sequence;
 }
 
 // Takes back an activation whose event could not be written.

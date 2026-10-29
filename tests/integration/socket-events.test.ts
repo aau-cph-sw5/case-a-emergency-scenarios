@@ -173,9 +173,10 @@ test("an activation reaches stewards in full and operators as a signal", async (
   steward.on("activations-changed", () => {
     stewardGotSignal = true;
   });
-  const stewardGot = new Promise<{ scenario: { scenarioId: string } }>(
-    (resolve) => steward.once("scenario-activated", resolve),
-  );
+  const stewardGot = new Promise<{
+    scenario: { scenarioId: string };
+    sequence: number;
+  }>((resolve) => steward.once("scenario-activated", resolve));
   const operatorGot = new Promise<unknown[]>((resolve) =>
     operator.once("activations-changed", (...args) => resolve(args)),
   );
@@ -185,7 +186,9 @@ test("an activation reaches stewards in full and operators as a signal", async (
     { method: "POST", headers: { Authorization: `Bearer ${operatorToken}` } },
   );
   assert.equal(response.status, 201);
-  assert.equal((await stewardGot).scenario.scenarioId, "DEMO-002");
+  const event = await stewardGot;
+  assert.equal(event.scenario.scenarioId, "DEMO-002");
+  assert.equal(event.sequence, (await response.json()).sequence);
   assert.deepEqual(await operatorGot, []);
 
   // Give a wrongly sent event time to arrive before checking it did not.

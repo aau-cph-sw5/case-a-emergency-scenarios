@@ -399,6 +399,7 @@ app.post("/api/v1/scenarios/:scenarioId/activate", requireAuth, (req, res) => {
     endedAt: null,
     status: "ACTIVE",
     actor: req.user.userId,
+    sequence: activations.length + 1,
     deployments: (currentVersion?.stationRequirements ?? []).map(
       (requirement) => ({
         status: "UNMANNED",
