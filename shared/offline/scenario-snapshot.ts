@@ -95,6 +95,7 @@ function isSnapshotScenario(data: unknown): data is SnapshotScenario {
     data.covers.every(
       (segment) =>
         isObject(segment) &&
+        Number.isInteger(segment.trackNumber) &&
         typeof segment.stationA === "string" &&
         typeof segment.stationB === "string",
     ) &&
