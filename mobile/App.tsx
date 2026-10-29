@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import {
   ActivityIndicator,
   AppState,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -11,20 +12,38 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { LoginScreen } from "../shared/LoginScreen";
 import { page } from "../shared/Theme";
 import { useSession } from "../shared/auth/use-session";
+import { useAuthenticatedSocket } from "../shared/socket/useAuthenticatedSocket";
 import { apiBaseUrl } from "./src/api-base-url";
 import { mobileSessionStore } from "./src/auth/session-store";
 import { snapshotStore } from "./src/offline/snapshot-store";
 import { useConnectivity } from "./src/offline/useConnectivity";
 import { StewardView } from "./src/screens/StewardView";
+import { socket } from "./src/socket";
+import { useSessionNetworkRecovery } from "./src/useSessionNetworkRecovery";
 
 // The steward app. Operators use the control-room dashboard in web/.
 export default function App() {
-  const { state, completeLogin, restore, signOut } = useSession({
+  const {
+    state,
+    completeLogin,
+    restore,
+    signOut,
+    logoutStorageError,
+    retryLogout,
+  } = useSession({
     apiBaseUrl,
-    allowedRole: "STEWARD",
+    client: "mobile",
     store: mobileSessionStore,
   });
   const online = useConnectivity();
+
+  const token =
+    state.status === "signed-in" || state.status === "unavailable"
+      ? state.session.token
+      : undefined;
+
+  useAuthenticatedSocket(socket, token, restore);
+  useSessionNetworkRecovery(state.status !== "signed-out", restore);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
@@ -63,10 +82,26 @@ export default function App() {
           </View>
         )}
 
-        {state.status === "signed-out" && (
+        {state.status === "signed-out" && logoutStorageError && (
+          <View style={styles.status}>
+            <Text>
+              Den gemte session kunne ikke fjernes. Du kan blive logget ind
+              igen, hvis appen genstartes. Prøv at logge ud igen.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void retryLogout()}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>Prøv igen</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {state.status === "signed-out" && !logoutStorageError && (
           <LoginScreen
             apiBaseUrl={apiBaseUrl}
-            allowedRole="STEWARD"
+            client="mobile"
             onLoggedIn={completeLogin}
           />
         )}
@@ -100,5 +135,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 16,
     padding: 24,
+  },
+  button: {
+    backgroundColor: "#1b7f3b",
+    borderRadius: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  buttonText: {
+    color: "#ffffff",
+    fontWeight: "600",
   },
 });

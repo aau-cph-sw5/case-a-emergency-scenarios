@@ -48,18 +48,21 @@ export function StewardView({
   const [station, setStation] = useState<string>("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
 
-  // Fetches again when the app returns to the foreground, and when the socket
-  // announces an activation, so that is saved as the offline copy too
-  // (MET-A-005).
+  // Fetches again when the app returns to the foreground, when the socket
+  // announces an activation, and when the socket reconnects, so an activation
+  // missed while disconnected is not lost. Each is saved as the offline copy
+  // too (MET-A-005).
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void refresh();
     });
     const onActivated = () => void refresh();
     socket.on("scenario-activated", onActivated);
+    socket.on("connect", onActivated);
     return () => {
       subscription.remove();
       socket.off("scenario-activated", onActivated);
+      socket.off("connect", onActivated);
     };
   }, [refresh]);
 
@@ -77,17 +80,6 @@ export function StewardView({
   // The stations of the active scenario's current version, for the picker.
   // Positions can only be reported while live.
   const stations = live ? currentStations(live) : [];
-
-  // The server refuses a socket without a valid token and uses its role to
-  // decide which events this socket gets.
-  function toggleSocket() {
-    if (isConnected) {
-      socket.disconnect();
-      return;
-    }
-    socket.auth = { token };
-    socket.connect();
-  }
 
   // Reports the chosen station and shows the answer.
   async function reportPosition() {
@@ -160,16 +152,6 @@ export function StewardView({
             <Text style={isConnected ? styles.ok : styles.offline}>
               Socket: {isConnected ? "connected" : "disconnected"}
             </Text>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={toggleSocket}
-              style={styles.button}
-            >
-              <Text style={styles.buttonText}>
-                {isConnected ? "Disconnect socket" : "Connect socket"}
-              </Text>
-            </Pressable>
 
             {messages.map((message) => (
               <Text key={message.id}>Socket: {message.text}</Text>

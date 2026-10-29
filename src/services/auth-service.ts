@@ -1,6 +1,10 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
+import {
+  isRoleAllowedForClient,
+  type Client,
+} from "../../shared/auth/client-access.js";
 import { isRole, type Role } from "../../shared/auth/roles.js";
 import { RENEWAL_WINDOW_MS } from "../../shared/auth/renewal.js";
 import { authSessionRepository } from "../repositories/auth-session-repository.js";
@@ -110,17 +114,17 @@ function createRenewedSession(
 export async function login(
   username: string,
   password: string,
-  expectedRole: Role,
-): Promise<AuthSessionResponse | null> {
+  client: Client,
+): Promise<(AuthSessionResponse & { userId: number }) | null> {
   const user = await userRepository.getUserByUsername(username);
 
   if (!user || !isRole(user.role)) return null;
 
   const passwordMatches = await bcrypt.compare(password, user.passwordHash);
   if (!passwordMatches) return null;
-  if (user.role !== expectedRole) return null;
+  if (!isRoleAllowedForClient(client, user.role)) return null;
 
-  return issueSession(user.id, user.role);
+  return { ...(await issueSession(user.id, user.role)), userId: user.id };
 }
 
 export type AuthUser = {

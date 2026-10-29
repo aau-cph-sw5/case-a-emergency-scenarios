@@ -33,6 +33,12 @@ steward view. If the API cannot be reached, the token is kept so it can be
 validated after reconnection; the current app does not yet show cached scenario
 data in that state.
 
+After login or a successful session restore, the app automatically connects to
+Socket.IO using the session token. It disconnects when the user logs out and
+reconnects with the new token after session renewal.
+When network connectivity returns, the app rechecks its saved session before
+reconnecting if the session could not be verified while offline.
+
 ## Before you start
 
 1. Make sure your `.env` in the repository root contains:

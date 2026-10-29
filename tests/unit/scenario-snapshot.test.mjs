@@ -110,6 +110,16 @@ test("a copy with malformed passenger information counts as no copy", async () =
   assert.equal(await store.load("steward-test"), null);
 });
 
+test("a copy with a malformed track segment counts as no copy", async () => {
+  const storage = memoryStorage();
+  const store = createSnapshotStore(storage);
+  const snapshot = buildSnapshot(active, "steward-test", now);
+  snapshot.scenario.covers = [{ stationA: "Station A", stationB: "Station B" }];
+
+  await storage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+  assert.equal(await store.load("steward-test"), null);
+});
+
 test("saves, loads and clears the copy", async () => {
   const store = createSnapshotStore(memoryStorage());
   const snapshot = buildSnapshot(active, "steward-test", now);

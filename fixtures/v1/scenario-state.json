@@ -5,6 +5,7 @@
   "endedAt": null,
   "status": "ACTIVE",
   "actor": "operator-001",
+  "sequence": 1,
   "deployments": [
     {
       "status": "MANNED",
