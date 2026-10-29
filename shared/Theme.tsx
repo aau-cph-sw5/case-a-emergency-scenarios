@@ -47,10 +47,14 @@ export const lineColors = [
 
 // Controls the corner rounding of every element (the app currently has none).
 export const radius = 0;
+// Cards in the operator view follow the wireframe's rounded corners, without
+// rounding every other element.
+export const cardRadius = 6;
 
 export const text = {
   body: {},
   title: { fontSize: 18, fontWeight: "600" as const },
+  small: { fontSize: 12, color: colors.text },
   // A CSS font list only works on web; Android and iOS use the system font.
   header: {
     fontFamily: Platform.select({ web: "Arial, sans-serif" }),
@@ -74,6 +78,29 @@ export const box = {
   borderColor: colors.border,
   padding: 6,
   borderRadius: radius,
+};
+
+// A card on white with a light outline, for example one station's coverage.
+export const card = {
+  backgroundColor: colors.background,
+  borderWidth: 1,
+  borderColor: colors.subtleBorder,
+  borderRadius: cardRadius,
+  paddingVertical: 8,
+  paddingHorizontal: 10,
+};
+
+// A small dark count next to a heading, for example the number of stations.
+export const badge = {
+  minWidth: 22,
+  paddingHorizontal: 6,
+  paddingVertical: 2,
+  borderRadius: cardRadius,
+  backgroundColor: colors.active,
+  color: colors.textInverse,
+  fontSize: 12,
+  fontWeight: "700" as const,
+  textAlign: "center" as const,
 };
 
 export const page = {

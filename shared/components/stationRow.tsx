@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, text } from "../Theme";
+import { card, colors, text } from "../Theme";
 import type { Scenario } from "../types/v1/scenario";
 import { getStationState, type ActiveDeployments } from "./stationState";
 
@@ -78,17 +78,7 @@ export default function StationRow({ requirement, deployments }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.subtleBorder,
-    borderLeftWidth: 4,
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    marginBottom: 8,
-    gap: 4,
-  },
+  card: { ...card, borderLeftWidth: 4, marginBottom: 8, gap: 4 },
   line: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -97,7 +87,7 @@ const styles = StyleSheet.create({
   },
   name: { ...text.body, flexShrink: 1, fontSize: 14, fontWeight: "600" },
   count: { fontSize: 20, fontWeight: "700" },
-  small: { fontSize: 12, color: colors.text },
+  small: text.small,
   bold: { fontWeight: "600" },
   details: { marginTop: 4, gap: 2 },
 });

@@ -1,10 +1,10 @@
 import { FlatList, StyleSheet, Text, View } from "react-native";
-import { colors } from "../Theme";
+import { badge, colors, text } from "../Theme";
 import type { Scenario } from "../types/v1/scenario";
 import {
   countManned,
   countStewards,
-  getStationState,
+  coverageShare,
   type ActiveDeployments,
 } from "./stationState";
 import StationRow from "./stationRow";
@@ -35,18 +35,14 @@ export default function ScenarioStationList({
   const requirements = version?.stationRequirements ?? [];
 
   // Worst covered first, so the stations that need help are at the top.
-  // Stations covered equally keep the Metro line order.
-  const share = (r: (typeof requirements)[number]) =>
-    r.minimumStaffing === 0
-      ? 1
-      : getStationState(activeDeployments, r.station, r.minimumStaffing)
-          .current / r.minimumStaffing;
-  const stations = [...requirements].sort(
-    (a, b) =>
-      share(a) - share(b) ||
-      (STATION_RANK.get(a.station) ?? Number.MAX_SAFE_INTEGER) -
-        (STATION_RANK.get(b.station) ?? Number.MAX_SAFE_INTEGER),
-  );
+  // Stations covered equally keep the Metro line order. Each share is
+  // computed once, not on every comparison the sort makes.
+  const rank = (station: string) =>
+    STATION_RANK.get(station) ?? Number.MAX_SAFE_INTEGER;
+  const stations = requirements
+    .map((r) => ({ r, share: coverageShare(activeDeployments, r) }))
+    .sort((a, b) => a.share - b.share || rank(a.r.station) - rank(b.r.station))
+    .map(({ r }) => r);
 
   const coveredCount = countManned(activeDeployments, stations);
   const stewards = countStewards(activeDeployments, stations);
@@ -90,16 +86,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: { fontSize: 16, fontWeight: "700", color: colors.text, flexShrink: 1 },
-  badge: {
-    minWidth: 22,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: colors.active,
-    color: colors.textInverse,
-    fontSize: 12,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  small: { fontSize: 12, color: colors.text },
+  badge,
+  small: text.small,
 });

@@ -32,12 +32,19 @@ export function getStationState(
   );
   const current = statuses.filter((s) => s === "MANNED").length;
   const enRoute = statuses.filter((s) => s === "PENDING").length;
-  const lastUpdate = deployments
-    .map((d) => d.reportedAt)
-    .filter(Boolean)
-    .sort()
-    .pop();
-  return { statuses, current, enRoute, lastUpdate };
+  return { statuses, current, enRoute };
+}
+
+// How much of a station is covered, from 0 (nobody arrived) to 1 (fully
+// staffed). A station that needs nobody counts as covered.
+export function coverageShare(
+  scenario: ActiveDeployments,
+  requirement: Pick<StationRequirement, "station" | "minimumStaffing">,
+) {
+  const needed = requirement.minimumStaffing;
+  if (needed === 0) return 1;
+  const { current } = getStationState(scenario, requirement.station, needed);
+  return Math.min(current, needed) / needed;
 }
 
 // Stewards across every required station, for the totals in the header.
@@ -57,13 +64,6 @@ export function countStewards(
     needed += r.minimumStaffing;
   }
   return { arrived, enRoute, needed };
-}
-
-export function formatTime(iso?: string | null) {
-  if (!iso) return "--:--";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "--:--";
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 // The stations that require manning in the scenario's current version. Takes
