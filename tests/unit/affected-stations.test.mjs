@@ -5,7 +5,7 @@ import {
   affectedStretchAsMapLine,
   areaAroundStations,
   networkWithoutStretch,
-} from "../../mobile/src/screens/affected-stations.ts";
+} from "../../mobile/src/screens/affected-stations.tsx";
 
 const scenario = {
   name: "Test scenario",
