@@ -1,10 +1,10 @@
-import type { ScenarioDefinition } from "../../../shared/scenario/active-scenario";
 import { getStation } from "../../../mockData/data";
+import type { SnapshotScenario } from "../../../shared/offline/scenario-snapshot";
 
 //helper function as map draws "lines" made of station pairs
 //turns the affected stations (covers) into the maps "lines"
 //filter keeps only pairs where both stations have a position
-export function affectedStretchAsMapLine(scenario: ScenarioDefinition) {
+export function affectedStretchAsMapLine(scenario: SnapshotScenario) {
   return {
     name: scenario.name,
     tracks: [1, 2],
@@ -22,7 +22,7 @@ const MAP_MARGIN = 60;
 
 //helper function to name stations in order.
 //covers is the affected stations and the stations in the middle appear twice
-export function affectedStations(scenario: ScenarioDefinition) {
+export function affectedStations(scenario: SnapshotScenario) {
   return [
     ...new Set(
       (scenario.covers ?? []).flatMap((segment) => [
