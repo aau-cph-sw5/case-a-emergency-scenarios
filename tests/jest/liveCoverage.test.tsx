@@ -97,4 +97,29 @@ describe("LiveCoverage", () => {
       ),
     ).toBeTruthy();
   });
+
+  it("says that coverage may be out of date when a reload fails while connected", async () => {
+    render(
+      withLive({
+        activations: [activation([])],
+        isConnected: true,
+        error: "Serverfejl",
+      }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Kunne ikke opdatere: Serverfejl. Dækningen kan være forældet.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("shows the error instead of no active scenario when the first load fails", () => {
+    render(withLive({ activations: [], error: "Serverfejl" }));
+
+    expect(
+      screen.getByText("Kunne ikke hente dækning: Serverfejl"),
+    ).toBeTruthy();
+    expect(screen.queryByText("Intet aktivt scenarie.")).toBeNull();
+  });
 });
