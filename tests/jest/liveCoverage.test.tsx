@@ -93,7 +93,7 @@ describe("LiveCoverage", () => {
 
     expect(
       await screen.findByText(
-        "Forbindelsen er afbrudt. Dækningen kan være forældet.",
+        "Forbindelsen er afbrudt. Informationen kan være forældet.",
       ),
     ).toBeTruthy();
   });
@@ -109,7 +109,7 @@ describe("LiveCoverage", () => {
 
     expect(
       await screen.findByText(
-        "Kunne ikke opdatere: Serverfejl. Dækningen kan være forældet.",
+        "Kunne ikke opdatere: Serverfejl. Informationen kan være forældet.",
       ),
     ).toBeTruthy();
   });
