@@ -183,3 +183,57 @@ test("formats the sync time as HH:MM, with the date when not today", () => {
     "15/10 23:50",
   );
 });
+
+test("writes land in the order they were made, also when the storage finishes them out of order", async () => {
+  const items = new Map();
+  const finished = [];
+  // The first write takes longer than the ones after it.
+  const delays = [30, 0, 0];
+  const storage = {
+    getItem: async (key) => items.get(key) ?? null,
+    setItem: (key, value) =>
+      new Promise((resolve) =>
+        setTimeout(() => {
+          items.set(key, value);
+          finished.push("save");
+          resolve();
+        }, delays.shift() ?? 0),
+      ),
+    removeItem: (key) =>
+      new Promise((resolve) =>
+        setTimeout(() => {
+          items.delete(key);
+          finished.push("clear");
+          resolve();
+        }, delays.shift() ?? 0),
+      ),
+  };
+  const store = createSnapshotStore(storage);
+  const snapshot = buildSnapshot(active, "steward-test", now);
+
+  const writes = [store.save(snapshot), store.clear()];
+  assert.equal(await store.load("steward-test"), null);
+  await Promise.all(writes);
+
+  assert.deepEqual(finished, ["save", "clear"]);
+  assert.equal(await store.load("steward-test"), null);
+});
+
+test("a failed write does not stop the next one", async () => {
+  const storage = memoryStorage();
+  const failing = {
+    ...storage,
+    setItem: async () => {
+      throw new Error("disk full");
+    },
+  };
+  const store = createSnapshotStore(failing);
+
+  await assert.rejects(
+    store.save(buildSnapshot(active, "steward-test", now)),
+    /disk full/,
+  );
+  await storage.setItem(STORAGE_KEY, "{}");
+  await store.clear();
+  assert.equal(storage.items.has(STORAGE_KEY), false);
+});
