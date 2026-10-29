@@ -95,7 +95,7 @@ export function OperatorDashboard({
           the section layout does. */}
       <div className="status-popup">
         {/* TEMPORARY: mock shows hardcoded rows. Remove the prop for live data. */}
-        <StewardPositions mock />
+        <StewardPositions mock={import.meta.env.DEV} />
       </div>
     </main>
   );
