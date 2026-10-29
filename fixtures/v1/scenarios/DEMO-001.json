@@ -3,8 +3,7 @@
   "name": "Synthetic fallback scenario",
   "currentVersion": "1",
   "covers": [
-    { "trackNumber": 1, "stationA": "FOR", "stationB": "KN" },
-    { "trackNumber": 1, "stationA": "KN", "stationB": "KGN" }
+    { "trackNumber": 1, "stationA": "Station A", "stationB": "Station B" }
   ],
   "versions": [
     {
@@ -26,7 +25,7 @@
       },
       "stationRequirements": [
         {
-          "station": "KN",
+          "station": "Station B",
           "placement": "Platform 1, near the elevators",
           "minimumStaffing": 1,
           "activeDuring": [

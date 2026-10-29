@@ -9,7 +9,6 @@ import {
   palette,
 } from "../../../shared/Theme";
 import MapRender from "../../../shared/MapRenderer";
-import { parseStationRequirements } from "../../../shared/ScenarioParser";
 import { getLines } from "../../../mockData/data";
 import {
   affectedStations,
@@ -19,14 +18,6 @@ import {
 
 // The colour of the affected stretch, on the map and in the legend.
 const STRETCH_COLOR = lineColors[0];
-
-type StationRow = {
-  station: string;
-  placement: string;
-  staff: number;
-  times: string[];
-  actions: string[];
-};
 
 export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
   const { scenario } = snapshot;
@@ -38,10 +29,7 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
     M4: palette.networkGrey,
   };
   const stations = affectedStations(scenario);
-  const rows =
-    scenario.versions.length > 0
-      ? (parseStationRequirements(scenario) as StationRow[])
-      : [];
+  const rows = scenario.versions[0]?.stationRequirements ?? [];
   const stretch = affectedStretchAsMapLine(scenario);
   const networkLines = networkWithoutStretch(
     getLines(),
@@ -76,23 +64,26 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
 
       <Text style={styles.heading}>Påvirkede stationer</Text>
       {rows.map((row) => (
-        <View
-          key={`${row.station}-${row.placement}-${row.times.join(",")}`}
-          style={styles.station}
-        >
+        <View key={`${row.station}-${row.placement}`} style={styles.station}>
           <Text style={styles.stationName}>
-            {row.station} · {row.staff} påkrævet
+            {row.station} · {row.minimumStaffing} påkrævet
           </Text>
           <Text style={styles.body}>{row.placement}</Text>
           <Text style={styles.body}>
-            {row.times.length > 0
-              ? `Bemandes: ${row.times.join(", ")}`
+            {row.activeDuring && row.activeDuring.length > 0
+              ? `Bemandes: ${row.activeDuring
+                  .map(
+                    (window) =>
+                      `${window.dayPattern} ${window.startTime.slice(0, 5)}-${window.endTime.slice(0, 5)}`,
+                  )
+                  .join(", ")}`
               : "Bemandes hele tiden"}
           </Text>
-          {row.actions.length > 0 && (
+          {(row.actions ?? []).length > 0 && (
             <Text style={styles.body}>
-              {row.actions
-                .map((action, index) => `${index + 1}. ${action}`)
+              {[...(row.actions ?? [])]
+                .sort((a, b) => a.sequence - b.sequence)
+                .map((action) => `${action.sequence}. ${action.instruction}`)
                 .join("\n")}
             </Text>
           )}
