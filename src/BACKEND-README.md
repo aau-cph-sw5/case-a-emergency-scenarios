@@ -22,7 +22,7 @@ For example, `GET /api/v1/scenarios/DEMO-001`:
 routes/scenario-routes.ts           matches the URL
 middleware/require-auth.ts          rejects the request without a valid token
 controllers/scenario-controller.ts  getScenario: 200 with the scenario, or 404
-repositories/fixture-repository.ts  findScenario: reads fixtures/v1/scenarios/DEMO-001.json
+repositories/fixture-repository.ts  findScenario: reads the scenario from the database
 ```
 
 ### Middleware
@@ -42,7 +42,7 @@ rejected before its body is examined.
 ### Services
 
 - **`auth-service.ts`**: `login()` checks the bcrypt password hash and the
-  client's expected role against the account stored in PostgreSQL before it
+  account's database role against the allowed roles for the requested client before it
   creates a unique session identifier (JTI), records that active session, and
   returns a signed JWT with the user's numeric id and database role.
   `verifyToken()` checks both the token's signature and expiry and whether its
@@ -51,14 +51,25 @@ rejected before its body is examined.
   session only in its final seven days, and returns a fresh JWT with the same
   JTI. Retrying a renewal after a lost response therefore remains safe;
   otherwise the renew endpoint returns 204 without changing the session.
-  `logout()` revokes the current session. The requested role only selects the
-  permitted client; the JWT role always comes from the database. `JWT_SECRET`
+  `logout()` revokes the current session. The client type is not proof of a
+  device; the JWT role always comes from the database. `JWT_SECRET`
   is required at startup; it must be a unique random secret in every deployed
   environment.
+
+  Authenticated sockets join role, `user:<id>`, and session rooms. A later
+  login disconnects sockets whose sessions are no longer valid; logout
+  disconnects sockets for the revoked session. User rooms allow the server to
+  target a user, but do not themselves implement message delivery or catch-up.
+  With the default in-memory Socket.IO adapter this applies to one server
+  instance. Multiple instances need a shared adapter and cross-instance tests.
+  Role changes or session expiry outside these login/logout flows do not yet
+  automatically disconnect an already-connected socket.
 - **`incident-log-service.ts`**: `appendEvent()` is the only way to write to
   the incident log. It takes the caller's transaction, so the change and its
   event commit together, and takes the actor from the verified user. See
   [the incident log reference](../docs/reference/incident-log.md).
+  A successful scenario activation writes a `SCENARIO_ACTIVATED` event;
+  refused ones (403, 404, 409) write none.
 
 ### Repositories
 

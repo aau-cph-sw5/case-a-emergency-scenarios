@@ -1,0 +1,12 @@
+[
+    { "code" : "VAN", "name": "vanløse"}, { "code" : "FL", "name": "flintholm"}, { "code" : "LIT", "name": "lindevang"}, { "code" : "SOT", "name": "fasanvej"}, { "code" : "FB", "name": "frederiksberg"}, 
+    { "code" : "FOR", "name": "forum"}, { "code" : "KN", "name": "nørreport"}, { "code" : "KGN", "name": "kongens nytorv"}, { "code" : "KHC", "name": "christianshavn"}, { "code" : "AMB", "name": "amagerbro"}, 
+    { "code" : "LGP", "name": "lergravsparken"}, { "code" : "ØSV", "name": "øresundsvej"}, { "code" : "AMS", "name": "amagerstrand"}, { "code" : "FEØ", "name": "femøren"}, { "code" : "KSA", "name": "kastrup"}, 
+    { "code" : "CPH", "name": "lufthavnen"}, { "code" : "ISB", "name": "islands brygge"}, { "code" : "UNI", "name": "DR Byen"}, { "code" : "KHS", "name": "sundby"}, { "code" : "BC", "name": "bella center"}, 
+    { "code" : "ØRE", "name": "ørestad"}, { "code" : "VEA", "name": "vestamager"}, { "code" : "KH", "name": "københavn h"}, { "code" : "RHP", "name": "rådhuspladsen"}, { "code" : "GLS", "name": "gammel strand"}, 
+    { "code" : "MMK", "name": "marmorkirken"}, { "code" : "KK", "name": "østerport"}, { "code" : "TRI", "name": "trianglen"}, { "code" : "PHP", "name": "poul henningsens plads"},
+    { "code" : "VHR", "name": "vibbenshus runddel"}, { "code" : "SKP", "name": "skjolds plads"}, { "code" : "NØ", "name": "nørrebro"}, { "code" : "NØR", "name": "nørrebros runddel"}, { "code" : "NUK", "name": "nuuks plads"}, 
+    { "code" : "AMH", "name": "aksel møllers have"}, { "code" : "FBA", "name": "frederiksberg alle"}, { "code" : "EHP", "name": "enghave plads"}, { "code" : "NEL", "name": "københavn syd"}, { "code" : "MOP", "name": "mozarts plads"}, 
+    { "code" : "SLU", "name": "sluseholmen"}, { "code" : "EBR", "name": "enghave brygge"}, { "code" : "HOL", "name": "havneholmen"}, { "code" : "NHT", "name": "nordhavnen"}, { "code" : "ORK", "name": "orientkaj"}
+    
+]

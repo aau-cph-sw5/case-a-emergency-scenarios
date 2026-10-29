@@ -1,17 +1,26 @@
 import { useEffect } from "react";
 import { LoginScreen } from "../../shared/LoginScreen";
 import { useSession } from "../../shared/auth/use-session";
+import { useAuthenticatedSocket } from "../../shared/socket/useAuthenticatedSocket";
 import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
+import { LiveDataProvider } from "./data/liveData";
 import { OperatorDashboard } from "./OperatorDashboard";
 import { webSessionStore } from "./auth/session-store";
 import { socket } from "./socket";
 
 // The control-room dashboard. Stewards use the app in mobile/.
 export function App() {
-  const { state, completeLogin, restore, signOut } = useSession({
+  const {
+    state,
+    completeLogin,
+    restore,
+    signOut,
+    logoutStorageError,
+    retryLogout,
+  } = useSession({
     // "" makes API calls go to /api, which vite.config forwards.
     apiBaseUrl: "",
-    allowedRole: "OPERATOR",
+    client: "web",
     store: webSessionStore,
   });
 
@@ -34,27 +43,32 @@ export function App() {
   }, [restore]);
 
   // One socket per login, shared by the banner and the dashboard.
-  const token = state.status === "signed-in" ? state.session.token : undefined;
-  useEffect(() => {
-    if (token === undefined) return;
-    socket.auth = { token };
-    socket.connect();
-    return () => {
-      socket.disconnect();
-    };
-  }, [token]);
+  const token =
+    state.status === "signed-in" || state.status === "unavailable"
+      ? state.session.token
+      : undefined;
+  useAuthenticatedSocket(socket, token, restore);
 
   if (state.status === "restoring") {
     return <main>Indlæser session…</main>;
   }
 
   if (state.status === "signed-out") {
+    if (logoutStorageError) {
+      return (
+        <main>
+          <p>
+            Den gemte session kunne ikke fjernes. Du kan blive logget ind igen,
+            hvis siden genstartes. Prøv at logge ud igen.
+          </p>
+          <button onClick={() => void retryLogout()} type="button">
+            Prøv igen
+          </button>
+        </main>
+      );
+    }
     return (
-      <LoginScreen
-        apiBaseUrl=""
-        allowedRole="OPERATOR"
-        onLoggedIn={completeLogin}
-      />
+      <LoginScreen apiBaseUrl="" client="web" onLoggedIn={completeLogin} />
     );
   }
 
@@ -72,14 +86,24 @@ export function App() {
     );
   }
 
-  // The banner sits outside any view, so every view added below it keeps it.
   return (
-    <>
-      <ActiveScenarioBanner token={state.session.token} />
-      <OperatorDashboard
-        token={state.session.token}
-        onLogout={() => void signOut()}
-      />
-    </>
+    <ControlRoom token={state.session.token} onLogout={() => void signOut()} />
+  );
+}
+
+function ControlRoom({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
+  // The banner sits outside any view, so every view added below it keeps it.
+  // LiveDataProvider loads the server data once for both.
+  return (
+    <LiveDataProvider socket={socket} token={token}>
+      <ActiveScenarioBanner />
+      <OperatorDashboard token={token} onLogout={onLogout} />
+    </LiveDataProvider>
   );
 }

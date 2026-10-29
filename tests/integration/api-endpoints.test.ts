@@ -12,7 +12,11 @@ import { authSessionRepository } from "../../src/repositories/auth-session-repos
 import { renew } from "../../src/services/auth-service.js";
 import { validate } from "../../src/validation/contract-validator.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
-import { closeOwnerDatabase, getOwnerDatabase } from "./helpers.js";
+import {
+  closeOwnerDatabase,
+  getOwnerDatabase,
+  seedTestScenarios,
+} from "./helpers.js";
 
 // The application may only read users, so changing a role runs as the owner.
 const owner = getOwnerDatabase();
@@ -27,6 +31,7 @@ const STEWARD_USERNAME = "api-steward";
 
 before(async () => {
   const users = await seedTestUsers("api-");
+  await seedTestScenarios();
   operatorId = users.find((user) => user.username === OPERATOR_USERNAME)!.id;
   stewardId = users.find((user) => user.username === STEWARD_USERNAME)!.id;
 
@@ -54,29 +59,32 @@ function postJson(
   });
 }
 
-async function bearer(username: string, password: string) {
-  const expectedRole = username === OPERATOR_USERNAME ? "OPERATOR" : "STEWARD";
-  const { token } = await loginAs(username, password, expectedRole);
+async function bearer(
+  username: string,
+  password: string,
+  client: "web" | "mobile",
+) {
+  const { token } = await loginAs(username, password, client);
   return { Authorization: `Bearer ${token}` };
 }
 
 function operatorHeaders() {
-  return bearer(OPERATOR_USERNAME, "operator123");
+  return bearer(OPERATOR_USERNAME, "operator123", "web");
 }
 
 function stewardHeaders() {
-  return bearer(STEWARD_USERNAME, "steward123");
+  return bearer(STEWARD_USERNAME, "steward123", "mobile");
 }
 
 async function loginAs(
   username: string,
   password: string,
-  expectedRole: "STEWARD" | "OPERATOR",
+  client: "web" | "mobile",
 ) {
   const response = await postJson("/api/v1/auth/login", {
     username,
     password,
-    expectedRole,
+    client,
   });
   return (await response.json()) as {
     token: string;
@@ -89,7 +97,7 @@ test("POST /api/v1/auth/login returns a token and role", async () => {
   const response = await postJson("/api/v1/auth/login", {
     username: OPERATOR_USERNAME,
     password: "operator123",
-    expectedRole: "OPERATOR",
+    client: "web",
   });
   const body = await response.json();
 
@@ -109,7 +117,7 @@ test("POST /api/v1/auth/login matches usernames without regard to casing", async
   const response = await postJson("/api/v1/auth/login", {
     username: OPERATOR_USERNAME.toUpperCase(),
     password: "operator123",
-    expectedRole: "OPERATOR",
+    client: "web",
   });
 
   assert.equal(response.status, 200);
@@ -120,7 +128,7 @@ test("POST /api/v1/auth/login rejects a wrong password with 401", async () => {
   const response = await postJson("/api/v1/auth/login", {
     username: OPERATOR_USERNAME,
     password: "wrong",
-    expectedRole: "OPERATOR",
+    client: "web",
   });
 
   assert.equal(response.status, 401);
@@ -131,7 +139,7 @@ test("POST /api/v1/auth/login rejects an account for the wrong client role", asy
   const originalLogin = await postJson("/api/v1/auth/login", {
     username: OPERATOR_USERNAME,
     password: "operator123",
-    expectedRole: "OPERATOR",
+    client: "web",
   });
   const originalToken = ((await originalLogin.json()) as { token: string })
     .token;
@@ -139,7 +147,7 @@ test("POST /api/v1/auth/login rejects an account for the wrong client role", asy
   const response = await postJson("/api/v1/auth/login", {
     username: OPERATOR_USERNAME,
     password: "operator123",
-    expectedRole: "STEWARD",
+    client: "mobile",
   });
 
   assert.equal(response.status, 401);
@@ -155,7 +163,7 @@ test("POST /api/v1/auth/login rejects an unknown username with 401", async () =>
   const response = await postJson("/api/v1/auth/login", {
     username: "not-a-user",
     password: "not-a-password",
-    expectedRole: "OPERATOR",
+    client: "web",
   });
 
   assert.equal(response.status, 401);
@@ -169,6 +177,32 @@ test("POST /api/v1/auth/login rejects an invalid body with 400", async () => {
 
   assert.equal(response.status, 400);
   assert.equal((await response.json()).error.code, "E0006");
+});
+
+test("POST /api/v1/auth/login rejects an unknown client", async () => {
+  const response = await postJson("/api/v1/auth/login", {
+    username: OPERATOR_USERNAME,
+    password: "operator123",
+    client: "unknown",
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error.code, "E0006");
+});
+
+test("a steward cannot use the web login or replace their mobile session", async () => {
+  const session = await loginAs(STEWARD_USERNAME, "steward123", "mobile");
+  const response = await postJson("/api/v1/auth/login", {
+    username: STEWARD_USERNAME,
+    password: "steward123",
+    client: "web",
+  });
+
+  assert.equal(response.status, 401);
+  const stillValid = await fetch(`${baseUrl}/api/v1/me`, {
+    headers: { Authorization: `Bearer ${session.token}` },
+  });
+  assert.equal(stillValid.status, 200);
 });
 
 test("GET /api/v1/me returns the signed-in user", async () => {
@@ -197,7 +231,7 @@ test("GET /api/v1/me rejects a signed token with an invalid payload", async () =
 });
 
 test("protected requests use the user's current database role", async () => {
-  const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const session = await loginAs(OPERATOR_USERNAME, "operator123", "web");
   const headers = { Authorization: `Bearer ${session.token}` };
   const sql = getDatabase();
 
@@ -231,7 +265,7 @@ test("POST /api/v1/auth/logout revokes the current session", async () => {
 });
 
 test("POST /api/v1/auth/renew extends a due session without replacing its JTI", async () => {
-  const first = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const first = await loginAs(OPERATOR_USERNAME, "operator123", "web");
   const firstPayload = jwt.decode(first.token);
 
   assert.ok(firstPayload && typeof firstPayload !== "string");
@@ -271,7 +305,7 @@ test("POST /api/v1/auth/renew extends a due session without replacing its JTI", 
 });
 
 test("POST /api/v1/auth/renew keeps concurrent requests usable", async () => {
-  const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const session = await loginAs(OPERATOR_USERNAME, "operator123", "web");
   const sql = getDatabase();
   await sql`
     UPDATE auth_sessions
@@ -319,7 +353,7 @@ test("POST /api/v1/auth/renew keeps concurrent requests usable", async () => {
 });
 
 test("POST /api/v1/auth/renew does not replace a session that is not due", async () => {
-  const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const session = await loginAs(OPERATOR_USERNAME, "operator123", "web");
 
   const response = await postJson(
     "/api/v1/auth/renew",
@@ -474,7 +508,7 @@ test("renew rejects a session that disappears during renewal", async () => {
 });
 
 test("POST /api/v1/auth/renew uses the account's current role", async () => {
-  const session = await loginAs(OPERATOR_USERNAME, "operator123", "OPERATOR");
+  const session = await loginAs(OPERATOR_USERNAME, "operator123", "web");
   const sql = getDatabase();
 
   await sql`
@@ -503,8 +537,8 @@ test("POST /api/v1/auth/renew uses the account's current role", async () => {
 });
 
 test("a second login replaces the first session for an account", async () => {
-  const first = await bearer(OPERATOR_USERNAME, "operator123");
-  const second = await bearer(OPERATOR_USERNAME, "operator123");
+  const first = await bearer(OPERATOR_USERNAME, "operator123", "web");
+  const second = await bearer(OPERATOR_USERNAME, "operator123", "web");
   const firstMe = await fetch(`${baseUrl}/api/v1/me`, { headers: first });
   const secondMe = await fetch(`${baseUrl}/api/v1/me`, { headers: second });
 
@@ -560,16 +594,13 @@ test("GET /api/v1/scenarios/:scenarioId returns 404 for an unknown id", async ()
   assert.equal(traversal.status, 404);
 });
 
-test("GET /api/v1/scenario-state returns the current state", async () => {
+test("GET /api/v1/scenario-state is 200 with null while no scenario is active", async () => {
   const response = await fetch(`${baseUrl}/api/v1/scenario-state`, {
     headers: await operatorHeaders(),
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(
-    validate(await response.json(), "scenario-state.schema.json"),
-    [],
-  );
+  assert.equal(await response.json(), null);
 });
 
 test("GET /api/v1/metro-lines/:lineId returns the line or 404", async () => {
@@ -615,30 +646,15 @@ test("POST /api/v1/position-reports refuses an operator with E0002", async () =>
   assert.equal((await response.json()).error.code, "E0002");
 });
 
-// One test, so the refusals always run before DEMO-002 is activated.
-test("POST /api/v1/position-reports refuses Station G with E1001 while nothing is active and E1004 until DEMO-002 is activated, then accepts it with 202", async () => {
-  const none = await postJson(
-    "/api/v1/position-reports",
-    stationGReport,
-    await stewardHeaders(),
-  );
-  assert.equal(none.status, 409);
-  assert.equal((await none.json()).error.code, "E1001");
-
-  const demo001 = await postJson(
-    "/api/v1/scenarios/DEMO-001/activate",
-    {},
-    await operatorHeaders(),
-  );
-  assert.equal(demo001.status, 201);
-
+// One test, so the refusal always runs before DEMO-002 is activated.
+test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 is activated, then accepts it with 202 and refuses Station B with E1004", async () => {
   const before = await postJson(
     "/api/v1/position-reports",
     stationGReport,
     await stewardHeaders(),
   );
   assert.equal(before.status, 409);
-  assert.equal((await before.json()).error.code, "E1004");
+  assert.equal((await before.json()).error.code, "E1001");
 
   const activation = await postJson(
     "/api/v1/scenarios/DEMO-002/activate",
@@ -654,6 +670,15 @@ test("POST /api/v1/position-reports refuses Station G with E1001 while nothing i
   );
   assert.equal(after.status, 202);
   assert.deepEqual(await after.json(), { accepted: true });
+
+  // Station B is in DEMO-001, but DEMO-002 is the active scenario.
+  const other = await postJson(
+    "/api/v1/position-reports",
+    { ...stationGReport, station: "Station B" },
+    await stewardHeaders(),
+  );
+  assert.equal(other.status, 409);
+  assert.equal((await other.json()).error.code, "E1004");
 });
 
 test("protected endpoints reject requests without a token", async () => {

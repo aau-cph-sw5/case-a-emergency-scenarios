@@ -1,5 +1,31 @@
 # Scenario State Contract Changelog
 
+## 6.1.0 - 2026-10-28
+
+Additive. Activations carry the incident log `sequence` of their `SCENARIO_ACTIVATED` event (MET-A-004).
+
+- `scenario-state.schema.json` has a required integer `sequence`. `POST /api/v1/scenarios/{scenarioId}/activate`, `GET /api/v1/scenario-state` and `GET /api/v1/activations` return it. A higher sequence is a newer activation. Clients only gain a field, so this is not breaking.
+- The `scenario-activated` socket event carries the same `sequence`.
+- `info.version` in `openapi.yaml` is now 6.1.0
+
+## 6.0.0 - 2026-10-27
+
+Breaking.
+
+- Login requests now require `client` (`web` or `mobile`) instead of `expectedRole`.
+  The server checks the account's role against the roles allowed for that client.
+- `info.version` in `openapi.yaml` is now 6.0.0.
+
+## 5.1.0 - 2026-10-28
+
+Only one scenario can be active at a time. Behaviour change to `POST /api/v1/scenarios/{scenarioId}/activate`: it now answers 409 (`E0007`) while any scenario is active, not only when the same scenario is active. `GET /api/v1/activations` therefore holds at most one `ACTIVE` entry. The server and stub start with no active scenario. Standing a scenario down is a separate action (MET-A-009).
+
+`GET /api/v1/scenario-state` now returns the active activation from the same store as `GET /api/v1/activations`, and answers 200 with `null` while no scenario is active, instead of always returning the fixture.
+
+Includes:
+
+- `info.version` in `openapi.yaml` is now 5.1.0
+
 ## 5.0.0 - 2026-10-24
 
 Breaking.

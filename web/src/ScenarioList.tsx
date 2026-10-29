@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { useLiveData } from "./data/liveData";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { isScenarioState } from "./scenario-state";
-import { fetchScenarios, type ScenarioSummary } from "./scenarios";
-
-type LoadState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "done"; scenarios: ScenarioSummary[] };
+import type { ScenarioSummary } from "./scenarios";
 
 type ActivationState =
   | { status: "idle" }
@@ -16,26 +12,20 @@ type ActivationState =
   | { status: "error"; message: string }
   | { status: "done"; state: ScenarioState };
 
-export function ScenarioList({ token }: { token: string }) {
-  const [state, setState] = useState<LoadState>({ status: "loading" });
+export function ScenarioList({
+  token,
+  onActivated,
+}: {
+  token: string;
+  onActivated: (scenarioId: string) => void;
+}) {
+  // The scenario list comes from LiveDataProvider, which loads it once.
+  const { scenarios, scenariosError, reloadScenarios } = useLiveData();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ScenarioSummary | null>(null);
   const [activation, setActivation] = useState<ActivationState>({
     status: "idle",
   });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchScenarios(token, controller.signal).then(
-      (scenarios) => setState({ status: "done", scenarios }),
-      (error: unknown) => {
-        if (controller.signal.aborted) return;
-        console.error(error);
-        setState({ status: "error", message: userMessage(error) });
-      },
-    );
-    return () => controller.abort();
-  }, [token]);
 
   async function activate(scenario: ScenarioSummary) {
     setSelected(null);
@@ -47,6 +37,7 @@ export function ScenarioList({ token }: { token: string }) {
         isScenarioState,
       );
       setActivation({ status: "done", state });
+      onActivated(state.scenarioId);
     } catch (error) {
       console.error(error);
       setActivation({ status: "error", message: userMessage(error) });
@@ -68,18 +59,25 @@ export function ScenarioList({ token }: { token: string }) {
         />
       </label>
 
-      {state.status === "loading" && <p role="status">Henter scenarier…</p>}
-
-      {state.status === "error" && (
-        <p role="alert">Kunne ikke hente scenarier: {state.message}</p>
+      {scenarios === null && scenariosError === null && (
+        <p role="status">Henter scenarier…</p>
       )}
 
-      {state.status === "done" &&
-        (state.scenarios.length === 0 ? (
+      {scenariosError !== null && (
+        <>
+          <p role="alert">Kunne ikke hente scenarier: {scenariosError}</p>
+          <button type="button" onClick={reloadScenarios}>
+            Prøv igen
+          </button>
+        </>
+      )}
+
+      {scenarios !== null &&
+        (scenarios.length === 0 ? (
           <p role="status">Ingen scenarier tilgængelige.</p>
         ) : (
           <ScenarioResults
-            scenarios={filterScenarios(state.scenarios, query)}
+            scenarios={filterScenarios(scenarios, query)}
             query={query}
             onSelect={setSelected}
             disabled={activation.status === "activating"}

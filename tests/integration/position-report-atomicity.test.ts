@@ -10,7 +10,11 @@ import type { AuthUser } from "../../src/services/auth-service.js";
 import { appendEvent } from "../../src/services/incident-log-service.js";
 import { savePositionReport } from "../../src/services/position-report-service.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
-import { closeOwnerDatabase, getOwnerDatabase } from "./helpers.js";
+import {
+  closeOwnerDatabase,
+  getOwnerDatabase,
+  seedTestScenarios,
+} from "./helpers.js";
 
 const sql = getDatabase();
 // The application may not delete position reports, so cleanup runs as the owner.
@@ -24,6 +28,7 @@ let baseUrl: string;
 
 before(async () => {
   const users = await seedTestUsers("atomic-");
+  await seedTestScenarios();
   const operator = users.find((user) => user.role === "OPERATOR")!;
   const stewardAccount = users.find((user) => user.role === "STEWARD")!;
   operatorUsername = operator.username;
@@ -80,12 +85,12 @@ function eventsAbout(reportId: string) {
 async function loginToken(
   username: string,
   password: string,
-  expectedRole: "STEWARD" | "OPERATOR",
+  client: "web" | "mobile",
 ) {
   const login = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password, expectedRole }),
+    body: JSON.stringify({ username, password, client }),
   });
   return ((await login.json()) as { token: string }).token;
 }
@@ -96,7 +101,7 @@ test("a position report and its event are stored together, with the actor from t
   const operatorToken = await loginToken(
     operatorUsername,
     "operator123",
-    "OPERATOR",
+    "web",
   );
   const activation = await fetch(
     `${baseUrl}/api/v1/scenarios/DEMO-003/activate`,
@@ -115,7 +120,7 @@ test("a position report and its event are stored together, with the actor from t
   const stewardToken = await loginToken(
     stewardUsername,
     "steward123",
-    "STEWARD",
+    "mobile",
   );
 
   // The client claims `staff` is somebody else. The token decides.

@@ -1,8 +1,7 @@
 import { REQUEST_TIMEOUT_MS } from "../../shared/http";
 import { ApiError } from "./get-json";
-import type { ScenarioList } from "../../shared/types/v1/scenario-list";
 import type { Scenario } from "../../shared/types/v1/scenario";
-import { version } from "os";
+import type { ScenarioList } from "../../shared/types/v1/scenario-list";
 
 // The fields of contracts/v1/scenario-list.schema.json this list uses.
 export type ScenarioSummary = Pick<
@@ -58,29 +57,22 @@ export async function fetchScenarios(
   return data;
 }
 
+// Checks the fields of contracts/v1/scenario.schema.json that the client reads.
 function isScenario(data: unknown): data is Scenario {
   const scenario = data as Partial<Scenario> | null;
   return (
     typeof scenario?.scenarioId === "string" &&
-    typeof scenario?.name === "string" &&
-    Array.isArray(scenario.versions) &&
-    scenario.versions.every(
-      (version) =>
-        typeof version?.version === "string" &&
-        Array.isArray(version.stationRequirements) &&
-        version.stationRequirements.every(
-          (r) =>
-            typeof r?.station === "string" &&
-            typeof r?.minimumStaffing === "number",
-        ),
-    )
+    typeof scenario.name === "string" &&
+    typeof scenario.currentVersion === "string" &&
+    Array.isArray(scenario.versions)
   );
 }
 
+// One scenario with all its versions. No signal to abort it, because
+// LiveDataProvider shares the request between components.
 export async function fetchScenario(
   token: string,
   scenarioId: string,
-  signal: AbortSignal,
   fetchImpl: typeof fetch = fetch,
 ): Promise<Scenario> {
   const path = `/api/v1/scenarios/${encodeURIComponent(scenarioId)}`;
@@ -88,10 +80,7 @@ export async function fetchScenario(
   try {
     response = await fetchImpl(path, {
       headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.any([
-        signal,
-        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      ]),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "TimeoutError") {
@@ -110,9 +99,7 @@ export async function fetchScenario(
   }
   const data: unknown = await response.json();
   if (!isScenario(data)) {
-    throw new Error(
-      `the server sent a scenario in an unexpected format for ${scenarioId}`,
-    );
+    throw new Error("the server sent a scenario in an unexpected format");
   }
   return data;
 }

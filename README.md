@@ -181,14 +181,15 @@ npm run dev
 
 ```text
 POST /api/v1/auth/login
-body: username, password, expectedRole → token, role
+body: username, password, client → token, role, expiresAt
 
 GET  /api/v1/me  (Authorization: Bearer <token>)
 
 POST /api/v1/auth/logout  (Authorization: Bearer <token>)
 ```
 
-`expectedRole` is `STEWARD` for the mobile app and `OPERATOR` for the web
-dashboard. The server checks that the database account has that role before it
-creates a session. Test accounts are created by `npm run seed:users`; see its
+`client` is `mobile` for the steward app or `web` for the operator dashboard.
+The server checks that the account's database role is allowed for that client
+before creating a session. The client value does not prove which device made the
+request; protected actions still check the account's role. Test accounts are created by `npm run seed:users`; see its
 console output for usernames and passwords.

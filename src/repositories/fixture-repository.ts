@@ -23,18 +23,6 @@ function readById(folder: string, id: string): unknown | undefined {
     : undefined;
 }
 
-export function getScenarioState(): unknown {
-  return readJson("scenario-state.json");
-}
-
-export function listScenarios(): unknown {
-  return readJson("scenarios.json");
-}
-
-export function findScenario(scenarioId: string): Scenario | undefined {
-  return readById("scenarios", scenarioId) as Scenario | undefined;
-}
-
 export function findMetroLine(lineId: string): unknown | undefined {
   return readById("metro-lines", lineId);
 }
@@ -66,16 +54,26 @@ type Activation = {
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 
-type StoredActivation = Pick<Activation, "scenarioId"> & {
+// An activation gets its sequence once its SCENARIO_ACTIVATED event is written.
+type PendingActivation = Pick<Activation, "activationId" | "scenarioId"> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
+  sequence?: number;
 };
-const activations: StoredActivation[] = [];
+type StoredActivation = PendingActivation & { sequence: number };
+const activations: PendingActivation[] = [];
 
-export function listActivations(status?: ActivationStatus) {
+function isLogged(
+  activation: PendingActivation,
+): activation is StoredActivation {
+  return activation.sequence !== undefined;
+}
+
+export function listActivations(status?: ActivationStatus): StoredActivation[] {
+  const logged = activations.filter(isLogged);
   return status === undefined
-    ? [...activations]
-    : activations.filter((a) => a.status === status);
+    ? logged
+    : logged.filter((a) => a.status === status);
 }
 
 // The stations that require manning in an active scenario.
@@ -87,23 +85,31 @@ export function activeStations(): Set<string> {
 
 // The most recently activated scenario, for clients that connect later.
 export function latestActivation(): StoredActivation | undefined {
-  return activations.at(-1);
+  return activations.filter(isLogged).at(-1);
+}
+
+export function setActivationSequence(activationId: string, sequence: number) {
+  const activation = activations.find((a) => a.activationId === activationId);
+  if (activation) activation.sequence = sequence;
+}
+
+// Takes back an activation whose event could not be written.
+export function undoActivation(activationId: string) {
+  const index = activations.findIndex((a) => a.activationId === activationId);
+  if (index !== -1) activations.splice(index, 1);
 }
 
 export type ActivationResult =
-  | { kind: "ok"; activation: Activation }
-  | { kind: "not-found" }
-  | { kind: "already-active" };
+  { kind: "ok"; activation: Activation } | { kind: "already-active" };
 
-// Several scenarios may be active on one line, so only the same scenario
-// twice is refused (Metro on MET-A-007).
+// Only one scenario can be active at a time, so any activation is refused
+// while another is active.
 export function activateScenario(
-  scenarioId: string,
+  scenario: Scenario,
   actor: string,
 ): ActivationResult {
-  const scenario = findScenario(scenarioId);
-  if (scenario === undefined) return { kind: "not-found" };
-  if (activations.some((a) => a.scenarioId === scenarioId)) {
+  const { scenarioId } = scenario;
+  if (activations.some((a) => a.status === "ACTIVE")) {
     return { kind: "already-active" };
   }
 
