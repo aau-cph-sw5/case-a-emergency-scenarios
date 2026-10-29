@@ -17,6 +17,8 @@ export const palette = {
   actionBlue: "#2563eb",
   linePurple: "#9b59b6",
   lineOrange: "#e67e22",
+  darkYellow: "#8A6A00", // yellow dark enough to read as text on white
+  lightGrey: "#d9dde0",
 };
 
 export const colors = {
@@ -30,6 +32,8 @@ export const colors = {
   statusGreen: palette.metroLineOne,
   statusYellow: palette.metroLineTwo,
   statusRed: palette.metroLineThree,
+  statusYellowText: palette.darkYellow,
+  subtleBorder: palette.lightGrey, // card outlines that should not compete with the status colour
 };
 
 export const lineColors = [

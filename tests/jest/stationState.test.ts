@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import {
   countManned,
+  countStewards,
   formatTime,
   getStationState,
 } from "../../shared/components/stationState";
@@ -25,6 +26,7 @@ describe("getStationState", () => {
     expect(getStationState({ deployments: [] }, "Station A", 2)).toEqual({
       statuses: ["UNMANNED", "UNMANNED"],
       current: 0,
+      enRoute: 0,
       lastUpdate: undefined,
     });
   });
@@ -46,6 +48,7 @@ describe("getStationState", () => {
     expect(state).toEqual({
       statuses: ["PENDING", "MANNED", "UNMANNED"],
       current: 1,
+      enRoute: 1,
       lastUpdate: "2026-10-18T09:15:00Z",
     });
   });
@@ -77,6 +80,26 @@ describe("countManned", () => {
     };
 
     expect(countManned(state, requirements)).toBe(2);
+  });
+});
+
+describe("countStewards", () => {
+  it("counts no more arrived stewards at a station than it needs", () => {
+    expect(
+      countStewards(
+        {
+          deployments: [
+            createDeployment("Station A", "MANNED"),
+            createDeployment("Station A", "MANNED"),
+            createDeployment("Station B", "PENDING"),
+          ],
+        },
+        [
+          { station: "Station A", minimumStaffing: 1 },
+          { station: "Station B", minimumStaffing: 2 },
+        ],
+      ),
+    ).toEqual({ arrived: 1, enRoute: 1, needed: 3 });
   });
 });
 
