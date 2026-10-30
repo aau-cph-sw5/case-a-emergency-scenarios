@@ -1,5 +1,5 @@
 import { Text, View } from "react-native";
-import { box, colors, text } from "../Theme";
+import { box, colors, spacing, surface, text } from "../Theme";
 import type { ScenarioState } from "../types/v1/scenario-state";
 import { STATUS, type StationRequirement } from "./stationRow";
 import { countByStatus, countManned, formatTime } from "./stationState";
@@ -42,16 +42,19 @@ function Metric({
 }) {
   const ratio = total > 0 ? Math.min(value / total, 1) : 0;
   return (
-    <View style={{ marginBottom: 16 }}>
-      <Text style={{ fontSize: 11, fontWeight: "700", letterSpacing: 1 }}>
-        {label.toUpperCase()}
-      </Text>
+    <View style={{ marginBottom: spacing.large }}>
+      <Text style={text.label}>{label.toUpperCase()}</Text>
       <Text style={text.body}>
-        <Text style={{ fontSize: 28, fontWeight: "700", color }}>{value}</Text>{" "}
-        af {total}
+        <Text style={[text.figure, { color }]}>{value}</Text> af {total}
       </Text>
       {/* The bar: a filled part and an empty part, sized by flex */}
-      <View style={{ flexDirection: "row", height: 4, marginTop: 4 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          height: spacing.small,
+          marginTop: spacing.small,
+        }}
+      >
         <View style={{ flex: ratio, backgroundColor: color }} />
         <View style={{ flex: 1 - ratio, backgroundColor: colors.page }} />
       </View>
@@ -74,8 +77,8 @@ function ActiveData({
   const required = requirements.length;
   const counts = countByStatus(state, requirements);
   const positions = counts.MANNED + counts.PENDING + counts.UNMANNED;
-  const ok = STATUS.MANNED.color;
-  const bad = STATUS.UNMANNED.color;
+  const ok = colors.statusGreen;
+  const bad = colors.statusRed;
 
   return (
     <>
@@ -83,7 +86,7 @@ function ActiveData({
         {state.scenarioId}
         {scenarioName ? ` ${scenarioName}` : ""}
       </Text>
-      <Text style={[text.body, { marginBottom: 12 }]}>
+      <Text style={[text.body, { marginBottom: spacing.medium }]}>
         Activated by {state.actor} · Active for{" "}
         {formatDuration(state.startedAt, now)}
       </Text>
@@ -129,7 +132,7 @@ export default function StatusBar({
   return (
     <View
       accessibilityRole="summary"
-      style={[box, { backgroundColor: colors.background, padding: 12 }]}
+      style={[box, surface, { padding: spacing.medium }]}
     >
       {active ? (
         <ActiveData
@@ -139,14 +142,14 @@ export default function StatusBar({
           now={now}
         />
       ) : (
-        <Text style={[text.title, { marginBottom: 12 }]}>
+        <Text style={[text.title, { marginBottom: spacing.medium }]}>
           No active scenario
         </Text>
       )}
 
       <Text
         style={{
-          color: isConnected ? STATUS.MANNED.color : STATUS.UNMANNED.color,
+          color: isConnected ? colors.statusGreen : colors.statusRed,
         }}
       >
         {isConnected
