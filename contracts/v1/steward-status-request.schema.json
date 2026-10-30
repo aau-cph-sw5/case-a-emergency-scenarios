@@ -1,0 +1,15 @@
+{
+  "$id": "steward-status-request.schema.json",
+  "title": "Steward Status Request",
+  "description": "The status and station a steward sets for themselves. The steward is taken from the token, never from the request.",
+  "type": "object",
+  "required": ["status", "station"],
+  "properties": {
+    "status": {
+      "$ref": "steward-status.schema.json#/definitions/StewardStatusValue"
+    },
+    "station": {
+      "type": "string"
+    }
+  }
+}

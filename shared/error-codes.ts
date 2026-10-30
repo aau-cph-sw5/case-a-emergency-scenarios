@@ -30,6 +30,7 @@ export const ERROR_CODES = {
   SCENARIO_STOOD_DOWN: "E1003",
   STATION_NOT_IN_SCENARIO: "E1004",
   LOCAL_COPY_TOO_STALE: "E1005",
+  INVALID_STATUS_TRANSITION: "E1006", // The status change is not permitted from the steward's current status
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -46,6 +47,7 @@ export const ERROR_MESSAGES: Partial<Record<ErrorCode, string>> = {
   E0102: "Invalid credentials",
   E1001: "No scenario is currently active",
   E1004: "The station is not part of the active scenario",
+  E1006: "The status change is not permitted from the steward's current status",
 };
 
 export function errorBody(

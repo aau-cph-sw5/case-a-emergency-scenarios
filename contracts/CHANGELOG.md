@@ -1,5 +1,24 @@
 # Scenario State Contract Changelog
 
+## 6.2.0 - 2026-10-30
+
+Additive. Steward status (MET-A-015, #261). A steward assigns themselves to a station, checks in on arrival and checks out on leaving, so a status belongs to a station in the active scenario. Every new activation starts with no statuses.
+
+- New status values in `steward-status.schema.json` (`StewardStatusValue`), each the steward action it corresponds to:
+
+  | Status        | Steward action                              |
+  | ------------- | ------------------------------------------- |
+  | `ASSIGNED`    | assign: chooses a station and is on the way |
+  | `CHECKED_IN`  | check in: is at the station                 |
+  | `CHECKED_OUT` | check out: has left the station             |
+
+- Allowed changes: none to `ASSIGNED` (assign); `ASSIGNED` to `ASSIGNED` at another station (change station before arriving); `ASSIGNED` to `CHECKED_IN`, same station (check in); `ASSIGNED` to `CHECKED_OUT`, same station (cancel without arriving); `CHECKED_IN` to `CHECKED_OUT`, same station (check out); `CHECKED_OUT` to `ASSIGNED` (take a new station). Sending the status and station the steward already has is a harmless repeat. Any other change is rejected with 409 `E1006`, and the status is unchanged. `classifyStatusChange` in `shared/scenario/steward-status.ts` implements the same rules for the stub and the server.
+- `GET /api/v1/steward-status` (STEWARD): the steward's own status, or `null`.
+- `PUT /api/v1/steward-status` (STEWARD): sets the steward's status and station, body `steward-status-request.schema.json`. The steward is taken from the token.
+- `GET /api/v1/steward-statuses` (OPERATOR): every steward with a status in the active scenario, `steward-status-list.schema.json`.
+- New error code `E1006` (`INVALID_STATUS_TRANSITION`): the status change is not permitted from the steward's current status.
+- `info.version` in `openapi.yaml` is now 6.2.0.
+
 ## 6.1.0 - 2026-10-28
 
 Additive. Activations carry the incident log `sequence` of their `SCENARIO_ACTIVATED` event (MET-A-004).

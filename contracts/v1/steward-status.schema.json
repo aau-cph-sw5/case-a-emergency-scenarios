@@ -1,0 +1,36 @@
+{
+  "$id": "steward-status.schema.json",
+  "title": "Steward Status",
+  "description": "A steward's status at a station in the active scenario (MET-A-015). A steward without a status has not assigned themselves in this activation, and every new activation starts with none. Allowed changes: none to ASSIGNED (assign); ASSIGNED to ASSIGNED at another station (change station before arriving); ASSIGNED to CHECKED_IN at the same station (check in); ASSIGNED to CHECKED_OUT at the same station (cancel without arriving); CHECKED_IN to CHECKED_OUT at the same station (check out); CHECKED_OUT to ASSIGNED (take a new station). Sending the status and station the steward already has is a harmless repeat. Any other change is rejected with E1006.",
+  "type": "object",
+  "required": ["userId", "activationId", "station", "status", "changedAt"],
+  "properties": {
+    "userId": {
+      "type": "integer",
+      "description": "The steward, as userId in GET /api/v1/me."
+    },
+    "activationId": {
+      "type": "string",
+      "description": "The activation the status belongs to."
+    },
+    "station": {
+      "type": "string",
+      "description": "A station that requires manning in the active scenario."
+    },
+    "status": {
+      "$ref": "#/definitions/StewardStatusValue"
+    },
+    "changedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server time of the last change. A harmless repeat does not move it."
+    }
+  },
+  "definitions": {
+    "StewardStatusValue": {
+      "type": "string",
+      "enum": ["ASSIGNED", "CHECKED_IN", "CHECKED_OUT"],
+      "description": "ASSIGNED: the steward has chosen the station and is on the way (assign). CHECKED_IN: the steward is at the station (check in). CHECKED_OUT: the steward has left the station (check out)."
+    }
+  }
+}

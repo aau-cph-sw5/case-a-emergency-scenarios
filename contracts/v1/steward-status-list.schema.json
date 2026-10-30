@@ -1,0 +1,7 @@
+{
+  "$id": "steward-status-list.schema.json",
+  "title": "Steward Status List",
+  "description": "The status of every steward who has one in the active scenario.",
+  "type": "array",
+  "items": { "$ref": "steward-status.schema.json" }
+}
