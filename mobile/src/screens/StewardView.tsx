@@ -18,7 +18,7 @@ import { snapshotStore } from "../offline/snapshot-store";
 import { socket } from "../socket";
 import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
-import { ScenarioSummary } from "./ScenarioSummary";
+import { ScenarioOverview } from "./ScenarioOverview";
 
 // online is false when the phone has no connection or the session could not
 // be confirmed; the saved copy is shown then, and nothing is sent.
@@ -124,7 +124,7 @@ export function StewardView({
           />
         )}
         {(view.status === "live" || view.status === "copy") && (
-          <ScenarioSummary snapshot={view.snapshot} />
+          <ScenarioOverview snapshot={view.snapshot} />
         )}
 
         {online && (
