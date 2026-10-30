@@ -41,6 +41,7 @@ export function useActiveScenario({
   // Only the newest refresh may update the view, so a slow older answer
   // cannot overwrite a newer one.
   const latestRunRef = useRef(0);
+  const shownSequenceRef = useRef(0);
   const onUnauthorizedRef = useRef(onUnauthorized);
 
   useEffect(() => {
@@ -84,6 +85,8 @@ export function useActiveScenario({
         await store.clear().catch(() => undefined);
         return;
       }
+      if (active.state.sequence < shownSequenceRef.current) return;
+      shownSequenceRef.current = active.state.sequence;
       const snapshot = buildSnapshot(active, userId ?? "", new Date());
       setView({ status: "live", snapshot });
       // A failing save keeps the live view; the next refresh tries again.

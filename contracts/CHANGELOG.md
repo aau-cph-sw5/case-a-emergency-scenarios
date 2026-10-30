@@ -1,5 +1,12 @@
 # Scenario State Contract Changelog
 
+## 6.1.1 - 2026-10-30
+
+Documents what `deployments[].staff` holds (no change to the shape).
+
+- `staff` is the `userId` of the steward who reported to the station, the same id `GET /api/v1/me` and the login token return, written as text (for example `"7"`), as the server already does for position reports. The steward app matches it against the logged-in user to highlight the steward's own assignment (MET-A-010, issue #158).
+- `info.version` in `openapi.yaml` is now 6.1.1
+
 ## 6.1.0 - 2026-10-28
 
 Additive. Activations carry the incident log `sequence` of their `SCENARIO_ACTIVATED` event (MET-A-004).

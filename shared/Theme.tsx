@@ -17,6 +17,7 @@ export const palette = {
   actionBlue: "#2563eb",
   linePurple: "#9b59b6",
   lineOrange: "#e67e22",
+  networkGrey: "#B0B0B0",
 };
 
 export const colors = {
