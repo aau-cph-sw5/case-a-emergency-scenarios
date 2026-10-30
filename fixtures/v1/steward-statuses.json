@@ -1,0 +1,23 @@
+[
+  {
+    "userId": 1,
+    "activationId": "ACT-DEMO-001",
+    "station": "Station B",
+    "status": "CHECKED_IN",
+    "changedAt": "2026-10-30T08:25:00Z"
+  },
+  {
+    "userId": 3,
+    "activationId": "ACT-DEMO-001",
+    "station": "Station B",
+    "status": "ASSIGNED",
+    "changedAt": "2026-10-30T08:12:00Z"
+  },
+  {
+    "userId": 4,
+    "activationId": "ACT-DEMO-001",
+    "station": "Station B",
+    "status": "CHECKED_OUT",
+    "changedAt": "2026-10-30T07:55:00Z"
+  }
+]

@@ -32,6 +32,8 @@ const checks = [
     ["metro-line.schema.json"],
   ]),
   ["position-report.json", ["position-report.schema.json"]],
+  ["steward-status.json", ["steward-status.schema.json"]],
+  ["steward-statuses.json", ["steward-status-list.schema.json"]],
 ];
 
 let failures = 0;
