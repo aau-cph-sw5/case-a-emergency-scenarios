@@ -19,6 +19,7 @@ export const palette = {
   lineOrange: "#e67e22",
   darkYellow: "#8A6A00", // yellow dark enough to read as text on white
   lightGrey: "#d9dde0",
+  networkGrey: "#B0B0B0",
 };
 
 export const colors = {

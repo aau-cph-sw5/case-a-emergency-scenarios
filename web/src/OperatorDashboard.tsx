@@ -1,5 +1,3 @@
-import { socket } from "./socket";
-import { usePositionReports } from "../../shared/socket/usePositionReports";
 import { ScenarioList } from "./ScenarioList";
 import { StewardPositions } from "./components/StewardPositions";
 import { OperatorSections } from "./components/OperatorSections";
@@ -14,9 +12,6 @@ export function OperatorDashboard({
   token: string;
   onLogout: () => void;
 }) {
-  // Every position report pushed by the server over the socket, newest first.
-  const reports = usePositionReports(socket);
-
   return (
     <main>
       <button onClick={onLogout} type="button">
@@ -29,13 +24,14 @@ export function OperatorDashboard({
           <ScenarioList token={token} onActivated={() => {}} />
         }
         map={<p>Insert map here...</p>}
-        coverage={
-          <>
-            <LiveCoverage />
-            <StewardPositions reports={reports} />
-          </>
-        }
+        coverage={<LiveCoverage />}
       />
+      {/* Fixed in the bottom right corner, so it follows the wireframe whatever
+          the section layout does. */}
+      <div className="status-popup">
+        {/* TEMPORARY: mock shows hardcoded rows. Remove the prop for live data. */}
+        <StewardPositions mock={import.meta.env.DEV} />
+      </div>
     </main>
   );
 }

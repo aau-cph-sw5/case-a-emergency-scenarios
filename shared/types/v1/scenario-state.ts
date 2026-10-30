@@ -17,6 +17,9 @@ export interface ScenarioState {
     status: "UNMANNED" | "PENDING" | "MANNED";
     reportedAt?: string | null;
     arrivedAt?: string | null;
+    /**
+     * The userId of the steward who reported to this station, the same id GET /api/v1/me and the login token return, written as text (for example "1"). Null when nobody has reported.
+     */
     staff?: string | null;
     fulfills: string;
     [k: string]: unknown;

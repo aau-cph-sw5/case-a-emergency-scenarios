@@ -262,6 +262,68 @@ describe("useActiveScenario", () => {
     await waitFor(async () => expect(await store.load("7")).toBeNull());
   });
 
+  it("applies activations in the order they were generated, even when delivered out of order", async () => {
+    let sequence = 2;
+    jest.spyOn(global, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/scenario-state")) {
+        return response(200, { ...state, sequence });
+      }
+      if (url.endsWith(`/api/v1/scenarios/${definition.scenarioId}`)) {
+        return response(200, definition);
+      }
+      return response(404);
+    });
+    const { result, store } = render({ online: true });
+    const shown = () =>
+      result.current.view.status === "live"
+        ? result.current.view.snapshot.state.sequence
+        : undefined;
+    await waitFor(() => expect(shown()).toBe(2));
+
+    // Activation 1 arrives after 2: it is older, so 2 stays shown and saved.
+    sequence = 1;
+    await act(() => result.current.refresh());
+    expect(shown()).toBe(2);
+    expect((await store.load("7"))?.state.sequence).toBe(2);
+
+    sequence = 3;
+    await act(() => result.current.refresh());
+    expect(shown()).toBe(3);
+  });
+
+  it("a slow answer to an older refresh cannot replace a newer one", async () => {
+    let releaseFirst = () => {};
+    let calls = 0;
+    jest.spyOn(global, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/scenario-state")) {
+        calls += 1;
+        if (calls === 1) {
+          return new Promise<Response>((resolve) => {
+            releaseFirst = () =>
+              resolve(response(200, { ...state, sequence: 1 }));
+          });
+        }
+        return Promise.resolve(response(200, { ...state, sequence: 2 }));
+      }
+      if (url.endsWith(`/api/v1/scenarios/${definition.scenarioId}`)) {
+        return Promise.resolve(response(200, definition));
+      }
+      return Promise.resolve(response(404));
+    });
+    const { result } = render({ online: true });
+    await waitFor(() => expect(calls).toBe(1));
+
+    await act(() => result.current.refresh());
+    await act(async () => releaseFirst());
+
+    expect(result.current.view).toMatchObject({
+      status: "live",
+      snapshot: { state: { sequence: 2 } },
+    });
+  });
+
   it("switches to the copy when the connection drops", async () => {
     serverAnswers();
     const store = memoryStore();
