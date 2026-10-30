@@ -35,6 +35,15 @@ export function OperatorDashboard({
   token: string;
   onLogout: () => void;
 }) {
+  // The scenario the operator has selected in the list. It is held here, in
+  // the dashboard, rather than inside the list, so that other parts of the
+  // dashboard can use the same selection. The scenario preview, which shows
+  // what the selected scenario requires before it is activated, reads it from
+  // here.
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(
+    null,
+  );
+
   // The latest activated scenario; null until one is active.
   const [active, setActive] = useState<Active | null>(null);
 
@@ -76,6 +85,8 @@ export function OperatorDashboard({
         scenarioSelection={
           <ScenarioList
             token={token}
+            selectedId={selectedScenarioId}
+            onSelect={setSelectedScenarioId}
             onActivated={(id) => showActivated(id).catch(console.error)}
           />
         }

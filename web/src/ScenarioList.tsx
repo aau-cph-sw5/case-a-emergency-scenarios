@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { colors } from "../../shared/Theme";
 import { useLiveData } from "./data/liveData";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { isScenarioState } from "./scenario-state";
 import type { ScenarioSummary } from "./scenarios";
+import { canActivate, keepSelection } from "./selection";
 
 type ActivationState =
   | { status: "idle" }
@@ -12,23 +14,51 @@ type ActivationState =
   | { status: "error"; message: string }
   | { status: "done"; state: ScenarioState };
 
+// The list does not keep the selection itself. OperatorDashboard holds it and
+// passes it in, so the scenario preview next to the list shows the same
+// scenario that is selected here.
 export function ScenarioList({
   token,
+  selectedId,
+  onSelect,
   onActivated,
 }: {
   token: string;
+  selectedId: string | null;
+  onSelect: (scenarioId: string | null) => void;
   onActivated: (scenarioId: string) => void;
 }) {
-  // The scenario list comes from LiveDataProvider, which loads it once.
-  const { scenarios, scenariosError, reloadScenarios } = useLiveData();
+  // The scenario list and the active activations come from LiveDataProvider,
+  // which loads them once and reloads the activations when they change.
+  const { scenarios, scenariosError, reloadScenarios, activations, error } =
+    useLiveData();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<ScenarioSummary | null>(null);
+  // True while the confirmation dialog is open for the selected scenario.
+  const [confirming, setConfirming] = useState(false);
   const [activation, setActivation] = useState<ActivationState>({
     status: "idle",
   });
+  // The scenarios that are already active. A scenario activated here counts
+  // as active straight away, so the operator cannot try to activate it again
+  // before the reloaded activations arrive.
+  const activeIds = new Set(activations.map((a) => a.scenarioId));
+  if (activation.status === "done") activeIds.add(activation.state.scenarioId);
+  // If the active scenarios cannot be loaded, the operator can still find and
+  // activate scenarios, and a message says that they could not be shown.
+  const activeFailed = error !== null;
+
+  // Clear the selection if the selected scenario is no longer in the list.
+  useEffect(() => {
+    if (scenarios === null) return;
+    const kept = keepSelection(selectedId, scenarios);
+    if (kept !== selectedId) onSelect(kept);
+  }, [scenarios, selectedId, onSelect]);
+
+  const selected =
+    scenarios?.find((scenario) => scenario.scenarioId === selectedId) ?? null;
 
   async function activate(scenario: ScenarioSummary) {
-    setSelected(null);
+    setConfirming(false);
     setActivation({ status: "activating" });
     try {
       const state = await postJson(
@@ -79,16 +109,38 @@ export function ScenarioList({
           <ScenarioResults
             scenarios={filterScenarios(scenarios, query)}
             query={query}
-            onSelect={setSelected}
+            selectedId={selectedId}
+            activeIds={activeIds}
+            onSelect={onSelect}
             disabled={activation.status === "activating"}
           />
         ))}
 
-      {selected && (
+      {activeFailed && <p role="status">Aktive scenarier kunne ikke vises.</p>}
+
+      {/* Opens the existing confirmation for the selected scenario. It sits
+          under the list for now; it belongs at the bottom of the scenario
+          preview, so the operator sees what a scenario requires before
+          activating it. */}
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        disabled={
+          !canActivate(
+            selected?.scenarioId ?? null,
+            activation.status === "activating",
+            activeIds,
+          )
+        }
+      >
+        Aktivér valgt scenarie
+      </button>
+
+      {confirming && selected && (
         <ConfirmActivation
           scenario={selected}
           onConfirm={() => activate(selected)}
-          onCancel={() => setSelected(null)}
+          onCancel={() => setConfirming(false)}
         />
       )}
 
@@ -117,15 +169,25 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
   }
 }
 
+const selectedStyle = {
+  backgroundColor: colors.active,
+  color: colors.textInverse,
+  fontWeight: "bold",
+} as const;
+
 function ScenarioResults({
   scenarios,
   query,
+  selectedId,
+  activeIds,
   onSelect,
   disabled,
 }: {
   scenarios: ScenarioSummary[];
   query: string;
-  onSelect: (scenario: ScenarioSummary) => void;
+  selectedId: string | null;
+  activeIds: ReadonlySet<string>;
+  onSelect: (scenarioId: string) => void;
   disabled: boolean;
 }) {
   // No match is an empty list, not an error.
@@ -134,17 +196,27 @@ function ScenarioResults({
   }
   return (
     <ul>
-      {scenarios.map((scenario) => (
-        <li key={scenario.scenarioId}>
-          <button
-            type="button"
-            onClick={() => onSelect(scenario)}
-            disabled={disabled}
-          >
-            {scenario.name}
-          </button>
-        </li>
-      ))}
+      {scenarios.map((scenario) => {
+        const isSelected = scenario.scenarioId === selectedId;
+        // The selected scenario is inverted, the shared "selected" style in
+        // Theme, and bold, so it is marked by more than colour. aria-pressed
+        // tells screen readers which one is selected.
+        return (
+          <li key={scenario.scenarioId}>
+            <button
+              type="button"
+              aria-pressed={isSelected}
+              onClick={() => onSelect(scenario.scenarioId)}
+              disabled={disabled}
+              style={isSelected ? selectedStyle : undefined}
+            >
+              {scenario.name}
+              {/* Text, so an active scenario is not marked by colour alone. */}
+              {activeIds.has(scenario.scenarioId) && " — Aktiv"}
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }
