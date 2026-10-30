@@ -27,7 +27,11 @@ export function countByStatus(
 ): StatusCounts {
   const counts: StatusCounts = { MANNED: 0, PENDING: 0, UNMANNED: 0 };
   for (const r of requirements) {
-    const { statuses } = getStationState(scenario, r.station, r.minimumStaffing);
+    const { statuses } = getStationState(
+      scenario,
+      r.station,
+      r.minimumStaffing,
+    );
     for (const status of statuses) counts[status]++;
   }
   return counts;

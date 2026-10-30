@@ -87,7 +87,7 @@ describe("LiveStatusBar", () => {
     renderWith([activation()], async () => scenario, false);
     await screen.findByText("⚠ Disconnected · data may be out of date");
   });
-  
+
   it("shows the most recently activated scenario", async () => {
     const asked: string[] = [];
 
