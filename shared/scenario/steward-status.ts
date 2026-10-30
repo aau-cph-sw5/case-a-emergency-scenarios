@@ -2,7 +2,7 @@
 // import this file.
 // The status changes the contract allows (MET-A-015). steward-status.schema.json
 // describes the same rules; keep the two in step.
-import type { StewardStatusValue } from "../types/v1/steward-status";
+import type { StewardStatusValue } from "../types/v1/steward-status.js";
 
 export type { StewardStatusValue };
 
