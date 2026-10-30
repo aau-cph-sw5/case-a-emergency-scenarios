@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { getJson } from "./get-json";
-import { socket } from "./socket";
-import { usePositionReports } from "../../shared/socket/usePositionReports";
 import ScenarioStationList from "../../shared/components/stationView";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
@@ -37,9 +35,6 @@ export function OperatorDashboard({
   token: string;
   onLogout: () => void;
 }) {
-  // Every position report pushed by the server over the socket, newest first.
-  const reports = usePositionReports(socket);
-
   // The latest activated scenario; null until one is active.
   const [active, setActive] = useState<Active | null>(null);
 
@@ -86,19 +81,22 @@ export function OperatorDashboard({
         }
         map={<p>Insert map here...</p>}
         coverage={
-          <>
-            {active ? (
-              <ScenarioStationList
-                scenario={active.scenario}
-                activeDeployments={active.state}
-              />
-            ) : (
-              <p>Intet aktivt scenarie.</p>
-            )}
-            <StewardPositions reports={reports} />
-          </>
+          active ? (
+            <ScenarioStationList
+              scenario={active.scenario}
+              activeDeployments={active.state}
+            />
+          ) : (
+            <p>Intet aktivt scenarie.</p>
+          )
         }
       />
+      {/* Fixed in the bottom right corner, so it follows the wireframe whatever
+          the section layout does. */}
+      <div className="status-popup">
+        {/* TEMPORARY: mock shows hardcoded rows. Remove the prop for live data. */}
+        <StewardPositions mock={import.meta.env.DEV} />
+      </div>
     </main>
   );
 }

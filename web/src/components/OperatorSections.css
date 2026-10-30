@@ -28,3 +28,11 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+.status-popup {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 10;
+  width: min(420px, calc(100vw - 48px));
+}
