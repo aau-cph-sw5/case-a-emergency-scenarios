@@ -15,12 +15,19 @@ import {
   affectedStretchAsMapLine,
   networkWithoutStretch,
 } from "./affected-stations";
+import { findOwnAssignment } from "./own-assignment";
 
 // The colour of the affected stretch, on the map and in the legend.
 const STRETCH_COLOR = lineColors[0];
+// The colour of the steward's own station, on the map, in the list and in the legend.
+const OWN_COLOR = palette.metroSummerRed;
+
+type StationRequirement = NonNullable<
+  ScenarioSnapshot["scenario"]["versions"][number]["stationRequirements"]
+>[number];
 
 export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
-  const { scenario } = snapshot;
+  const { scenario, state, userId } = snapshot;
   const mapColors = {
     [scenario.name]: STRETCH_COLOR,
     M1: palette.networkGrey,
@@ -36,6 +43,12 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
     stretch.connections,
   ).map((line) => ({ ...line, tracks: [1, 2] }));
   const mapLines = [...networkLines, stretch];
+  // MET-A-010 criterion 2: the steward's own assignment stands out without
+  // interaction. userId comes from the offline copy, so this works offline.
+  const ownAssignment = findOwnAssignment(state.deployments, userId);
+  const ownStation = ownAssignment?.fulfills;
+  const ownRow = rows.find((row) => row.station === ownStation);
+  const ownActions = sortedActions(ownRow);
 
   return (
     <View>
@@ -54,6 +67,8 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
           lines={mapLines}
           colors={mapColors}
           showLineButtons={false}
+          highlightStation={ownStation}
+          highlightColor={OWN_COLOR}
         />
       </View>
 
@@ -61,14 +76,64 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
         <View style={styles.legendLine} />
         <Text style={styles.body}>Berørt strækning</Text>
       </View>
+      {ownStation !== undefined && (
+        <View style={styles.legend}>
+          <View style={styles.legendDot} />
+          <Text style={styles.body}>Din station</Text>
+        </View>
+      )}
+
+      {ownStation !== undefined ? (
+        // Layout from the design group: a dark card with the station's
+        // actions as a numbered list, so it stands out from the white cards.
+        <View style={styles.ownCard} accessibilityLabel="Din opgave">
+          <Text style={styles.ownCardTitle} accessibilityRole="header">
+            Opgaver på {ownStation}
+          </Text>
+          {ownRow && (
+            <Text style={styles.ownCardPlacement}>{ownRow.placement}</Text>
+          )}
+          {ownActions.length > 0 ? (
+            ownActions.map((action, index) => (
+              <Text
+                key={action.sequence}
+                style={[styles.ownCardTask, index > 0 && styles.ownCardDivider]}
+              >
+                {action.sequence}. {action.instruction}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.ownCardTask}>
+              Ingen opgaver for denne station
+            </Text>
+          )}
+        </View>
+      ) : (
+        <View style={styles.noAssignmentBox}>
+          <Text style={styles.body}>Ingen opgave endnu</Text>
+        </View>
+      )}
 
       <Text style={styles.heading}>Påvirkede stationer</Text>
       {rows.map((row) => (
-        <View key={`${row.station}-${row.placement}`} style={styles.station}>
+        <View
+          key={`${row.station}-${row.placement}`}
+          style={[
+            styles.station,
+            row.station === ownStation && styles.ownStationRow,
+          ]}
+        >
+          {/* The own station is kept short: its placement and actions are
+              already in the "Opgaver på" card above. */}
+          {row.station === ownStation && (
+            <Text style={styles.ownLabel}>Din station</Text>
+          )}
           <Text style={styles.stationName}>
             {row.station} · {row.minimumStaffing} påkrævet
           </Text>
-          <Text style={styles.body}>{row.placement}</Text>
+          {row.station !== ownStation && (
+            <Text style={styles.body}>{row.placement}</Text>
+          )}
           <Text style={styles.body}>
             {row.activeDuring && row.activeDuring.length > 0
               ? `Bemandes: ${row.activeDuring
@@ -79,7 +144,7 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
                   .join(", ")}`
               : "Bemandes hele tiden"}
           </Text>
-          {(row.actions ?? []).length > 0 && (
+          {row.station !== ownStation && (row.actions ?? []).length > 0 && (
             <Text style={styles.body}>
               {[...(row.actions ?? [])]
                 .sort((a, b) => a.sequence - b.sequence)
@@ -91,6 +156,10 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
       ))}
     </View>
   );
+}
+
+function sortedActions(row: StationRequirement | undefined) {
+  return [...(row?.actions ?? [])].sort((a, b) => a.sequence - b.sequence);
 }
 
 const styles = StyleSheet.create({
@@ -143,5 +212,58 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: STRETCH_COLOR,
     marginRight: 8,
+  },
+  legendDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: OWN_COLOR,
+    marginLeft: 5,
+    marginRight: 13,
+  },
+
+  // The steward's own assignment: a dark card plus text labels, so it does
+  // not rely on colour alone.
+  ownCard: {
+    backgroundColor: colors.active,
+    // Rounded as in the design group's sketch. Only this card: the theme's
+    // radius stays 0 for the rest of the app.
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  ownCardTitle: {
+    ...text.title,
+    color: colors.textInverse,
+    marginBottom: 4,
+  },
+  ownCardPlacement: {
+    ...text.body,
+    color: colors.textInverse,
+    marginBottom: 6,
+  },
+  ownCardTask: {
+    ...text.body,
+    color: colors.textInverse,
+    paddingVertical: 8,
+    paddingLeft: 8,
+  },
+  ownCardDivider: {
+    borderTopWidth: 1,
+    borderTopColor: palette.networkGrey,
+  },
+  ownLabel: {
+    ...text.body,
+    color: OWN_COLOR,
+    fontWeight: "700",
+  },
+  ownStationRow: {
+    borderWidth: 3,
+    borderColor: OWN_COLOR,
+  },
+  noAssignmentBox: {
+    ...surface,
+    ...box,
+    marginBottom: 8,
   },
 });

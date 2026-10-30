@@ -26,15 +26,28 @@ function GetOffset(
   return { ox: (-dy / length) * offset, oy: (dx / length) * offset };
 }
 
-function Station({ name, x, y }: { name: string; x: number; y: number }) {
+function Station({
+  name,
+  x,
+  y,
+  highlightColor,
+}: {
+  name: string;
+  x: number;
+  y: number;
+  // Set only for the station to highlight, e.g. the steward's own (MET-A-010).
+  highlightColor?: string;
+}) {
   const [hover, setHover] = useState(false);
+  // Only a little larger than the others, so the label above stays readable.
+  const baseRadius = highlightColor ? 12 : 10;
   return (
     <>
       <Circle
         cx={x}
         cy={y}
-        r={hover ? 13 : 10}
-        fill={theme.background}
+        r={hover ? baseRadius + 3 : baseRadius}
+        fill={highlightColor ?? theme.background}
         stroke={theme.text}
         strokeWidth={5}
         onPress={() => console.log(`Clicked: ${name}`)}
@@ -43,7 +56,14 @@ function Station({ name, x, y }: { name: string; x: number; y: number }) {
           onMouseLeave: () => setHover(false),
         } as any)}
       />
-      <Text {...text.mapLabel} x={x} y={y - 14} textAnchor="middle">
+      <Text
+        {...text.mapLabel}
+        x={x}
+        // Unchanged for normal stations; lifted clear of the highlighted dot.
+        y={highlightColor ? y - baseRadius - 8 : y - 14}
+        textAnchor="middle"
+        {...(highlightColor ? { fill: highlightColor } : {})}
+      >
         {name}
       </Text>
     </>
@@ -160,12 +180,20 @@ export default function MapRender({
   colors,
   viewBox = "0 0 950 700",
   showLineButtons = true,
+  highlightStation,
+  highlightColor = theme.text,
 }: {
   lines: MapLine[];
   colors: Record<string, string>;
   viewBox?: string;
   showLineButtons?: boolean;
+  // Optional: one station drawn larger and filled. Leaving it out draws the
+  // map exactly as before.
+  highlightStation?: string;
+  highlightColor?: string;
 }) {
+  const highlightFor = (station: string) =>
+    station === highlightStation ? highlightColor : undefined;
   const [hidden, setHidden] = useState<string[]>([]);
   const visible = lines.filter((l) => !hidden.includes(l.name));
   return (
@@ -208,12 +236,32 @@ export default function MapRender({
                       />
                     ),
                 )}
-                <Station name={stationB} x={x2} y={y2} />
-                <Station name={stationA} x={x1} y={y1} />
+                <Station
+                  name={stationB}
+                  x={x2}
+                  y={y2}
+                  highlightColor={highlightFor(stationB)}
+                />
+                <Station
+                  name={stationA}
+                  x={x1}
+                  y={y1}
+                  highlightColor={highlightFor(stationA)}
+                />
               </Fragment>
             );
           }),
         )}
+        {/* Drawn last so no track segment covers the highlighted station. */}
+        {highlightStation !== undefined &&
+          getStation(highlightStation) !== undefined && (
+            <Station
+              name={highlightStation}
+              x={getStation(highlightStation)[0]}
+              y={getStation(highlightStation)[1]}
+              highlightColor={highlightColor}
+            />
+          )}
       </Svg>
     </View>
   );
