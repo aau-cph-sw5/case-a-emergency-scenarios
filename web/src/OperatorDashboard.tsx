@@ -6,6 +6,7 @@ import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { ScenarioList } from "./ScenarioList";
 import { StewardPositions } from "./components/StewardPositions";
 import { OperatorSections } from "./components/OperatorSections";
+import { LiveStatusBar } from "./components/LiveStatusBar";
 import { isActivationList } from "./activations";
 
 type Active = { scenario: Scenario; state: ScenarioState };
@@ -74,10 +75,13 @@ export function OperatorDashboard({
       </button>
       <OperatorSections
         scenarioSelection={
-          <ScenarioList
-            token={token}
-            onActivated={(id) => showActivated(id).catch(console.error)}
-          />
+          <>
+            <LiveStatusBar />
+            <ScenarioList
+              token={token}
+              onActivated={(id) => showActivated(id).catch(console.error)}
+            />
+          </>
         }
         map={<p>Insert map here...</p>}
         coverage={

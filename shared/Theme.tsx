@@ -59,6 +59,15 @@ export const text = {
     fontWeight: "600" as const,
   },
   mapLabel: { fontSize: "18", fontWeight: "bold" as const }, // SVG <Text> props
+  // A small heading above a figure, e.g. "STATIONS COVERED".
+  label: { fontSize: 11, fontWeight: "700" as const, letterSpacing: 1 },
+  // The big number in a figure, e.g. the 8 in "8 af 15".
+  figure: { fontSize: 28, fontWeight: "700" as const },
+};
+export const spacing = {
+  small: 4,
+  medium: 12,
+  large: 16,
 };
 
 export const surface = {

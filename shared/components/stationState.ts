@@ -16,6 +16,27 @@ export function countManned(
   ).length;
 }
 
+export type StatusCounts = Record<
+  ScenarioState["deployments"][number]["status"],
+  number
+>;
+
+export function countByStatus(
+  scenario: ActiveDeployments,
+  requirements: Pick<StationRequirement, "station" | "minimumStaffing">[],
+): StatusCounts {
+  const counts: StatusCounts = { MANNED: 0, PENDING: 0, UNMANNED: 0 };
+  for (const r of requirements) {
+    const { statuses } = getStationState(
+      scenario,
+      r.station,
+      r.minimumStaffing,
+    );
+    for (const status of statuses) counts[status]++;
+  }
+  return counts;
+}
+
 export function getStationState(
   scenario: ActiveDeployments,
   station: string,

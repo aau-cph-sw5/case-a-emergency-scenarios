@@ -12,7 +12,7 @@ export type StationRequirement =
   Scenario["versions"][number]["stationRequirements"][number];
 
 // Keyed by the status values in the scenario state
-const STATUS = {
+export const STATUS = {
   UNMANNED: { color: palette.metroLineThree, symbol: "✕" },
   PENDING: { color: palette.metroLineTwo, symbol: "➜" },
   MANNED: { color: palette.metroLineOne, symbol: "✓" },
@@ -21,7 +21,7 @@ const STATUS = {
 } satisfies Record<string, { color: string; symbol: string }>;
 // different naming in 012 but, whomever created mock data used these so ill be using them aswell.
 
-const getStatusStyle = (status: string) =>
+export const getStatusStyle = (status: string) =>
   Object.hasOwn(STATUS, status)
     ? STATUS[status as keyof typeof STATUS]
     : STATUS.UNKNOWN;
