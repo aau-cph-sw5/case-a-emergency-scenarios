@@ -14,7 +14,10 @@ export interface ScenarioState {
   actor: string;
   sequence: number;
   deployments: {
-    status: "UNMANNED" | "PENDING" | "MANNED";
+    /**
+     * UNMANNED: no steward yet. PENDING: a steward has reported a position for the station and is on the way. MANNED: the steward has arrived. CHECKED_OUT: the steward has finished the task and left (POST /api/v1/check-out, MET-A-015). Only a MANNED deployment can be checked out.
+     */
+    status: "UNMANNED" | "PENDING" | "MANNED" | "CHECKED_OUT";
     reportedAt?: string | null;
     arrivedAt?: string | null;
     staff?: string | null;

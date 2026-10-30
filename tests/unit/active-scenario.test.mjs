@@ -35,6 +35,14 @@ test("the scenario-state fixture passes the type guard", () => {
   assert.equal(isScenarioState(activeState), true);
 });
 
+test("a checked-out deployment passes the type guard", () => {
+  const checkedOut = {
+    ...activeState,
+    deployments: [{ status: "CHECKED_OUT", staff: "7", fulfills: "Station B" }],
+  };
+  assert.equal(isScenarioState(checkedOut), true);
+});
+
 test("loads the state and the scenario when a scenario is active", async () => {
   const { fetchImpl, calls } = mockFetch({
     "/api/v1/scenario-state": [200, activeState],

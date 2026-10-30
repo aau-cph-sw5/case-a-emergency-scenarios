@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 import { validate } from "./contract-validator.js";
 import { login, requireAuth } from "./auth.js";
 import { ERROR_CODES, errorBody } from "../shared/error-codes.ts";
-import { classifyStatusChange } from "../shared/scenario/steward-status.ts";
 
 const app = express();
 const PORT = process.env.PORT || 4010;
@@ -215,32 +214,6 @@ app.get("/", (req, res) => {
         </div>
       </div>
 
-      <div class="endpoint">
-        <span class="method">GET / PUT</span>
-
-        <span class="post">
-          /api/v1/steward-status
-        </span>
-
-        <div class="description">
-          Read or set the signed-in steward's status and station (assign, check in, check out).
-          Requires a bearer token with the STEWARD role and an active scenario.
-        </div>
-      </div>
-
-      <div class="endpoint">
-        <span class="method">GET</span>
-
-        <span class="post">
-          /api/v1/steward-statuses
-        </span>
-
-        <div class="description">
-          The status of every steward in the active scenario.
-          Requires a bearer token with the OPERATOR role.
-        </div>
-      </div>
-
     </body>
     </html>
   `);
@@ -447,125 +420,6 @@ app.post("/api/v1/scenarios/:scenarioId/activate", requireAuth, (req, res) => {
 
   res.status(201);
   sendValidated(req, res, activation, schemaIds);
-});
-
-// ============================================
-// STEWARD STATUS (MET-A-015)
-// ============================================
-
-// In-memory and keyed by activation, so a new activation starts with no
-// statuses and every steward has to assign again.
-const stewardStatuses = new Map();
-
-const statusKey = (activationId, userId) => `${activationId}:${userId}`;
-
-// The stub's test accounts have text userIds, but the contract's userId is an
-// integer, as in GET /api/v1/me. Each account gets its position in
-// test-accounts.json, starting at 1.
-function numericUserId(userId) {
-  if (Number.isInteger(userId)) return userId;
-  const accounts = readJson(path.join(fixtures, "test-accounts.json"));
-  return accounts.findIndex((account) => account.userId === userId) + 1;
-}
-
-// Shared by the three routes: the role check and the active scenario.
-function activeScenarioFor(req, res, role) {
-  if (req.user.role !== role) {
-    res
-      .status(403)
-      .json(
-        errorBody(
-          ERROR_CODES.ROLE_NOT_PERMITTED,
-          `Role ${req.user.role} may not use this endpoint`,
-        ),
-      );
-    return null;
-  }
-
-  const active = activations.find((a) => a.status === "ACTIVE");
-  if (active === undefined) {
-    res.status(409).json(errorBody(ERROR_CODES.NO_ACTIVE_SCENARIO));
-    return null;
-  }
-
-  return active;
-}
-
-app.get("/api/v1/steward-status", requireAuth, (req, res) => {
-  const active = activeScenarioFor(req, res, "STEWARD");
-  if (active === null) return;
-
-  const key = statusKey(active.activationId, numericUserId(req.user.userId));
-  const status = stewardStatuses.get(key);
-  if (status === undefined) return res.json(null);
-
-  sendValidated(req, res, status, ["steward-status.schema.json"]);
-});
-
-app.put("/api/v1/steward-status", requireAuth, (req, res) => {
-  const errors = validate(req.body, ["steward-status-request.schema.json"]);
-  if (errors.length > 0) {
-    return res
-      .status(400)
-      .json(
-        errorBody(
-          ERROR_CODES.MISSING_PARAMETER,
-          "Request body does not match contract schema",
-        ),
-      );
-  }
-
-  const active = activeScenarioFor(req, res, "STEWARD");
-  if (active === null) return;
-
-  const { status, station } = req.body;
-  const stations = active.deployments.map((d) => d.fulfills);
-  if (!stations.includes(station)) {
-    return res.status(409).json(errorBody(ERROR_CODES.STATION_NOT_IN_SCENARIO));
-  }
-
-  const userId = numericUserId(req.user.userId);
-  const key = statusKey(active.activationId, userId);
-  const current = stewardStatuses.get(key) ?? null;
-
-  switch (classifyStatusChange(current, { status, station })) {
-    case "REPEAT":
-      return sendValidated(req, res, current, ["steward-status.schema.json"]);
-    case "INVALID":
-      return res
-        .status(409)
-        .json(
-          errorBody(
-            ERROR_CODES.INVALID_STATUS_TRANSITION,
-            current === null
-              ? "Assign yourself to a station first"
-              : `Cannot change from ${current.status} at ${current.station} to ${status} at ${station}`,
-          ),
-        );
-  }
-
-  const next = {
-    userId,
-    activationId: active.activationId,
-    station,
-    status,
-    changedAt: new Date().toISOString(),
-  };
-  stewardStatuses.set(key, next);
-  console.log("Steward status changed:", next);
-
-  sendValidated(req, res, next, ["steward-status.schema.json"]);
-});
-
-app.get("/api/v1/steward-statuses", requireAuth, (req, res) => {
-  const active = activeScenarioFor(req, res, "OPERATOR");
-  if (active === null) return;
-
-  const statuses = [...stewardStatuses.values()].filter(
-    (status) => status.activationId === active.activationId,
-  );
-
-  sendValidated(req, res, statuses, ["steward-status-list.schema.json"]);
 });
 
 app.listen(PORT, () => {

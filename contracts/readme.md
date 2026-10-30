@@ -38,11 +38,7 @@ GET /api/v1/metro-lines/{lineId}
 
 POST /api/v1/position-reports
 
-GET /api/v1/steward-status
-
-PUT /api/v1/steward-status
-
-GET /api/v1/steward-statuses
+POST /api/v1/check-out
 
 POST /api/v1/auth/login
 

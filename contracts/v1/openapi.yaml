@@ -213,85 +213,15 @@ paths:
                       code: "E1004"
                       message: "The station is not part of the active scenario"
 
-  /api/v1/steward-status:
-    get:
-      summary: Read the signed-in steward's own status
+  /api/v1/check-out:
+    post:
+      summary: Mark the steward's task at a station as done
       description: >
-        Requires a bearer token with the STEWARD role. Returns the steward's
-        status in the active scenario, or null if they have not assigned
-        themselves in this activation (MET-A-015).
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: The steward's status, or null if they have none
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: "./steward-status.schema.json"
-                  - type: "null"
-              example:
-                userId: 1
-                activationId: "ACT-DEMO-001"
-                station: "Station B"
-                status: "ASSIGNED"
-                changedAt: "2026-10-30T08:10:00Z"
-        "401":
-          description: Missing, invalid or expired bearer token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E0001"
-                  message: "Invalid or expired token"
-        "403":
-          description: The signed-in role is not STEWARD
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E0002"
-                  message: "The authenticated user's role does not permit this action"
-        "409":
-          description: No scenario is active
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E1001"
-                  message: "No scenario is currently active"
-    put:
-      summary: Set the signed-in steward's status and station
-      description: >
-        Requires a bearer token with the STEWARD role. The steward is taken
-        from the token, never from the request. A status belongs to a
-        station in the active scenario, and every new activation starts with
-        none. Allowed changes, each the steward action it corresponds to:
-
-        - none to ASSIGNED: assign (choose a station)
-
-        - ASSIGNED to ASSIGNED at another station: change station before arriving
-
-        - ASSIGNED to CHECKED_IN, same station: check in
-
-        - ASSIGNED to CHECKED_OUT, same station: cancel without arriving
-
-        - CHECKED_IN to CHECKED_OUT, same station: check out
-
-        - CHECKED_OUT to ASSIGNED: take a new station
-
-
-        Sending the status and station the steward already has (a double
-        tap) is a harmless repeat: it answers 200 with the current status
-        and changes nothing. Any other change is rejected with 409 E1006,
-        and the status is unchanged.
+        Requires a bearer token with the STEWARD role. Moves the steward's
+        deployment at the station from MANNED to CHECKED_OUT (MET-A-015).
+        On the way (PENDING) and arrived (MANNED) come from position
+        reports. Checking out from any other status is rejected with E1006,
+        and nothing changes. The steward is taken from the token.
       security:
         - bearerAuth: []
       requestBody:
@@ -299,25 +229,25 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "./steward-status-request.schema.json"
+              $ref: "./check-out-request.schema.json"
             example:
-              status: "CHECKED_IN"
               station: "Station B"
       responses:
-        "200":
-          description: The steward's status after the change, or the current status on a repeat
+        "202":
+          description: Checked out
           content:
             application/json:
               schema:
-                $ref: "./steward-status.schema.json"
+                type: object
+                required:
+                  - accepted
+                properties:
+                  accepted:
+                    type: boolean
               example:
-                userId: 1
-                activationId: "ACT-DEMO-001"
-                station: "Station B"
-                status: "CHECKED_IN"
-                changedAt: "2026-10-30T08:25:00Z"
+                accepted: true
         "400":
-          description: Request body does not match the steward-status-request contract
+          description: Request body does not match the check-out-request contract
           content:
             application/json:
               schema:
@@ -348,10 +278,8 @@ paths:
                   message: "The authenticated user's role does not permit this action"
         "409":
           description: >
-            No scenario is active (E1001), the station does not require
-            manning in the active scenario (E1004), or the change is not
-            allowed from the steward's current status (E1006). The message
-            can be shown to the steward.
+            No scenario is active (E1001), the station is not in it (E1004),
+            or the steward has not arrived at the station (E1006).
           content:
             application/json:
               schema:
@@ -367,69 +295,11 @@ paths:
                     error:
                       code: "E1004"
                       message: "The station is not part of the active scenario"
-                invalidStatusTransition:
+                notArrived:
                   value:
                     error:
                       code: "E1006"
-                      message: "Assign yourself to a station first"
-
-  /api/v1/steward-statuses:
-    get:
-      summary: Read the status of every steward in the active scenario
-      description: >
-        Requires a bearer token with the OPERATOR role. Lists every steward
-        who has a status in the active scenario; a steward who has not
-        assigned themselves is not listed (MET-A-015).
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: The statuses, empty while no steward has one
-          content:
-            application/json:
-              schema:
-                $ref: "./steward-status-list.schema.json"
-              example:
-                - userId: 1
-                  activationId: "ACT-DEMO-001"
-                  station: "Station B"
-                  status: "CHECKED_IN"
-                  changedAt: "2026-10-30T08:25:00Z"
-                - userId: 3
-                  activationId: "ACT-DEMO-001"
-                  station: "Station B"
-                  status: "ASSIGNED"
-                  changedAt: "2026-10-30T08:12:00Z"
-        "401":
-          description: Missing, invalid or expired bearer token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E0001"
-                  message: "Invalid or expired token"
-        "403":
-          description: The signed-in role is not OPERATOR
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E0002"
-                  message: "The authenticated user's role does not permit this action"
-        "409":
-          description: No scenario is active
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E1001"
-                  message: "No scenario is currently active"
+                      message: "The status change is not permitted from the steward's current status"
 
   /api/v1/auth/login:
     post:
