@@ -11,6 +11,7 @@ export type StoredPositionReport = {
   station: string;
   reportedAt: Date;
   receivedAt: Date;
+  taskDone: boolean;
 };
 
 export async function insertPositionReport(
@@ -18,9 +19,24 @@ export async function insertPositionReport(
   report: NewPositionReport,
 ): Promise<StoredPositionReport> {
   const [inserted] = await db<StoredPositionReport[]>`
-    INSERT INTO position_reports (staff, station, reported_at)
-    VALUES (${report.staff}, ${report.station}, ${report.reportedAt})
+    INSERT INTO position_reports (staff, station, reported_at, task_done)
+    VALUES (${report.staff}, ${report.station}, ${report.reportedAt},
+            ${report.taskDone ?? false})
     RETURNING *
   `;
   return inserted;
+}
+
+// The steward's latest report, to check a task done against (MET-A-015).
+export async function findLatestReport(
+  db: Db,
+  staff: string,
+): Promise<StoredPositionReport | null> {
+  const [latest] = await db<StoredPositionReport[]>`
+    SELECT * FROM position_reports
+    WHERE staff = ${staff}
+    ORDER BY received_at DESC
+    LIMIT 1
+  `;
+  return latest ?? null;
 }

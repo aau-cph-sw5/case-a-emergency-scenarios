@@ -28,10 +28,10 @@ export async function savePositionReport(
 
   await writeEvent(tx, user, {
     type: "POSITION_REPORTED",
-    schemaVersion: 1,
+    schemaVersion: 2,
     subject: { type: "position-report", id: saved.id },
     // Keeps the location in the log even if the report row is later replaced.
-    payload: { stationId: report.station },
+    payload: { stationId: report.station, taskDone: saved.taskDone },
     clientTime,
   });
 
