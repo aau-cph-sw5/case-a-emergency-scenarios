@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
 import {
   box,
@@ -15,6 +16,7 @@ import {
   affectedStretchAsMapLine,
   networkWithoutStretch,
 } from "./affected-stations";
+import { zoomedViewBox } from "./map-zoom";
 import { findOwnAssignment } from "./own-assignment";
 
 // The colour of the affected stretch, on the map and in the legend.
@@ -36,6 +38,10 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
     M4: palette.networkGrey,
   };
   const stations = affectedStations(scenario);
+  // The map zooms in on the stretch until its station names are legible at
+  // the phone's font size (MET-A-010), so it needs the size of its box.
+  const { fontScale } = useWindowDimensions();
+  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
   const rows = scenario.versions[0]?.stationRequirements ?? [];
   const stretch = affectedStretchAsMapLine(scenario);
   const networkLines = networkWithoutStretch(
@@ -62,8 +68,17 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
         <Text style={styles.where}>ingen berørte stationer</Text>
       )}
 
-      <View style={styles.mapBox}>
+      <View
+        style={styles.mapBox}
+        onLayout={(event) => setMapSize(event.nativeEvent.layout)}
+      >
         <MapRender
+          viewBox={zoomedViewBox(
+            stations,
+            mapSize.width,
+            mapSize.height,
+            fontScale,
+          )}
           lines={mapLines}
           colors={mapColors}
           showLineButtons={false}
