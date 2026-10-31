@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 6.1.1
+  version: 6.2.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -136,6 +136,10 @@ paths:
         server: staff by the userId from the token, reportedAt by the time
         the server accepted the report. An accepted report is forwarded to
         connected operators as the position-report Socket.IO event.
+        With taskDone true the steward reports the task at the station as
+        done (MET-A-015). That is only allowed at the station of the
+        steward's latest report (E1006 otherwise), and sending it again is
+        a harmless repeat.
       security:
         - bearerAuth: []
       requestBody:
@@ -195,8 +199,9 @@ paths:
                   message: "The authenticated user's role does not permit this action"
         "409":
           description: >
-            No scenario is active (E1001), or the station does not require
-            manning in an active scenario (E1004).
+            No scenario is active (E1001), the station does not require
+            manning in an active scenario (E1004), or task done is reported
+            at another station than the steward's latest report (E1006).
           content:
             application/json:
               schema:
@@ -212,6 +217,11 @@ paths:
                     error:
                       code: "E1004"
                       message: "The station is not part of the active scenario"
+                taskDoneElsewhere:
+                  value:
+                    error:
+                      code: "E1006"
+                      message: "The status change is not permitted from the steward's current status"
 
   /api/v1/auth/login:
     post:

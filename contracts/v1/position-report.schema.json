@@ -13,6 +13,10 @@
     "reportedAt": {
       "type": "string",
       "format": "date-time"
+    },
+    "taskDone": {
+      "type": "boolean",
+      "description": "True when the steward has finished the task at the station (MET-A-015). Only allowed at the station of the steward's latest report."
     }
   }
 }

@@ -9,5 +9,9 @@ export interface PositionReport {
   staff: string;
   station: string;
   reportedAt: string;
+  /**
+   * True when the steward has finished the task at the station (MET-A-015). Only allowed at the station of the steward's latest report.
+   */
+  taskDone?: boolean;
   [k: string]: unknown;
 }
