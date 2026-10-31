@@ -149,7 +149,10 @@ test("a position report and its event are stored together, with the actor from t
     assert.equal(events[0].type, "POSITION_REPORTED");
     assert.equal(events[0].actorId, String(steward.userId));
     // The station stays in the log even if the report row is replaced later.
-    assert.deepEqual(events[0].payload, { stationId: "Station C" });
+    assert.deepEqual(events[0].payload, {
+      stationId: "Station C",
+      taskDone: false,
+    });
     assert.equal(
       events[0].clientTime.toISOString(),
       "2026-09-23T08:10:00.000Z",
