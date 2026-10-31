@@ -14,9 +14,15 @@ export interface ScenarioState {
   actor: string;
   sequence: number;
   deployments: {
-    status: "UNMANNED" | "PENDING" | "MANNED";
+    /**
+     * UNMANNED: no steward yet. PENDING: a steward has reported a position for the station and is on the way. MANNED: the steward has arrived. TASK_DONE: the steward has finished the task (a position report with taskDone, MET-A-015).
+     */
+    status: "UNMANNED" | "PENDING" | "MANNED" | "TASK_DONE";
     reportedAt?: string | null;
     arrivedAt?: string | null;
+    /**
+     * The userId of the steward who reported to this station, the same id GET /api/v1/me and the login token return, written as text (for example "1"). Null when nobody has reported.
+     */
     staff?: string | null;
     fulfills: string;
     [k: string]: unknown;

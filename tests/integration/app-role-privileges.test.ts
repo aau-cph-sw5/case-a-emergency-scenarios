@@ -35,7 +35,6 @@ const expected: Record<string, string[]> = {
   users: ["SELECT"],
   auth_sessions: ["SELECT", "INSERT", "UPDATE"],
   position_reports: ["SELECT", "INSERT"],
-  steward_statuses: ["SELECT", "INSERT", "UPDATE"],
   scenarios: ["SELECT"],
   scenario_versions: ["SELECT"],
   stations: ["SELECT"],

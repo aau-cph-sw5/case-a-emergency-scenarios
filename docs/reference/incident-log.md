@@ -60,7 +60,6 @@ What `metro_app` may do with the tables that exist:
 | `incident_events` | `SELECT`, `INSERT`. Not `UPDATE`, `DELETE` or `TRUNCATE`, and it isn't the owner, so it can't `DISABLE TRIGGER` or `DROP TRIGGER` either |
 | `auth_sessions` | `SELECT`, `INSERT`, `UPDATE` |
 | `position_reports` | `SELECT`, `INSERT` |
-| `steward_statuses` | `SELECT`, `INSERT`, `UPDATE`. A status is changed in place; its history is the `STEWARD_STATUS_CHANGED` events |
 | `users` | `SELECT`. Accounts are created by `npm run seed:users` |
 | Scenario reference data (`scenarios`, `scenario_versions`, `stations`, `track_segments`, `scenario_covers`, `operating_plans`, `operating_patterns`, `line_stops`, `station_requirements`, `staffing_windows`, `actions`, `passenger_information`) | `SELECT`. `npm run seed` loads them as the owner |
 
@@ -159,7 +158,6 @@ version.
 |---|---|---|---|---|
 | `SCENARIO_ACTIVATED` | 1 | `activation` | `scenarioId` | `activateAndLog` in `src/services/activation-service.ts`. The activation is in memory, so it is undone if this write fails |
 | `POSITION_REPORTED` | 1 | `position-report` | `stationId` | `savePositionReport` in `src/services/position-report-service.ts`, the worked example of `appendEvent` inside a transaction |
-| `STEWARD_STATUS_CHANGED` | 1 | `steward` (the userId) | `stationId`, `fromStatus`, `fromStationId`, `toStatus`. The from-fields are `null` on the first assign | `saveStewardStatus` in `src/services/steward-status-service.ts`. A repeat of the current status writes no event |
 
 ## Payload rules
 
