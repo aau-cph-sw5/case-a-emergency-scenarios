@@ -38,8 +38,6 @@ GET /api/v1/metro-lines/{lineId}
 
 POST /api/v1/position-reports
 
-POST /api/v1/check-out
-
 POST /api/v1/auth/login
 
 GET /api/v1/me

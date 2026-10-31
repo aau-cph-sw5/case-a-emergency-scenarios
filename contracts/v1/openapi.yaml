@@ -136,6 +136,10 @@ paths:
         server: staff by the userId from the token, reportedAt by the time
         the server accepted the report. An accepted report is forwarded to
         connected operators as the position-report Socket.IO event.
+        With taskDone true the steward reports the task at the station as
+        done (MET-A-015). That is only allowed at the station of the
+        steward's latest report (E1006 otherwise), and sending it again is
+        a harmless repeat.
       security:
         - bearerAuth: []
       requestBody:
@@ -195,8 +199,9 @@ paths:
                   message: "The authenticated user's role does not permit this action"
         "409":
           description: >
-            No scenario is active (E1001), or the station does not require
-            manning in an active scenario (E1004).
+            No scenario is active (E1001), the station does not require
+            manning in an active scenario (E1004), or task done is reported
+            at another station than the steward's latest report (E1006).
           content:
             application/json:
               schema:
@@ -212,90 +217,7 @@ paths:
                     error:
                       code: "E1004"
                       message: "The station is not part of the active scenario"
-
-  /api/v1/check-out:
-    post:
-      summary: Mark the steward's task at a station as done
-      description: >
-        Requires a bearer token with the STEWARD role. Moves the steward's
-        deployment at the station from MANNED to CHECKED_OUT (MET-A-015).
-        On the way (PENDING) and arrived (MANNED) come from position
-        reports. Checking out from any other status is rejected with E1006,
-        and nothing changes. The steward is taken from the token.
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "./check-out-request.schema.json"
-            example:
-              station: "Station B"
-      responses:
-        "202":
-          description: Checked out
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - accepted
-                properties:
-                  accepted:
-                    type: boolean
-              example:
-                accepted: true
-        "400":
-          description: Request body does not match the check-out-request contract
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E0006"
-                  message: "Request body does not match contract schema"
-        "401":
-          description: Missing, invalid or expired bearer token
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E0001"
-                  message: "Invalid or expired token"
-        "403":
-          description: The signed-in role is not STEWARD
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error:
-                  code: "E0002"
-                  message: "The authenticated user's role does not permit this action"
-        "409":
-          description: >
-            No scenario is active (E1001), the station is not in it (E1004),
-            or the steward has not arrived at the station (E1006).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              examples:
-                noActiveScenario:
-                  value:
-                    error:
-                      code: "E1001"
-                      message: "No scenario is currently active"
-                stationNotInScenario:
-                  value:
-                    error:
-                      code: "E1004"
-                      message: "The station is not part of the active scenario"
-                notArrived:
+                taskDoneElsewhere:
                   value:
                     error:
                       code: "E1006"

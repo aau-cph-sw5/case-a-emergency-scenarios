@@ -1,12 +1,20 @@
 # Scenario State Contract Changelog
 
-## 6.2.0 - 2026-10-30
+## 6.2.0 - 2026-10-31
 
 Additive. Task done for stewards (MET-A-015).
 
-- `deployments[].status` can be `CHECKED_OUT`: the steward finished the task and left. On the way (`PENDING`) and arrived (`MANNED`) still come from position reports.
-- `POST /api/v1/check-out` (STEWARD) moves the steward's deployment at a station from `MANNED` to `CHECKED_OUT`. Anything else gets 409 `E1006`.
+- A position report can carry `taskDone: true`: the steward has finished the task at the station. Without it, a report means on the way or arrived, as before.
+- Task done is only allowed at the station of the steward's latest position report. Anything else gets 409 `E1006`. Sending it again is a harmless repeat.
+- `deployments[].status` can be `TASK_DONE`.
 - `info.version` in `openapi.yaml` is now 6.2.0.
+
+## 6.1.1 - 2026-10-30
+
+Documents what `deployments[].staff` holds (no change to the shape).
+
+- `staff` is the `userId` of the steward who reported to the station, the same id `GET /api/v1/me` and the login token return, written as text (for example `"7"`), as the server already does for position reports. The steward app matches it against the logged-in user to highlight the steward's own assignment (MET-A-010, issue #158).
+- `info.version` in `openapi.yaml` is now 6.1.1
 
 ## 6.1.0 - 2026-10-28
 

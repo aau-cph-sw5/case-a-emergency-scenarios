@@ -16,7 +16,7 @@ const STATUS = {
   UNMANNED: { color: palette.metroLineThree, symbol: "✕" },
   PENDING: { color: palette.metroLineTwo, symbol: "➜" },
   MANNED: { color: palette.metroLineOne, symbol: "✓" },
-  CHECKED_OUT: { color: palette.metroBlack, symbol: "⏏" }, // task done, left the station
+  TASK_DONE: { color: palette.metroBlack, symbol: "✓✓" }, // the steward has finished the task
   NOT_REQUIRED: { color: palette.metroLineThree, symbol: "–" }, // not used currently, but mentioned in 012
   UNKNOWN: { color: palette.metroLineThree, symbol: "ERR" }, // fallback so bad data never looks covered
 } satisfies Record<string, { color: string; symbol: string }>;

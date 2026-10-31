@@ -35,12 +35,12 @@ test("the scenario-state fixture passes the type guard", () => {
   assert.equal(isScenarioState(activeState), true);
 });
 
-test("a checked-out deployment passes the type guard", () => {
-  const checkedOut = {
+test("a task-done deployment passes the type guard", () => {
+  const taskDone = {
     ...activeState,
-    deployments: [{ status: "CHECKED_OUT", staff: "7", fulfills: "Station B" }],
+    deployments: [{ status: "TASK_DONE", staff: "7", fulfills: "Station B" }],
   };
-  assert.equal(isScenarioState(checkedOut), true);
+  assert.equal(isScenarioState(taskDone), true);
 });
 
 test("loads the state and the scenario when a scenario is active", async () => {

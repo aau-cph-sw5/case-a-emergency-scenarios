@@ -27,7 +27,7 @@ function isDeployment(data: unknown): data is Deployment {
     (status === "UNMANNED" ||
       status === "PENDING" ||
       status === "MANNED" ||
-      status === "CHECKED_OUT") &&
+      status === "TASK_DONE") &&
     typeof fulfills === "string"
   );
 }

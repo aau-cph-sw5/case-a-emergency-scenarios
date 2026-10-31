@@ -15,11 +15,14 @@ export interface ScenarioState {
   sequence: number;
   deployments: {
     /**
-     * UNMANNED: no steward yet. PENDING: a steward has reported a position for the station and is on the way. MANNED: the steward has arrived. CHECKED_OUT: the steward has finished the task and left (POST /api/v1/check-out, MET-A-015). Only a MANNED deployment can be checked out.
+     * UNMANNED: no steward yet. PENDING: a steward has reported a position for the station and is on the way. MANNED: the steward has arrived. TASK_DONE: the steward has finished the task (a position report with taskDone, MET-A-015).
      */
-    status: "UNMANNED" | "PENDING" | "MANNED" | "CHECKED_OUT";
+    status: "UNMANNED" | "PENDING" | "MANNED" | "TASK_DONE";
     reportedAt?: string | null;
     arrivedAt?: string | null;
+    /**
+     * The userId of the steward who reported to this station, the same id GET /api/v1/me and the login token return, written as text (for example "1"). Null when nobody has reported.
+     */
     staff?: string | null;
     fulfills: string;
     [k: string]: unknown;
