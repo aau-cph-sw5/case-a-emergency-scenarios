@@ -31,19 +31,39 @@ export function getStationState(
     (_, i) => deployments[i]?.status ?? "UNMANNED",
   );
   const current = statuses.filter((s) => s === "MANNED").length;
-  const lastUpdate = deployments
-    .map((d) => d.reportedAt)
-    .filter(Boolean)
-    .sort()
-    .pop();
-  return { statuses, current, lastUpdate };
+  const enRoute = statuses.filter((s) => s === "PENDING").length;
+  return { statuses, current, enRoute };
 }
 
-export function formatTime(iso?: string | null) {
-  if (!iso) return "--:--";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "--:--";
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// How much of a station is covered, from 0 (nobody arrived) to 1 (fully
+// staffed). A station that needs nobody counts as covered.
+export function coverageShare(
+  scenario: ActiveDeployments,
+  requirement: Pick<StationRequirement, "station" | "minimumStaffing">,
+) {
+  const needed = requirement.minimumStaffing;
+  if (needed === 0) return 1;
+  const { current } = getStationState(scenario, requirement.station, needed);
+  return Math.min(current, needed) / needed;
+}
+
+// Stewards across every required station, for the totals in the header.
+// A station counts at most as many arrived stewards as it needs, so an extra
+// steward at one station does not hide a missing one at another.
+export function countStewards(
+  scenario: ActiveDeployments,
+  requirements: Pick<StationRequirement, "station" | "minimumStaffing">[],
+) {
+  let arrived = 0;
+  let enRoute = 0;
+  let needed = 0;
+  for (const r of requirements) {
+    const state = getStationState(scenario, r.station, r.minimumStaffing);
+    arrived += Math.min(state.current, r.minimumStaffing);
+    enRoute += state.enRoute;
+    needed += r.minimumStaffing;
+  }
+  return { arrived, enRoute, needed };
 }
 
 // The stations that require manning in the scenario's current version. Takes
