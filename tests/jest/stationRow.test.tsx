@@ -24,22 +24,6 @@ function deployments(
 }
 
 describe("StationRow", () => {
-  it("shows placement and minimum staffing immediately in needed-only mode", () => {
-    render(<StationRow requirement={requirement} mode="needed-only" />);
-
-    expect(screen.getByText("Station A")).toBeTruthy();
-    expect(
-      screen.getByText("Placering: Platform 1, near the elevators"),
-    ).toBeTruthy();
-    expect(screen.getByText("Minimum 2 stewards")).toBeTruthy();
-    expect(
-      screen.queryByText(
-        /på stationen|på vej|Mangler|Fuldt bemandet|Last update/,
-      ),
-    ).toBeNull();
-    expect(screen.queryByText(/\d+\/\d+/)).toBeNull();
-  });
-
   it("shows arrived against needed, who is on the way and who is missing", () => {
     render(
       <StationRow

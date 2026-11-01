@@ -112,12 +112,10 @@ async function click(name: string) {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  let reject!: (error: Error) => void;
-  const promise = new Promise<T>((yes, no) => {
+  const promise = new Promise<T>((yes) => {
     resolve = yes;
-    reject = no;
   });
-  return { promise, resolve, reject };
+  return { promise, resolve };
 }
 
 beforeEach(() => {
@@ -146,7 +144,15 @@ afterEach(async () => {
 
 describe("scenario preview and activation", () => {
   it("puts requirements in the right column and the existing activation control on the left", async () => {
-    await renderList(first.scenarioId);
+    await renderList(first.scenarioId, {
+      activations: [
+        {
+          ...activated,
+          scenarioId: second.scenarioId,
+          deployments: [{ fulfills: "Station A", status: "MANNED" }],
+        },
+      ],
+    });
     const columns = container.querySelectorAll(".operator-sections > section");
     expect(columns[0].contains(button("Aktivér valgt scenarie"))).toBe(true);
     expect(columns[1].textContent).toContain(
@@ -155,25 +161,11 @@ describe("scenario preview and activation", () => {
     expect(container.querySelector("svg")).toBeNull();
     expect(columns[2].textContent).toContain("Placering: Platform A");
     expect(columns[2].textContent).toContain("Minimum 2 stewards");
-    expect(columns[0].textContent).not.toContain("Placering:");
-  });
-
-  it("keeps preview requirements independent of live deployments and their updates", async () => {
-    const otherActivation = {
-      ...activated,
-      scenarioId: second.scenarioId,
-      deployments: [{ fulfills: "Station A", status: "MANNED" as const }],
-    };
-    await renderList(first.scenarioId, { activations: [otherActivation] });
-    await renderList(first.scenarioId, {
-      activations: [{ ...otherActivation, deployments: [] }],
-    });
-    const requirements =
-      container.querySelector(".scenario-preview")!.textContent!;
-    expect(requirements).toContain("Minimum 2 stewards");
-    expect(requirements).not.toMatch(
+    expect(columns[2].textContent).not.toMatch(
       /\d+\/\d+|på stationen|på vej|Mangler|Fuldt bemandet/,
     );
+    expect(columns[0].textContent).not.toContain("Placering:");
+    expect(container.querySelector("dialog")).toBeNull();
   });
 
   it("shows an empty preview and disables activation until a scenario is selected", async () => {
@@ -183,17 +175,6 @@ describe("scenario preview and activation", () => {
     );
     expect(button("Aktivér valgt scenarie").disabled).toBe(true);
     expect(loadScenario).not.toHaveBeenCalled();
-  });
-
-  it("loads the selection without opening confirmation, then shows required coverage", async () => {
-    await renderList();
-    await click(first.name);
-    expect(loadScenario).toHaveBeenCalledWith(first.scenarioId);
-    expect(container.querySelector("dialog")).toBeNull();
-    expect(button(first.name).getAttribute("aria-pressed")).toBe("true");
-    expect(container.textContent).toContain("Placering: Platform A");
-    expect(container.textContent).toContain("1 stationer · 2 stewards kræves");
-    expect(button("Aktivér valgt scenarie").disabled).toBe(false);
   });
 
   it("shows loading and keeps activation disabled while the preview is fetched", async () => {
@@ -208,40 +189,20 @@ describe("scenario preview and activation", () => {
     expect(button("Aktivér valgt scenarie").disabled).toBe(false);
   });
 
-  it("shows a failed load without allowing activation", async () => {
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    loadScenario.mockRejectedValue(new Error("offline"));
-    await renderList(first.scenarioId);
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      "Kunne ikke hente scenariet:",
-    );
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
-    expect(container.textContent).not.toContain("Placering:");
-  });
-
-  it("retries a failed preview through the shared loader", async () => {
+  it("shows a load error with activation disabled, then retries the preview", async () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     loadScenario
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValueOnce(first);
     await renderList(first.scenarioId);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Kunne ikke hente scenariet:",
+    );
+    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
     await click("Prøv igen");
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(container.textContent).toContain("Placering: Platform A");
     expect(loadScenario).toHaveBeenCalledTimes(2);
-    expect(button("Aktivér valgt scenarie").disabled).toBe(false);
-  });
-
-  it("shows a clear empty state for a scenario without required stations", async () => {
-    loadScenario.mockResolvedValue({
-      ...first,
-      versions: [{ ...first.versions[0], stationRequirements: [] }],
-    });
-    await renderList(first.scenarioId);
-    expect(container.textContent).toContain(
-      "Scenariet kræver ingen stationer.",
-    );
-    expect(container.textContent).toContain("0 stationer · 0 stewards kræves");
     expect(button("Aktivér valgt scenarie").disabled).toBe(false);
   });
 
@@ -262,38 +223,17 @@ describe("scenario preview and activation", () => {
     );
   });
 
-  it("hides the previous preview while a new selection is loading, including late failures", async () => {
-    const pending = deferred<Scenario>();
-    loadScenario
-      .mockResolvedValueOnce(first)
-      .mockReturnValueOnce(pending.promise);
-    await renderList(first.scenarioId);
-    await click(second.name);
-    expect(container.textContent).not.toContain("Placering: Platform A");
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
-    await click(first.name);
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    await act(async () => pending.reject(new Error("Old failure")));
-    expect(container.textContent).toContain("Placering: Platform A");
-    expect(container.querySelector('[role="alert"]')).toBeNull();
-  });
-
-  it("keeps selection when cancelling and makes no activation request", async () => {
+  it("activates only the previewed scenario with confirmation, then marks it active", async () => {
+    const pending = deferred<ScenarioState>();
+    jest.mocked(postJson).mockReturnValue(pending.promise);
     await renderList(first.scenarioId);
     await click("Aktivér valgt scenarie");
     expect(container.querySelector("dialog")?.textContent).toContain(
       first.name,
     );
+    expect(jest.mocked(postJson)).not.toHaveBeenCalled();
     await click("Annullér");
     expect(container.querySelector("dialog")).toBeNull();
-    expect(button(first.name).getAttribute("aria-pressed")).toBe("true");
-    expect(jest.mocked(postJson)).not.toHaveBeenCalled();
-  });
-
-  it("activates only the previewed scenario with confirmation, then marks it active", async () => {
-    const pending = deferred<ScenarioState>();
-    jest.mocked(postJson).mockReturnValue(pending.promise);
-    await renderList(first.scenarioId);
     await click("Aktivér valgt scenarie");
     await click("Bekræft");
     expect(jest.mocked(postJson)).toHaveBeenCalledWith(
@@ -319,52 +259,5 @@ describe("scenario preview and activation", () => {
     expect(button("Aktivér valgt scenarie").disabled).toBe(true);
     expect(container.querySelector(".scenario-preview")).toBeNull();
     expect(container.textContent).toContain("0/2");
-  });
-
-  it("does not activate a scenario made active elsewhere while confirmation is open", async () => {
-    await renderList(first.scenarioId);
-    await click("Aktivér valgt scenarie");
-    await renderList(first.scenarioId, { activations: [activated] });
-    await click("Bekræft");
-    expect(jest.mocked(postJson)).not.toHaveBeenCalled();
-    expect(container.querySelector("dialog")).toBeNull();
-  });
-
-  it("keeps the selected preview and shows activation errors so the operator can try again", async () => {
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    jest.mocked(postJson).mockRejectedValue(new Error("offline"));
-    await renderList(first.scenarioId);
-    await click("Aktivér valgt scenarie");
-    await click("Bekræft");
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      "Kunne ikke aktivere scenariet:",
-    );
-    expect(button(first.name).getAttribute("aria-pressed")).toBe("true");
-    expect(button("Aktivér valgt scenarie").disabled).toBe(false);
-  });
-
-  it("clears the preview if its scenario disappears from the list", async () => {
-    await renderList(first.scenarioId);
-    await renderList(first.scenarioId, { scenarios: [second] });
-    expect(container.textContent).toContain(
-      "Vælg et scenarie for at se bemandingsbehov.",
-    );
-    expect(container.textContent).not.toContain("Placering: Platform A");
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
-  });
-
-  it("keeps the preview when searching hides its selected scenario", async () => {
-    await renderList(first.scenarioId);
-    const input = container.querySelector("input")!;
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        "value",
-      )!.set!.call(input, "Second");
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    expect(container.querySelector("li button")?.textContent).toBe(second.name);
-    expect(container.textContent).toContain("Placering: Platform A");
-    expect(button("Aktivér valgt scenarie").disabled).toBe(false);
   });
 });

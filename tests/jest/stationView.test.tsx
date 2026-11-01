@@ -58,6 +58,7 @@ describe("ScenarioStationList", () => {
     expect(screen.getByText("Placering: Station C platform")).toBeTruthy();
     expect(screen.getByText("Minimum 3 stewards")).toBeTruthy();
     expect(screen.queryByText("Old station")).toBeNull();
+    expect(screen.queryByText(/\d+\/\d+/)).toBeNull();
     expect(
       screen.queryByText(/dækket|på vej|på stationen|Mangler|Fuldt bemandet/),
     ).toBeNull();
