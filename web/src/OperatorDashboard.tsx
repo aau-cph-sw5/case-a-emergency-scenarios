@@ -1,7 +1,6 @@
-import { ScenarioList } from "./ScenarioList";
+import { useState } from "react";
 import { StewardPositions } from "./components/StewardPositions";
-import { OperatorSections } from "./components/OperatorSections";
-import { LiveCoverage } from "./components/LiveCoverage";
+import { ScenarioWorkspace } from "./components/ScenarioWorkspace";
 
 // The control-room dashboard. App opens the socket. Each section is filled by
 // its own sub-issue of MET-A-011, so the dashboard keeps working until then.
@@ -12,25 +11,22 @@ export function OperatorDashboard({
   token: string;
   onLogout: () => void;
 }) {
+  // Shared with the map preview in #183 when it is added.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   return (
     <main>
       <button onClick={onLogout} type="button">
         Log ud
       </button>
-      <OperatorSections
-        scenarioSelection={
-          // The server sends "activations-changed" after an activation, and
-          // the data layer loads again, so the dashboard has nothing to do.
-          <ScenarioList token={token} onActivated={() => {}} />
-        }
-        map={<p>Insert map here...</p>}
-        coverage={<LiveCoverage />}
+      <ScenarioWorkspace
+        token={token}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
       />
       {/* Fixed in the bottom right corner, so it follows the wireframe whatever
           the section layout does. */}
       <div className="status-popup">
-        {/* TEMPORARY: mock shows hardcoded rows. Remove the prop for live data. */}
-        <StewardPositions mock={import.meta.env.DEV} />
+        <StewardPositions />
       </div>
     </main>
   );
