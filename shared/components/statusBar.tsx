@@ -1,8 +1,8 @@
 import { Text, View } from "react-native";
 import { box, colors, spacing, surface, text } from "../Theme";
 import type { ScenarioState } from "../types/v1/scenario-state";
-import { STATUS, type StationRequirement } from "./stationRow";
-import { countByStatus, countManned, formatTime } from "./stationState";
+import type { StationRequirement } from "./stationRow";
+import { countManned, countStewards } from "./stationState";
 import type { ReactNode } from "react";
 
 type Props = {
@@ -26,6 +26,13 @@ export function formatDuration(startedAt: string, now: Date) {
   ]
     .map(pad)
     .join(":");
+}
+
+export function formatTime(iso?: string | null) {
+  if (!iso) return "--:--";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "--:--";
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 function Metric({
   label,
@@ -75,8 +82,7 @@ function ActiveData({
 }) {
   const covered = countManned(state, requirements);
   const required = requirements.length;
-  const counts = countByStatus(state, requirements);
-  const positions = counts.MANNED + counts.PENDING + counts.UNMANNED;
+  const stewards = countStewards(state, requirements);
   const ok = colors.statusGreen;
   const bad = colors.statusRed;
 
@@ -87,34 +93,30 @@ function ActiveData({
         {scenarioName ? ` ${scenarioName}` : ""}
       </Text>
       <Text style={[text.body, { marginBottom: spacing.medium }]}>
-        Activated by {state.actor} · Active for{" "}
+        Aktiveret af {state.actor} · Aktiv i{" "}
         {formatDuration(state.startedAt, now)}
       </Text>
 
       <Metric
-        label="Stations covered"
+        label="Stationer dækket"
         value={covered}
         total={required}
         color={covered < required ? bad : ok}
       >
         <Text style={text.body}>
           {covered < required
-            ? `⚠ ${required - covered} with gaps`
-            : "✓ All covered"}
+            ? `⚠ ${required - covered} mangler dækning`
+            : "✓ Alle dækket"}
         </Text>
       </Metric>
 
       <Metric
-        label="Stewards on stations"
-        value={counts.MANNED}
-        total={positions}
-        color={counts.MANNED < positions ? bad : ok}
+        label="Stewards på stationer"
+        value={stewards.arrived}
+        total={stewards.needed}
+        color={stewards.arrived < stewards.needed ? bad : ok}
       >
-        <Text style={text.body}>
-          {STATUS.MANNED.symbol} {counts.MANNED} manned ·{" "}
-          {STATUS.PENDING.symbol} {counts.PENDING} pending ·{" "}
-          {STATUS.UNMANNED.symbol} {counts.UNMANNED} unmanned
-        </Text>
+        <Text style={text.body}>{stewards.enRoute} på vej</Text>
       </Metric>
     </>
   );
@@ -143,7 +145,7 @@ export default function StatusBar({
         />
       ) : (
         <Text style={[text.title, { marginBottom: spacing.medium }]}>
-          No active scenario
+          Intet aktivt scenarie
         </Text>
       )}
 
@@ -153,8 +155,8 @@ export default function StatusBar({
         }}
       >
         {isConnected
-          ? `● Live · updated ${formatTime(lastUpdate)}`
-          : "⚠ Disconnected · data may be out of date"}
+          ? `● Live · opdateret ${formatTime(lastUpdate)}`
+          : "⚠ Forbindelsen er afbrudt · informationen kan være forældet"}
       </Text>
     </View>
   );

@@ -4,7 +4,6 @@ import {
   countStewards,
   coverageShare,
   getStationState,
-  countByStatus,
 } from "../../shared/components/stationState";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
@@ -118,32 +117,5 @@ describe("coverageShare", () => {
         { station: "Station C", minimumStaffing: 0 },
       ),
     ).toBe(1);
-  });
-});
-
-describe("countByStatus", () => {
-  it("counts each required position, filling missing ones as unmanned", () => {
-    const counts = countByStatus(
-      {
-        deployments: [
-          createDeployment("Station A", "MANNED"),
-          createDeployment("Station B", "PENDING"),
-        ],
-      },
-      [
-        { station: "Station A", minimumStaffing: 2 },
-        { station: "Station B", minimumStaffing: 1 },
-        { station: "Station C", minimumStaffing: 1 },
-      ],
-    );
-    expect(counts).toEqual({ MANNED: 1, PENDING: 1, UNMANNED: 2 });
-  });
-
-  it("returns zeros when there are no requirements", () => {
-    expect(countByStatus({ deployments: [] }, [])).toEqual({
-      MANNED: 0,
-      PENDING: 0,
-      UNMANNED: 0,
-    });
   });
 });

@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react-native";
 import { describe, expect, it } from "@jest/globals";
 import StatusBar, { formatDuration } from "../../shared/components/statusBar";
-import StationRow from "../../shared/components/stationRow";
-import { countByStatus } from "../../shared/components/stationState";
+import ScenarioStationList from "../../shared/components/stationView";
+import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
 // Station A needs 2 stewards, B and C need 1 each: 4 positions in total.
@@ -20,6 +20,7 @@ function createState(overrides: Partial<ScenarioState> = {}): ScenarioState {
     endedAt: null,
     status: "ACTIVE",
     actor: "operator-001",
+    sequence: 1,
     deployments: [
       { fulfills: "Station A", status: "MANNED" },
       { fulfills: "Station B", status: "PENDING" },
@@ -59,12 +60,12 @@ describe("StatusBar", () => {
     );
 
     screen.getByText("TEST-001 Test scenario");
-    screen.getByText("Activated by operator-001 · Active for 00:42:10");
+    screen.getByText("Aktiveret af operator-001 · Aktiv i 00:42:10");
     screen.getByText("0 af 3"); // stations covered
-    screen.getByText("⚠ 3 with gaps");
-    screen.getByText("1 af 4"); // stewards manned out of all positions
-    screen.getByText("✓ 1 manned · ➜ 1 pending · ✕ 2 unmanned");
-    screen.getByText(/^● Live · updated/);
+    screen.getByText("⚠ 3 mangler dækning");
+    screen.getByText("1 af 4"); // stewards arrived out of needed
+    screen.getByText("1 på vej");
+    screen.getByText(/^● Live · opdateret/);
   });
 
   it("says all covered when every position is manned", () => {
@@ -85,10 +86,12 @@ describe("StatusBar", () => {
     );
 
     screen.getByText("3 af 3");
-    screen.getByText("✓ All covered");
-    expect(screen.queryByText(/with gaps/)).toBeNull();
+    screen.getByText("✓ Alle dækket");
+    screen.getByText("4 af 4");
+    expect(screen.queryByText(/mangler dækning/)).toBeNull();
   });
-  it("shows 'No active scenario' but keeps the connection state", () => {
+
+  it("shows 'Intet aktivt scenarie' but keeps the connection state", () => {
     render(
       <StatusBar
         state={null}
@@ -99,9 +102,9 @@ describe("StatusBar", () => {
       />,
     );
 
-    screen.getByText("No active scenario");
-    screen.getByText("● Live · updated --:--");
-    expect(screen.queryByText(/Active for/)).toBeNull();
+    screen.getByText("Intet aktivt scenarie");
+    screen.getByText("● Live · opdateret --:--");
+    expect(screen.queryByText(/Aktiv i/)).toBeNull();
   });
 
   it("treats a closed activation as no active scenario", () => {
@@ -114,7 +117,7 @@ describe("StatusBar", () => {
       />,
     );
 
-    screen.getByText("No active scenario");
+    screen.getByText("Intet aktivt scenarie");
   });
 
   it("says when the socket is disconnected", () => {
@@ -127,29 +130,44 @@ describe("StatusBar", () => {
       />,
     );
 
-    screen.getByText("⚠ Disconnected · data may be out of date");
+    screen.getByText(
+      "⚠ Forbindelsen er afbrudt · informationen kan være forældet",
+    );
     expect(screen.queryByText(/Live/)).toBeNull();
   });
-  it("counts the same statuses the station rows show", () => {
-    const state = createState();
-    const counts = countByStatus(state, requirements);
 
-    // Render every row in one tree, like the station list does.
+  it("shows the same steward numbers as the station list", () => {
+    const state = createState();
+    const scenario = {
+      scenarioId: "TEST-001",
+      name: "Test scenario",
+      currentVersion: "1",
+      versions: [
+        {
+          version: "1",
+          stationRequirements: requirements.map((r) => ({
+            ...r,
+            placement: "Platform",
+          })),
+        },
+      ],
+    } as unknown as Scenario;
+
     render(
       <>
-        {requirements.map((requirement) => (
-          <StationRow
-            key={requirement.station}
-            requirement={{ ...requirement, placement: "Platform" }}
-            deployments={state}
-          />
-        ))}
+        <StatusBar
+          state={state}
+          requirements={requirements}
+          isConnected
+          now={now}
+        />
+        <ScenarioStationList scenario={scenario} activeDeployments={state} />
       </>,
     );
 
-    // The rows draw one symbol per position: ✓ manned, ➜ pending, ✕ unmanned.
-    expect(screen.getAllByText("✓")).toHaveLength(counts.MANNED);
-    expect(screen.getAllByText("➜")).toHaveLength(counts.PENDING);
-    expect(screen.getAllByText("✕")).toHaveLength(counts.UNMANNED);
+    // The bar's "1 af 4" against the list header's "1/4 stewards". The
+    // station rows also say "1 på vej", so that text is not unique here.
+    screen.getByText("1 af 4");
+    screen.getByText("1/4 stewards · 1 på vej");
   });
 });

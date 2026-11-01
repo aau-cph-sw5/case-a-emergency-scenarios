@@ -32,11 +32,20 @@ export function LiveStatusBar() {
   const version = scenario.versions.find(
     (v) => v.version === scenario.currentVersion,
   );
+  if (version === undefined) {
+    return (
+      <View style={box}>
+        <Text role="alert" style={text.body}>
+          Scenariets aktuelle version blev ikke fundet.
+        </Text>
+      </View>
+    );
+  }
   return (
     <StatusBar
       state={activation}
       scenarioName={scenario.name}
-      requirements={version?.stationRequirements ?? []}
+      requirements={version.stationRequirements}
       isConnected={isConnected}
       lastUpdate={lastUpdatedAt?.toISOString() ?? null}
       now={now}

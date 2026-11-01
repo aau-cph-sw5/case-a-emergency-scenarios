@@ -57,11 +57,13 @@ function renderWith(
     </LiveDataContext>,
   );
 }
+
 describe("LiveStatusBar", () => {
   it("shows nothing while no scenario is active", () => {
     renderWith([], async () => {
       throw new Error("not needed");
     });
+
     expect(screen.toJSON()).toBeNull();
   });
 
@@ -76,6 +78,7 @@ describe("LiveStatusBar", () => {
 
     screen.getByText("Henter scenarie...");
   });
+
   it("shows an error when the scenario cannot be loaded", async () => {
     renderWith([activation()], async () => {
       throw new Error("network down");
@@ -83,9 +86,23 @@ describe("LiveStatusBar", () => {
 
     await screen.findByText("Ingen forbindelse til serveren. Prøv igen.");
   });
-  it("connection was lost", async () => {
+
+  it("says when the current version is missing instead of showing 0 af 0", async () => {
+    renderWith([activation()], async () => ({
+      ...scenario,
+      currentVersion: "2",
+    }));
+
+    await screen.findByText("Scenariets aktuelle version blev ikke fundet.");
+    expect(screen.queryByText(/af 0/)).toBeNull();
+  });
+
+  it("says when the connection is lost", async () => {
     renderWith([activation()], async () => scenario, false);
-    await screen.findByText("⚠ Disconnected · data may be out of date");
+
+    await screen.findByText(
+      "⚠ Forbindelsen er afbrudt · informationen kan være forældet",
+    );
   });
 
   it("shows the most recently activated scenario", async () => {
