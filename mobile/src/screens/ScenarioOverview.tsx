@@ -14,7 +14,7 @@ import {
   affectedStations,
   affectedStretchAsMapLine,
   networkWithoutStretch,
-} from "./affected-stations";
+} from "../../../shared/scenario/affected-stations";
 import { findOwnAssignment } from "./own-assignment";
 
 // The colour of the affected stretch, on the map and in the legend.

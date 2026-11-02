@@ -2,6 +2,7 @@ import { ScenarioList } from "./ScenarioList";
 import { StewardPositions } from "./components/StewardPositions";
 import { OperatorSections } from "./components/OperatorSections";
 import { LiveCoverage } from "./components/LiveCoverage";
+import { MetroMap } from "./components/MetroMap";
 
 // The control-room dashboard. App opens the socket. Each section is filled by
 // its own sub-issue of MET-A-011, so the dashboard keeps working until then.
@@ -23,7 +24,7 @@ export function OperatorDashboard({
           // the data layer loads again, so the dashboard has nothing to do.
           <ScenarioList token={token} onActivated={() => {}} />
         }
-        map={<p>Insert map here...</p>}
+        map={<MetroMap />}
         coverage={<LiveCoverage />}
       />
       {/* Fixed in the bottom right corner, so it follows the wireframe whatever

@@ -1,5 +1,5 @@
-import { getStation } from "../../../mockData/data";
-import type { SnapshotScenario } from "../../../shared/offline/scenario-snapshot";
+import { getStation } from "../../mockData/data";
+import type { SnapshotScenario } from "../offline/scenario-snapshot";
 
 //helper function as map draws "lines" made of station pairs
 //turns the affected stations (covers) into the maps "lines"
