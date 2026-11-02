@@ -92,6 +92,16 @@ test("task done before reporting at the station is refused with E1006", async ()
   assert.equal(res.body.error.code, "E1006");
 });
 
+test("a task done from an earlier activation does not count", async () => {
+  await owner`
+    INSERT INTO position_reports (staff, station, reported_at, task_done, received_at)
+    VALUES (${stewardId}, 'Station G', '2000-01-01T00:00:00Z', true, '2000-01-01T00:00:00Z')
+  `;
+  const res = await report(true);
+  assert.equal(res.status, 409);
+  assert.equal(res.body.error.code, "E1006");
+});
+
 test("task done after reporting at the station is stored and logged", async () => {
   assert.equal((await report()).status, 202);
   assert.equal((await report(true)).status, 202);
@@ -108,4 +118,25 @@ test("sending task done again is a harmless repeat", async () => {
   const res = await report(true);
   assert.equal(res.status, 202);
   assert.equal((await taskDoneEvents()).length, 1);
+});
+
+test("task done when the latest report is at another station is refused with E1006", async () => {
+  // DEMO-002 has only Station G, so the other report is written directly.
+  await owner`
+    INSERT INTO position_reports (staff, station, reported_at)
+    VALUES (${stewardId}, 'Station H', now())
+  `;
+  const res = await report(true);
+  assert.equal(res.status, 409);
+  assert.equal(res.body.error.code, "E1006");
+});
+
+test("a double tap at the same time stores one task done", async () => {
+  assert.equal((await report()).status, 202);
+  const before = (await taskDoneEvents()).length;
+
+  const [first, second] = await Promise.all([report(true), report(true)]);
+  assert.equal(first.status, 202);
+  assert.equal(second.status, 202);
+  assert.equal((await taskDoneEvents()).length, before + 1);
 });

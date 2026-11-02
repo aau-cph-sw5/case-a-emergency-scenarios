@@ -55,7 +55,10 @@ export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 
 // An activation gets its sequence once its SCENARIO_ACTIVATED event is written.
-type PendingActivation = Pick<Activation, "activationId" | "scenarioId"> & {
+type PendingActivation = Pick<
+  Activation,
+  "activationId" | "scenarioId" | "startedAt"
+> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
   sequence?: number;

@@ -27,14 +27,16 @@ export async function insertPositionReport(
   return inserted;
 }
 
-// The steward's latest report, to check a task done against (MET-A-015).
+// The steward's latest report since the activation started, to check a task
+// done against (MET-A-015).
 export async function findLatestReport(
   db: Db,
   staff: string,
+  since: string,
 ): Promise<StoredPositionReport | null> {
   const [latest] = await db<StoredPositionReport[]>`
     SELECT * FROM position_reports
-    WHERE staff = ${staff}
+    WHERE staff = ${staff} AND received_at >= ${since}
     ORDER BY received_at DESC
     LIMIT 1
   `;

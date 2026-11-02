@@ -1,5 +1,6 @@
 import { getDatabase, type Db } from "../db/client.js";
 import {
+  findLatestReport,
   insertPositionReport,
   type NewPositionReport,
   type StoredPositionReport,
@@ -38,12 +39,33 @@ export async function savePositionReport(
   return saved;
 }
 
+export type RecordResult =
+  | { kind: "saved" }
+  | { kind: "repeat" }
+  | { kind: "invalid"; latestStation: string | undefined };
+
+// A task done is only allowed at the station of the steward's latest report in
+// the activation (MET-A-015), and sending it again changes nothing. The lock
+// makes a steward's requests wait for each other, so a double tap sees the
+// first one as stored and is a repeat.
 export function recordPositionReport(
   user: AuthUser,
   report: NewPositionReport,
   clientTime: Date,
-): Promise<StoredPositionReport> {
-  return getDatabase().begin((tx) =>
-    savePositionReport(tx, user, report, clientTime),
-  );
+  activationStartedAt: string,
+): Promise<RecordResult> {
+  // The controller puts the userId from the token in staff, as a number.
+  const staff = String(report.staff);
+  return getDatabase().begin(async (tx): Promise<RecordResult> => {
+    await tx`SELECT pg_advisory_xact_lock(hashtext(${staff}))`;
+    if (report.taskDone === true) {
+      const latest = await findLatestReport(tx, staff, activationStartedAt);
+      if (latest === null || latest.station !== report.station) {
+        return { kind: "invalid", latestStation: latest?.station };
+      }
+      if (latest.taskDone) return { kind: "repeat" };
+    }
+    await savePositionReport(tx, user, report, clientTime);
+    return { kind: "saved" };
+  });
 }
