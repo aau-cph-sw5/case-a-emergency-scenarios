@@ -13,7 +13,12 @@ import { useSocketState } from "../../../shared/socket/useSocketState";
 import { colors, palette, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
 import { sendPositionReport } from "../api/position-report";
-import { StationPicker } from "../components/StationPicker";
+import { StationList } from "../components/StationList";
+import {
+  loadLocationOptions,
+  rememberPosition,
+  type LocationOptions,
+} from "../data/steward-location";
 import { snapshotStore } from "../offline/snapshot-store";
 import { socket } from "../socket";
 import { OfflineBanner } from "./OfflineBanner";
@@ -45,8 +50,12 @@ export function StewardView({
     store: snapshotStore,
     onUnauthorized,
   });
-  const [station, setStation] = useState<string>("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [options, setOptions] = useState<LocationOptions>({
+    lastPosition: null,
+    stations: [],
+  });
 
   // Fetches again when the app returns to the foreground, when the socket
   // announces an activation, and when the socket reconnects, so an activation
@@ -68,23 +77,52 @@ export function StewardView({
 
   const live = view.status === "live" ? view.snapshot.scenario : null;
 
-  // A new scenario arriving with a new scenarioid clears the old station choice.
+  // A new scenario arriving with a new scenarioid clears the old report text.
   const scenarioId = live?.scenarioId;
   const [shownScenarioId, setShownScenarioId] = useState(scenarioId);
   if (scenarioId !== shownScenarioId) {
     setShownScenarioId(scenarioId);
-    setStation("");
     setReportStatus(null);
   }
 
-  // The stations of the active scenario's current version, for the picker.
-  // Positions can only be reported while live.
-  const stations = live ? currentStations(live) : [];
+  // The stations of the active scenario's current version. Positions can
+  // only be reported while live.
+  const scenarioStations = live ? currentStations(live) : [];
+  const stationsKey = scenarioStations.join("|");
 
-  // Reports the chosen station and shows the answer.
-  async function reportPosition() {
-    if (station === "") return;
-    setReportStatus(await sendPositionReport(token, station));
+  // Loads the stations to choose from, nearest the steward's position first.
+  // Runs when the scenario's stations change.
+  useEffect(() => {
+    let cancelled = false;
+    void loadLocationOptions(
+      stationsKey === "" ? [] : stationsKey.split("|"),
+    ).then((loaded) => {
+      if (!cancelled) setOptions(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [stationsKey]);
+
+  // Reports the pressed station as the steward's position and shows the
+  // answer. An accepted report replaces the previous position on screen.
+  async function reportPosition(station: string) {
+    if (sending) return;
+    setSending(true);
+    const previous = options.lastPosition;
+    const result = await sendPositionReport(token, station);
+    if (result.ok) {
+      rememberPosition(station);
+      setOptions(await loadLocationOptions(scenarioStations));
+      setReportStatus(
+        previous !== null && previous !== station
+          ? `Position skiftet: ${previous} → ${station}`
+          : result.message,
+      );
+    } else {
+      setReportStatus(result.message);
+    }
+    setSending(false);
   }
 
   const retry = onRetry ?? (() => void refresh());
@@ -129,23 +167,20 @@ export function StewardView({
 
         {online && (
           <>
-            {stations.length > 0 && (
+            {options.stations.length > 0 && (
               <>
-                <StationPicker
-                  stations={stations}
-                  selected={station}
-                  onSelect={setStation}
-                />
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={reportPosition}
-                  disabled={station === ""}
-                  style={styles.button}
-                >
-                  <Text style={styles.buttonText}>Rapportér position</Text>
-                </Pressable>
+                <Text style={styles.label}>
+                  Din position: {options.lastPosition ?? "ikke rapporteret"}
+                </Text>
                 {reportStatus && <Text>{reportStatus}</Text>}
+
+                <Text style={styles.label}>Tryk på din station:</Text>
+                <StationList
+                  stations={options.stations}
+                  current={options.lastPosition}
+                  disabled={sending}
+                  onSelect={(station) => void reportPosition(station)}
+                />
               </>
             )}
 
@@ -177,6 +212,13 @@ const styles = StyleSheet.create({
   error: {
     color: palette.metroDeepRed,
     fontWeight: "600",
+    marginBottom: 4,
+  },
+  label: {
+    ...text.body,
+    color: colors.text,
+    fontWeight: "600",
+    marginTop: 12,
     marginBottom: 4,
   },
   ok: {
