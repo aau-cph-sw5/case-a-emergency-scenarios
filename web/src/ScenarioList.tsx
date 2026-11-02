@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { colors } from "../../shared/Theme";
 import { useLiveData } from "./data/liveData";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { isScenarioState } from "./scenario-state";
 import type { ScenarioSummary } from "./scenarios";
+import { canActivate, keepSelection } from "./selection";
 
 type ActivationState =
   | { status: "idle" }
@@ -14,27 +16,59 @@ type ActivationState =
   | { status: "done"; state: ScenarioState }
   | { status: "stood-down"; state: ScenarioState };
 
+// The list does not keep the selection itself. OperatorDashboard holds it and
+// passes it in, so the scenario preview next to the list shows the same
+// scenario that is selected here.
 export function ScenarioList({
   token,
+  selectedId,
+  onSelect,
   onActivated,
 }: {
   token: string;
+  selectedId: string | null;
+  onSelect: (scenarioId: string | null) => void;
   onActivated: (scenarioId: string) => void;
 }) {
-  // The scenario list comes from LiveDataProvider, which loads it once.
-  const { scenarios, scenariosError, reloadScenarios, activations } =
+  // The scenario list and the active activations come from LiveDataProvider,
+  // which loads them once and reloads the activations when they change.
+  const { scenarios, scenariosError, reloadScenarios, activations, error } =
     useLiveData();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<ScenarioSummary | null>(null);
-  // The scenarios that are live now, for the dot next to each one.
-  const activeIds = new Set(activations.map((a) => a.scenarioId));
+  // True while the confirmation dialog is open for the selected scenario.
+  const [confirming, setConfirming] = useState(false);
+  // Names for the scenarios being deactivated, shown in the confirmation.
   const names = new Map((scenarios ?? []).map((s) => [s.scenarioId, s.name]));
   const [activation, setActivation] = useState<ActivationState>({
     status: "idle",
   });
+  // The scenarios that are already active. A scenario activated here counts
+  // as active straight away, so the operator cannot try to activate it again
+  // before the reloaded activations arrive.
+  const activeIds = new Set(activations.map((a) => a.scenarioId));
+  if (activation.status === "done") activeIds.add(activation.state.scenarioId);
+  // If the active scenarios cannot be loaded, the operator can still find and
+  // activate scenarios, and a message says that they could not be shown.
+  const activeFailed = error !== null;
+
+  // Clear the selection if the selected scenario is no longer in the list.
+  useEffect(() => {
+    if (scenarios === null) return;
+    const kept = keepSelection(selectedId, scenarios);
+    if (kept !== selectedId) onSelect(kept);
+  }, [scenarios, selectedId, onSelect]);
+
+  const selected =
+    scenarios?.find((scenario) => scenario.scenarioId === selectedId) ?? null;
+  // Selecting the active scenario offers to stand it down instead.
+  const selectedIsActive =
+    selected !== null && activeIds.has(selected.scenarioId);
+  // No new action is started while one is on its way to the server.
+  const busy =
+    activation.status === "activating" || activation.status === "standing-down";
 
   async function activate(scenario: ScenarioSummary) {
-    setSelected(null);
+    setConfirming(false);
     setActivation({ status: "activating" });
     // While another scenario is active this is a switch: replaces names the
     // activation the operator confirmed to stand down
@@ -62,7 +96,7 @@ export function ScenarioList({
   // The server sends "activations-changed" afterwards, so the dot and the
   // banner update by themselves
   async function standDown(scenario: ScenarioSummary) {
-    setSelected(null);
+    setConfirming(false);
     const active = activations.find(
       (a) => a.scenarioId === scenario.scenarioId,
     );
@@ -119,21 +153,44 @@ export function ScenarioList({
           <ScenarioResults
             scenarios={filterScenarios(scenarios, query)}
             query={query}
+            selectedId={selectedId}
             activeIds={activeIds}
-            onSelect={setSelected}
-            disabled={
-              activation.status === "activating" ||
-              activation.status === "standing-down"
-            }
+            onSelect={onSelect}
+            disabled={busy}
           />
         ))}
 
-      {selected &&
-        (activeIds.has(selected.scenarioId) ? (
+      {activeFailed && <p role="status">Aktive scenarier kunne ikke vises.</p>}
+
+      {/* Opens the confirmation for the selected scenario. It sits under the
+          list for now; it belongs at the bottom of the scenario preview, so
+          the operator sees what a scenario requires before activating it. The
+          active scenario is stood down instead (MET-A-009). */}
+      {selectedIsActive ? (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          disabled={busy}
+        >
+          Deaktivér valgt scenarie
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          disabled={!canActivate(selected?.scenarioId ?? null, busy, activeIds)}
+        >
+          Aktivér valgt scenarie
+        </button>
+      )}
+
+      {confirming &&
+        selected &&
+        (selectedIsActive ? (
           <ConfirmStandDown
             scenario={selected}
             onConfirm={() => standDown(selected)}
-            onCancel={() => setSelected(null)}
+            onCancel={() => setConfirming(false)}
           />
         ) : (
           <ConfirmActivation
@@ -142,7 +199,7 @@ export function ScenarioList({
               .filter((a) => a.scenarioId !== selected.scenarioId)
               .map((a) => names.get(a.scenarioId) ?? a.scenarioId)}
             onConfirm={() => activate(selected)}
-            onCancel={() => setSelected(null)}
+            onCancel={() => setConfirming(false)}
           />
         ))}
 
@@ -177,17 +234,25 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
   }
 }
 
+const selectedStyle = {
+  backgroundColor: colors.active,
+  color: colors.textInverse,
+  fontWeight: "bold",
+} as const;
+
 function ScenarioResults({
   scenarios,
   query,
+  selectedId,
   activeIds,
   onSelect,
   disabled,
 }: {
   scenarios: ScenarioSummary[];
   query: string;
-  activeIds: Set<string>;
-  onSelect: (scenario: ScenarioSummary) => void;
+  selectedId: string | null;
+  activeIds: ReadonlySet<string>;
+  onSelect: (scenarioId: string) => void;
   disabled: boolean;
 }) {
   // No match is an empty list, not an error.
@@ -197,17 +262,24 @@ function ScenarioResults({
   return (
     <ul className="scenario-list">
       {scenarios.map((scenario) => {
+        const isSelected = scenario.scenarioId === selectedId;
         const live = activeIds.has(scenario.scenarioId);
+        // The selected scenario is inverted, the shared "selected" style in
+        // Theme, and bold, so it is marked by more than colour. aria-pressed
+        // tells screen readers which one is selected.
         return (
           <li key={scenario.scenarioId}>
             <button
               type="button"
-              onClick={() => onSelect(scenario)}
+              aria-pressed={isSelected}
+              onClick={() => onSelect(scenario.scenarioId)}
               disabled={disabled}
+              style={isSelected ? selectedStyle : undefined}
             >
               {scenario.name}
             </button>
-            {/* Green when the scenario is live, empty when it is not. */}
+            {/* A filled green dot when the scenario is live and an empty ring
+                when it is not, so it is marked by shape as well as colour. */}
             <span
               className={
                 live ? "scenario-dot scenario-dot--live" : "scenario-dot"
