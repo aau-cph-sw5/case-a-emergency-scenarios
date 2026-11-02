@@ -110,19 +110,23 @@ export function StewardView({
     if (sending) return;
     setSending(true);
     const previous = options.lastPosition;
-    const result = await sendPositionReport(token, station);
-    if (result.ok) {
-      rememberPosition(station);
-      setOptions(await loadLocationOptions(scenarioStations));
-      setReportStatus(
-        previous !== null && previous !== station
-          ? `Position skiftet: ${previous} → ${station}`
-          : result.message,
-      );
-    } else {
-      setReportStatus(result.message);
+    try {
+      const result = await sendPositionReport(token, station);
+      if (result.ok) {
+        rememberPosition(station);
+        setOptions(await loadLocationOptions(scenarioStations));
+        setReportStatus(
+          previous !== null && previous !== station
+            ? `Position skiftet fra ${previous} til ${station}`
+            : result.message,
+        );
+      } else {
+        setReportStatus(result.message);
+      }
+    } finally {
+      // Always unlock the buttons, also if loading the options fails.
+      setSending(false);
     }
-    setSending(false);
   }
 
   const retry = onRetry ?? (() => void refresh());
