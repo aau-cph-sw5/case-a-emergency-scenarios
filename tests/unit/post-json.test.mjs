@@ -1,3 +1,4 @@
+/* eslint-disable n/no-unsupported-features/node-builtins */
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { postJson } from "../../web/src/get-json.ts";
