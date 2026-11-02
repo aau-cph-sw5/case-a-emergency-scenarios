@@ -38,7 +38,7 @@ function textContent(value: unknown): string {
 }
 
 describe("ScenarioStationList", () => {
-  it("orders stations by M1 then M2 fixture sequence and puts unknown stations last", () => {
+  it("puts the worst covered stations first, in M1 then M2 order when equal, and unknown stations last", () => {
     const scenario = createScenario([
       "Station G",
       "Station C",
@@ -62,22 +62,23 @@ describe("ScenarioStationList", () => {
       />,
     );
 
-    const stationTitles = screen
-      .getAllByText(/stewards$/)
+    const stationNames = screen
+      .getAllByText(/^Station /)
       .map((element) => textContent(element.props.children));
 
-    expect(stationTitles).toEqual([
-      "Station A - 1/1 stewards",
-      "Station B - 0/1 stewards",
-      "Station C - 0/1 stewards",
-      "Station F - 1/1 stewards",
-      "Station G - 0/1 stewards",
-      "Station X - 0/1 stewards",
+    expect(stationNames).toEqual([
+      "Station B",
+      "Station C",
+      "Station G",
+      "Station X",
+      "Station A",
+      "Station F",
     ]);
-    expect(screen.getByText("2/6 stations covered")).toBeTruthy();
+    expect(screen.getByText("6")).toBeTruthy();
+    expect(screen.getByText("2/6 stationer dækket")).toBeTruthy();
   });
 
-  it("shows an empty count when the current scenario version is missing", () => {
+  it("shows the empty state when the current scenario version is missing", () => {
     render(
       <ScenarioStationList
         scenario={createScenario(["Station A"], "missing")}
@@ -85,6 +86,34 @@ describe("ScenarioStationList", () => {
       />,
     );
 
-    expect(screen.getByText("0/0 stations covered")).toBeTruthy();
+    expect(screen.getByText("Scenariet kræver ingen stationer.")).toBeTruthy();
+  });
+
+  it("shows the empty state when the scenario requires no stations", () => {
+    render(
+      <ScenarioStationList
+        scenario={createScenario([])}
+        activeDeployments={{ deployments: [] }}
+      />,
+    );
+
+    expect(screen.getByText("Scenariet kræver ingen stationer.")).toBeTruthy();
+  });
+
+  it("shows the stewards who arrived and who are en route across all stations", () => {
+    render(
+      <ScenarioStationList
+        scenario={createScenario(["Station A", "Station B"])}
+        activeDeployments={{
+          deployments: [
+            { fulfills: "Station A", status: "MANNED" },
+            { fulfills: "Station B", status: "PENDING" },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("1/2 stationer dækket")).toBeTruthy();
+    expect(screen.getByText("1/2 stewards · 1 på vej")).toBeTruthy();
   });
 });
