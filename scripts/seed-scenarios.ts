@@ -47,7 +47,11 @@ interface Pattern {
 }
 interface Route {
   sequence: number;
-  station: string;
+  station?: string;
+  shafts?: string;
+}
+function stopCode(stop: Route): string | undefined {
+  return (stop.station ?? stop.shafts)?.normalize("NFC");
 }
 interface StationRequirement {
   station: string;
@@ -76,10 +80,11 @@ function validate(
   scenario: Scenario,
   fileName: string,
   allowedStations: Set<string>,
+  shaftCodes: Set<string>,
 ): string[] {
   const errors: string[] = [];
   const checkStation = (code: string, where: string) => {
-    if (!allowedStations.has(code)) {
+    if (!allowedStations.has(code.normalize("NFC"))) {
       errors.push(`${where}: unknown station "${code}".`);
     }
   };
@@ -138,10 +143,21 @@ function validate(
         }
       }
       pattern.route.forEach((stop, stopIndex) => {
-        checkStation(stop.station, `${where}.route[${stopIndex}]`);
+        const stopWhere = `${where}.route[${stopIndex}]`;
+        if ((stop.station === undefined) === (stop.shafts === undefined)) {
+          errors.push(
+            `${stopWhere}: must have either a station or a shaft, but not both. Got ${JSON.stringify(stop)}`,          );
+          return;
+        }
+        const code = stopCode(stop)!;
+        if (stop.shafts !== undefined && !shaftCodes.has(code)) {
+          errors.push(`${stopWhere}: unknown shaft code "${code}".`);
+        } else {
+          checkStation(code, stopWhere);
+        }
+        });
       });
     });
-  });
   scenario.versions.forEach((version) => {
     (version.stationRequirements ?? []).forEach((requirement, reqIndex) => {
       checkStation(
@@ -175,6 +191,7 @@ function validate(
 let stationNames = new Map<string, string>();
 
 function readSeedData() {
+  
   const {
     scenarioFiles: seedFiles,
     problem,
@@ -198,6 +215,7 @@ function readSeedData() {
   );
   const stationList = [...stations, ...shafts];
   const allowedStations = new Set(stationList.map((s) => s.code));
+  const shaftCodes = new Set(shafts.map((s) => s.code));
   const allErrors: string[] = [];
   const seenIds = new Map<string, string>();
   const scenarios: Scenario[] = [];
@@ -206,7 +224,7 @@ function readSeedData() {
     const scenario: Scenario = JSON.parse(
       readFileSync(join(SEED_SCENARIOS_DIR, fileName), "utf8"),
     );
-    allErrors.push(...validate(scenario, fileName, allowedStations));
+    allErrors.push(...validate(scenario, fileName, allowedStations, shaftCodes));
     scenarios.push(scenario);
 
     const firstFile = seenIds.get(scenario.scenarioId);
@@ -327,7 +345,7 @@ async function loadScenario(
       for (const stop of pattern.route) {
         await client.query(
           `INSERT INTO line_stops (operating_pattern_id, station_id, sequence) VALUES ($1, $2, $3)`,
-          [patternId, await getStationId(client, stop.station), stop.sequence],
+          [patternId, await getStationId(client, stopCode(stop)!), stop.sequence],
         );
       }
     }
