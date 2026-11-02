@@ -182,6 +182,7 @@ export default function MapRender({
   showLineButtons = true,
   highlightStation,
   highlightColor = theme.text,
+  markedStations = [],
 }: {
   lines: MapLine[];
   colors: Record<string, string>;
@@ -191,9 +192,19 @@ export default function MapRender({
   // map exactly as before.
   highlightStation?: string;
   highlightColor?: string;
+  // Optional: more stations drawn the same way, for example the stations a
+  // scenario needs staff at (#183). Leaving it out draws the map as before.
+  markedStations?: readonly string[];
 }) {
+  // Each station once, so a station both marked and highlighted is drawn once.
+  const highlighted = [
+    ...new Set([
+      ...markedStations,
+      ...(highlightStation !== undefined ? [highlightStation] : []),
+    ]),
+  ];
   const highlightFor = (station: string) =>
-    station === highlightStation ? highlightColor : undefined;
+    highlighted.includes(station) ? highlightColor : undefined;
   const [hidden, setHidden] = useState<string[]>([]);
   const visible = lines.filter((l) => !hidden.includes(l.name));
   return (
@@ -259,16 +270,18 @@ export default function MapRender({
               );
             }),
         )}
-        {/* Drawn last so no track segment covers the highlighted station. */}
-        {highlightStation !== undefined &&
-          getStation(highlightStation) !== undefined && (
+        {/* Drawn last so no track segment covers a highlighted station. */}
+        {highlighted
+          .filter((station) => getStation(station) !== undefined)
+          .map((station) => (
             <Station
-              name={highlightStation}
-              x={getStation(highlightStation)[0]}
-              y={getStation(highlightStation)[1]}
+              key={`highlight-${station}`}
+              name={station}
+              x={getStation(station)[0]}
+              y={getStation(station)[1]}
               highlightColor={highlightColor}
             />
-          )}
+          ))}
       </Svg>
     </View>
   );

@@ -44,4 +44,25 @@ describe("MapRender", () => {
 
     expect(drawnStations()).toHaveLength(2);
   });
+
+  it("draws marked stations larger, and the others as before", () => {
+    const lines = [
+      {
+        name: "M2",
+        tracks: [1, 2],
+        connections: [["FOR", "KN"]] as [string, string][],
+      },
+    ];
+    const radii = () =>
+      screen.UNSAFE_queryAllByType(Circle).map((dot) => dot.props.r);
+
+    const view = render(<MapRender lines={lines} colors={colors} />);
+    expect(radii().every((r) => r === 10)).toBe(true);
+
+    view.rerender(
+      <MapRender lines={lines} colors={colors} markedStations={["KN"]} />,
+    );
+    expect(radii()).toContain(12);
+    expect(radii()).toContain(10);
+  });
 });

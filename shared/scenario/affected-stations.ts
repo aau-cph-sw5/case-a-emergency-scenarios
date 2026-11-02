@@ -76,3 +76,32 @@ export function networkWithoutStretch(
     ),
   }));
 }
+
+// The lines that run through at least one of the pieces. A piece shared by
+// two lines, for example FOR–KGN on M1 and M2, keeps both.
+export function linesThrough<Line extends { connections: StationPair[] }>(
+  networkLines: Line[],
+  pieces: StationPair[],
+) {
+  return networkLines.filter((line) =>
+    line.connections.some((piece) =>
+      pieces.some((other) => samePiece(piece, other)),
+    ),
+  );
+}
+
+// The stations the scenario's current version needs staff at, each once and
+// in the scenario's order.
+export function requiredStations(scenario: {
+  currentVersion: string;
+  versions: { version: string; stationRequirements?: { station: string }[] }[];
+}) {
+  const current = scenario.versions.find(
+    (version) => version.version === scenario.currentVersion,
+  );
+  return [
+    ...new Set(
+      (current?.stationRequirements ?? []).map(({ station }) => station),
+    ),
+  ];
+}

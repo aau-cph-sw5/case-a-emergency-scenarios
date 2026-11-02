@@ -43,7 +43,7 @@ export function OperatorDashboard({
             />
           </>
         }
-        map={<MetroMap />}
+        map={<MetroMap scenarioId={selectedScenarioId} />}
         coverage={<LiveCoverage />}
       />
       {/* Fixed in the bottom right corner, so it follows the wireframe whatever
