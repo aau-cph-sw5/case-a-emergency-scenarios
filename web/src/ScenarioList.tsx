@@ -9,8 +9,10 @@ import type { ScenarioSummary } from "./scenarios";
 type ActivationState =
   | { status: "idle" }
   | { status: "activating" }
+  | { status: "standing-down" }
   | { status: "error"; message: string }
-  | { status: "done"; state: ScenarioState };
+  | { status: "done"; state: ScenarioState }
+  | { status: "stood-down"; state: ScenarioState };
 
 export function ScenarioList({
   token,
@@ -34,17 +36,51 @@ export function ScenarioList({
   async function activate(scenario: ScenarioSummary) {
     setSelected(null);
     setActivation({ status: "activating" });
+    // While another scenario is active this is a switch: replaces names the
+    // activation the operator confirmed to stand down
+    const outgoing = activations.find(
+      (a) => a.scenarioId !== scenario.scenarioId,
+    );
     try {
       const state = await postJson(
         `/api/v1/scenarios/${encodeURIComponent(scenario.scenarioId)}/activate`,
         token,
         isScenarioState,
+        outgoing && { replaces: outgoing.activationId },
       );
       setActivation({ status: "done", state });
       onActivated(state.scenarioId);
     } catch (error) {
       console.error(error);
-      setActivation({ status: "error", message: userMessage(error) });
+      setActivation({
+        status: "error",
+        message: `Kunne ikke aktivere scenariet: ${userMessage(error)}`,
+      });
+    }
+  }
+
+  // The server sends "activations-changed" afterwards, so the dot and the
+  // banner update by themselves
+  async function standDown(scenario: ScenarioSummary) {
+    setSelected(null);
+    const active = activations.find(
+      (a) => a.scenarioId === scenario.scenarioId,
+    );
+    if (active === undefined) return;
+    setActivation({ status: "standing-down" });
+    try {
+      const state = await postJson(
+        `/api/v1/activations/${encodeURIComponent(active.activationId)}/stand-down`,
+        token,
+        isScenarioState,
+      );
+      setActivation({ status: "stood-down", state });
+    } catch (error) {
+      console.error(error);
+      setActivation({
+        status: "error",
+        message: `Kunne ikke deaktivere scenariet: ${userMessage(error)}`,
+      });
     }
   }
 
@@ -85,7 +121,10 @@ export function ScenarioList({
             query={query}
             activeIds={activeIds}
             onSelect={setSelected}
-            disabled={activation.status === "activating"}
+            disabled={
+              activation.status === "activating" ||
+              activation.status === "standing-down"
+            }
           />
         ))}
 
@@ -118,15 +157,21 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
       return null;
     case "activating":
       return <p role="status">Aktiverer scenarie…</p>;
+    case "standing-down":
+      return <p role="status">Deaktiverer scenarie…</p>;
     case "error":
-      return (
-        <p role="alert">Kunne ikke aktivere scenariet: {activation.message}</p>
-      );
+      return <p role="alert">{activation.message}</p>;
     case "done":
       return (
         <p role="status">
           Scenarie {activation.state.scenarioId} er {activation.state.status},
           startet {activation.state.startedAt} af {activation.state.actor}.
+        </p>
+      );
+    case "stood-down":
+      return (
+        <p role="status">
+          Scenarie {activation.state.scenarioId} er deaktiveret.
         </p>
       );
   }
@@ -254,4 +299,3 @@ function ConfirmStandDown({
     </dialog>
   );
 }
-

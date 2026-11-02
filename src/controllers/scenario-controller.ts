@@ -12,7 +12,12 @@ import {
   getAllScenarios,
 } from "../repositories/scenario-repository.js";
 import { userRepository } from "../repositories/user-repository.js";
-import { activateAndLog } from "../services/activation-service.js";
+import {
+  activateAndLog,
+  standDownAndLog,
+  switchAndLog,
+} from "../services/activation-service.js";
+import type { ActivateRequest } from "../../shared/types/v1/activate-request.js";
 
 export async function getScenarios(_request: Request, response: Response) {
   response.json(await getAllScenarios());
@@ -69,6 +74,7 @@ export async function activate(
 ) {
   const { userId, role } = response.locals.user;
   const { scenarioId } = request.params;
+  const { replaces } = (request.body ?? {}) as ActivateRequest;
 
   if (role !== "OPERATOR") {
     response
@@ -106,12 +112,25 @@ export async function activate(
     return;
   }
 
-  const result = await activateAndLog(
-    response.locals.user,
-    scenario,
-    user.username,
-  );
-  if (result.kind === "already-active") {
+  const result =
+    replaces === undefined
+      ? await activateAndLog(response.locals.user, scenario, user.username)
+      : await switchAndLog(
+          response.locals.user,
+          scenario,
+          user.username,
+          replaces,
+        );
+  if (result.kind === "replaces-not-active") {
+    response
+      .status(409)
+      .json(
+        errorBody(
+          ERROR_CODES.CONFLICT,
+          `'${replaces}' is not the active activation`,
+        ),
+      );
+  } else if (result.kind === "already-active") {
     response
       .status(409)
       .json(
@@ -136,4 +155,55 @@ export async function activate(
     console.log("Scenario activated:", result.activation);
     response.status(201).json(result.activation);
   }
+}
+
+// Standing down returns every client to normal
+export async function standDown(
+  request: Request<{ activationId: string }>,
+  response: Response,
+) {
+  const { role } = response.locals.user;
+  const { activationId } = request.params;
+
+  if (role !== "OPERATOR") {
+    response
+      .status(403)
+      .json(
+        errorBody(
+          ERROR_CODES.ROLE_NOT_PERMITTED,
+          `Role ${role} may not stand down a scenario`,
+        ),
+      );
+    return;
+  }
+
+  const result = await standDownAndLog(response.locals.user, activationId);
+  if (result.kind === "not-found") {
+    response
+      .status(404)
+      .json(
+        errorBody(
+          ERROR_CODES.NOT_FOUND,
+          `No activation with id '${activationId}' exists`,
+        ),
+      );
+    return;
+  }
+  if (result.kind === "already-closed") {
+    response
+      .status(409)
+      .json(
+        errorBody(
+          ERROR_CODES.SCENARIO_STOOD_DOWN,
+          `'${activationId}' is already stood down`,
+        ),
+      );
+    return;
+  }
+
+  // Operators refetch their activations.
+  const io = request.app.locals.io as Server | undefined;
+  io?.to("STEWARD").emit("scenario-stood-down");
+  io?.to("OPERATOR").emit("activations-changed");
+  response.json(result.activation);
 }
