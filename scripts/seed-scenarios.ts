@@ -15,6 +15,7 @@ import {
 export interface Scenario {
   scenarioId: string;
   name: string;
+  line_group: "M1_M2" | "M3_M4";
   currentVersion: string;
   covers: Cover[];
   versions: Version[];
@@ -72,7 +73,7 @@ interface PassengerInformation {
   message: string;
 }
 
-function validate(
+export function validate(
   scenario: Scenario,
   fileName: string,
   allowedStations: Set<string>,
@@ -105,6 +106,13 @@ function validate(
     checkStation(cover.stationA, `${fileName}: covers[${index}].stationA`);
     checkStation(cover.stationB, `${fileName}: covers[${index}].stationB`);
   });
+
+  const line_group = scenario.line_group;
+  if (line_group !== "M1_M2" && line_group !== "M3_M4") {
+    errors.push(
+      `${fileName}: line_group "${line_group}" but must be either "M1_M2" or "M3_M4".`,
+    );
+  }
 
   scenario.versions.forEach((version) => {
     version.operatingPlan.patterns.forEach((pattern, index) => {
@@ -274,8 +282,8 @@ async function loadScenario(
     scenario.scenarioId,
   ]);
   await client.query(
-    "INSERT INTO scenarios (scenario_id, name) VALUES ($1, $2)",
-    [scenario.scenarioId, scenario.name],
+    "INSERT INTO scenarios (scenario_id, name, line_group) VALUES ($1, $2, $3)",
+    [scenario.scenarioId, scenario.name, scenario.line_group],
   );
 
   for (const cover of scenario.covers) {

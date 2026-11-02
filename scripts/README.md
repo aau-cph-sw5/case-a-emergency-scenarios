@@ -16,7 +16,8 @@ the seed loader has been developed in TypeScript, it is responsible for gatherin
 **bash**
 
     npm run seed
-        - this command in itself acutally loads the data, the expected output with one seed data file should be "Seeded 1 scenario", one per file. Running it twice is safe and will not create duplicates
+
+Intended for initial setup. Reseeding can fail once scenarios have activation history.
 
 ## checking the result
 
