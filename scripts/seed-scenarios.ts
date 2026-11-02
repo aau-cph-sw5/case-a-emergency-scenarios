@@ -76,7 +76,7 @@ interface PassengerInformation {
   message: string;
 }
 
-function validate(
+export function validate(
   scenario: Scenario,
   fileName: string,
   allowedStations: Set<string>,
@@ -146,7 +146,8 @@ function validate(
         const stopWhere = `${where}.route[${stopIndex}]`;
         if ((stop.station === undefined) === (stop.shafts === undefined)) {
           errors.push(
-            `${stopWhere}: must have either a station or a shaft, but not both. Got ${JSON.stringify(stop)}`,          );
+            `${stopWhere}: must have either a station or a shaft, but not both. Got ${JSON.stringify(stop)}`,
+          );
           return;
         }
         const code = stopCode(stop)!;
@@ -155,9 +156,9 @@ function validate(
         } else {
           checkStation(code, stopWhere);
         }
-        });
       });
     });
+  });
   scenario.versions.forEach((version) => {
     (version.stationRequirements ?? []).forEach((requirement, reqIndex) => {
       checkStation(
@@ -191,7 +192,6 @@ function validate(
 let stationNames = new Map<string, string>();
 
 function readSeedData() {
-  
   const {
     scenarioFiles: seedFiles,
     problem,
@@ -224,7 +224,9 @@ function readSeedData() {
     const scenario: Scenario = JSON.parse(
       readFileSync(join(SEED_SCENARIOS_DIR, fileName), "utf8"),
     );
-    allErrors.push(...validate(scenario, fileName, allowedStations, shaftCodes));
+    allErrors.push(
+      ...validate(scenario, fileName, allowedStations, shaftCodes),
+    );
     scenarios.push(scenario);
 
     const firstFile = seenIds.get(scenario.scenarioId);
@@ -345,7 +347,11 @@ async function loadScenario(
       for (const stop of pattern.route) {
         await client.query(
           `INSERT INTO line_stops (operating_pattern_id, station_id, sequence) VALUES ($1, $2, $3)`,
-          [patternId, await getStationId(client, stopCode(stop)!), stop.sequence],
+          [
+            patternId,
+            await getStationId(client, stopCode(stop)!),
+            stop.sequence,
+          ],
         );
       }
     }
