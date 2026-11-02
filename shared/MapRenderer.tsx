@@ -10,6 +10,12 @@ type MapLine = {
   connections: [string, string][];
 };
 
+type BlockedTrack = {
+  trackNumber: number;
+  stationA: string;
+  stationB: string;
+};
+
 function GetOffset(
   x1: number,
   y1: number,
@@ -26,6 +32,19 @@ function GetOffset(
   return { ox: (-dy / length) * offset, oy: (dx / length) * offset };
 }
 
+const LABEL_ABOVE_LEFT = [
+  "NEL",
+  "MOP",
+  "SLU",
+  "EBR",
+  "HOL",
+  "NHT",
+  "ORK",
+  "AMH",
+  "NUK",
+  "NØR",
+];
+
 function Station({
   name,
   x,
@@ -39,8 +58,13 @@ function Station({
   highlightColor?: string;
 }) {
   const [hover, setHover] = useState(false);
-  // Only a little larger than the others, so the label above stays readable.
-  const baseRadius = highlightColor ? 12 : 10;
+  // The same size for every station; a highlighted one differs only by colour.
+  const baseRadius = 10;
+  // Tilted and placed beside the dot, clear of the tracks. A track rising to
+  // the right would lie along the usual label, so those stations mirror it.
+  const mirrored = LABEL_ABOVE_LEFT.includes(name);
+  const labelX = mirrored ? x - baseRadius - 6 : x + baseRadius + 6;
+  const labelY = y - baseRadius - 2;
   return (
     <>
       <Circle
@@ -58,10 +82,10 @@ function Station({
       />
       <Text
         {...text.mapLabel}
-        x={x}
-        // Unchanged for normal stations; lifted clear of the highlighted dot.
-        y={highlightColor ? y - baseRadius - 8 : y - 14}
-        textAnchor="middle"
+        x={labelX}
+        y={labelY}
+        textAnchor={mirrored ? "end" : "start"}
+        transform={`rotate(${mirrored ? 45 : -45} ${labelX} ${labelY})`}
         {...(highlightColor ? { fill: highlightColor } : {})}
       >
         {name}
@@ -80,6 +104,7 @@ function TrackSegment({
   track,
   colorA,
   colorB,
+  blocked = false,
 }: {
   stationA: string;
   stationB: string;
@@ -90,12 +115,13 @@ function TrackSegment({
   track: number;
   colorA: string;
   colorB: string;
+  blocked?: boolean;
 }) {
   const [hover, setHover] = useState(false);
   const w = hover ? 6 : 4;
   const strips: [number, string, number][] = [
-    [4, colorA, w],
-    [8, colorB, w],
+    [4, blocked ? theme.blockedTrack : colorA, w],
+    [8, blocked ? theme.blockedTrack : colorB, w],
   ];
   const side = track === 1 ? -1 : 1;
   const press = () => console.log(`Track ${track}: ${stationA} → ${stationB}`);
@@ -112,6 +138,7 @@ function TrackSegment({
             y2={y2 + oy}
             stroke={color}
             strokeWidth={sw}
+            strokeDasharray={blocked ? "10 6" : undefined}
             onPress={press}
             {...({
               onMouseEnter: () => setHover(true),
@@ -183,18 +210,24 @@ export default function MapRender({
   highlightStation,
   highlightColor = theme.text,
   markedStations = [],
+  blockedTracks = [],
+  initiallyHidden = [],
 }: {
   lines: MapLine[];
   colors: Record<string, string>;
   viewBox?: string;
   showLineButtons?: boolean;
-  // Optional: one station drawn larger and filled. Leaving it out draws the
+  // Optional: one station drawn filled. Leaving it out draws the
   // map exactly as before.
   highlightStation?: string;
   highlightColor?: string;
   // Optional: more stations drawn the same way, for example the stations a
   // scenario needs staff at (#183). Leaving it out draws the map as before.
   markedStations?: readonly string[];
+  // Optional: the tracks a scenario blocks, drawn in their own style (#183).
+  blockedTracks?: readonly BlockedTrack[];
+  // Optional: lines that start switched off until their button is pressed.
+  initiallyHidden?: string[];
 }) {
   // Each station once, so a station both marked and highlighted is drawn once.
   const highlighted = [
@@ -205,7 +238,7 @@ export default function MapRender({
   ];
   const highlightFor = (station: string) =>
     highlighted.includes(station) ? highlightColor : undefined;
-  const [hidden, setHidden] = useState<string[]>([]);
+  const [hidden, setHidden] = useState<string[]>(initiallyHidden);
   const visible = lines.filter((l) => !hidden.includes(l.name));
   return (
     <View style={{ flex: 1 }}>
@@ -251,6 +284,12 @@ export default function MapRender({
                             colorB,
                           }}
                           track={i + 1}
+                          blocked={blockedTracks.some(
+                            (blocked) =>
+                              blocked.trackNumber === i + 1 &&
+                              [stationA, stationB].includes(blocked.stationA) &&
+                              [stationA, stationB].includes(blocked.stationB),
+                          )}
                         />
                       ),
                   )}

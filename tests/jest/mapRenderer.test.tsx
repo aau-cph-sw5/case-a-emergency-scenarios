@@ -45,7 +45,7 @@ describe("MapRender", () => {
     expect(drawnStations()).toHaveLength(2);
   });
 
-  it("draws marked stations larger, and the others as before", () => {
+  it("draws marked stations filled, at the same size as the others", () => {
     const lines = [
       {
         name: "M2",
@@ -53,16 +53,16 @@ describe("MapRender", () => {
         connections: [["FOR", "KN"]] as [string, string][],
       },
     ];
-    const radii = () =>
-      screen.UNSAFE_queryAllByType(Circle).map((dot) => dot.props.r);
+    const dots = () => screen.UNSAFE_queryAllByType(Circle);
+    const fills = () => new Set(dots().map((dot) => dot.props.fill));
 
     const view = render(<MapRender lines={lines} colors={colors} />);
-    expect(radii().every((r) => r === 10)).toBe(true);
+    expect(fills().size).toBe(1);
 
     view.rerender(
       <MapRender lines={lines} colors={colors} markedStations={["KN"]} />,
     );
-    expect(radii()).toContain(12);
-    expect(radii()).toContain(10);
+    expect(fills().size).toBe(2);
+    expect(dots().every((dot) => dot.props.r === 10)).toBe(true);
   });
 });
