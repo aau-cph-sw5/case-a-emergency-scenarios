@@ -1,104 +1,74 @@
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
-import { box, text, palette } from "../Theme";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { card, colors, text } from "../Theme";
 import type { Scenario } from "../types/v1/scenario";
-import {
-  getStationState,
-  formatTime,
-  type ActiveDeployments,
-} from "./stationState";
+import { getStationState, type ActiveDeployments } from "./stationState";
 
 export type StationRequirement =
   Scenario["versions"][number]["stationRequirements"][number];
-
-// Keyed by the status values in the scenario state
-const STATUS = {
-  UNMANNED: { color: palette.metroLineThree, symbol: "✕" },
-  PENDING: { color: palette.metroLineTwo, symbol: "➜" },
-  MANNED: { color: palette.metroLineOne, symbol: "✓" },
-  TASK_DONE: { color: palette.metroBlack, symbol: "✓✓" }, // the steward has finished the task
-  NOT_REQUIRED: { color: palette.metroLineThree, symbol: "–" }, // not used currently, but mentioned in 012
-  UNKNOWN: { color: palette.metroLineThree, symbol: "ERR" }, // fallback so bad data never looks covered
-} satisfies Record<string, { color: string; symbol: string }>;
-// different naming in 012 but, whomever created mock data used these so ill be using them aswell.
-
-const getStatusStyle = (status: string) =>
-  Object.hasOwn(STATUS, status)
-    ? STATUS[status as keyof typeof STATUS]
-    : STATUS.UNKNOWN;
 
 type Props = {
   requirement: StationRequirement;
   deployments: ActiveDeployments;
 };
 
+// Red with nobody arrived, yellow while some are missing, green when covered.
+function coverageColor(arrived: number, needed: number) {
+  if (arrived >= needed) return colors.statusGreen;
+  return arrived === 0 ? colors.statusRed : colors.statusYellow;
+}
+
+// One card per station, as in the wireframe: arrived against needed, how many
+// are on the station and on the way, and how many are still missing. Pressing
+// the card shows the placement and the actions.
 export default function StationRow({ requirement, deployments }: Props) {
-  const { statuses, current, lastUpdate } = getStationState(
+  const { current, enRoute } = getStationState(
     deployments,
     requirement.station,
     requirement.minimumStaffing,
   );
+  const needed = requirement.minimumStaffing;
+  const missing = Math.max(0, needed - current);
+  const color = coverageColor(current, needed);
+  // Yellow text is unreadable on white, so the number uses a darker shade.
+  const numberColor =
+    color === colors.statusYellow ? colors.statusYellowText : color;
 
   const [open, setOpen] = useState(false);
 
   return (
     <Pressable
       onPress={() => setOpen(!open)}
-      style={[
-        box,
-        {
-          flexDirection: "row",
-          flexWrap: "wrap",
-          alignItems: "center",
-          margin: 8,
-        },
-      ]}
+      style={[styles.card, { borderLeftColor: color }]}
     >
-      <Text style={text.title}>
-        {requirement.station} - {current}/{requirement.minimumStaffing} stewards
-      </Text>
-
-      <View style={{ flexDirection: "row", marginLeft: 12 }}>
-        {statuses.map((status, index) => {
-          const { color, symbol } = getStatusStyle(status);
-          return (
-            <View
-              key={index}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 14,
-                backgroundColor: color,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 6,
-              }}
-            >
-              <Text style={{ color: "#fff", fontSize: 14 }}>{symbol}</Text>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={{ flex: 1, alignItems: "flex-end" }}>
-        <Text style={[text.body, { fontWeight: "bold" }]}>
-          Last update: {formatTime(lastUpdate)}
+      <View style={styles.line}>
+        <Text style={styles.name} numberOfLines={1}>
+          {requirement.station}
+        </Text>
+        <Text style={[styles.count, { color: numberColor }]}>
+          {current}/{needed}
         </Text>
       </View>
+      <View style={styles.line}>
+        <Text style={styles.small}>{current} på stationen</Text>
+        <Text style={[styles.small, styles.bold]}>{enRoute} på vej</Text>
+      </View>
+      <Text
+        style={[styles.small, missing === 0 && { color: colors.statusGreen }]}
+      >
+        {missing === 0
+          ? "Fuldt bemandet"
+          : `Mangler ${missing} ${missing === 1 ? "steward" : "stewards"}`}
+      </Text>
 
       {open && (
-        <View style={{ width: "100%", marginTop: 8 }}>
-          <Text style={[text.body, { fontWeight: "bold" }]}>
+        <View style={styles.details}>
+          <Text style={[styles.small, styles.bold]}>
             {requirement.placement}
           </Text>
           {(requirement.actions ?? []).map((a) => (
-            <Text key={a.sequence} style={text.body}>
+            <Text key={a.sequence} style={styles.small}>
               {a.sequence}. {a.instruction}
-            </Text>
-          ))}
-          {statuses.map((status, i) => (
-            <Text key={i} style={text.body}>
-              Steward {i + 1}: {status}
             </Text>
           ))}
         </View>
@@ -106,3 +76,18 @@ export default function StationRow({ requirement, deployments }: Props) {
     </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  card: { ...card, borderLeftWidth: 4, marginBottom: 8, gap: 4 },
+  line: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  name: { ...text.body, flexShrink: 1, fontSize: 14, fontWeight: "600" },
+  count: { fontSize: 20, fontWeight: "700" },
+  small: text.small,
+  bold: { fontWeight: "600" },
+  details: { marginTop: 4, gap: 2 },
+});
