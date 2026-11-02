@@ -29,6 +29,29 @@ body {
   }
 }
 
+.scenario-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Empty ring: the scenario is not active. */
+.scenario-dot {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid #9e9e9e;
+  border-radius: 50%;
+}
+
+/* Filled green: the scenario is live. */
+.scenario-dot--live {
+  border-color: #007d55;
+  background: #007d55;
+}
+
 .status-popup {
   position: fixed;
   right: 24px;
@@ -36,3 +59,17 @@ body {
   z-index: 10;
   width: min(420px, calc(100vw - 48px));
 }
+
+/* Names the scenario that a new activation replaces. */
+.confirm-warning {
+  color: #e6140f;
+}
+
+/* The confirm button for standing down, which ends the active scenario. */
+.confirm-danger {
+  border-color: #e6140f;
+  background: #e6140f;
+  color: white;
+}
+
+

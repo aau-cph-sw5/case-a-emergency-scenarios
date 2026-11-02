@@ -20,9 +20,13 @@ export function ScenarioList({
   onActivated: (scenarioId: string) => void;
 }) {
   // The scenario list comes from LiveDataProvider, which loads it once.
-  const { scenarios, scenariosError, reloadScenarios } = useLiveData();
+  const { scenarios, scenariosError, reloadScenarios, activations } =
+    useLiveData();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<ScenarioSummary | null>(null);
+  // The scenarios that are live now, for the dot next to each one.
+  const activeIds = new Set(activations.map((a) => a.scenarioId));
+  const names = new Map((scenarios ?? []).map((s) => [s.scenarioId, s.name]));
   const [activation, setActivation] = useState<ActivationState>({
     status: "idle",
   });
@@ -79,18 +83,29 @@ export function ScenarioList({
           <ScenarioResults
             scenarios={filterScenarios(scenarios, query)}
             query={query}
+            activeIds={activeIds}
             onSelect={setSelected}
             disabled={activation.status === "activating"}
           />
         ))}
 
-      {selected && (
-        <ConfirmActivation
-          scenario={selected}
-          onConfirm={() => activate(selected)}
-          onCancel={() => setSelected(null)}
-        />
-      )}
+      {selected &&
+        (activeIds.has(selected.scenarioId) ? (
+          <ConfirmStandDown
+            scenario={selected}
+            onConfirm={() => standDown(selected)}
+            onCancel={() => setSelected(null)}
+          />
+        ) : (
+          <ConfirmActivation
+            scenario={selected}
+            outgoing={activations
+              .filter((a) => a.scenarioId !== selected.scenarioId)
+              .map((a) => names.get(a.scenarioId) ?? a.scenarioId)}
+            onConfirm={() => activate(selected)}
+            onCancel={() => setSelected(null)}
+          />
+        ))}
 
       <ActivationStatus activation={activation} />
     </section>
@@ -120,11 +135,13 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
 function ScenarioResults({
   scenarios,
   query,
+  activeIds,
   onSelect,
   disabled,
 }: {
   scenarios: ScenarioSummary[];
   query: string;
+  activeIds: Set<string>;
   onSelect: (scenario: ScenarioSummary) => void;
   disabled: boolean;
 }) {
@@ -133,18 +150,30 @@ function ScenarioResults({
     return <p role="status">Ingen scenarier matcher “{query.trim()}”.</p>;
   }
   return (
-    <ul>
-      {scenarios.map((scenario) => (
-        <li key={scenario.scenarioId}>
-          <button
-            type="button"
-            onClick={() => onSelect(scenario)}
-            disabled={disabled}
-          >
-            {scenario.name}
-          </button>
-        </li>
-      ))}
+    <ul className="scenario-list">
+      {scenarios.map((scenario) => {
+        const live = activeIds.has(scenario.scenarioId);
+        return (
+          <li key={scenario.scenarioId}>
+            <button
+              type="button"
+              onClick={() => onSelect(scenario)}
+              disabled={disabled}
+            >
+              {scenario.name}
+            </button>
+            {/* Green when the scenario is live, empty when it is not. */}
+            <span
+              className={
+                live ? "scenario-dot scenario-dot--live" : "scenario-dot"
+              }
+              role="img"
+              aria-label={live ? "Aktiv" : "Ikke aktiv"}
+              title={live ? "Aktiv" : "Ikke aktiv"}
+            />
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -152,6 +181,47 @@ function ScenarioResults({
 // A native modal <dialog> traps focus and closes on Escape, which counts as
 // Cancel. Nothing is activated unless Confirm is pressed (MET-A-007, criterion 2).
 function ConfirmActivation({
+  scenario,
+  outgoing,
+  onConfirm,
+  onCancel,
+}: {
+  scenario: ScenarioSummary;
+  outgoing: string[];
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    dialogRef.current?.showModal();
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onClose={onCancel}
+      aria-labelledby="confirm-activation-heading"
+    >
+      <h3 id="confirm-activation-heading">Aktivér “{scenario.name}”?</h3>
+      {outgoing.length > 0 && (
+        <p className="confirm-warning">
+          Dette vil deaktivere scenarie{" "}
+          {outgoing.map((name) => `“${name}”`).join(", ")}
+        </p>
+      )}
+      <button type="button" onClick={onConfirm}>
+        Bekræft
+      </button>{" "}
+      <button type="button" onClick={() => dialogRef.current?.close()}>
+        Annullér
+      </button>
+    </dialog>
+  );
+}
+
+// Confirm Standing down the active scenario.
+function ConfirmStandDown({
   scenario,
   onConfirm,
   onCancel,
@@ -170,11 +240,13 @@ function ConfirmActivation({
     <dialog
       ref={dialogRef}
       onClose={onCancel}
-      aria-labelledby="confirm-activation-heading"
+      aria-labelledby="confirm-stand-down-heading"
     >
-      <h3 id="confirm-activation-heading">Aktivér “{scenario.name}”?</h3>
-      <button type="button" onClick={onConfirm}>
-        Bekræft
+      <h3 id="confirm-stand-down-heading" className="confirm-warning">
+        Vil du deaktivere “{scenario.name}”?
+      </h3>
+      <button type="button" className="confirm-danger" onClick={onConfirm}>
+        Deaktivér
       </button>{" "}
       <button type="button" onClick={() => dialogRef.current?.close()}>
         Annullér
@@ -182,3 +254,4 @@ function ConfirmActivation({
     </dialog>
   );
 }
+
