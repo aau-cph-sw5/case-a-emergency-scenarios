@@ -43,6 +43,15 @@ test("closing an incident allows another in its group", () =>
     assert.equal((await activate(tx, "DEMO-003", "M1_M2")).length, 1);
   }));
 
+test("an incident cannot close before it was activated", () =>
+  inRolledBackTransaction(async (tx) => {
+    const [active] = await activate(tx, "DEMO-001", "M1_M2");
+    await assert.rejects(
+      tx`UPDATE incident_activations SET deactivated_at = activated_at - interval '1 second' WHERE id = ${active.id}`,
+      { code: "23514" },
+    );
+  }));
+
 test("an activation cannot use a different scenario's line group", () =>
   inRolledBackTransaction(async (tx) => {
     await assert.rejects(activate(tx, "DEMO-001", "M3_M4"), { code: "23503" });

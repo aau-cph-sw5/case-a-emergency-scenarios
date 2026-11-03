@@ -5,7 +5,7 @@ the seed loader has been developed in TypeScript, it is responsible for gatherin
 ## Pre-requisites
 
     - .env file, this is necessary due to it carrying the postgres port and password
-    - SeedDataScenario_(n).json, this is the data the actual seed loader makes use of so you will need to fetch it from the project one drive. Put them in a folder OUTSIDE the repository and set SEED_SCENARIOS_DIR in .env to that folder, e.g. SEED_SCENARIOS_DIR=C:/Users/you/Documents/metro-seed-data. `npm run seed` stops if it is not set.
+    - SeedDataScenario_(n).json, this is the data the actual seed loader makes use of so you will need to fetch it from the project one drive. Each scenario needs a `lineGroup` of `M1_M2` or `M3_M4`. Put the files in a folder OUTSIDE the repository and set SEED_SCENARIOS_DIR in .env to that folder, e.g. SEED_SCENARIOS_DIR=C:/Users/you/Documents/metro-seed-data. `npm run seed` stops if it is not set.
         - stations.json and shafts.json are part of the repository, in docs/scenario-state.
     - Docker set up and running, download and set up docker as explained in db/README.md
 
@@ -17,7 +17,7 @@ the seed loader has been developed in TypeScript, it is responsible for gatherin
 
     npm run seed
 
-Intended for initial setup. Reseeding can fail once scenarios have activation history.
+Reseeding updates the scenarios and versions in the supplied files, including versions referenced by activation history. Other scenarios and versions are left in place. The `currentVersion` in each file becomes that scenario's current version. Changing a scenario's line group can fail if an activation references it.
 
 ## checking the result
 

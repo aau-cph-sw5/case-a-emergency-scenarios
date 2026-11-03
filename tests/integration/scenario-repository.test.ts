@@ -32,6 +32,7 @@ test("getAllScenarios returns every scenario in the scenario-list shape", async 
     (scenario) => scenario.scenarioId === "DEMO-002",
   );
   assert.equal(demo2?.currentVersion, "2");
+  assert.equal(demo2?.lineGroup, "M3_M4");
   assert.deepEqual(demo2?.covers, [
     { trackNumber: 2, stationA: "Station F", stationB: "Station G" },
   ]);
@@ -43,6 +44,7 @@ test("findScenario rebuilds the current version with its requirements", async ()
   assert.ok(scenario);
   assert.deepEqual(validate(scenario, "scenario.schema.json"), []);
   assert.equal(scenario.name, "Synthetic fallback scenario 2");
+  assert.equal(scenario.lineGroup, "M3_M4");
   assert.equal(scenario.currentVersion, "2");
 
   const [version] = scenario.versions;

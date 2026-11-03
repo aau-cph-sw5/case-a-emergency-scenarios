@@ -3,6 +3,3 @@ ALTER TABLE scenarios
         check (line_group in ('M1_M2', 'M3_M4')),
     ADD CONSTRAINT scenarios_id_line_group_unique
         UNIQUE (scenario_id, line_group);
-
-CREATE INDEX line_group_index
-    ON scenarios (line_group);

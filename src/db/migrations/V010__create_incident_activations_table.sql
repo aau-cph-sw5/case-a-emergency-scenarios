@@ -6,6 +6,7 @@ CREATE TABLE incident_activations (
     activated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deactivated_at TIMESTAMPTZ,
     activated_by INTEGER NOT NULL REFERENCES users(id),
+    CHECK (deactivated_at >= activated_at),
 
     FOREIGN KEY (scenario_id, scenario_version_id)
         REFERENCES scenario_versions (scenario_id, id),
@@ -17,4 +18,5 @@ CREATE TABLE incident_activations (
 CREATE UNIQUE INDEX one_active_incident_per_group
     ON incident_activations (line_group)
     WHERE deactivated_at IS NULL;
-    
+
+REVOKE DELETE, TRUNCATE ON incident_activations FROM metro_app;

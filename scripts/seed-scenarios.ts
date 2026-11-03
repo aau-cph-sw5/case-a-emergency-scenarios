@@ -15,7 +15,7 @@ import {
 export interface Scenario {
   scenarioId: string;
   name: string;
-  line_group: "M1_M2" | "M3_M4";
+  lineGroup: "M1_M2" | "M3_M4";
   currentVersion: string;
   covers: Cover[];
   versions: Version[];
@@ -107,10 +107,10 @@ export function validate(
     checkStation(cover.stationB, `${fileName}: covers[${index}].stationB`);
   });
 
-  const line_group = scenario.line_group;
-  if (line_group !== "M1_M2" && line_group !== "M3_M4") {
+  const lineGroup = scenario.lineGroup;
+  if (lineGroup !== "M1_M2" && lineGroup !== "M3_M4") {
     errors.push(
-      `${fileName}: line_group "${line_group}" but must be either "M1_M2" or "M3_M4".`,
+      `${fileName}: lineGroup "${lineGroup}" but must be either "M1_M2" or "M3_M4".`,
     );
   }
 
@@ -278,13 +278,16 @@ async function loadScenario(
   client: pg.Client,
   scenario: Scenario,
 ): Promise<void> {
-  await client.query("DELETE FROM scenarios WHERE scenario_id = $1", [
+  await client.query(
+    `INSERT INTO scenarios (scenario_id, name, line_group) VALUES ($1, $2, $3)
+     ON CONFLICT (scenario_id) DO UPDATE
+     SET name = EXCLUDED.name, line_group = EXCLUDED.line_group`,
+    [scenario.scenarioId, scenario.name, scenario.lineGroup],
+  );
+
+  await client.query("DELETE FROM scenario_covers WHERE scenario_id = $1", [
     scenario.scenarioId,
   ]);
-  await client.query(
-    "INSERT INTO scenarios (scenario_id, name, line_group) VALUES ($1, $2, $3)",
-    [scenario.scenarioId, scenario.name, scenario.line_group],
-  );
 
   for (const cover of scenario.covers) {
     const segmentId = await getTrackSegmentId(
@@ -303,11 +306,28 @@ async function loadScenario(
 
   for (const version of scenario.versions) {
     const versionResult = await client.query(
-      `INSERT INTO scenario_versions (scenario_id, version, revision) VALUES ($1, $2, $3) RETURNING id`,
+      `INSERT INTO scenario_versions (scenario_id, version, revision) VALUES ($1, $2, $3)
+       ON CONFLICT (scenario_id, version) DO UPDATE SET revision = EXCLUDED.revision
+       RETURNING id`,
       [scenario.scenarioId, version.version, version.revision],
     );
     const versionId: number = versionResult.rows[0].id;
     versionIds.set(version.version, versionId);
+
+    // Replace the seed-controlled content while keeping the version ID, which
+    // may already be referenced by an incident activation.
+    await client.query(
+      "DELETE FROM operating_plans WHERE scenario_version_id = $1",
+      [versionId],
+    );
+    await client.query(
+      "DELETE FROM station_requirements WHERE scenario_version_id = $1",
+      [versionId],
+    );
+    await client.query(
+      "DELETE FROM passenger_information WHERE scenario_version_id = $1",
+      [versionId],
+    );
 
     const planResult = await client.query(
       `INSERT INTO operating_plans (scenario_version_id, name)
