@@ -1,5 +1,14 @@
 # Scenario State Contract Changelog
 
+## 6.4.0 - 2026-11-03
+
+Additive. Task done for stewards (MET-A-015).
+
+- A position report can carry `taskDone: true`: the steward has finished the task at the station. Without it, a report means on the way or arrived, as before.
+- Task done is only allowed at the station of the steward's latest position report in the activation. Anything else gets 409 `E1006`. Sending it again is a harmless repeat.
+- `deployments[].status` can be `TASK_DONE`. Clients must handle the new value. The server does not set it on deployments yet.
+- `info.version` in `openapi.yaml` is now 6.4.0.
+
 ## 6.3.0 - 2026-11-03
 
 Additive. Stewards are told when a scenario is stood down (MET-A-009)
