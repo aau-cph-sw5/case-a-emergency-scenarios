@@ -1,5 +1,10 @@
 # Scenario State Contract Changelog
 
+## 6.3.0 - 2026-11-03
+
+- Scenario list and detail responses include `lineGroup`, either `M1_M2` or `M3_M4`. Scenario seed files use the same field.
+- `info.version` in `openapi.yaml` is now 6.3.0.
+
 ## 6.2.0 - 2026-11-02
 
 Additive. Standing down and switching scenarios (MET-A-009).

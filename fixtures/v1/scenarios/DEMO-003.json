@@ -1,5 +1,6 @@
 {
   "scenarioId": "DEMO-003",
+  "lineGroup": "M1_M2",
   "name": "Synthetic fallback scenario 3",
   "currentVersion": "1",
   "covers": [
