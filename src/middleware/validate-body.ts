@@ -20,3 +20,9 @@ export function validateBody(schemaId: string) {
     next();
   };
 }
+
+export function validateOptionalBody(schemaId: string) {
+  const check = validateBody(schemaId);
+  return (request: Request, response: Response, next: NextFunction) =>
+    request.body === undefined ? next() : check(request, response, next);
+}

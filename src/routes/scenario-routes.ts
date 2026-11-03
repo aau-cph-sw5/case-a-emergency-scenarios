@@ -5,9 +5,11 @@ import {
   getCurrentScenarioState,
   getScenario,
   getScenarios,
+  standDown,
 } from "../controllers/scenario-controller.js";
 
 import { requireAuth } from "../middleware/require-auth.js";
+import { validateOptionalBody } from "../middleware/validate-body.js";
 
 export const scenarioRouter = Router();
 
@@ -22,5 +24,11 @@ scenarioRouter.get("/api/v1/activations", requireAuth, getActivations);
 scenarioRouter.post(
   "/api/v1/scenarios/:scenarioId/activate",
   requireAuth,
+  validateOptionalBody("activate-request.schema.json"),
   activate,
+);
+scenarioRouter.post(
+  "/api/v1/activations/:activationId/stand-down",
+  requireAuth,
+  standDown,
 );
