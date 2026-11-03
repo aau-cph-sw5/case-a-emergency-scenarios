@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import type { Scenario } from "../../shared/types/v1/scenario.js";
+import type { Deployment } from "../services/deployment-status.js";
 
 // This file is temporary until the real database is populated
 // Right now it just imports the fixture data from the fixtures folder
@@ -45,7 +46,7 @@ type Activation = {
   endedAt: string | null;
   status: "ACTIVE";
   actor: string;
-  deployments: { status: "UNMANNED"; staff: null; fulfills: string }[];
+  deployments: Deployment[];
 };
 
 // In-memory until the database is populated, so activations reset when the
@@ -60,7 +61,7 @@ type PendingActivation = Pick<
   "activationId" | "scenarioId" | "startedAt"
 > & {
   status: ActivationStatus;
-  deployments: { fulfills: string }[];
+  deployments: Deployment[];
   sequence?: number;
 };
 type StoredActivation = PendingActivation & { sequence: number };
@@ -94,6 +95,15 @@ export function latestActivation(): StoredActivation | undefined {
 export function setActivationSequence(activationId: string, sequence: number) {
   const activation = activations.find((a) => a.activationId === activationId);
   if (activation) activation.sequence = sequence;
+}
+
+// Replaces an activation's deployments, after a position report changed them.
+export function setDeployments(
+  activationId: string,
+  deployments: Deployment[],
+) {
+  const activation = activations.find((a) => a.activationId === activationId);
+  if (activation) activation.deployments = deployments;
 }
 
 // Takes back an activation whose event could not be written.

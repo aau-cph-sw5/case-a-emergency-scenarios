@@ -159,6 +159,7 @@ version.
 | `SCENARIO_ACTIVATED` | 1 | `activation` | `scenarioId` | `activateAndLog` in `src/services/activation-service.ts`. The activation is in memory, so it is undone if this write fails |
 | `POSITION_REPORTED` | 1 | `position-report` | `stationId` | `savePositionReport` in `src/services/position-report-service.ts`, the worked example of `appendEvent` inside a transaction |
 | `POSITION_REPORTED` | 2 | `position-report` | `stationId`, `taskDone` (true when the steward finished the task, MET-A-015) | `savePositionReport` in `src/services/position-report-service.ts` |
+| `POSITION_REPORTED` | 3 | `position-report` | `stationId`, `taskDone`, `arrived` (true when the steward arrived at the station, MET-A-015) | `savePositionReport` in `src/services/position-report-service.ts` |
 
 ## Payload rules
 

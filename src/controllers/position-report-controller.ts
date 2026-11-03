@@ -8,7 +8,9 @@ import {
 import {
   activeStations,
   listActivations,
+  setDeployments,
 } from "../repositories/fixture-repository.js";
+import { applyPositionReport } from "../services/deployment-status.js";
 import type { AuthUser } from "../services/auth-service.js";
 import { recordPositionReport } from "../services/position-report-service.js";
 
@@ -72,7 +74,25 @@ export async function postPositionReport(request: Request, response: Response) {
     return response.status(202).json({ accepted: true });
   }
 
+  // The steward's deployment follows the report (MET-A-015). Read after the
+  // await, so it includes any report stored meanwhile.
+  setDeployments(
+    activation.activationId,
+    applyPositionReport(
+      activation.deployments,
+      String(userId),
+      station,
+      report.taskDone === true
+        ? "TASK_DONE"
+        : report.arrived === true
+          ? "MANNED"
+          : "PENDING",
+      now,
+    ),
+  );
+
   const io = request.app.locals.io as Server | undefined;
   io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
+  io?.to("OPERATOR").emit("activations-changed");
   response.status(202).json({ accepted: true });
 }

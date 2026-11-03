@@ -1,5 +1,14 @@
 # Scenario State Contract Changelog
 
+## 6.3.0 - 2026-11-03
+
+Additive. On the way and arrived set the station's status (MET-A-015, #288).
+
+- A position report can carry `arrived: true`: the steward has arrived at the station. Without it, a report means on the way.
+- An accepted report sets the steward's deployment in the active scenario: `PENDING` without `arrived`, `MANNED` with `arrived`, `TASK_DONE` with `taskDone`. At the same station the status only moves forward. Reporting another station frees the station the steward left.
+- Operators get `activations-changed` after a report changed a deployment, so they load the activations again.
+- `info.version` in `openapi.yaml` is now 6.3.0.
+
 ## 6.2.0 - 2026-10-31
 
 Additive. Task done for stewards (MET-A-015).

@@ -152,6 +152,7 @@ test("a position report and its event are stored together, with the actor from t
     assert.deepEqual(events[0].payload, {
       stationId: "Station C",
       taskDone: false,
+      arrived: false,
     });
     assert.equal(
       events[0].clientTime.toISOString(),

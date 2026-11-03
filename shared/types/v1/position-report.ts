@@ -13,5 +13,9 @@ export interface PositionReport {
    * True when the steward has finished the task at the station (MET-A-015). Only allowed at the station of the steward's latest report.
    */
   taskDone?: boolean;
+  /**
+   * True when the steward has arrived at the station (MET-A-015). Without it, a report means the steward is on the way.
+   */
+  arrived?: boolean;
   [k: string]: unknown;
 }
