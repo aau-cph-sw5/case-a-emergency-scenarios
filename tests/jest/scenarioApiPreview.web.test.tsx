@@ -9,11 +9,18 @@ import {
   jest,
 } from "@jest/globals";
 import { OperatorDashboard } from "../../web/src/OperatorDashboard";
+import { MetroMap } from "../../web/src/components/MetroMap";
 import { LiveDataProvider } from "../../web/src/data/liveData";
 import type { AppSocket } from "../../shared/socket/createSocket";
 import type { Scenario } from "../../shared/types/v1/scenario";
 
 jest.mock("../../web/src/components/OperatorSections.css", () => ({}));
+jest.mock("../../web/src/components/MetroMap", () => ({
+  MetroMap: jest.fn(() => null),
+}));
+jest.mock("../../web/src/local-settings", () => ({
+  mockStewardPositions: false,
+}));
 
 // Synthetic HTTP responses only in this test. The dashboard uses the real
 // provider and API functions, rather than injecting a preloaded context.
@@ -115,6 +122,33 @@ afterEach(async () => {
 });
 
 describe("API-backed scenario preview", () => {
+  it("keeps the active status bar and coverage when another scenario is selected", async () => {
+    const normalFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (path, options) =>
+      path === "/api/v1/activations?status=ACTIVE"
+        ? response([
+            {
+              activationId: "active-1",
+              scenarioId: summaries[0].scenarioId,
+              status: "ACTIVE",
+              startedAt: "2026-11-01T12:00:00Z",
+              actor: "operator-test",
+              deployments: [],
+            },
+          ])
+        : normalFetch(path, options),
+    );
+    await mount();
+    await searchAndSelect(221);
+    const columns = container.querySelectorAll(".operator-sections > section");
+    expect(columns[0].textContent).toContain("Aktiveret af operator-test");
+    expect(columns[0].textContent).toContain(summaries[0].name);
+    expect(columns[2].textContent).toContain("0/7");
+    expect(container.querySelector(".scenario-preview")?.textContent).toContain(
+      "API-STATION-221",
+    );
+  });
+
   it("searches 240 server scenarios and fetches only selected details, sharing cached results", async () => {
     await mount();
     expect(container.querySelectorAll("li button")).toHaveLength(240);
@@ -126,6 +160,9 @@ describe("API-backed scenario preview", () => {
     expect(preview.textContent).toContain("Placering: Placering fra backend");
     expect(preview.textContent).toContain("Minimum 7 stewards");
     expect(preview.textContent).not.toContain("Old placement");
+    expect(jest.mocked(MetroMap).mock.lastCall?.[0].scenario).toEqual(
+      detail(221),
+    );
     expect(detailRequests()).toHaveLength(1);
     expect(detailRequests()[0][0]).toBe("/api/v1/scenarios/BACKEND-221");
     expect(detailRequests()[0][1]?.headers).toEqual({

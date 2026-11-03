@@ -10,6 +10,12 @@ type MapLine = {
   connections: [string, string][];
 };
 
+type BlockedTrack = {
+  trackNumber: number;
+  stationA: string;
+  stationB: string;
+};
+
 function GetOffset(
   x1: number,
   y1: number,
@@ -26,21 +32,41 @@ function GetOffset(
   return { ox: (-dy / length) * offset, oy: (dx / length) * offset };
 }
 
+const LABEL_ABOVE_LEFT = [
+  "NEL",
+  "MOP",
+  "SLU",
+  "EBR",
+  "HOL",
+  "NHT",
+  "ORK",
+  "AMH",
+  "NUK",
+  "NØR",
+];
+
 function Station({
   name,
   x,
   y,
   highlightColor,
+  requiredStaffing,
 }: {
   name: string;
   x: number;
   y: number;
   // Set only for the station to highlight, e.g. the steward's own (MET-A-010).
   highlightColor?: string;
+  requiredStaffing?: number;
 }) {
   const [hover, setHover] = useState(false);
-  // Only a little larger than the others, so the label above stays readable.
-  const baseRadius = highlightColor ? 12 : 10;
+  // The same size for every station; a highlighted one differs only by colour.
+  const baseRadius = 10;
+  // Tilted and placed beside the dot, clear of the tracks. A track rising to
+  // the right would lie along the usual label, so those stations mirror it.
+  const mirrored = LABEL_ABOVE_LEFT.includes(name);
+  const labelX = mirrored ? x - baseRadius - 6 : x + baseRadius + 6;
+  const labelY = y - baseRadius - 2;
   return (
     <>
       <Circle
@@ -56,12 +82,24 @@ function Station({
           onMouseLeave: () => setHover(false),
         } as any)}
       />
+      {requiredStaffing !== undefined && (
+        <Text
+          x={x}
+          y={y + 5}
+          textAnchor="middle"
+          fontSize={14}
+          fontWeight="bold"
+          fill={theme.text}
+        >
+          {requiredStaffing}
+        </Text>
+      )}
       <Text
         {...text.mapLabel}
-        x={x}
-        // Unchanged for normal stations; lifted clear of the highlighted dot.
-        y={highlightColor ? y - baseRadius - 8 : y - 14}
-        textAnchor="middle"
+        x={labelX}
+        y={labelY}
+        textAnchor={mirrored ? "end" : "start"}
+        transform={`rotate(${mirrored ? 45 : -45} ${labelX} ${labelY})`}
         {...(highlightColor ? { fill: highlightColor } : {})}
       >
         {name}
@@ -80,6 +118,7 @@ function TrackSegment({
   track,
   colorA,
   colorB,
+  blocked = false,
 }: {
   stationA: string;
   stationB: string;
@@ -90,12 +129,13 @@ function TrackSegment({
   track: number;
   colorA: string;
   colorB: string;
+  blocked?: boolean;
 }) {
   const [hover, setHover] = useState(false);
   const w = hover ? 6 : 4;
   const strips: [number, string, number][] = [
-    [4, colorA, w],
-    [8, colorB, w],
+    [4, blocked ? theme.blockedTrack : colorA, w],
+    [8, blocked ? theme.blockedTrack : colorB, w],
   ];
   const side = track === 1 ? -1 : 1;
   const press = () => console.log(`Track ${track}: ${stationA} → ${stationB}`);
@@ -112,6 +152,7 @@ function TrackSegment({
             y2={y2 + oy}
             stroke={color}
             strokeWidth={sw}
+            strokeDasharray={blocked ? "10 6" : undefined}
             onPress={press}
             {...({
               onMouseEnter: () => setHover(true),
@@ -182,19 +223,39 @@ export default function MapRender({
   showLineButtons = true,
   highlightStation,
   highlightColor = theme.text,
+  markedStations = [],
+  blockedTracks = [],
+  initiallyHidden = [],
+  requiredStaffing = {},
 }: {
   lines: MapLine[];
   colors: Record<string, string>;
   viewBox?: string;
   showLineButtons?: boolean;
-  // Optional: one station drawn larger and filled. Leaving it out draws the
+  // Optional: one station drawn filled. Leaving it out draws the
   // map exactly as before.
   highlightStation?: string;
   highlightColor?: string;
+  // Optional: more stations drawn the same way, for example the stations a
+  // scenario needs staff at (#183). Leaving it out draws the map as before.
+  markedStations?: readonly string[];
+  // Optional: the tracks a scenario blocks, drawn in their own style (#183).
+  blockedTracks?: readonly BlockedTrack[];
+  // Optional: lines that start switched off until their button is pressed.
+  initiallyHidden?: string[];
+  // Saved staffing requirements, never current coverage.
+  requiredStaffing?: Readonly<Record<string, number>>;
 }) {
+  // Each station once, so a station both marked and highlighted is drawn once.
+  const highlighted = [
+    ...new Set([
+      ...markedStations,
+      ...(highlightStation !== undefined ? [highlightStation] : []),
+    ]),
+  ];
   const highlightFor = (station: string) =>
-    station === highlightStation ? highlightColor : undefined;
-  const [hidden, setHidden] = useState<string[]>([]);
+    highlighted.includes(station) ? highlightColor : undefined;
+  const [hidden, setHidden] = useState<string[]>(initiallyHidden);
   const visible = lines.filter((l) => !hidden.includes(l.name));
   return (
     <View style={{ flex: 1 }}>
@@ -208,60 +269,76 @@ export default function MapRender({
         preserveAspectRatio="xMidYMid meet"
       >
         {visible.flatMap(({ name, connections }) =>
-          connections.map(([stationA, stationB]) => {
-            const [x1, y1] = getStation(stationA);
-            const [x2, y2] = getStation(stationB);
-            const rails = [1, 2].map((t) =>
-              GetColors(visible, colors, stationA, stationB, t),
-            );
+          connections
+            // A station the map has no position for is skipped, not drawn at 0,0.
+            .filter(
+              ([stationA, stationB]) =>
+                getStation(stationA) !== undefined &&
+                getStation(stationB) !== undefined,
+            )
+            .map(([stationA, stationB]) => {
+              const [x1, y1] = getStation(stationA);
+              const [x2, y2] = getStation(stationB);
+              const rails = [1, 2].map((t) =>
+                GetColors(visible, colors, stationA, stationB, t),
+              );
 
-            return (
-              <Fragment key={`${name}-${stationA}-${stationB}`}>
-                {rails.map(
-                  ([colorA, colorB], i) =>
-                    colorA && (
-                      <TrackSegment
-                        key={i}
-                        {...{
-                          stationA,
-                          stationB,
-                          x1,
-                          y1,
-                          x2,
-                          y2,
-                          colorA,
-                          colorB,
-                        }}
-                        track={i + 1}
-                      />
-                    ),
-                )}
-                <Station
-                  name={stationB}
-                  x={x2}
-                  y={y2}
-                  highlightColor={highlightFor(stationB)}
-                />
-                <Station
-                  name={stationA}
-                  x={x1}
-                  y={y1}
-                  highlightColor={highlightFor(stationA)}
-                />
-              </Fragment>
-            );
-          }),
+              return (
+                <Fragment key={`${name}-${stationA}-${stationB}`}>
+                  {rails.map(
+                    ([colorA, colorB], i) =>
+                      colorA && (
+                        <TrackSegment
+                          key={i}
+                          {...{
+                            stationA,
+                            stationB,
+                            x1,
+                            y1,
+                            x2,
+                            y2,
+                            colorA,
+                            colorB,
+                          }}
+                          track={i + 1}
+                          blocked={blockedTracks.some(
+                            (blocked) =>
+                              blocked.trackNumber === i + 1 &&
+                              [stationA, stationB].includes(blocked.stationA) &&
+                              [stationA, stationB].includes(blocked.stationB),
+                          )}
+                        />
+                      ),
+                  )}
+                  <Station
+                    name={stationB}
+                    x={x2}
+                    y={y2}
+                    highlightColor={highlightFor(stationB)}
+                  />
+                  <Station
+                    name={stationA}
+                    x={x1}
+                    y={y1}
+                    highlightColor={highlightFor(stationA)}
+                  />
+                </Fragment>
+              );
+            }),
         )}
-        {/* Drawn last so no track segment covers the highlighted station. */}
-        {highlightStation !== undefined &&
-          getStation(highlightStation) !== undefined && (
+        {/* Drawn last so no track segment covers a highlighted station. */}
+        {highlighted
+          .filter((station) => getStation(station) !== undefined)
+          .map((station) => (
             <Station
-              name={highlightStation}
-              x={getStation(highlightStation)[0]}
-              y={getStation(highlightStation)[1]}
+              key={`highlight-${station}`}
+              name={station}
+              x={getStation(station)[0]}
+              y={getStation(station)[1]}
               highlightColor={highlightColor}
+              requiredStaffing={requiredStaffing[station]}
             />
-          )}
+          ))}
       </Svg>
     </View>
   );

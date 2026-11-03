@@ -1,5 +1,5 @@
-import { getStation } from "../../../mockData/data";
-import type { SnapshotScenario } from "../../../shared/offline/scenario-snapshot";
+import { getStation } from "../../mockData/data";
+import type { SnapshotScenario } from "../offline/scenario-snapshot";
 
 //helper function as map draws "lines" made of station pairs
 //turns the affected stations (covers) into the maps "lines"
@@ -33,7 +33,7 @@ export function affectedStations(scenario: SnapshotScenario) {
   ];
 }
 
-export function areaAroundStations(stations: string[]) {
+export function areaAroundStations(stations: string[], margin = MAP_MARGIN) {
   //positions from the stations from the map
   const positions = stations
     .map((station) => getStation(station))
@@ -46,10 +46,10 @@ export function areaAroundStations(stations: string[]) {
   const ys = positions.map((position) => position[1]);
 
   // we push the edge out by the margin
-  const left = Math.min(...xs) - MAP_MARGIN;
-  const right = Math.max(...xs) + MAP_MARGIN;
-  const top = Math.min(...ys) - MAP_MARGIN;
-  const bottom = Math.max(...ys) + MAP_MARGIN;
+  const left = Math.min(...xs) - margin;
+  const right = Math.max(...xs) + margin;
+  const top = Math.min(...ys) - margin;
+  const bottom = Math.max(...ys) + margin;
 
   //here return the values in text so it becomes "(the numbers)"
   return `${left} ${top} ${right - left} ${bottom - top}`;
@@ -75,4 +75,33 @@ export function networkWithoutStretch(
         !stretchPieces.some((stretchPiece) => samePiece(piece, stretchPiece)),
     ),
   }));
+}
+
+// The lines that run through at least one of the pieces. A piece shared by
+// two lines, for example FOR–KGN on M1 and M2, keeps both.
+export function linesThrough<Line extends { connections: StationPair[] }>(
+  networkLines: Line[],
+  pieces: StationPair[],
+) {
+  return networkLines.filter((line) =>
+    line.connections.some((piece) =>
+      pieces.some((other) => samePiece(piece, other)),
+    ),
+  );
+}
+
+// The stations the scenario's current version needs staff at, each once and
+// in the scenario's order.
+export function requiredStations(scenario: {
+  currentVersion: string;
+  versions: { version: string; stationRequirements?: { station: string }[] }[];
+}) {
+  const current = scenario.versions.find(
+    (version) => version.version === scenario.currentVersion,
+  );
+  return [
+    ...new Set(
+      (current?.stationRequirements ?? []).map(({ station }) => station),
+    ),
+  ];
 }

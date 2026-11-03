@@ -2,13 +2,17 @@
   "$id": "scenario.schema.json",
   "title": "Scenario",
   "type": "object",
-  "required": ["scenarioId", "name", "currentVersion", "versions"],
+  "required": ["scenarioId", "name", "lineGroup", "currentVersion", "versions"],
   "properties": {
     "scenarioId": {
       "type": "string"
     },
     "name": {
       "type": "string"
+    },
+    "lineGroup": {
+      "type": "string",
+      "enum": ["M1_M2", "M3_M4"]
     },
     "currentVersion": {
       "type": "string"

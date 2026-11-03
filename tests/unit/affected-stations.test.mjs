@@ -4,8 +4,10 @@ import {
   affectedStations,
   affectedStretchAsMapLine,
   areaAroundStations,
+  linesThrough,
   networkWithoutStretch,
-} from "../../mobile/src/screens/affected-stations.tsx";
+  requiredStations,
+} from "../../shared/scenario/affected-stations.ts";
 
 const scenario = {
   name: "Test scenario",
@@ -73,4 +75,66 @@ test("Removes the stretchs pieces from the network in one of the directions", ()
       ],
     },
   ]);
+});
+
+const network = [
+  {
+    name: "M1",
+    connections: [
+      ["FOR", "KGN"],
+      ["ISB", "UNI"],
+    ],
+  },
+  {
+    name: "M2",
+    connections: [
+      ["FOR", "KGN"],
+      ["KHC", "AMB"],
+    ],
+  },
+  { name: "M4", connections: [["NEL", "MOP"]] },
+];
+
+test("keeps the line through a covered piece, in either direction", () => {
+  assert.deepEqual(
+    linesThrough(network, [["UNI", "ISB"]]).map((line) => line.name),
+    ["M1"],
+  );
+});
+
+test("keeps both lines when a covered piece is on two lines", () => {
+  assert.deepEqual(
+    linesThrough(network, [["FOR", "KGN"]]).map((line) => line.name),
+    ["M1", "M2"],
+  );
+});
+
+test("keeps no line when no covered piece is on a line", () => {
+  assert.deepEqual(linesThrough(network, [["FOR", "XYZ"]]), []);
+});
+
+const versioned = {
+  currentVersion: "2",
+  versions: [
+    { version: "1", stationRequirements: [{ station: "VEA" }] },
+    {
+      version: "2",
+      stationRequirements: [
+        { station: "KGN" },
+        { station: "FOR" },
+        { station: "KGN" },
+      ],
+    },
+  ],
+};
+
+test("lists the stations of the current version once each, in order", () => {
+  assert.deepEqual(requiredStations(versioned), ["KGN", "FOR"]);
+});
+
+test("lists no stations when the current version requires none", () => {
+  assert.deepEqual(
+    requiredStations({ currentVersion: "1", versions: [{ version: "1" }] }),
+    [],
+  );
 });

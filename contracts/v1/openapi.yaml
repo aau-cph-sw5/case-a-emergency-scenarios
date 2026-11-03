@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 6.1.1
+  version: 6.4.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -136,6 +136,10 @@ paths:
         server: staff by the userId from the token, reportedAt by the time
         the server accepted the report. An accepted report is forwarded to
         connected operators as the position-report Socket.IO event.
+        With taskDone true the steward reports the task at the station as
+        done (MET-A-015). That is only allowed at the station of the
+        steward's latest report (E1006 otherwise), and sending it again is
+        a harmless repeat.
       security:
         - bearerAuth: []
       requestBody:
@@ -195,8 +199,9 @@ paths:
                   message: "The authenticated user's role does not permit this action"
         "409":
           description: >
-            No scenario is active (E1001), or the station does not require
-            manning in an active scenario (E1004).
+            No scenario is active (E1001), the station does not require
+            manning in an active scenario (E1004), or task done is reported
+            at another station than the steward's latest report (E1006).
           content:
             application/json:
               schema:
@@ -212,6 +217,11 @@ paths:
                     error:
                       code: "E1004"
                       message: "The station is not part of the active scenario"
+                taskDoneElsewhere:
+                  value:
+                    error:
+                      code: "E1006"
+                      message: "The status change is not permitted from the steward's current status"
 
   /api/v1/auth/login:
     post:
@@ -358,7 +368,6 @@ paths:
                 error:
                   code: "E0005"
                   message: "status must be one of ACTIVE, CLOSED"
-                  message: "Invalid or expired token"
 
   /api/v1/scenarios/{scenarioId}/activate:
     post:
@@ -367,6 +376,10 @@ paths:
         Requires a bearer token with the OPERATOR role ("All in CCR can
         activate a scenario", Metro on MET-A-026). The actor is taken from
         the token, never from the request.
+
+        To switch scenarios, send replaces with the active activationId:
+        the old one is stood down and the new one activated together
+        (MET-A-009).
       security:
         - bearerAuth: []
       parameters:
@@ -375,6 +388,14 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "./activate-request.schema.json"
+            example:
+              replaces: "ACT-DEMO-001-1"
       responses:
         "201":
           description: Activation successful
@@ -414,17 +435,86 @@ paths:
                   message: "No scenario with id 'S1' exists"
         "409":
           description: >
-            Activation refused because a scenario is already active. Only
-            one scenario can be active at a time, and an activation never
-            stands down the active one.
+            A scenario is active and replaces was not given, or replaces
+            is not the active activation. Nothing is changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                alreadyActive:
+                  value:
+                    error:
+                      code: "E0007"
+                      message: "A scenario is already active, so 'S1' cannot be activated"
+                replacesNotActive:
+                  value:
+                    error:
+                      code: "E0007"
+                      message: "'ACT-DEMO-001-1' is not the active activation"
+
+  /api/v1/activations/{activationId}/stand-down:
+    post:
+      summary: Stands down the active scenario
+      description: >
+        Requires the OPERATOR role. Sets the activation to CLOSED with
+        endedAt and writes a SCENARIO_STOOD_DOWN event (MET-A-009).
+        Afterwards no scenario is active.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: activationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stood down. The closed activation.
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-state.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
               example:
                 error:
-                  code: "E0007"
-                  message: "A scenario is already active, so 'S1' cannot be activated"
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not stand down a scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "Role STEWARD may not stand down a scenario"
+        "404":
+          description: No activation with this id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0004"
+                  message: "No activation with id 'ACT-S1-1' exists"
+        "409":
+          description: The activation is already stood down.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E1003"
+                  message: "'ACT-S1-1' is already stood down"
 
 components:
   securitySchemes:

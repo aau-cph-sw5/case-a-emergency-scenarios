@@ -17,6 +17,7 @@ export const palette = {
   actionBlue: "#2563eb",
   linePurple: "#9b59b6",
   lineOrange: "#e67e22",
+  signalOrange: "#FF6A00",
   darkYellow: "#8A6A00", // yellow dark enough to read as text on white
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
@@ -35,6 +36,8 @@ export const colors = {
   statusRed: palette.metroLineThree,
   statusYellowText: palette.darkYellow,
   subtleBorder: palette.lightGrey, // card outlines that should not compete with the status colour
+  requiredStation: palette.signalOrange, // a station the scenario needs staff at; no line on the map uses it
+  blockedTrack: palette.metroDeepRed, // darker than M3's red, and drawn dashed to tell them apart
 };
 
 export const lineColors = [
@@ -67,6 +70,15 @@ export const text = {
     fontWeight: "600" as const,
   },
   mapLabel: { fontSize: "18", fontWeight: "bold" as const }, // SVG <Text> props
+  // A small heading above a figure, e.g. "STATIONS COVERED".
+  label: { fontSize: 11, fontWeight: "700" as const, letterSpacing: 1 },
+  // The big number in a figure, e.g. the 8 in "8 af 15".
+  figure: { fontSize: 28, fontWeight: "700" as const },
+};
+export const spacing = {
+  small: 4,
+  medium: 12,
+  large: 16,
 };
 
 export const surface = {

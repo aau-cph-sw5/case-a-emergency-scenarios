@@ -1,51 +1,58 @@
-import { useState } from "react";
+import type { ReactNode } from "react";
 import { ScenarioList } from "../ScenarioList";
 import { useLiveData } from "../data/liveData";
 import { useScenario } from "../data/useScenario";
 import { OperatorSections } from "./OperatorSections";
 import { ScenarioPreview } from "./ScenarioPreview";
 import { LiveCoverage } from "./LiveCoverage";
+import { MetroMap } from "./MetroMap";
 
 export function ScenarioWorkspace({
   token,
   selectedId,
   onSelect,
+  statusBar,
 }: {
   token: string;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  statusBar?: ReactNode;
 }) {
   const { activations } = useLiveData();
-  // The same immediate active marking as #182, until the shared reload arrives.
-  const [activatedId, setActivatedId] = useState<string | null>(null);
   const isActive =
-    selectedId !== null &&
-    (selectedId === activatedId ||
-      activations.some((a) => a.scenarioId === selectedId));
+    selectedId !== null && activations.some((a) => a.scenarioId === selectedId);
   const previewId = isActive ? null : selectedId;
   const preview = useScenario(previewId);
   const { scenario } = preview;
-  const showRequirements =
-    previewId !== null || (activations.length === 0 && activatedId === null);
+  const hasActiveScenario = activations.length > 0;
 
   return (
     <OperatorSections
       scenarioSelection={
-        <ScenarioList
-          token={token}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          onActivated={setActivatedId}
-          previewReady={scenario !== null}
+        <>
+          {statusBar}
+          <ScenarioList
+            token={token}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            onActivated={() => {}}
+            previewReady={scenario !== null}
+          />
+        </>
+      }
+      map={
+        <MetroMap
+          scenarioId={selectedId}
+          scenario={isActive ? undefined : scenario}
         />
       }
-      map={<p>Kortvisning er endnu ikke tilgængelig.</p>}
       coverage={
-        showRequirements ? (
-          <ScenarioPreview scenarioId={previewId} preview={preview} />
-        ) : (
-          <LiveCoverage />
-        )
+        <>
+          {hasActiveScenario && <LiveCoverage />}
+          {(!hasActiveScenario || previewId !== null) && (
+            <ScenarioPreview scenarioId={previewId} preview={preview} />
+          )}
+        </>
       }
     />
   );

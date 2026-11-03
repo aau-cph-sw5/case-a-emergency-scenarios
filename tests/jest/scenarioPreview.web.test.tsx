@@ -15,6 +15,9 @@ import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { postJson } from "../../web/src/get-json";
 
 jest.mock("../../web/src/components/OperatorSections.css", () => ({}));
+jest.mock("../../web/src/components/MetroMap", () => ({
+  MetroMap: () => null,
+}));
 
 jest.mock("../../web/src/get-json", () => ({
   ...jest.requireActual<typeof import("../../web/src/get-json")>(
@@ -144,21 +147,9 @@ afterEach(async () => {
 
 describe("scenario preview and activation", () => {
   it("puts requirements in the right column and the existing activation control on the left", async () => {
-    await renderList(first.scenarioId, {
-      activations: [
-        {
-          ...activated,
-          scenarioId: second.scenarioId,
-          deployments: [{ fulfills: "Station A", status: "MANNED" }],
-        },
-      ],
-    });
+    await renderList(first.scenarioId);
     const columns = container.querySelectorAll(".operator-sections > section");
     expect(columns[0].contains(button("Aktivér valgt scenarie"))).toBe(true);
-    expect(columns[1].textContent).toContain(
-      "Kortvisning er endnu ikke tilgængelig.",
-    );
-    expect(container.querySelector("svg")).toBeNull();
     expect(columns[2].textContent).toContain("Placering: Platform A");
     expect(columns[2].textContent).toContain("Minimum 2 stewards");
     expect(columns[2].textContent).not.toMatch(
@@ -240,24 +231,34 @@ describe("scenario preview and activation", () => {
       `/api/v1/scenarios/${first.scenarioId}/activate`,
       "operator-token",
       expect.any(Function),
+      undefined,
     );
     expect(button("Aktivér valgt scenarie").disabled).toBe(true);
     expect(button(second.name).disabled).toBe(true);
     await act(async () => pending.resolve(activated));
-    expect(button(`${first.name} — Aktiv`).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    expect(button(first.name).getAttribute("aria-pressed")).toBe("true");
+    // Coverage changes only when the shared activations reload arrives.
+    expect(container.querySelector(".scenario-preview")).not.toBeNull();
+    await renderList(first.scenarioId, { activations: [activated] });
     expect(container.querySelector(".scenario-preview")).toBeNull();
-    await click("Aktivér valgt scenarie");
     expect(jest.mocked(postJson)).toHaveBeenCalledTimes(1);
   });
 
-  it("marks already active scenarios and prevents activating them", async () => {
+  it("keeps live coverage visible while previewing another scenario and clears it on stand-down", async () => {
     await renderList(first.scenarioId, { activations: [activated] });
-    expect(button(`${first.name} — Aktiv`)).toBeTruthy();
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    expect(button("Deaktivér valgt scenarie").disabled).toBe(false);
     expect(container.querySelector(".scenario-preview")).toBeNull();
     expect(container.textContent).toContain("0/2");
+    await click(second.name);
+    expect(container.textContent).toContain("0/2");
+    expect(container.querySelector(".scenario-preview")?.textContent).toContain(
+      "Placering: Platform B",
+    );
+    expect(
+      container.querySelector(".scenario-preview")?.textContent,
+    ).not.toMatch(/\d+\/\d+|på stationen|på vej|Mangler|Fuldt bemandet/);
+    await renderList(second.scenarioId, { activations: [] });
+    expect(container.textContent).not.toContain("0/2");
+    expect(container.textContent).toContain("Placering: Platform B");
   });
 });
