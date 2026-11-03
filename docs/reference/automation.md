@@ -16,12 +16,12 @@ push to `dev`, `staging` and `main`, and on demand under
 |---|---|---|
 | Unit tests | `npm run test:unit` | a test in `tests/unit/` fails |
 | Integration tests | `npm run test:integration`, against a test database | a test in `tests/integration/` fails |
-| Backend coverage | merges the coverage of both test jobs | every test passed, but coverage is below 75% or dropped more than 2 percentage points compared with `dev`, see [Test coverage](#test-coverage) |
+| Jest tests | `npm run test:jest` | a test in `tests/jest/` fails |
+| Backend coverage | combines Node and Jest coverage | all tests passed, but combined changed-file line coverage is below 80%, see [Test coverage](#test-coverage) |
 
-The test jobs run under c8 to collect coverage, but they don't check it.
-Backend coverage waits for both and still runs when a test fails, but checks
-the coverage only when every test passed, so a failing test and too-low coverage
-show as separate checks.
+Unit and integration tests collect coverage with c8; Jest collects its own
+coverage. Backend coverage waits for all three and checks the threshold only
+after they pass. The job keeps its existing name for required status checks.
 
 ### Test database
 
@@ -98,49 +98,34 @@ branch.
 
 ## Test coverage
 
-The Backend coverage job in `tests.yml` measures how much of `src/` the unit
-and integration tests execute, with [c8](https://github.com/bcoe/c8). The test
-jobs save their raw coverage as artifacts, and Backend coverage merges them.
-It runs wherever `tests.yml` runs.
+The Backend coverage job in `tests.yml` reports line coverage for backend,
+shared, web and mobile application code. It combines Node unit and integration
+coverage from c8 with Jest coverage. For frontend files, Jest defines executable
+lines and Node test hits on the same lines count too; a line is counted once.
 
-| Where | What you see |
-|---|---|
-| Pull request | One comment with the coverage table, updated on every push |
-| Workflow run → Summary | The same table, for every run |
-| Locally | `npm run test:coverage`, then open `coverage/index.html` to see uncovered lines |
+On pull requests and merge queues, the combined coverage of changed application
+files must be at least 80%. It uses full files, including unchanged lines. Each
+file gets an informational ✅ or ❌; only the combined percentage is enforced.
+Overall application coverage is also informational. Generated shared types,
+declarations, scripts, configuration, assets and database migrations are excluded.
 
-The **vs `dev`** column compares with the latest successful Tests run on
-`dev`. Every successful push to `dev` saves its coverage as the
-`coverage-baseline` artifact (kept for 90 days). Until one exists, the column
-shows `–`.
+The report appears in the workflow summary and in a pull request comment updated
+on each push. A separate test-results comment shows unit, integration and Jest
+counts and is updated on each push. SonarQube receives the same application line
+coverage in LCOV format. For PRs Sonar analyzes the source branch; files whose
+source differs from the tested merge are omitted from its coverage report rather
+than attaching hits to the wrong lines. Updating the branch with its base makes
+these files match. SonarQube can apply its own quality-gate rules.
 
-### Scope
+`npm run test:coverage` produces a local c8 HTML report, but does not combine
+Jest's coverage into the CI report.
 
-Every TypeScript file in `src/` is measured. Web and mobile are not measured yet.
+SonarQube's GitHub integration publishes issue annotations when the project is
+bound to the repository and issue annotations are enabled in its settings.
+The scan job summary links directly to the SonarQube analysis.
 
-### Required coverage
-
-Both rules are set in `.c8rc.json`, and Backend coverage fails when either is
-broken:
-
-| Rule | Key in `.c8rc.json` | Today |
-|---|---|---|
-| Minimum coverage, per metric | `lines`, `branches`, `functions`, `statements` | 75% each |
-| Maximum drop compared with `dev`, per metric | `max-decrease` | 2 percentage points |
-
-The maximum drop is checked only on pull requests, by
-`scripts/check-coverage-decrease.mjs`, against the same coverage from `dev` as
-the **vs `dev`** column. While there is no coverage from `dev` yet, only the
-minimum is checked. In the PR comment, ❌ marks a broken rule.
-
-The minimum is also checked locally by `npm run test:coverage`.
-
-To change either rule, change `.c8rc.json` in a pull request. A failing Backend
-coverage check stops a pull request from being merged only when **Backend
-coverage** is a required status check in the `dev` ruleset, which an admin
-sets.
-
-Why it works this way is in ADR 0007.
+A failing Backend coverage check blocks a merge only when it is a required
+status check in the repository ruleset. For details see ADR 0007.
 
 ## Migration versions
 

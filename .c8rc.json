@@ -1,12 +1,14 @@
 {
   "all": true,
-  "include": ["src/**/*.ts"],
-  "reporter": ["text", "html", "json-summary", "lcovonly"],
+  "include": [
+    "src/**/*.ts",
+    "shared/**/*.{ts,tsx}",
+    "web/src/**/*.{ts,tsx}",
+    "mobile/src/**/*.{ts,tsx}",
+    "mobile/App.tsx",
+    "mobile/index.ts"
+  ],
+  "reporter": ["text", "html", "json", "json-summary", "lcovonly"],
   "report-dir": "coverage",
-  "check-coverage": true,
-  "lines": 75,
-  "branches": 75,
-  "functions": 75,
-  "statements": 75,
-  "max-decrease": 2
+  "exclude": ["shared/types/**", "**/*.d.ts"]
 }
