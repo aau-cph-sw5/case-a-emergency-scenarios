@@ -15,7 +15,7 @@ import {
   affectedStations,
   affectedStretchAsMapLine,
   networkWithoutStretch,
-} from "./affected-stations";
+} from "../../../shared/scenario/affected-stations";
 import { zoomedViewBox } from "./map-zoom";
 import { findOwnAssignment } from "./own-assignment";
 

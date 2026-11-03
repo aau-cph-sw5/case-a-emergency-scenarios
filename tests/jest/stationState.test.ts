@@ -1,7 +1,8 @@
 import { describe, expect, it } from "@jest/globals";
 import {
   countManned,
-  formatTime,
+  countStewards,
+  coverageShare,
   getStationState,
 } from "../../shared/components/stationState";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
@@ -25,11 +26,11 @@ describe("getStationState", () => {
     expect(getStationState({ deployments: [] }, "Station A", 2)).toEqual({
       statuses: ["UNMANNED", "UNMANNED"],
       current: 0,
-      lastUpdate: undefined,
+      enRoute: 0,
     });
   });
 
-  it("includes extra deployments, counts only manned stewards, and picks the latest report", () => {
+  it("includes extra deployments, and counts manned and en-route stewards", () => {
     const state = getStationState(
       {
         deployments: [
@@ -46,18 +47,8 @@ describe("getStationState", () => {
     expect(state).toEqual({
       statuses: ["PENDING", "MANNED", "UNMANNED"],
       current: 1,
-      lastUpdate: "2026-10-18T09:15:00Z",
+      enRoute: 1,
     });
-  });
-
-  it("returns no report time when matching deployments have no timestamps", () => {
-    expect(
-      getStationState(
-        { deployments: [createDeployment("Station A", "UNMANNED", null)] },
-        "Station A",
-        1,
-      ).lastUpdate,
-    ).toBeUndefined();
   });
 });
 
@@ -80,23 +71,51 @@ describe("countManned", () => {
   });
 });
 
-describe("formatTime", () => {
-  it("uses a placeholder for missing timestamps", () => {
-    expect(formatTime()).toBe("--:--");
-    expect(formatTime(null)).toBe("--:--");
+describe("countStewards", () => {
+  it("counts no more arrived stewards at a station than it needs", () => {
+    expect(
+      countStewards(
+        {
+          deployments: [
+            createDeployment("Station A", "MANNED"),
+            createDeployment("Station A", "MANNED"),
+            createDeployment("Station B", "PENDING"),
+          ],
+        },
+        [
+          { station: "Station A", minimumStaffing: 1 },
+          { station: "Station B", minimumStaffing: 2 },
+        ],
+      ),
+    ).toEqual({ arrived: 1, enRoute: 1, needed: 3 });
+  });
+});
+
+describe("coverageShare", () => {
+  it("is the share of needed stewards who arrived, at most 1", () => {
+    const state = {
+      deployments: [
+        createDeployment("Station A", "MANNED"),
+        createDeployment("Station A", "PENDING"),
+        createDeployment("Station B", "MANNED"),
+        createDeployment("Station B", "MANNED"),
+      ],
+    };
+
+    expect(
+      coverageShare(state, { station: "Station A", minimumStaffing: 2 }),
+    ).toBe(0.5);
+    expect(
+      coverageShare(state, { station: "Station B", minimumStaffing: 1 }),
+    ).toBe(1);
   });
 
-  it("uses a placeholder for an invalid timestamp", () => {
-    expect(formatTime("not-a-timestamp")).toBe("--:--");
-  });
-
-  it("formats valid timestamps as a localized hour and minute", () => {
-    const timestamp = "2026-10-18T09:15:00Z";
-    const expected = new Date(timestamp).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    expect(formatTime(timestamp)).toBe(expected);
+  it("treats a station that needs nobody as covered", () => {
+    expect(
+      coverageShare(
+        { deployments: [] },
+        { station: "Station C", minimumStaffing: 0 },
+      ),
+    ).toBe(1);
   });
 });
