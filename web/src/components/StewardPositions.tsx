@@ -165,9 +165,9 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
             {positions.length === 0 ? (
               <Text>Ingen positioner endnu.</Text>
             ) : (
-              positions.map((p, i) => (
+              positions.map((p) => (
                 <View
-                  key={`${p.staff}-${p.station}-${p.status}-${p.time}-${i}`}
+                  key={`${p.staff}-${p.station}-${p.status}-${p.time}`}
                   style={{
                     flexDirection: "row",
                     justifyContent: "space-between",
