@@ -15,7 +15,7 @@ export interface ScenarioState {
   sequence: number;
   deployments: {
     /**
-     * UNMANNED: no steward yet. PENDING: a steward has reported a position for the station and is on the way. MANNED: the steward has arrived. TASK_DONE: the steward has finished the task (a position report with taskDone, MET-A-015). Allowed transitions: UNMANNED -> PENDING (a position report for the station), PENDING -> MANNED (the steward arrives), PENDING or MANNED -> TASK_DONE (taskDone at the station of the steward's latest report). Any other change is rejected with E1006.
+     * UNMANNED: no steward yet. PENDING: a steward has reported a position for the station and is on the way. MANNED: the steward has arrived. TASK_DONE: the steward has finished the task (a position report with taskDone, MET-A-015). The server creates every deployment as UNMANNED and does not move it to another status yet. The only transition it checks is task done: a position report with taskDone is only allowed at the station of the steward's latest report in the activation, otherwise it is rejected with E1006.
      */
     status: "UNMANNED" | "PENDING" | "MANNED" | "TASK_DONE";
     reportedAt?: string | null;
