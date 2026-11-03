@@ -1,5 +1,6 @@
 // Single source of truth for shared styling.
 import { Platform } from "react-native";
+import type { ScenarioState } from "./types/v1/scenario-state";
 
 // Raw colours. Nothing outside this object holds a hex value.
 export const palette = {
@@ -38,6 +39,20 @@ export const colors = {
   subtleBorder: palette.lightGrey, // card outlines that should not compete with the status colour
   requiredStation: palette.signalOrange, // a station the scenario needs staff at; no line on the map uses it
   blockedTrack: palette.metroDeepRed, // darker than M3's red, and drawn dashed to tell them apart
+};
+
+// How a steward's status looks, in the control room and the steward app. The
+// word carries the meaning; the symbol and colour only help. Yellow text
+// uses the darker shade, which reads on white. A status missing
+// here (or no status) is shown as having none.
+export const stewardStatus: Partial<
+  Record<
+    ScenarioState["deployments"][number]["status"],
+    { label: string; symbol?: string; color: string }
+  >
+> = {
+  PENDING: { label: "På vej", color: colors.statusYellowText },
+  MANNED: { label: "Ankommet", symbol: "✓", color: colors.statusGreen },
 };
 
 export const lineColors = [
