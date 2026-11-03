@@ -1,5 +1,11 @@
 # Scenario State Contract Changelog
 
+## 6.3.0 - 2026-11-03
+
+Additive. Stewards are told when a scenario is stood down (MET-A-009)
+- New `scenario-stood-down` socket event to stewards, sent after `POST /api/v1/activations/{activationId}/stand-down`. It has no payload; the steward app refetches `GET /api/v1/scenario-state`, which is `null` afterwards.
+- `info.version` in `openapi.yaml` is now 6.3.0
+
 ## 6.2.0 - 2026-11-02
 
 Additive. Standing down and switching scenarios (MET-A-009).

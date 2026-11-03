@@ -16,6 +16,7 @@ import { sendPositionReport } from "../api/position-report";
 import { StationPicker } from "../components/StationPicker";
 import { snapshotStore } from "../offline/snapshot-store";
 import { socket } from "../socket";
+import { ScenarioNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
 import { ScenarioOverview } from "./ScenarioOverview";
@@ -38,7 +39,7 @@ export function StewardView({
 }) {
   // Data from the socketstate
   const { isConnected, messages } = useSocketState(socket);
-  const { view, refresh } = useActiveScenario({
+  const { view, refresh, dismissNotice } = useActiveScenario({
     apiBaseUrl,
     token,
     online,
@@ -49,20 +50,22 @@ export function StewardView({
   const [reportStatus, setReportStatus] = useState<string | null>(null);
 
   // Fetches again when the app returns to the foreground, when the socket
-  // announces an activation, and when the socket reconnects, so an activation
-  // missed while disconnected is not lost. Each is saved as the offline copy
-  // too (MET-A-005).
+  // announces an activation or a stand-down, and when the socket reconnects,
+  // so a change missed while disconnected is not lost. Each is saved as the
+  // offline copy too (MET-A-005).
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void refresh();
     });
-    const onActivated = () => void refresh();
-    socket.on("scenario-activated", onActivated);
-    socket.on("connect", onActivated);
+    const onChanged = () => void refresh();
+    socket.on("scenario-activated", onChanged);
+    socket.on("scenario-stood-down", onChanged);
+    socket.on("connect", onChanged);
     return () => {
       subscription.remove();
-      socket.off("scenario-activated", onActivated);
-      socket.off("connect", onActivated);
+      socket.off("scenario-activated", onChanged);
+      socket.off("scenario-stood-down", onChanged);
+      socket.off("connect", onChanged);
     };
   }, [refresh]);
 
@@ -96,6 +99,7 @@ export function StewardView({
       onLogout={onLogout}
     >
       <ScrollView contentContainerStyle={styles.content}>
+        <ScenarioNotice view={view} onDismiss={dismissNotice} />
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
         )}
