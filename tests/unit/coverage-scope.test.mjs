@@ -45,7 +45,10 @@ test("startup entry points do not count towards application coverage", (t) => {
     statementMap: { 0: { start: { line: 1 } } },
     s: { 0: covered },
   });
-  writeFileSync(path.join(root, "coverage/coverage-final.json"), "{}");
+  writeFileSync(
+    path.join(root, "coverage/coverage-final.json"),
+    JSON.stringify({ [path.join(root, "scripts/ignored.mjs")]: entry(1) }),
+  );
   writeFileSync(
     path.join(root, "coverage/jest/coverage-final.json"),
     JSON.stringify(

@@ -219,33 +219,53 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download raw coverage
+      - name: Download unit coverage
+        id: unit_coverage
         uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
-          pattern: coverage-raw-*
+          name: coverage-raw-unit
           path: coverage/tmp
-          merge-multiple: true
 
-      # Merges the raw coverage of both test jobs and writes the reports,
-      # including coverage/coverage-summary.json. Always runs, so the PR comment
-      # shows numbers even when a test failed.
-      - name: Report coverage
-        if: ${{ hashFiles('coverage/tmp/*.json') != '' }}
+      - name: Download integration coverage
+        id: integration_coverage
+        if: ${{ !cancelled() }}
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: coverage-raw-integration
+          path: coverage/tmp
+
+      - name: Report Node coverage
+        id: node_coverage
+        if: ${{ !cancelled() && hashFiles('coverage/tmp/*.json') != '' }}
+        continue-on-error: true
         run: npx c8 report --check-coverage=false
 
       - name: Download Jest coverage
+        id: jest_coverage
         if: ${{ !cancelled() }}
         uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
           name: coverage-jest
           path: coverage/jest
 
-      # PRs and merge queues compare their tested merge commit with the event base.
+      - name: Determine coverage completeness
+        id: coverage_inputs
+        if: ${{ !cancelled() }}
+        env:
+          INPUTS_COMPLETE: ${{ needs.unit.result == 'success' && needs.integration.result == 'success' && needs.jest.result == 'success' && steps.unit_coverage.outcome == 'success' && steps.integration_coverage.outcome == 'success' && steps.node_coverage.outcome == 'success' && steps.jest_coverage.outcome == 'success' }}
+        run: echo "complete=$INPUTS_COMPLETE" >> "$GITHUB_OUTPUT"
+
+      # Always refresh the comment, including when a test or coverage artifact is missing.
       - name: Write coverage summary
-        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        if: ${{ !cancelled() }}
         env:
           COVERAGE_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          COVERAGE_INPUTS_COMPLETE: ${{ steps.coverage_inputs.outputs.complete }}
         run: |
+          mkdir -p coverage
           node scripts/coverage-report.mjs > coverage/report.md
           cat coverage/report.md >> "$GITHUB_STEP_SUMMARY"
 
@@ -253,14 +273,18 @@ jobs:
         if: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.unit.result == 'success' && needs.integration.result == 'success' && needs.jest.result == 'success' }}
         env:
           COVERAGE_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          COVERAGE_INPUTS_COMPLETE: ${{ steps.coverage_inputs.outputs.complete }}
         run: node scripts/coverage-report.mjs --check
 
       - name: Create combined coverage for SonarQube
-        if: ${{ !cancelled() && hashFiles('coverage/coverage-final.json') != '' && hashFiles('coverage/jest/coverage-final.json') != '' }}
+        id: export_coverage
+        if: ${{ !cancelled() && steps.coverage_inputs.outputs.complete == 'true' }}
+        env:
+          COVERAGE_INPUTS_COMPLETE: ${{ steps.coverage_inputs.outputs.complete }}
         run: node scripts/coverage-report.mjs --write-lcov
 
       - name: Save coverage for SonarQube
-        if: ${{ !cancelled() && hashFiles('coverage/lcov.info') != '' }}
+        if: ${{ !cancelled() && steps.export_coverage.outcome == 'success' && hashFiles('coverage/lcov.info') != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: coverage-lcov
