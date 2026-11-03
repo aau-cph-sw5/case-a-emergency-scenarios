@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { colors, radius, spacing } from "../../../shared/Theme";
 
 // One button per station, nearest first. Pressing a station reports it as the
 // steward's position: one action, no separate confirm button.
@@ -41,27 +42,29 @@ export function StationList({
   );
 }
 
+// Colours and spacing come from shared/Theme so the list matches the other views.
 const styles = StyleSheet.create({
   station: {
-    backgroundColor: "#ffffff",
-    borderColor: "#1b7f3b",
-    borderRadius: 4,
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radius,
     borderWidth: 1,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
+    marginBottom: spacing.medium,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.large,
   },
   current: {
-    backgroundColor: "#1b7f3b",
+    backgroundColor: colors.active, // selected state is inverted, as elsewhere in the app
   },
   disabled: {
     opacity: 0.5,
   },
   label: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: "600",
   },
   currentLabel: {
-    color: "#ffffff",
+    color: colors.textInverse,
   },
 });
