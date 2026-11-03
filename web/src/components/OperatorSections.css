@@ -23,6 +23,12 @@ body {
   background: white;
 }
 
+/* The map fills its section, so the SVG scales to the space it has. */
+.operator-sections section[aria-label="Map"] {
+  display: flex;
+  flex-direction: column;
+}
+
 @media (max-width: 700px) {
   .operator-sections {
     grid-template-columns: 1fr;
