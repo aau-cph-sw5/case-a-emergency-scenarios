@@ -2,43 +2,25 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { colors, palette, text } from "../../../shared/Theme";
 import type { ActiveDeployments } from "../../../shared/components/stationState";
+import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
+import { StewardStatus } from "./StewardStatus";
 import { useLiveData } from "../data/liveData";
 
 // How often the ages are recomputed, so "for 2 min siden" counts up without a
 // new report.
 const TICK_MS = 15_000;
 
-// The word on each row. PENDING and MANNED come from the contract today. The
-// other two only exist in the temporary mock below, until check-out and lost
-// connection are decided.
-const STATUS_LABEL = {
-  PENDING: "På vej",
-  MANNED: "Ankommet",
-  CHECKED_OUT: "Udtjekket",
-  CONNECTION_LOST: "Forbindelse mistet",
-} as const;
-
-// The dot next to the word. The word carries the meaning, the colour only helps.
-const STATUS_DOT = {
-  PENDING: palette.metroLineTwo,
-  MANNED: palette.metroLineOne,
-  CHECKED_OUT: palette.metroBlack,
-  CONNECTION_LOST: palette.metroLineThree,
-} as const;
-
 type StewardPosition = {
   staff: string;
   station: string;
-  status: keyof typeof STATUS_LABEL;
+  status: ScenarioState["deployments"][number]["status"];
   // When the steward reported, or arrived once the station is manned.
   time?: string | null;
 };
 
 // TEMPORARY mock, shown while <StewardPositions mock /> is set in
 // OperatorDashboard. It plays one shift: stewards check in at a station (på
-// vej, then ankommet), check out when they leave, and one loses connection.
-// Delete it, the `mock` prop and CHECKED_OUT / CONNECTION_LOST when the real
-// statuses are decided.
+// vej, then ankommet). Delete it and the `mock` prop when live data is enough.
 const MOCK_LOG: StewardPosition[] = [
   {
     staff: "ID-123",
@@ -71,22 +53,10 @@ const MOCK_LOG: StewardPosition[] = [
     time: "2026-10-28T15:41:00",
   },
   {
-    staff: "ID-314",
-    status: "CHECKED_OUT",
-    station: "Frederiksberg",
-    time: "2026-10-28T15:52:00",
-  },
-  {
     staff: "ID-415",
     status: "PENDING",
     station: "Flintholm",
     time: "2026-10-28T15:55:00",
-  },
-  {
-    staff: "ID-208",
-    status: "CONNECTION_LOST",
-    station: "Forum",
-    time: "2026-10-28T15:58:00",
   },
 ];
 
@@ -99,21 +69,20 @@ export function stewardPositions(
 ): StewardPosition[] {
   return activations
     .flatMap((activation) => activation.deployments)
-    .filter(
-      (d) =>
-        d.staff !== null && d.staff !== undefined && d.status !== "UNMANNED",
-    )
+    .filter((d) => d.staff !== null && d.staff !== undefined)
     .map((d) => ({
       // String() because the server sends the numeric userId today, although
       // the contract says string.
       staff: String(d.staff),
       station: d.fulfills,
-      status: d.status as "PENDING" | "MANNED",
+      status: d.status,
       time:
         d.status === "MANNED" ? (d.arrivedAt ?? d.reportedAt) : d.reportedAt,
     }))
     .sort(
       (a, b) =>
+        // Rows without a time (no report yet) go last, not first.
+        (a.time ? 0 : 1) - (b.time ? 0 : 1) ||
         (a.time ?? "").localeCompare(b.time ?? "") ||
         a.staff.localeCompare(b.staff, "da"),
     );
@@ -196,9 +165,9 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
             {positions.length === 0 ? (
               <Text>Ingen positioner endnu.</Text>
             ) : (
-              positions.map((p) => (
+              positions.map((p, i) => (
                 <View
-                  key={`${p.staff}-${p.station}-${p.status}-${p.time}`}
+                  key={`${p.staff}-${p.station}-${p.status}-${p.time}-${i}`}
                   style={{
                     flexDirection: "row",
                     justifyContent: "space-between",
@@ -206,20 +175,10 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
                     paddingVertical: 8,
                   }}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View
-                      style={{
-                        width: 10,
-                        height: 10,
-                        marginRight: 8,
-                        borderRadius: 5,
-                        backgroundColor: STATUS_DOT[p.status],
-                      }}
-                    />
-                    <Text style={{ fontSize: 14 }}>
-                      {p.staff} | {STATUS_LABEL[p.status]} | {p.station}
-                    </Text>
-                  </View>
+                  <Text style={{ fontSize: 14 }}>
+                    {p.staff} | <StewardStatus status={p.status} /> |{" "}
+                    {p.station}
+                  </Text>
                   <Text style={{ fontSize: 14 }}>{formatAge(p.time, now)}</Text>
                 </View>
               ))

@@ -151,13 +151,26 @@ describe("StewardPositions pop-up", () => {
     fireEvent.press(screen.getByText("Status (2)"));
 
     expect(screen.getByText("steward-002 | På vej | Nørreport")).toBeTruthy();
-    expect(screen.getByText("steward-003 | Ankommet | Vanløse")).toBeTruthy();
+    expect(screen.getByText("steward-003 | ✓ Ankommet | Vanløse")).toBeTruthy();
     expect(screen.getByText("for 2 min siden")).toBeTruthy();
     expect(screen.getByText("for 10 min siden")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("Luk status"));
     expect(screen.queryByText(/steward-002/)).toBeNull();
+  });
+
+  it("shows a steward without a status as having none", () => {
+    renderWithLive(<StewardPositions />, {
+      activations: [
+        activation("ACT-1", [
+          { status: "UNMANNED", staff: "steward-004", fulfills: "Forum" },
+        ]),
+      ],
+    });
+    fireEvent.press(screen.getByText("Status (1)"));
+
+    expect(screen.getByText("steward-004 | Ingen status | Forum")).toBeTruthy();
   });
 
   it("counts the age up without a new report", () => {
