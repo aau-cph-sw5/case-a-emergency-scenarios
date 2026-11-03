@@ -258,11 +258,13 @@ jobs:
           INPUTS_COMPLETE: ${{ needs.unit.result == 'success' && needs.integration.result == 'success' && needs.jest.result == 'success' && steps.unit_coverage.outcome == 'success' && steps.integration_coverage.outcome == 'success' && steps.node_coverage.outcome == 'success' && steps.jest_coverage.outcome == 'success' }}
         run: echo "complete=$INPUTS_COMPLETE" >> "$GITHUB_OUTPUT"
 
+      # For PRs, HEAD is the tested merge commit: its first parent is the exact
+      # base used for that merge, even if the event's base SHA is stale.
       # Always refresh the comment, including when a test or coverage artifact is missing.
       - name: Write coverage summary
         if: ${{ !cancelled() }}
         env:
-          COVERAGE_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          COVERAGE_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.merge_group.base_sha }}
           COVERAGE_INPUTS_COMPLETE: ${{ steps.coverage_inputs.outputs.complete }}
         run: |
           mkdir -p coverage
@@ -272,7 +274,7 @@ jobs:
       - name: Check changed-file coverage
         if: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.unit.result == 'success' && needs.integration.result == 'success' && needs.jest.result == 'success' }}
         env:
-          COVERAGE_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          COVERAGE_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.merge_group.base_sha }}
           COVERAGE_INPUTS_COMPLETE: ${{ steps.coverage_inputs.outputs.complete }}
         run: node scripts/coverage-report.mjs --check
 

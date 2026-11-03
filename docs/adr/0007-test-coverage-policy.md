@@ -41,9 +41,10 @@ The percentage is weighted by executable lines: covered lines divided by total
 lines across the changed files. The report shows an 80% indicator for each file,
 but individual results do not block the check. Files with no executable lines
 contribute nothing. Deleted files are ignored; renamed files are treated as
-added. A missing or invalid coverage entry fails the check. The comparison uses
-the event's base commit and the tested merge commit, and the check runs only
-after all three test jobs pass.
+added. A missing or invalid coverage entry fails the check. For pull requests, the comparison uses the tested merge commit's first parent
+(the base actually used by GitHub) and the tested merge commit. Merge queues
+use the merge group's base commit. The check runs only after all three test
+jobs pass.
 
 Overall application line coverage is informational: there is no repository-wide
 minimum or comparison with a previous run. The full contents of a changed file
