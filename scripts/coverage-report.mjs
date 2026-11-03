@@ -16,11 +16,12 @@ const jestCoverage = JSON.parse(
 const relative = (file) =>
   path.relative(process.cwd(), file).split(path.sep).join("/");
 const inScope = (file) =>
-  /^(?:src\/.*\.ts|shared\/.*\.tsx?|web\/src\/.*\.tsx?|mobile\/src\/.*\.tsx?|mobile\/(?:App\.tsx|index\.ts))$/.test(
+  /^(?:src\/.*\.ts|shared\/.*\.tsx?|web\/src\/.*\.tsx?|mobile\/src\/.*\.tsx?|mobile\/App\.tsx)$/.test(
     file,
   ) &&
   !file.endsWith(".d.ts") &&
-  !file.startsWith("shared/types/");
+  !file.startsWith("shared/types/") &&
+  file !== "web/src/main.tsx";
 const isFrontend = (file) => /^(?:shared|web|mobile)\//.test(file);
 
 // Istanbul maps statement hits to their starting lines. Jest defines the

@@ -5,10 +5,14 @@
     "shared/**/*.{ts,tsx}",
     "web/src/**/*.{ts,tsx}",
     "mobile/src/**/*.{ts,tsx}",
-    "mobile/App.tsx",
-    "mobile/index.ts"
+    "mobile/App.tsx"
   ],
   "reporter": ["text", "html", "json", "json-summary", "lcovonly"],
   "report-dir": "coverage",
-  "exclude": ["shared/types/**", "**/*.d.ts"]
+  "exclude": [
+    "shared/types/**",
+    "**/*.d.ts",
+    "web/src/main.tsx",
+    "mobile/index.ts"
+  ]
 }

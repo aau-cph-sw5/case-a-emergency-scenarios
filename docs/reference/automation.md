@@ -107,7 +107,8 @@ On pull requests and merge queues, the combined coverage of changed application
 files must be at least 80%. It uses full files, including unchanged lines. Each
 file gets an informational ✅ or ❌; only the combined percentage is enforced.
 Overall application coverage is also informational. Generated shared types,
-declarations, scripts, configuration, assets and database migrations are excluded.
+declarations, startup entry points (`mobile/index.ts` and `web/src/main.tsx`),
+scripts, configuration, assets and database migrations are excluded.
 
 The report appears in the workflow summary and in a pull request comment updated
 on each push. A separate test-results comment shows unit, integration and Jest

@@ -29,8 +29,9 @@ are omitted from SonarQube's input so their line numbers cannot be misapplied.
 
 On pull requests and merge queues, combined line coverage across added or
 modified backend `src/**/*.ts`, `shared/**/*.{ts,tsx}`, `web/src/**/*.{ts,tsx}`,
-`mobile/src/**/*.{ts,tsx}`, `mobile/App.tsx` and `mobile/index.ts` files must
-reach **80%**. Generated `shared/types/` and declaration files are excluded. For
+`mobile/src/**/*.{ts,tsx}` and `mobile/App.tsx` files must reach **80%**.
+Generated `shared/types/`, declaration files, and the startup entry points
+`mobile/index.ts` and `web/src/main.tsx` are excluded. For
 frontend files, Jest defines executable lines and Node test hits on those same
 lines are combined with Jest hits. Each line is counted once, even when both
 runners cover it. Backend lines use c8's coverage map.
