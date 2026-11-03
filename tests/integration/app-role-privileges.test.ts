@@ -32,6 +32,7 @@ after(async () => {
 const ALL = ["SELECT", "INSERT", "UPDATE", "DELETE"];
 const expected: Record<string, string[]> = {
   incident_events: ["SELECT", "INSERT"],
+  incident_activations: ["SELECT", "INSERT", "UPDATE"],
   users: ["SELECT"],
   auth_sessions: ["SELECT", "INSERT", "UPDATE"],
   position_reports: ["SELECT", "INSERT"],
@@ -86,6 +87,12 @@ test("the app role cannot update the incident log", () =>
 test("the app role cannot delete from the incident log", () =>
   inRolledBackTransaction(async (tx) => {
     await denied(tx, (db) => db`DELETE FROM incident_events`);
+  }));
+
+test("the app role cannot delete or truncate incident activations", () =>
+  inRolledBackTransaction(async (tx) => {
+    await denied(tx, (db) => db`DELETE FROM incident_activations`);
+    await denied(tx, (db) => db`TRUNCATE incident_activations`);
   }));
 
 test("the app role cannot truncate the incident log", () =>
