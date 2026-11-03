@@ -203,7 +203,6 @@ export async function standDown(
 
   // Operators refetch their activations.
   const io = request.app.locals.io as Server | undefined;
-  io?.to("STEWARD").emit("scenario-stood-down");
   io?.to("OPERATOR").emit("activations-changed");
   response.json(result.activation);
 }
