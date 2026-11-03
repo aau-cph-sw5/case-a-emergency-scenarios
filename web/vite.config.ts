@@ -8,6 +8,23 @@ const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 // Shared components (shared/) are written with React Native; on the web
 // they render through react-native-web.
 const reactNativeWeb = resolve(repoRoot, "node_modules/react-native-web");
+// react-native-svg loads its touch-sound module only on Android, but the
+// bundler still resolves it; the web gets an empty stand-in.
+const svgSoundModule = "../fabric/NativeSvgSoundModule";
+const svgSoundStub = resolve(repoRoot, "web/src/shims/svg-sound-module.ts");
+
+// .web files first, so a package like react-native-svg uses its web build.
+const extensions = [
+  ".web.mjs",
+  ".mjs",
+  ".web.js",
+  ".js",
+  ".web.ts",
+  ".ts",
+  ".web.tsx",
+  ".tsx",
+  ".json",
+];
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, repoRoot, "");
@@ -17,19 +34,23 @@ export default defineConfig(({ mode }) => {
     envDir: repoRoot,
     plugins: [react()],
     resolve: {
-      extensions: [
-        ".web.mjs",
-        ".mjs",
-        ".web.js",
-        ".js",
-        ".web.ts",
-        ".ts",
-        ".web.tsx",
-        ".tsx",
-        ".json",
+      extensions,
+      alias: [
+        { find: svgSoundModule, replacement: svgSoundStub },
+        // react-native-svg looks up bundled images here; react-native-web
+        // keeps the same registry under its own name.
+        {
+          find: "@react-native/assets-registry/registry",
+          replacement: resolve(reactNativeWeb, "dist/modules/AssetRegistry"),
+        },
+        { find: "react-native", replacement: reactNativeWeb },
       ],
-      alias: {
-        "react-native": reactNativeWeb,
+    },
+    // The dev server pre-bundles dependencies separately and needs the same
+    // order, or react-native-svg pulls in its native components.
+    optimizeDeps: {
+      rolldownOptions: {
+        resolve: { extensions, alias: { [svgSoundModule]: svgSoundStub } },
       },
     },
     server: {

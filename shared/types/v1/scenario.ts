@@ -8,6 +8,7 @@
 export interface Scenario {
   scenarioId: string;
   name: string;
+  lineGroup: "M1_M2" | "M3_M4";
   currentVersion: string;
   /**
    * Track segments covered by the scenario.
