@@ -106,3 +106,35 @@ test("a switch whose second event cannot be written changes nothing", async () =
   );
   assert.equal((await stoodDownEvents(outgoing.activationId)).length, 0);
 });
+
+test("an activation made while a stand-down is writing its event waits for it", async () => {
+  // DEMO-001 is still active from the tests above.
+  const [outgoing] = listActivations("ACTIVE");
+  assert.equal(outgoing?.scenarioId, "DEMO-001");
+
+  // The stand-down's event write fails, but only after the activation below
+  // has been started.
+  const slowFailingWrite = () =>
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("event write failed")), 50),
+    );
+  const standDown = standDownAndLog(
+    operator,
+    outgoing.activationId,
+    slowFailingWrite,
+  );
+  const activation = activateAndLog(
+    operator,
+    await scenario("DEMO-002"),
+    "operator",
+  );
+
+  await assert.rejects(standDown, /event write failed/);
+  // The stand-down was taken back before the activation ran, so DEMO-001 is
+  // still the only active scenario and the activation is refused.
+  assert.equal((await activation).kind, "already-active");
+  assert.deepEqual(
+    listActivations("ACTIVE").map((a) => a.activationId),
+    [outgoing.activationId],
+  );
+});
