@@ -20,7 +20,7 @@ export type ActiveScenarioView =
 export type LiveNotice =
   { kind: "activated" } | { kind: "switched"; from: string };
 
-// A different scenario than the one shown was switched to. 
+// A different scenario than the one shown was switched to.
 // or one that arrives after this session saw no scenario was activated.
 function noticeFor(
   shown: ActiveScenarioView,
