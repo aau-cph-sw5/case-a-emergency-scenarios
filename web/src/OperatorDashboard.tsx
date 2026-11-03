@@ -3,6 +3,7 @@ import { ScenarioList } from "./ScenarioList";
 import { StewardPositions } from "./components/StewardPositions";
 import { OperatorSections } from "./components/OperatorSections";
 import { LiveCoverage } from "./components/LiveCoverage";
+import { MetroMap } from "./components/MetroMap";
 import { LiveStatusBar } from "./components/LiveStatusBar";
 
 // The control-room dashboard. App opens the socket. Each section is filled by
@@ -42,7 +43,7 @@ export function OperatorDashboard({
             />
           </>
         }
-        map={<p>Insert map here...</p>}
+        map={<MetroMap scenarioId={selectedScenarioId} />}
         coverage={<LiveCoverage />}
       />
       {/* Fixed in the bottom right corner, so it follows the wireframe whatever

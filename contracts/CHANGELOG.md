@@ -5,6 +5,15 @@
 - Scenario list and detail responses include `lineGroup`, either `M1_M2` or `M3_M4`. Scenario seed files use the same field.
 - `info.version` in `openapi.yaml` is now 6.3.0.
 
+## 6.2.0 - 2026-11-02
+
+Additive. Standing down and switching scenarios (MET-A-009).
+
+- New `POST /api/v1/activations/{activationId}/stand-down`, for the OPERATOR role. It sets the activation to `CLOSED` with `endedAt`, writes a `SCENARIO_STOOD_DOWN` event with the actor and time, and answers 200 with the closed activation. Afterwards no scenario is active. An activation that is already `CLOSED` answers 409 `E1003`, an unknown id 404 `E0004`.
+- `POST /api/v1/scenarios/{scenarioId}/activate` takes an optional body, `activate-request.schema.json`, with `replaces`: the `activationId` of the active activation. The server then stands it down and activates the new scenario together, so a failed switch never leaves no scenario active. If `replaces` is not the active activation, nothing changes and it answers 409 `E0007`.
+- Without `replaces`, activating while a scenario is active is still refused with 409 `E0007`, as in 5.1.0, so nothing is replaced by accident. The 5.1.0 rule that an activation never stands down the active one now holds only for requests without `replaces`.
+- `info.version` in `openapi.yaml` is now 6.2.0
+
 ## 6.1.1 - 2026-10-30
 
 Documents what `deployments[].staff` holds (no change to the shape).

@@ -9,6 +9,11 @@ test("an expired token asks the user to log in again", () => {
   assert.match(userMessage(error), /Log ind igen/);
 });
 
+test("a scenario that is already stood down says so", () => {
+  const error = new ApiError("x", 409, "E1003");
+  assert.match(userMessage(error), /allerede deaktiveret/);
+});
+
 test("falls back on the status when the code is unknown", () => {
   assert.match(userMessage(new ApiError("x", 404, "E9999")), /findes ikke/);
   assert.match(userMessage(new ApiError("x", 409)), /allerede aktivt/);

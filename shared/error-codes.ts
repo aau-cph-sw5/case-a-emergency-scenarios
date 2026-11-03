@@ -45,6 +45,7 @@ export const ERROR_MESSAGES: Partial<Record<ErrorCode, string>> = {
   E0007: "The request conflicts with the current state of the resource",
   E0102: "Invalid credentials",
   E1001: "No scenario is currently active",
+  E1003: "The scenario has been stood down",
   E1004: "The station is not part of the active scenario",
 };
 
