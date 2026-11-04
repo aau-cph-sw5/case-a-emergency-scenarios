@@ -8,6 +8,7 @@ export async function getAllScenarios(): Promise<ScenarioList> {
     SELECT
       s.scenario_id AS "scenarioId",
       s.name,
+      s.line_group AS "lineGroup",
       v.version     AS "currentVersion",
       COALESCE(
         json_agg(json_build_object(
@@ -36,7 +37,7 @@ export async function findScenario(
   const sql = getDatabase();
 
   const [row] = await sql`
-    SELECT s.scenario_id, s.name, v.id AS version_id, v.version, v.revision,
+    SELECT s.scenario_id, s.name, s.line_group, v.id AS version_id, v.version, v.revision,
            p.name AS plan_name
     FROM scenarios s
     JOIN scenario_versions v ON v.id = s.current_version_id
@@ -97,6 +98,7 @@ export async function findScenario(
   return {
     scenarioId: row.scenarioId,
     name: row.name,
+    lineGroup: row.lineGroup,
     currentVersion: row.version,
     covers,
     versions: [
