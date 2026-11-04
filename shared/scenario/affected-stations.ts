@@ -33,7 +33,7 @@ export function affectedStations(scenario: SnapshotScenario) {
   ];
 }
 
-export function areaAroundStations(stations: string[]) {
+export function areaAroundStations(stations: string[], margin = MAP_MARGIN) {
   //positions from the stations from the map
   const positions = stations
     .map((station) => getStation(station))
@@ -46,10 +46,10 @@ export function areaAroundStations(stations: string[]) {
   const ys = positions.map((position) => position[1]);
 
   // we push the edge out by the margin
-  const left = Math.min(...xs) - MAP_MARGIN;
-  const right = Math.max(...xs) + MAP_MARGIN;
-  const top = Math.min(...ys) - MAP_MARGIN;
-  const bottom = Math.max(...ys) + MAP_MARGIN;
+  const left = Math.min(...xs) - margin;
+  const right = Math.max(...xs) + margin;
+  const top = Math.min(...ys) - margin;
+  const bottom = Math.max(...ys) + margin;
 
   //here return the values in text so it becomes "(the numbers)"
   return `${left} ${top} ${right - left} ${bottom - top}`;

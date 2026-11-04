@@ -38,6 +38,46 @@ function textContent(value: unknown): string {
 }
 
 describe("ScenarioStationList", () => {
+  it("shows only current-version requirements and totals in Metro order", () => {
+    const scenario = createScenario(["Station C", "Station A"]);
+    scenario.versions[0].stationRequirements[0].minimumStaffing = 3;
+    scenario.versions.push({
+      ...scenario.versions[0],
+      version: "old",
+      stationRequirements: [
+        {
+          station: "Old station",
+          placement: "Old platform",
+          minimumStaffing: 10,
+        },
+      ],
+    });
+    render(<ScenarioStationList scenario={scenario} mode="needed-only" />);
+
+    expect(screen.getByText("2 stationer · 4 stewards kræves")).toBeTruthy();
+    expect(screen.getByText("Placering: Station C platform")).toBeTruthy();
+    expect(screen.getByText("Minimum 3 stewards")).toBeTruthy();
+    expect(screen.queryByText("Old station")).toBeNull();
+    expect(screen.queryByText(/\d+\/\d+/)).toBeNull();
+    expect(
+      screen.queryByText(/dækket|på vej|på stationen|Mangler|Fuldt bemandet/),
+    ).toBeNull();
+    expect(
+      screen
+        .getAllByText(/^Station /)
+        .map((element) => textContent(element.props.children)),
+    ).toEqual(["Station A", "Station C"]);
+  });
+
+  it("shows zero needed and an empty state without live coverage for an empty preview", () => {
+    render(
+      <ScenarioStationList scenario={createScenario([])} mode="needed-only" />,
+    );
+    expect(screen.getByText("0 stationer · 0 stewards kræves")).toBeTruthy();
+    expect(screen.getByText("Scenariet kræver ingen stationer.")).toBeTruthy();
+    expect(screen.queryByText(/dækket|på vej|på stationen/)).toBeNull();
+  });
+
   it("puts the worst covered stations first, in M1 then M2 order when equal, and unknown stations last", () => {
     const scenario = createScenario([
       "Station G",

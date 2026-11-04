@@ -226,6 +226,7 @@ describe("useScenario", () => {
       scenario: null,
       isLoading: false,
       error: null,
+      retry: expect.any(Function),
     });
     expect(scenarioMock).not.toHaveBeenCalled();
   });
