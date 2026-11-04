@@ -1,5 +1,12 @@
 # Scenario State Contract Changelog
 
+## 6.5.0 - 2026-11-04
+
+Additive. Stewards are told when a scenario is stood down (MET-A-009, #278).
+
+- New `scenario-stood-down` socket event to stewards, sent after `POST /api/v1/activations/{activationId}/stand-down`. It has no payload; the steward app refetches `GET /api/v1/scenario-state`, which is `null` afterwards.
+- `info.version` in `openapi.yaml` is now 6.5.0.
+
 ## 6.4.0 - 2026-11-03
 
 Additive. Task done for stewards (MET-A-015).
@@ -10,10 +17,6 @@ Additive. Task done for stewards (MET-A-015).
 - `info.version` in `openapi.yaml` is now 6.4.0.
 
 ## 6.3.0 - 2026-11-03
-
-Additive. Stewards are told when a scenario is stood down (MET-A-009)
-- New `scenario-stood-down` socket event to stewards, sent after `POST /api/v1/activations/{activationId}/stand-down`. It has no payload; the steward app refetches `GET /api/v1/scenario-state`, which is `null` afterwards.
-- `info.version` in `openapi.yaml` is now 6.4.0
 
 - Scenario list and detail responses include `lineGroup`, either `M1_M2` or `M3_M4`. Scenario seed files use the same field.
 - `info.version` in `openapi.yaml` is now 6.3.0.

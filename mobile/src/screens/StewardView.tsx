@@ -98,8 +98,8 @@ export function StewardView({
       description="Logget ind som steward."
       onLogout={onLogout}
     >
+      <ScenarioNotice view={view} onDismiss={dismissNotice} />
       <ScrollView contentContainerStyle={styles.content}>
-        <ScenarioNotice view={view} onDismiss={dismissNotice} />
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
         )}

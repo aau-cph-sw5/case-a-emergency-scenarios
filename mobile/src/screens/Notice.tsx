@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   notice: {
     backgroundColor: palette.metroDeepRed,
     borderRadius: 4,
-    marginBottom: 12,
+    marginTop: 12,
     padding: 12,
   },
   title: {
