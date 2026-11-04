@@ -43,7 +43,7 @@ type Activation = {
   scenarioId: string;
   startedAt: string;
   endedAt: string | null;
-  status: "ACTIVE";
+  status: ActivationStatus;
   actor: string;
   deployments: { status: "UNMANNED"; staff: null; fulfills: string }[];
 };
@@ -55,12 +55,16 @@ export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 
 // An activation gets its sequence once its SCENARIO_ACTIVATED event is written.
-type PendingActivation = Pick<Activation, "activationId" | "scenarioId"> & {
+type PendingActivation = Pick<
+  Activation,
+  "activationId" | "scenarioId" | "startedAt" | "endedAt"
+> & {
   status: ActivationStatus;
   deployments: { fulfills: string }[];
   sequence?: number;
 };
-type StoredActivation = PendingActivation & { sequence: number };
+
+export type StoredActivation = PendingActivation & { sequence: number };
 const activations: PendingActivation[] = [];
 
 function isLogged(
@@ -79,13 +83,15 @@ export function listActivations(status?: ActivationStatus): StoredActivation[] {
 // The stations that require manning in an active scenario.
 export function activeStations(): Set<string> {
   return new Set(
-    activations.flatMap((a) => a.deployments.map((d) => d.fulfills)),
+    listActivations("ACTIVE").flatMap((a) =>
+      a.deployments.map((d) => d.fulfills),
+    ),
   );
 }
 
 // The most recently activated scenario, for clients that connect later.
 export function latestActivation(): StoredActivation | undefined {
-  return activations.filter(isLogged).at(-1);
+  return listActivations("ACTIVE").at(-1);
 }
 
 export function setActivationSequence(activationId: string, sequence: number) {
@@ -97,6 +103,33 @@ export function setActivationSequence(activationId: string, sequence: number) {
 export function undoActivation(activationId: string) {
   const index = activations.findIndex((a) => a.activationId === activationId);
   if (index !== -1) activations.splice(index, 1);
+}
+
+export type StandDownResult =
+  | { kind: "ok"; activation: StoredActivation }
+  | { kind: "not-found" }
+  | { kind: "already-closed" };
+
+// Stands down an activation in memory. Undo with reopenActivation if its
+// event cannot be written.
+export function closeActivation(activationId: string): StandDownResult {
+  const activation = activations.find((a) => a.activationId === activationId);
+  if (activation === undefined || !isLogged(activation)) {
+    return { kind: "not-found" };
+  }
+  if (activation.status === "CLOSED") return { kind: "already-closed" };
+  activation.status = "CLOSED";
+  activation.endedAt = new Date().toISOString();
+  return { kind: "ok", activation };
+}
+
+// Takes back a stand-down whose event could not be written.
+export function reopenActivation(activationId: string) {
+  const activation = activations.find((a) => a.activationId === activationId);
+  if (activation) {
+    activation.status = "ACTIVE";
+    activation.endedAt = null;
+  }
 }
 
 export type ActivationResult =
