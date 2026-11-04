@@ -8,7 +8,7 @@ export type QueuedPositionReport = {
   station: string; //station where the report was made
   reportedAt: string;
   scenarioId: string; //scenario the report wwas created against
-  activationId: string; //specific activation the steward was participating in
+  activationId: number; //specific activation the steward was participating in
   taskDone?: boolean;
 };
 
@@ -29,7 +29,9 @@ function isQueuedReport(value: unknown): value is QueuedPositionReport {
     typeof report.reportedAt === "string" &&
     !Number.isNaN(Date.parse(report.reportedAt)) &&
     typeof report.scenarioId === "string" &&
-    typeof report.activationId === "string" &&
+    typeof report.activationId === "number" &&
+    Number.isInteger(report.activationId) &&
+    report.activationId > 0 &&
     (report.taskDone === undefined || typeof report.taskDone === "boolean")
   );
 }

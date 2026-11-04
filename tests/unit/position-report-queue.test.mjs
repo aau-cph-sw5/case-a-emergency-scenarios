@@ -31,7 +31,7 @@ function aReport(id = "report-1") {
     station: "Station B",
     reportedAt: "2026-11-01T12:00:00Z",
     scenarioId: "DEMO-001",
-    activationId: "activation-1",
+    activationId: 1,
   };
 }
 
