@@ -9,7 +9,7 @@ export type CreatePositionReportInput = {
   userId: string;
   station: string;
   scenarioId: string;
-  activationId: string;
+  activationId: number;
   taskDone?: boolean;
 };
 
