@@ -211,7 +211,7 @@ export async function standDown(
 
   const numericId = /^[1-9]\d*$/.test(activationId)
     ? Number(activationId)
-    : NaN;
+    : Number.NaN;
   const result = await standDownAndLog(response.locals.user, numericId);
   if (result.kind === "not-found") {
     response
@@ -236,8 +236,9 @@ export async function standDown(
     return;
   }
 
-  // Operators refetch their activations.
+  // Stewards refetch the scenario state, operators their activations.
   const io = request.app.locals.io as Server | undefined;
+  io?.to("STEWARD").emit("scenario-stood-down");
   io?.to("OPERATOR").emit("activations-changed");
   response.json(result.activation);
 }

@@ -88,7 +88,7 @@ describe("useActiveScenario", () => {
     );
   });
 
-  it("removes the copy when no scenario is active", async () => {
+  it("shows that the saved scenario was stood down and removes the copy", async () => {
     serverAnswers({ ...state, status: "CLOSED" });
     const store = memoryStore();
     await store.save(
@@ -100,8 +100,96 @@ describe("useActiveScenario", () => {
     );
     const { result } = render({ online: true, store });
 
-    await waitFor(() => expect(result.current.view.status).toBe("none"));
+    await waitFor(() =>
+      expect(result.current.view).toEqual({
+        status: "stood-down",
+        scenarioName: definition.name,
+      }),
+    );
     await waitFor(async () => expect(await store.load("7")).toBeNull());
+  });
+
+  it("shows no scenario when the steward had none before", async () => {
+    serverAnswers({ ...state, status: "CLOSED" });
+    const { result } = render({ online: true });
+
+    await waitFor(() => expect(result.current.view.status).toBe("none"));
+  });
+
+  it("keeps the stood-down message on the next refresh until dismissed", async () => {
+    serverAnswers({ ...state, status: "CLOSED" });
+    const store = memoryStore();
+    await store.save(
+      buildSnapshot(
+        { active: true, state, scenario: definition },
+        "7",
+        savedEarlier,
+      ),
+    );
+    const { result } = render({ online: true, store });
+    await waitFor(() => expect(result.current.view.status).toBe("stood-down"));
+
+    await act(() => result.current.refresh());
+    expect(result.current.view.status).toBe("stood-down");
+
+    act(() => result.current.dismissNotice());
+    expect(result.current.view.status).toBe("none");
+  });
+
+  it("says the scenario was switched when another one becomes active", async () => {
+    serverAnswers();
+    const store = memoryStore();
+    const old = buildSnapshot(
+      { active: true, state, scenario: definition },
+      "7",
+      savedEarlier,
+    );
+    await store.save({
+      ...old,
+      scenario: { ...old.scenario, scenarioId: "DEMO-000", name: "Gammelt" },
+    });
+    const { result } = render({ online: true, store });
+
+    const switched = { kind: "switched", from: "Gammelt" };
+    await waitFor(() => expect(result.current.view.status).toBe("live"));
+    expect(result.current.view).toMatchObject({ notice: switched });
+
+    // A later refresh of the same scenario keeps the notice.
+    await act(() => result.current.refresh());
+    expect(result.current.view).toMatchObject({ notice: switched });
+
+    act(() => result.current.dismissNotice());
+    expect(result.current.view).toMatchObject({
+      status: "live",
+      notice: undefined,
+    });
+  });
+
+  it("says a scenario was activated when it arrives after none was active", async () => {
+    serverAnswers({ ...state, status: "CLOSED" });
+    const { result } = render({ online: true });
+    await waitFor(() => expect(result.current.view.status).toBe("none"));
+
+    jest.restoreAllMocks();
+    serverAnswers();
+    await act(() => result.current.refresh());
+    expect(result.current.view).toMatchObject({
+      status: "live",
+      notice: { kind: "activated" },
+    });
+
+    act(() => result.current.dismissNotice());
+    expect(result.current.view).toMatchObject({ notice: undefined });
+  });
+
+  it("shows no notice for a scenario that was already active at login", async () => {
+    serverAnswers();
+    const { result } = render({ online: true });
+    await waitFor(() => expect(result.current.view.status).toBe("live"));
+    expect(result.current.view).toMatchObject({ notice: undefined });
+
+    await act(() => result.current.refresh());
+    expect(result.current.view).toMatchObject({ notice: undefined });
   });
 
   it("shows the saved copy offline without a request", async () => {
@@ -260,7 +348,7 @@ describe("useActiveScenario", () => {
     act(() => {
       void result.current.refresh();
     });
-    await waitFor(() => expect(result.current.view.status).toBe("none"));
+    await waitFor(() => expect(result.current.view.status).toBe("stood-down"));
     releaseFirstSave();
 
     await waitFor(async () => expect(await store.load("7")).toBeNull());
