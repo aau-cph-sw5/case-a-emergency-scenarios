@@ -5,7 +5,10 @@ import {
   errorBody,
   type ErrorCode,
 } from "../../shared/error-codes.js";
-import { activeStations } from "../repositories/fixture-repository.js";
+import {
+  activeStations,
+  listActivations,
+} from "../repositories/fixture-repository.js";
 import type { AuthUser } from "../services/auth-service.js";
 import { recordPositionReport } from "../services/position-report-service.js";
 
@@ -26,6 +29,7 @@ export async function postPositionReport(request: Request, response: Response) {
   const { userId, role } = response.locals.user as AuthUser;
   const { station } = request.body;
   const stations = activeStations();
+  const activation = listActivations("ACTIVE")[0];
 
   if (role !== "STEWARD") {
     return refuse(
@@ -35,7 +39,7 @@ export async function postPositionReport(request: Request, response: Response) {
       `role ${role}`,
     );
   }
-  if (stations.size === 0) {
+  if (activation === undefined || stations.size === 0) {
     return refuse(response, 409, ERROR_CODES.NO_ACTIVE_SCENARIO, station);
   }
   if (!stations.has(station)) {
@@ -49,7 +53,24 @@ export async function postPositionReport(request: Request, response: Response) {
   // The phone's own time, for the event log, before reportedAt is replaced.
   const clientTime = new Date(request.body.reportedAt);
   const report = { ...request.body, staff: userId, reportedAt: now };
-  await recordPositionReport(response.locals.user, report, clientTime);
+  const result = await recordPositionReport(
+    response.locals.user,
+    report,
+    clientTime,
+    activation.startedAt,
+  );
+  if (result.kind === "invalid") {
+    return refuse(
+      response,
+      409,
+      ERROR_CODES.INVALID_STATUS_TRANSITION,
+      `task done at ${station}, latest report at ${result.latestStation}`,
+    );
+  }
+  // A repeated task done changes nothing, so the operators are not told again.
+  if (result.kind === "repeat") {
+    return response.status(202).json({ accepted: true });
+  }
 
   const io = request.app.locals.io as Server | undefined;
   io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
