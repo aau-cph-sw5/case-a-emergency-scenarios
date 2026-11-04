@@ -12,7 +12,9 @@ import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import { colors, palette, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
-import { sendPositionReport } from "../api/position-report";
+import { userIdFromToken } from "../../../shared/auth/login";
+import { queuePositionReport } from "../offline/queue-position-report";
+import { positionReportDelivery } from "../offline/position-report-delivery-instance";
 import { StationPicker } from "../components/StationPicker";
 import { snapshotStore } from "../offline/snapshot-store";
 import { socket } from "../socket";
@@ -20,8 +22,8 @@ import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
 import { ScenarioOverview } from "./ScenarioOverview";
 
-// online is false when the phone has no connection or the session could not
-// be confirmed; the saved copy is shown then, and nothing is sent.
+// When offline, the steward can use the saved scenario copy.
+// Position reports are saved locally instead of being sent immediately.
 export function StewardView({
   token,
   online,
@@ -47,6 +49,7 @@ export function StewardView({
   });
   const [station, setStation] = useState<string>("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
+  const [isReporting, setIsReporting] = useState(false);
 
   // Fetches again when the app returns to the foreground, when the socket
   // announces an activation, and when the socket reconnects, so an activation
@@ -66,10 +69,15 @@ export function StewardView({
     };
   }, [refresh]);
 
-  const live = view.status === "live" ? view.snapshot.scenario : null;
+  const snapshot =
+    view.status === "live" || view.status === "copy"
+      ? view.snapshot
+      : null;
+
+  const scenario = snapshot?.scenario;
 
   // A new scenario arriving with a new scenarioid clears the old station choice.
-  const scenarioId = live?.scenarioId;
+  const scenarioId = scenario?.scenarioId;
   const [shownScenarioId, setShownScenarioId] = useState(scenarioId);
   if (scenarioId !== shownScenarioId) {
     setShownScenarioId(scenarioId);
@@ -79,13 +87,66 @@ export function StewardView({
 
   // The stations of the active scenario's current version, for the picker.
   // Positions can only be reported while live.
-  const stations = live ? currentStations(live) : [];
+  const stations = scenario ? currentStations(scenario) : [];
 
   // Reports the chosen station and shows the answer.
+
   async function reportPosition() {
-    if (station === "") return;
-    setReportStatus(await sendPositionReport(token, station));
+    if (station === "" || snapshot === null || isReporting) {
+      return;
+    }
+
+    const userId = userIdFromToken(token);
+
+    if (userId === null) {
+      setReportStatus("Kunne ikke identificere brugeren. Log ind igen.");
+      return;
+    }
+
+    setIsReporting(true);
+    setReportStatus(null);
+
+    try {
+      await queuePositionReport({
+        userId,
+        station,
+        scenarioId: snapshot.state.scenarioId,
+        activationId: snapshot.state.activationId,
+      });
+    } catch {
+      setReportStatus("Positionen kunne ikke gemmes på telefonen.");
+      setIsReporting(false);
+      return;
+    }
+
+    setReportStatus("Position gemt på telefonen.");
+
+    if (online && view.status === "live") {
+      try {
+        const result = await positionReportDelivery.flush(userId, token);
+
+    if (result.pending === 0 && result.acknowledged > 0) {
+      setReportStatus("Position sendt.");
+    } else {
+      setReportStatus(
+        "Position gemt. Afventer levering eller behandling.",
+      );
+    }
+
+      } catch {
+        setReportStatus(
+          "Position gemt på telefonen, men kunne ikke sendes endnu.",
+        );
+      }
+    } else {
+      setReportStatus(
+        "Position gemt og afventer forbindelse til serveren.",
+      );
+    }
+
+    setIsReporting(false);
   }
+
 
   const retry = onRetry ?? (() => void refresh());
 
@@ -127,28 +188,34 @@ export function StewardView({
           <ScenarioOverview snapshot={view.snapshot} />
         )}
 
+
+        {stations.length > 0 && (
+          <>
+            <StationPicker
+              stations={stations}
+              selected={station}
+              onSelect={setStation}
+            />
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={reportPosition}
+              disabled={station === "" || isReporting}
+              style={[styles.button, isReporting && { opacity: 0.6 }]}
+            >
+              <Text style={styles.buttonText}>
+                {isReporting ? "Gemmer position…" : "Rapportér position"}
+              </Text>
+            </Pressable>
+
+            {reportStatus && (
+              <Text style={styles.message}>{reportStatus}</Text>
+            )}
+          </>
+        )}
+
         {online && (
           <>
-            {stations.length > 0 && (
-              <>
-                <StationPicker
-                  stations={stations}
-                  selected={station}
-                  onSelect={setStation}
-                />
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={reportPosition}
-                  disabled={station === ""}
-                  style={styles.button}
-                >
-                  <Text style={styles.buttonText}>Rapportér position</Text>
-                </Pressable>
-                {reportStatus && <Text>{reportStatus}</Text>}
-              </>
-            )}
-
             <Text style={isConnected ? styles.ok : styles.offline}>
               Socket: {isConnected ? "connected" : "disconnected"}
             </Text>

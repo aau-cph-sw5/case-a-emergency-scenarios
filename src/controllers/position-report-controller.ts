@@ -48,10 +48,34 @@ export async function postPositionReport(request: Request, response: Response) {
   const now = new Date().toISOString();
   // The phone's own time, for the event log, before reportedAt is replaced.
   const clientTime = new Date(request.body.reportedAt);
-  const report = { ...request.body, staff: userId, reportedAt: now };
-  await recordPositionReport(response.locals.user, report, clientTime);
+const report = {
+  ...request.body,
+  staff: String(userId),
+  reportedAt: now,
+};
+    const result = await recordPositionReport(
+      response.locals.user,
+      report,
+      clientTime,
+    );
 
-  const io = request.app.locals.io as Server | undefined;
-  io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
-  response.status(202).json({ accepted: true });
+    if (result.status === "conflict") {
+      return refuse(
+        response,
+        409,
+        ERROR_CODES.CONFLICT,
+        `Report ID ${report.id} already exists with different contents`,
+      );
+    }
+
+    if (result.status === "created") {
+      const io = request.app.locals.io as Server | undefined;
+
+      io?.to("OPERATOR").emit("position-report", {
+        ...report,
+        sentAt: now,
+      });
+    }
+
+    return response.status(202).json({ accepted: true });
 }

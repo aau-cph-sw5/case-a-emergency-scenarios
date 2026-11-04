@@ -6,6 +6,10 @@
  */
 
 export interface PositionReport {
+  /**
+   * Unique client-generated report ID, reused on every retry.
+   */
+  id: string;
   staff: string;
   station: string;
   reportedAt: string;

@@ -11,16 +11,45 @@ export type StoredPositionReport = {
   station: string;
   reportedAt: Date;
   receivedAt: Date;
+  requestFingerprint: string | null;
 };
 
 export async function insertPositionReport(
   db: Db,
   report: NewPositionReport,
-): Promise<StoredPositionReport> {
+  requestFingerprint: string,
+): Promise<StoredPositionReport | null> {
   const [inserted] = await db<StoredPositionReport[]>`
-    INSERT INTO position_reports (staff, station, reported_at)
-    VALUES (${report.staff}, ${report.station}, ${report.reportedAt})
+    INSERT INTO position_reports (
+      id,
+      staff,
+      station,
+      reported_at,
+      request_fingerprint
+    )
+    VALUES (
+      ${report.id},
+      ${report.staff},
+      ${report.station},
+      ${report.reportedAt},
+      ${requestFingerprint}
+    )
+    ON CONFLICT (id) DO NOTHING
     RETURNING *
   `;
-  return inserted;
+
+  return inserted ?? null;
+}
+
+export async function findPositionReportById( // Finds a position report by its unique ID. Returns null if not found.
+  db: Db,
+  id: string,
+): Promise<StoredPositionReport | null> {
+  const [report] = await db<StoredPositionReport[]>`
+    SELECT *
+    FROM position_reports
+    WHERE id = ${id}
+  `;
+
+  return report ?? null;
 }

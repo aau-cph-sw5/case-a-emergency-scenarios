@@ -1,11 +1,46 @@
+import { createHash } from "node:crypto";
 import { getDatabase, type Db } from "../db/client.js";
 import {
+  findPositionReportById,
   insertPositionReport,
   type NewPositionReport,
   type StoredPositionReport,
 } from "../repositories/position-report-repository.js";
 import type { AuthUser } from "./auth-service.js";
 import { appendEvent } from "./incident-log-service.js";
+
+export type SavePositionReportResult =
+  | {
+      status: "created";
+      report: StoredPositionReport;
+    }
+  | {
+      status: "duplicate";
+      report: StoredPositionReport;
+    }
+  | {
+      status: "conflict";
+    };
+
+function fingerprintPositionReport( // Generates a fingerprint of the request body
+  report: NewPositionReport,
+  clientTime: Date,
+): string {
+  const contents = { // The contents that must be identical for a retry to be accepted.
+    staff: report.staff,
+    station: report.station,
+    reportedAt: clientTime.toISOString(),
+    taskDone:
+      typeof report.taskDone === "boolean"
+        ? report.taskDone
+        : null,
+  };
+
+  return createHash("sha256")
+    .update(JSON.stringify(contents))
+    .digest("hex");
+}
+
 
 // Lets a test replace the event write with one that fails.
 type WriteEvent = typeof appendEvent;
@@ -23,26 +58,59 @@ export async function savePositionReport(
   report: NewPositionReport,
   clientTime: Date,
   writeEvent: WriteEvent = appendEvent,
-): Promise<StoredPositionReport> {
-  const saved = await insertPositionReport(tx, report);
+):  Promise<SavePositionReportResult> {
+  const requestFingerprint = fingerprintPositionReport(
+    report,
+    clientTime,
+  );
+
+  const saved = await insertPositionReport(
+    tx,
+    report,
+    requestFingerprint,
+  );
+
+  if (saved === null) {
+    const existing = await findPositionReportById(tx, report.id);
+
+    if (
+      existing !== null &&
+      existing.staff === String(user.userId) &&
+      existing.requestFingerprint === requestFingerprint
+    ) {
+      return {
+        status: "duplicate",
+        report: existing,
+      };
+    }
+
+    return { status: "conflict" };
+  }
 
   await writeEvent(tx, user, {
     type: "POSITION_REPORTED",
     schemaVersion: 1,
-    subject: { type: "position-report", id: saved.id },
-    // Keeps the location in the log even if the report row is later replaced.
-    payload: { stationId: report.station },
+    subject: {
+      type: "position-report",
+      id: saved.id,
+    },
+    payload: {
+      stationId: report.station,
+    },
     clientTime,
   });
 
-  return saved;
+  return {
+    status: "created",
+    report: saved,
+  };
 }
 
 export function recordPositionReport(
   user: AuthUser,
   report: NewPositionReport,
   clientTime: Date,
-): Promise<StoredPositionReport> {
+): Promise<SavePositionReportResult> {
   return getDatabase().begin((tx) =>
     savePositionReport(tx, user, report, clientTime),
   );

@@ -56,6 +56,7 @@ class Rollback extends Error {}
 // A fresh `staff` value per test lets a test find its own rows afterwards.
 function aReport() {
   return {
+    id: randomUUID(),
     staff: `steward-${randomUUID()}`,
     station: "Station B",
     reportedAt: "2026-09-23T08:10:00Z",
@@ -92,7 +93,27 @@ async function loginToken(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password, client }),
   });
+    assert.equal(login.status, 200);
+
   return ((await login.json()) as { token: string }).token;
+}
+async function postReport( // Sends a position report over HTTP, with the given token and report body
+  token: string,
+  report: {
+    id: string;
+    staff: string;
+    station: string;
+    reportedAt: string;
+  },
+) {
+  return fetch(`${baseUrl}/api/v1/position-reports`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(report),
+  });
 }
 
 test("a position report and its event are stored together, with the actor from the token", async () => {
@@ -123,6 +144,8 @@ test("a position report and its event are stored together, with the actor from t
     "mobile",
   );
 
+  const reportId = randomUUID();
+
   // The client claims `staff` is somebody else. The token decides.
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",
@@ -131,6 +154,7 @@ test("a position report and its event are stored together, with the actor from t
       Authorization: `Bearer ${stewardToken}`,
     },
     body: JSON.stringify({
+      id: reportId,
       staff: "someone-else",
       station: "Station C",
       reportedAt: "2026-09-23T08:10:00Z",
@@ -143,6 +167,8 @@ test("a position report and its event are stored together, with the actor from t
   `;
   assert.equal(saved.length, 1);
   try {
+    //The server must preserve the client's report ID.
+    assert.equal(saved[0].id, reportId);
     assert.equal(saved[0].staff, String(steward.userId));
     const events = await eventsAbout(saved[0].id);
     assert.equal(events.length, 1);
@@ -160,14 +186,60 @@ test("a position report and its event are stored together, with the actor from t
   }
 });
 
+// Retrying an identical report must not create duplicate records or events.
+test("replaying the same position report twice applies it once", async () => {
+  const stewardToken = await loginToken(
+    stewardUsername,
+    "steward123",
+    "mobile",
+  );
+  const reportId = randomUUID();
+  // This object is reused for both requests, including its original UUID.
+  const report = {
+    id: reportId,
+    staff: "someone-else",
+    station: "Station C",
+    reportedAt: "2026-09-23T08:10:00Z",
+  };
+  try {
+    const first = await postReport(stewardToken, report);
+    assert.equal(first.status, 202);
+    // Replay the exact same report, as would happen after a lost response.
+    const second = await postReport(stewardToken, report);
+    assert.equal(second.status, 202);
+    // Exactly one report row must exist.
+    const saved = await sql<{ id: string }[]>`
+      SELECT id FROM position_reports WHERE id = ${reportId}
+    `;
+    assert.equal(saved.length, 1);
+    // Exactly one incident event must exist.
+    const events = await eventsAbout(reportId);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].type, "POSITION_REPORTED");
+  } finally {
+    // The incident event remains in the append-only log.
+    await owner`DELETE FROM position_reports WHERE id = ${reportId}`;
+  }
+});
+
 test("rolling back the change writes no event", async () => {
   const report = aReport();
   let reportId = "";
 
   await assert.rejects(
     sql.begin(async (tx) => {
-      const saved = await savePositionReport(tx, steward, report, new Date());
-      reportId = saved.id;
+
+      const result = await savePositionReport(tx, steward, report, new Date());
+
+      // The service now returns a status and report, not just the row.
+      assert.equal(result.status, "created");
+
+      if (result.status !== "created") {
+        throw new Error("Expected a created report");
+      }
+
+      reportId = result.report.id;
+
       // Inside the transaction both rows exist.
       assert.equal(
         (await tx`SELECT 1 FROM position_reports WHERE id = ${reportId}`)

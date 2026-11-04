@@ -131,10 +131,13 @@ paths:
       summary: Report a steward position
       description: >
         Requires a bearer token with the STEWARD role. The reported station
-        must require manning in an active scenario. The staff and
+        must require manning in an active scenario.  Each logical report has
+        a client-generated UUID which must remain unchanged across retries.
+        Replaying an already accepted report with the same ID and contents
+        must not create additional position reports or incident events. The staff and
         reportedAt fields are required by the schema but replaced by the
         server: staff by the userId from the token, reportedAt by the time
-        the server accepted the report. An accepted report is forwarded to
+        the server accepted the report. Newly accepted report is forwarded to
         connected operators as the position-report Socket.IO event.
       security:
         - bearerAuth: []
@@ -145,6 +148,7 @@ paths:
             schema:
               $ref: "./position-report.schema.json"
             example:
+              id: "9e123d7a-0f5b-4bcd-9b77-5641c8f2d201"
               staff: "steward-002"
               station: "Station B"
               reportedAt: "2026-09-23T08:10:00Z"

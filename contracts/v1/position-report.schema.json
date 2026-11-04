@@ -2,8 +2,13 @@
   "$id": "position-report.schema.json",
   "title": "Position Report",
   "type": "object",
-  "required": ["staff", "station", "reportedAt"],
-  "properties": {
+  "required": ["id","staff", "station", "reportedAt"],
+  "properties":{
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique client-generated report ID, reused on every retry."
+    },
     "staff": {
       "type": "string"
     },
