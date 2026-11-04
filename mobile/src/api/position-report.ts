@@ -8,7 +8,6 @@ export type ReportDeliveryResult =
   | { status: "retry" }
   | { status: "rejected"; httpStatus: number; code?: string };
 
-
 // What the steward reads for each refusal; the server's message is for developers.
 const REPORT_ERRORS: Record<string, string> = {
   [ERROR_CODES.AUTH_TOKEN_INVALID]: "Din session er udløbet. Log ind igen.",
@@ -18,32 +17,26 @@ const REPORT_ERRORS: Record<string, string> = {
     "Stationen er ikke en del af det aktive scenarie.",
 };
 
-
 export async function deliverPositionReport( //sends a position report to the server and returns the result of the delivery attempt
   token: string,
   report: QueuedPositionReport,
 ): Promise<ReportDeliveryResult> {
   try {
-    const response = await fetch(
-      `${apiBaseUrl}/api/v1/position-reports`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: report.id,
-          staff: "",
-          station: report.station,
-          reportedAt: report.reportedAt,
-          ...(report.taskDone !== undefined
-            ? { taskDone: report.taskDone }
-            : {}),
-        }),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), //abort the request if it takes longer than the specified timeout
+    const response = await fetch(`${apiBaseUrl}/api/v1/position-reports`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        id: report.id,
+        staff: "",
+        station: report.station,
+        reportedAt: report.reportedAt,
+        ...(report.taskDone !== undefined ? { taskDone: report.taskDone } : {}),
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), //abort the request if it takes longer than the specified timeout
+    });
 
     if (response.status === 202) {
       return { status: "accepted" };

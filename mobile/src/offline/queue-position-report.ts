@@ -1,13 +1,11 @@
-
 import * as Crypto from "expo-crypto"; //importing the Crypto module from the expo-crypto package for generating unique identifiers
 
-import type { QueuedPositionReport } from
-  "../../../shared/offline/position-report-queue";
+import type { QueuedPositionReport } from "../../../shared/offline/position-report-queue";
 
-import { positionReportQueueStore } from
-  "./position-report-queue-store";
+import { positionReportQueueStore } from "./position-report-queue-store";
 
-export type CreatePositionReportInput = { //represents the input required to create a new position report
+export type CreatePositionReportInput = {
+  //represents the input required to create a new position report
   userId: string;
   station: string;
   scenarioId: string;
