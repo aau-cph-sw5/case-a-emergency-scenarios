@@ -10,6 +10,7 @@ const shaftCodes = new Set(SHAFTS);
 function scenarioWithRoute(route: object[]): Scenario {
   return {
     scenarioId: "TEST-1",
+    lineGroup: "M3_M4",
     name: "Test",
     currentVersion: "1.0",
     covers: [{ trackNumber: 1, stationA: "VAN", stationB: "FL" }],
