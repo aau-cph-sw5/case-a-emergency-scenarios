@@ -17,11 +17,13 @@ push to `dev`, `staging` and `main`, and on demand under
 | Unit tests | `npm run test:unit` | a test in `tests/unit/` fails |
 | Integration tests | `npm run test:integration`, against a test database | a test in `tests/integration/` fails |
 | Jest tests | `npm run test:jest` | a test in `tests/jest/` fails |
-| Backend coverage | combines Node and Jest coverage | all tests passed, but combined changed-file line coverage is below 80%, see [Test coverage](#test-coverage) |
+| Backend coverage | combines Node and Jest coverage | a test job fails, changed-file or overall line coverage is below 80%, or backend branch coverage is below 75% |
 
 Unit and integration tests collect coverage with c8; Jest collects its own
 coverage. Backend coverage waits for all three and checks the threshold only
-after they pass. The job keeps its existing name for required status checks.
+after they pass, and fails if any test job fails. The job keeps its existing
+name for required status checks; Jest should also be required directly for a
+clear, independent status.
 
 ### Test database
 
@@ -105,10 +107,13 @@ lines and Node test hits on the same lines count too; a line is counted once.
 
 On pull requests and merge queues, the combined coverage of changed application
 files must be at least 80%. It uses full files, including unchanged lines. Each
-file gets an informational ✅ or ❌; only the combined percentage is enforced.
-Overall application coverage is also informational. Generated shared types,
+file gets an informational ✅ or ❌; only the combined percentage is enforced
+per group. Overall application line coverage must also reach 80%. Generated shared types,
 declarations, startup entry points (`mobile/index.ts` and `web/src/main.tsx`),
 scripts, configuration, assets and database migrations are excluded.
+
+Backend branch coverage is checked separately using the c8 results for `src/`;
+the weighted total must reach 75% on pull requests and merge queues.
 
 The report appears in the workflow summary and in a pull request comment updated
 on each push. A separate test-results comment shows unit, integration and Jest

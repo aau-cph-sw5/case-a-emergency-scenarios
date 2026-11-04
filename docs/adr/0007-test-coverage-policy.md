@@ -46,11 +46,16 @@ added. A missing or invalid coverage entry fails the check. For pull requests, t
 use the merge group's base commit. The check runs only after all three test
 jobs pass.
 
-Overall application line coverage is informational: there is no repository-wide
-minimum or comparison with a previous run. The full contents of a changed file
+Overall application line coverage must also be at least 80%. This protects the
+combined application coverage even when a PR changes only tests; it does not
+compare against a previous run. The full contents of a changed file
 are measured, including pre-existing lines; this is not changed-line coverage.
 Scripts, configuration, assets and database migrations are not measured by this
 policy. A percentage shows execution, not whether tests make useful assertions.
+
+Backend `src/**/*.ts` branch coverage from c8 must also reach 75% across the
+backend as a whole. Unit, integration and Jest jobs must all pass for the
+Backend coverage check to pass.
 
 ## Consequences
 
@@ -59,11 +64,12 @@ in that file to reach 80% combined coverage. Coverage across changed files is
 weighted, so coverage in one changed file can offset another. Execution does
 not establish the quality of a test's assertions.
 
-Dropping the overall minimum and maximum-drop rules allows overall coverage to
-fall without blocking a PR. The overall figure remains visible in the report.
+The overall floor prevents coverage from falling below 80%, but allows a larger
+decrease while coverage stays above that floor. The overall figure and its
+pass/fail status remain visible in the report.
 Missing or incomplete test coverage updates the comment as unavailable; when
-all tests pass, missing coverage data fails the check. When a test fails, its
-own test check reports the failure instead of enforcing incomplete coverage.
+all tests pass, missing coverage data fails the check. When a test fails, the
+coverage check fails too, but does not enforce thresholds on incomplete data.
 
 The Backend coverage job must be a required status check in the repository's
 branch rules for this policy to block merging. SonarQube may have its own
@@ -80,6 +86,25 @@ additional tests when working on a file.
 less likely to be blocked, but would provide a weaker requirement for testing
 changed files. The team chose 80%.
 
-**Keep the previous overall minimum and maximum-drop rule.** This would protect
-the repository-wide coverage baseline, but would also gate PRs on coverage
-outside their changed files. The team chose a changed-file gate instead.
+**Report only, with a minimum of 0.** Rejected because reporting alone does not
+prevent coverage from declining.
+
+**Codecov or Coveralls.** These provide history and pull request comparisons,
+but require installing an external service. They remain an option later.
+
+**Node's built-in coverage.** This needs no extra dependency but was still
+experimental when this ADR was written.
+
+**A repository variable for the minimum.** This can change without a commit,
+but the change is absent from Git history and local runs may not see it.
+
+**A downloadable HTML report.** Few people download artifacts, and the local
+coverage command already produces an HTML report.
+
+**Run tests twice in a separate coverage workflow.** This avoids passing
+artifacts, but duplicates the test environment, including database setup, and
+would make failing tests fail both workflows.
+
+**Compare overall coverage with the exact base commit.** A maximum-drop rule
+would catch smaller regressions above the floor, but requires running equivalent
+coverage on the base commit. The 80% overall floor avoids that second test run.

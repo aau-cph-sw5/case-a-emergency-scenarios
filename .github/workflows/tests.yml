@@ -271,12 +271,16 @@ jobs:
           node scripts/coverage-report.mjs > coverage/report.md
           cat coverage/report.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Check changed-file coverage
+      - name: Check changed-file and overall coverage
         if: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.unit.result == 'success' && needs.integration.result == 'success' && needs.jest.result == 'success' }}
         env:
           COVERAGE_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.merge_group.base_sha }}
           COVERAGE_INPUTS_COMPLETE: ${{ steps.coverage_inputs.outputs.complete }}
         run: node scripts/coverage-report.mjs --check
+
+      - name: Check backend branch coverage
+        if: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.unit.result == 'success' && needs.integration.result == 'success' && needs.jest.result == 'success' }}
+        run: node scripts/check-backend-branches.mjs
 
       - name: Create combined coverage for SonarQube
         id: export_coverage
@@ -321,6 +325,12 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
+
+      - name: Require all test jobs
+        if: ${{ !cancelled() && (needs.unit.result != 'success' || needs.integration.result != 'success' || needs.jest.result != 'success') }}
+        run: |
+          echo '::error::Unit, integration and Jest tests must all pass.'
+          exit 1
 
   test-results:
     name: Test results

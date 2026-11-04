@@ -1,4 +1,4 @@
-// Reports application coverage and checks combined line coverage of changed files.
+// Reports application coverage and checks changed-file and overall line coverage.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -193,6 +193,9 @@ function main() {
   if (!combinedPasses)
     failures.push(`Combined line coverage ${combined} is below ${MINIMUM}%.`);
 
+  const overallPasses =
+    overall.total > 0 && overall.covered * 100 >= MINIMUM * overall.total;
+
   const lines = [
     "<!-- coverage-report -->",
     "## Code coverage",
@@ -212,9 +215,11 @@ function main() {
           "Changed-file coverage is checked on pull requests and merge queues.",
         ]),
     "",
-    "| Overall application line coverage | Coverage |",
-    "|---|---:|",
-    `| Tested merge | ${percent(overall)} (${overall.covered}/${overall.total}) |`,
+    "| Overall application line coverage | Coverage | Result |",
+    "|---|---:|:---:|",
+    `| Tested merge | ${overall.total ? `${percent(overall)} (${overall.covered}/${overall.total})` : "Unavailable"} | ${overallPasses ? "✅" : "❌"} |`,
+    "",
+    `Overall application line coverage must reach ${MINIMUM}%.`,
   ];
 
   if (writeLcov) {
@@ -233,11 +238,20 @@ function main() {
     }
     writeFileSync("coverage/lcov.info", `${records.join("\n")}\n`);
   } else if (check) {
+    if (!overallPasses) {
+      failures.push(
+        overall.total
+          ? `Overall application line coverage ${percent(overall)} is below ${MINIMUM}%.`
+          : "Overall application line coverage is unavailable: no executable lines found.",
+      );
+    }
     if (failures.length) {
       for (const failure of failures) console.error(`::error::${failure}`);
       process.exitCode = 1;
     } else {
-      console.log(`Changed-file coverage passed (${changed.length} files).`);
+      console.log(
+        `Changed-file and overall coverage passed (${changed.length} changed files).`,
+      );
     }
   } else {
     console.log(lines.join("\n"));
