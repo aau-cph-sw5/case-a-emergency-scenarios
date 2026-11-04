@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { LoginScreen } from "../../shared/LoginScreen";
 import { useSession } from "../../shared/auth/use-session";
 import { useAuthenticatedSocket } from "../../shared/socket/useAuthenticatedSocket";
-import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
 import { LiveDataProvider } from "./data/liveData";
 import { OperatorDashboard } from "./OperatorDashboard";
 import { webSessionStore } from "./auth/session-store";
@@ -98,11 +97,9 @@ function ControlRoom({
   token: string;
   onLogout: () => void;
 }) {
-  // The banner sits outside any view, so every view added below it keeps it.
-  // LiveDataProvider loads the server data once for both.
+  // The header banner and dashboard share one live-data provider.
   return (
     <LiveDataProvider socket={socket} token={token}>
-      <ActiveScenarioBanner />
       <OperatorDashboard token={token} onLogout={onLogout} />
     </LiveDataProvider>
   );

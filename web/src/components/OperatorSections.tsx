@@ -13,9 +13,31 @@ export function OperatorSections({
 }) {
   return (
     <div className="operator-sections">
-      <section aria-label="Scenario selection">{scenarioSelection}</section>
-      <section aria-label="Map">{map}</section>
-      <section aria-label="Steward coverage">{coverage}</section>
+      <section className="operator-sidebar" aria-label="Scenario selection">
+        {scenarioSelection}
+      </section>
+      <section className="operator-map-panel" aria-label="Map">
+        <div className="map-heading">
+          <h1>Bemanding på stationerne</h1>
+        </div>
+        <div className="map-legend" aria-label="Kortforklaring">
+          <span>
+            <i className="legend-required" />
+            Bemandingsbehov
+          </span>
+          <span>
+            <i className="legend-blocked" />
+            Spærret spor
+          </span>
+        </div>
+        <div className="operator-map-frame">{map}</div>
+      </section>
+      <section
+        className="operator-coverage-panel"
+        aria-label="Steward coverage"
+      >
+        {coverage}
+      </section>
     </div>
   );
 }

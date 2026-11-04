@@ -88,12 +88,8 @@ export function MetroMap({
           style={[
             text.small,
             {
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              zIndex: 2,
               backgroundColor: theme.background,
-              padding: 4,
+              padding: 12,
             },
           ]}
         >
@@ -102,6 +98,7 @@ export function MetroMap({
       )}
       {canZoom && (
         <Pressable
+          testID="map-zoom-toggle"
           style={{
             position: "absolute",
             top: 0,
@@ -110,7 +107,7 @@ export function MetroMap({
             backgroundColor: theme.background,
             borderColor: theme.text,
             borderWidth: 1,
-            borderRadius: radius,
+            borderRadius: Math.max(radius, 8),
             padding: 8,
             margin: 4,
           }}
@@ -123,17 +120,19 @@ export function MetroMap({
       )}
       {/* A new key once each scenario has loaded resets which lines are on,
           so the choices made for one scenario do not carry into the next. */}
-      <MapRender
-        key={scenario?.scenarioId ?? "none"}
-        lines={network}
-        colors={lineColor}
-        initiallyHidden={view.initiallyHidden}
-        viewBox={zoomedOut ? undefined : view.viewBox}
-        markedStations={view.markedStations}
-        requiredStaffing={view.requiredStaffing}
-        highlightColor={theme.requiredStation}
-        blockedTracks={scenario?.covers ?? []}
-      />
+      <div className="operator-map-renderer">
+        <MapRender
+          key={scenario?.scenarioId ?? "none"}
+          lines={network}
+          colors={lineColor}
+          initiallyHidden={view.initiallyHidden}
+          viewBox={zoomedOut ? undefined : view.viewBox}
+          markedStations={view.markedStations}
+          requiredStaffing={view.requiredStaffing}
+          highlightColor={theme.requiredStation}
+          blockedTracks={scenario?.covers ?? []}
+        />
+      </div>
     </View>
   );
 }

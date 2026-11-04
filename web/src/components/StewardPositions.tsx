@@ -151,9 +151,14 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
   const positions = mock ? MOCK_LOG : stewardPositions(activations);
 
   return (
-    <View aria-label="Status" style={{ alignItems: "flex-end" }}>
+    <View
+      testID="steward-status"
+      aria-label="Status"
+      style={{ alignItems: "flex-end" }}
+    >
       {open && (
         <View
+          testID="status-window"
           style={{
             alignSelf: "stretch",
             marginBottom: 8,
@@ -165,6 +170,7 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
           }}
         >
           <View
+            testID="status-window-header"
             style={{
               flexDirection: "row",
               justifyContent: "space-between",
@@ -184,7 +190,10 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
               <Text style={[text.title, { color: colors.textInverse }]}>✕</Text>
             </Pressable>
           </View>
-          <ScrollView style={{ padding: 12, maxHeight: 360 }}>
+          <ScrollView
+            testID="status-messages"
+            style={{ padding: 12, maxHeight: 360 }}
+          >
             {!isConnected && (
               <Text role="alert">
                 Ingen forbindelse til serveren. Positionerne kan være forældede.
@@ -199,6 +208,7 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
               positions.map((p) => (
                 <View
                   key={`${p.staff}-${p.station}-${p.status}-${p.time}`}
+                  testID="status-message"
                   style={{
                     flexDirection: "row",
                     justifyContent: "space-between",
@@ -220,7 +230,22 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
                       {p.staff} | {STATUS_LABEL[p.status]} | {p.station}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 14 }}>{formatAge(p.time, now)}</Text>
+                  <View
+                    testID="status-message-time"
+                    style={{ alignItems: "flex-end" }}
+                  >
+                    <Text style={{ fontSize: 12 }}>
+                      {p.time && !Number.isNaN(Date.parse(p.time))
+                        ? new Date(p.time).toLocaleTimeString("da-DK", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "—"}
+                    </Text>
+                    <Text style={{ fontSize: 10 }}>
+                      {formatAge(p.time, now)}
+                    </Text>
+                  </View>
                 </View>
               ))
             )}
@@ -230,6 +255,8 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
       {!open && (
         <Pressable
           accessibilityRole="button"
+          testID="status-launcher"
+          accessibilityState={{ expanded: open }}
           onPress={() => setOpen(true)}
           style={{
             paddingHorizontal: 20,

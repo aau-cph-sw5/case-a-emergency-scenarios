@@ -30,13 +30,13 @@ export function ScenarioWorkspace({
     <OperatorSections
       scenarioSelection={
         <>
-          {statusBar}
           <ScenarioList
             token={token}
             selectedId={selectedId}
             onSelect={onSelect}
             onActivated={() => {}}
             previewReady={scenario !== null}
+            summary={statusBar}
           />
         </>
       }

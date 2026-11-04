@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { colors } from "../../shared/Theme";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLiveData } from "./data/liveData";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
@@ -25,12 +24,14 @@ export function ScenarioList({
   onSelect,
   onActivated,
   previewReady = true,
+  summary,
 }: {
   token: string;
   selectedId: string | null;
   onSelect: (scenarioId: string | null) => void;
   onActivated: (scenarioId: string) => void;
   previewReady?: boolean;
+  summary?: ReactNode;
 }) {
   // The scenario list and the active activations come from LiveDataProvider,
   // which loads them once and reloads the activations when they change.
@@ -125,71 +126,95 @@ export function ScenarioList({
   // The search field is always shown, so it is there whenever the list is
   // longer than one screen (MET-A-007 criterion 1 / #116 criterion 3).
   return (
-    <section aria-labelledby="scenario-list-heading">
-      <h2 id="scenario-list-heading">Nødscenarier</h2>
+    <section
+      className="scenario-selection"
+      aria-labelledby="scenario-list-heading"
+    >
+      <div className="scenario-picker">
+        <span className="operator-eyebrow">SCENARIER</span>
+        <h2 id="scenario-list-heading">Vælg scenarie</h2>
 
-      <label>
-        Søg efter scenarier{" "}
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
-
-      {scenarios === null && scenariosError === null && (
-        <p role="status">Henter scenarier…</p>
-      )}
-
-      {scenariosError !== null && (
-        <>
-          <p role="alert">Kunne ikke hente scenarier: {scenariosError}</p>
-          <button type="button" onClick={reloadScenarios}>
-            Prøv igen
-          </button>
-        </>
-      )}
-
-      {scenarios !== null &&
-        (scenarios.length === 0 ? (
-          <p role="status">Ingen scenarier tilgængelige.</p>
-        ) : (
-          <ScenarioResults
-            scenarios={filterScenarios(scenarios, query)}
-            query={query}
-            selectedId={selectedId}
-            activeIds={activeIds}
-            onSelect={onSelect}
-            disabled={busy}
+        <label>
+          Søg efter scenarier{" "}
+          <input
+            type="search"
+            placeholder="Søg efter scenarie"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
           />
-        ))}
+        </label>
 
-      {activeFailed && <p role="status">Aktive scenarier kunne ikke vises.</p>}
+        {scenarios === null && scenariosError === null && (
+          <p role="status">Henter scenarier…</p>
+        )}
+
+        {scenariosError !== null && (
+          <>
+            <p role="alert">Kunne ikke hente scenarier: {scenariosError}</p>
+            <button type="button" onClick={reloadScenarios}>
+              Prøv igen
+            </button>
+          </>
+        )}
+
+        {scenarios !== null &&
+          (scenarios.length === 0 ? (
+            <p role="status">Ingen scenarier tilgængelige.</p>
+          ) : (
+            <ScenarioResults
+              scenarios={filterScenarios(scenarios, query)}
+              query={query}
+              selectedId={selectedId}
+              activeIds={activeIds}
+              onSelect={onSelect}
+              disabled={busy}
+            />
+          ))}
+
+        {activeFailed && (
+          <p role="status">Aktive scenarier kunne ikke vises.</p>
+        )}
+      </div>
+      {summary && <div className="operator-summaries">{summary}</div>}
 
       {/* Opens the confirmation for the selected scenario. It sits under the
           list for now; it belongs at the bottom of the scenario preview, so
           the operator sees what a scenario requires before activating it. The
           active scenario is stood down instead (MET-A-009). */}
-      {selectedIsActive ? (
-        <button
-          type="button"
-          onClick={() => setConfirming(true)}
-          disabled={busy}
-        >
-          Deaktivér valgt scenarie
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setConfirming(true)}
-          disabled={
-            !previewReady ||
-            !canActivate(selected?.scenarioId ?? null, busy, activeIds)
-          }
-        >
-          Aktivér valgt scenarie
-        </button>
-      )}
+      <div className="scenario-actions">
+        {!selectedIsActive && (
+          <button
+            type="button"
+            className="scenario-cancel"
+            disabled={busy || selectedId === null}
+            onClick={() => onSelect(null)}
+          >
+            Annuller
+          </button>
+        )}
+        {selectedIsActive ? (
+          <button
+            type="button"
+            className="scenario-stop"
+            onClick={() => setConfirming(true)}
+            disabled={busy}
+          >
+            Deaktivér valgt scenarie
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="scenario-start"
+            onClick={() => setConfirming(true)}
+            disabled={
+              !previewReady ||
+              !canActivate(selected?.scenarioId ?? null, busy, activeIds)
+            }
+          >
+            Aktivér valgt scenarie
+          </button>
+        )}
+      </div>
 
       {confirming &&
         selected &&
@@ -241,12 +266,6 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
   }
 }
 
-const selectedStyle = {
-  backgroundColor: colors.active,
-  color: colors.textInverse,
-  fontWeight: "bold",
-} as const;
-
 function ScenarioResults({
   scenarios,
   query,
@@ -271,9 +290,8 @@ function ScenarioResults({
       {scenarios.map((scenario) => {
         const isSelected = scenario.scenarioId === selectedId;
         const live = activeIds.has(scenario.scenarioId);
-        // The selected scenario is inverted, the shared "selected" style in
-        // Theme, and bold, so it is marked by more than colour. aria-pressed
-        // tells screen readers which one is selected.
+        // The yellow background and bold text mark the selection;
+        // aria-pressed also exposes it to screen readers.
         return (
           <li key={scenario.scenarioId}>
             <button
@@ -281,7 +299,9 @@ function ScenarioResults({
               aria-pressed={isSelected}
               onClick={() => onSelect(scenario.scenarioId)}
               disabled={disabled}
-              style={isSelected ? selectedStyle : undefined}
+              className={
+                isSelected ? "scenario-option is-selected" : "scenario-option"
+              }
             >
               {scenario.name}
             </button>
@@ -324,6 +344,7 @@ function ConfirmActivation({
   return (
     <dialog
       ref={dialogRef}
+      className="operator-confirm"
       onClose={onCancel}
       aria-labelledby="confirm-activation-heading"
     >
@@ -363,6 +384,7 @@ function ConfirmStandDown({
   return (
     <dialog
       ref={dialogRef}
+      className="operator-confirm"
       onClose={onCancel}
       aria-labelledby="confirm-stand-down-heading"
     >
