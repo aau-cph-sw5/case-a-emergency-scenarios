@@ -1,10 +1,7 @@
-
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  createPositionReportQueueStore,
-} from "../../shared/offline/position-report-queue.ts";
+import { createPositionReportQueueStore } from "../../shared/offline/position-report-queue.ts";
 
 // Creates temporary storage that behaves like AsyncStorage.
 // Each Map is independent, so tests cannot affect one another.
@@ -44,9 +41,7 @@ test("stores a position report", async () => {
 
   await queue.enqueue(report);
 
-  assert.deepEqual(await queue.getPending("steward-1"), [
-    report,
-  ]);
+  assert.deepEqual(await queue.getPending("steward-1"), [report]);
 });
 
 test("queued reports survive creating a new store instance", async () => {
@@ -60,10 +55,7 @@ test("queued reports survive creating a new store instance", async () => {
   // A fresh store instance reads the same persistent storage.
   const afterRestart = createPositionReportQueueStore(storage);
 
-  assert.deepEqual(
-    await afterRestart.getPending("steward-1"),
-    [report],
-  );
+  assert.deepEqual(await afterRestart.getPending("steward-1"), [report]);
 });
 
 test("acknowledging a report removes only that report", async () => {
@@ -74,10 +66,7 @@ test("acknowledging a report removes only that report", async () => {
 
   await queue.acknowledge("steward-1", "report-1");
 
-  assert.deepEqual(
-    await queue.getPending("steward-1"),
-    [aReport("report-2")],
-  );
+  assert.deepEqual(await queue.getPending("steward-1"), [aReport("report-2")]);
 });
 
 test("enqueueing the same report twice does not duplicate it", async () => {
@@ -87,10 +76,7 @@ test("enqueueing the same report twice does not duplicate it", async () => {
   await queue.enqueue(report);
   await queue.enqueue(report);
 
-  assert.equal(
-    (await queue.getPending("steward-1")).length,
-    1,
-  );
+  assert.equal((await queue.getPending("steward-1")).length, 1);
 });
 
 test("different reports are not lost during concurrent enqueue", async () => {
@@ -101,10 +87,7 @@ test("different reports are not lost during concurrent enqueue", async () => {
     queue.enqueue(aReport("report-2")),
   ]);
 
-  assert.equal(
-    (await queue.getPending("steward-1")).length,
-    2,
-  );
+  assert.equal((await queue.getPending("steward-1")).length, 2);
 });
 
 test("one user's reports are not shown to another user", async () => {
@@ -112,8 +95,5 @@ test("one user's reports are not shown to another user", async () => {
 
   await queue.enqueue(aReport());
 
-  assert.deepEqual(
-    await queue.getPending("steward-2"),
-    [],
-  );
+  assert.deepEqual(await queue.getPending("steward-2"), []);
 });
