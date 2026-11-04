@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { View, Pressable, Text as RNText } from "react-native";
 import Svg, { Text, Line, Circle } from "react-native-svg";
 import { getStation } from "../mockData/data";
@@ -175,10 +175,16 @@ function LineButtons({
   setHidden: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
   return (
-    <View style={{ position: "absolute", flexDirection: "row", zIndex: 1 }}>
+    <View
+      testID="metro-line-controls"
+      style={{ position: "absolute", flexDirection: "row", zIndex: 1 }}
+    >
       {Object.keys(colors).map((n) => (
         <Pressable
           key={n}
+          accessibilityRole="button"
+          accessibilityLabel={n}
+          accessibilityState={{ selected: !hidden.includes(n) }}
           style={{
             backgroundColor: colors[n],
             opacity: hidden.includes(n) ? 0.3 : 1,
@@ -221,6 +227,7 @@ export default function MapRender({
   colors,
   viewBox = "0 0 950 700",
   showLineButtons = true,
+  renderLineButtons,
   highlightStation,
   highlightColor = theme.text,
   markedStations = [],
@@ -232,6 +239,8 @@ export default function MapRender({
   colors: Record<string, string>;
   viewBox?: string;
   showLineButtons?: boolean;
+  // Web can place the existing controls in its panel header.
+  renderLineButtons?: (buttons: ReactNode) => ReactNode;
   // Optional: one station drawn filled. Leaving it out draws the
   // map exactly as before.
   highlightStation?: string;
@@ -257,11 +266,12 @@ export default function MapRender({
     highlighted.includes(station) ? highlightColor : undefined;
   const [hidden, setHidden] = useState<string[]>(initiallyHidden);
   const visible = lines.filter((l) => !hidden.includes(l.name));
+  const lineButtons = showLineButtons ? (
+    <LineButtons colors={colors} hidden={hidden} setHidden={setHidden} />
+  ) : null;
   return (
     <View style={{ flex: 1 }}>
-      {showLineButtons && (
-        <LineButtons colors={colors} hidden={hidden} setHidden={setHidden} />
-      )}
+      {renderLineButtons ? renderLineButtons(lineButtons) : lineButtons}
       <Svg
         width="100%"
         height="100%"

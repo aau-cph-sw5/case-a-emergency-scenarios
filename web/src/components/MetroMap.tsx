@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Pressable, Text, View } from "react-native";
 import MapRender from "../../../shared/MapRenderer";
 import {
@@ -63,9 +64,11 @@ export function mapView(scenario: Scenario | null) {
 export function MetroMap({
   scenarioId,
   scenario: previewScenario,
+  lineControlsTarget,
 }: {
   scenarioId: string | null;
   scenario?: Scenario | null;
+  lineControlsTarget?: HTMLElement | null;
 }) {
   // While the scenario loads, or if it cannot be loaded, scenario is null and
   // the whole network is shown. The preview next to the map shows the error.
@@ -126,6 +129,11 @@ export function MetroMap({
           lines={network}
           colors={lineColor}
           initiallyHidden={view.initiallyHidden}
+          renderLineButtons={
+            lineControlsTarget
+              ? (buttons) => createPortal(buttons, lineControlsTarget)
+              : undefined
+          }
           viewBox={zoomedOut ? undefined : view.viewBox}
           markedStations={view.markedStations}
           requiredStaffing={view.requiredStaffing}

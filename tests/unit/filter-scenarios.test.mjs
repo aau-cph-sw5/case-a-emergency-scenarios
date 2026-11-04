@@ -23,3 +23,16 @@ test("returns every scenario for an empty or blank query", () => {
   assert.deepEqual(filterScenarios(scenarios, ""), scenarios);
   assert.deepEqual(filterScenarios(scenarios, "   "), scenarios);
 });
+
+test("sorts scenario numbers naturally, also while searching, without changing the source", () => {
+  const unordered = [
+    { name: "Scenarie 10" },
+    { name: "Scenarie 2" },
+    { name: "Scenarie 1" },
+  ];
+  const original = [...unordered];
+  const expected = [unordered[2], unordered[1], unordered[0]];
+  assert.deepEqual(filterScenarios(unordered, ""), expected);
+  assert.deepEqual(filterScenarios(unordered, "scenarie"), expected);
+  assert.deepEqual(unordered, original);
+});

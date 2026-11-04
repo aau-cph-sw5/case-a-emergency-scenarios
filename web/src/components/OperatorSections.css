@@ -116,9 +116,8 @@ body {
   border-radius: 50%;
   background: var(--operator-red);
 }
-.is-running .active-scenario-dot {
-  background: var(--operator-green);
-  animation: active-dot-settle 1.6s;
+.is-running .active-scenario-label {
+  margin-left: 19px;
 }
 .active-scenario-label {
   position: relative;
@@ -138,42 +137,31 @@ body {
 }
 .scenario-orbit {
   position: absolute;
-  inset: -7px;
+  inset: -7px -12px -7px -16px;
   pointer-events: none;
 }
 .scenario-orbit::after {
   content: "";
   position: absolute;
+  left: 0;
+  top: 0;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  offset-path: inset(0 round 12px);
+  offset-path: var(--scenario-orbit-path);
+  background: var(--operator-green);
   animation: scenario-orbit 1.6s ease-in-out forwards;
 }
 @keyframes scenario-orbit {
   0% {
     offset-distance: 100%;
-    opacity: 1;
     background: var(--operator-red);
     box-shadow: 3px 0 7px #e6140f60;
   }
-  85% {
-    opacity: 1;
-  }
   100% {
     offset-distance: 0%;
-    opacity: 0;
     background: var(--operator-green);
     box-shadow: none;
-  }
-}
-@keyframes active-dot-settle {
-  0%,
-  85% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
   }
 }
 .operator-sections {
@@ -335,8 +323,18 @@ body {
 .operator-summaries:empty {
   display: none;
 }
-.operator-sidebar:has(.active-metrics) .scenario-picker {
-  flex: 0 1 260px;
+.scenario-picker[hidden] {
+  display: none;
+}
+.scenario-selection--active .operator-summaries {
+  flex: 1;
+  max-height: none;
+}
+.scenario-selection--active .active-metrics {
+  min-height: 100%;
+}
+.scenario-selection--active .operator-metric {
+  flex: 1;
 }
 .operator-summaries {
   min-height: 0;
@@ -395,10 +393,11 @@ body {
   background: var(--metric-color);
   transition: width 0.35s ease;
 }
-.scenario-information > strong {
+.scenario-information-name {
   display: block;
   margin-top: 10px;
   font-size: 13px;
+  font-weight: bold;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -432,6 +431,13 @@ body {
   display: flex;
   flex-direction: column;
   padding: 22px;
+}
+.map-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 .map-heading h1 {
   margin: 5px 0 0;
@@ -494,22 +500,32 @@ body {
   min-width: 0;
   width: 100%;
 }
-.operator-map-renderer > div > div:first-child {
-  top: 10px;
-  left: 10px;
-  gap: 2px;
+.operator-map-controls {
+  flex-shrink: 0;
 }
-.operator-map-renderer > div > div:first-child [role="button"] {
-  border-radius: 6px;
-  padding: 8px 9px;
-  margin: 0;
+.operator-map-controls [data-testid="metro-line-controls"] {
+  /* Override the shared renderer's inline React Native Web layout. */
+  position: static !important;
+  gap: 6px;
 }
-.operator-map-renderer > div > div:first-child [role="button"] > div {
+.operator-map-controls [data-testid="metro-line-controls"] [role="button"] {
+  width: 36px !important;
+  height: 36px !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.operator-map-controls
+  [data-testid="metro-line-controls"]
+  [role="button"]
+  > div {
   font-size: 11px;
   font-weight: 700;
 }
 .operator-map-panel [data-testid="map-zoom-toggle"] {
-  top: 10px;
+  top: 52px;
   right: 10px;
   border-radius: 8px;
   background: var(--operator-blue);
@@ -808,10 +824,6 @@ body {
     flex: auto;
     height: 340px;
   }
-  .operator-sidebar:has(.active-metrics) .scenario-picker {
-    flex: auto;
-    height: 240px;
-  }
   .operator-summaries {
     max-height: none;
     overflow: visible;
@@ -835,7 +847,7 @@ body {
     animation: none !important;
     transition: none !important;
   }
-  .scenario-orbit {
-    display: none;
+  .scenario-orbit::after {
+    offset-distance: 0%;
   }
 }

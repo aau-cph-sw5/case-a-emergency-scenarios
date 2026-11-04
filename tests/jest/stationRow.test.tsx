@@ -24,6 +24,22 @@ function deployments(
 }
 
 describe("StationRow", () => {
+  it("shows only the required number in a compact preview and keeps placement expandable", () => {
+    render(<StationRow requirement={requirement} mode="needed-only" compact />);
+    expect(screen.getByText("Station A")).toBeTruthy();
+    expect(screen.getByText("2")).toBeTruthy();
+    expect(
+      screen.queryByText(/\d+\/\d+|Minimum|Placering:|Mangler/),
+    ).toBeNull();
+    fireEvent.press(screen.getByText("Station A"));
+    expect(
+      screen.getByText("Placering: Platform 1, near the elevators"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("1. Meet passengers at the platform."),
+    ).toBeTruthy();
+  });
+
   it("shows arrived against needed, who is on the way and who is missing", () => {
     render(
       <StationRow

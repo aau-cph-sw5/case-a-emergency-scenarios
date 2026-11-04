@@ -6,10 +6,12 @@ export function OperatorSections({
   scenarioSelection,
   map,
   coverage,
+  mapControls,
 }: {
   scenarioSelection: ReactNode;
   map: ReactNode;
   coverage: ReactNode;
+  mapControls?: ReactNode;
 }) {
   return (
     <div className="operator-sections">
@@ -19,6 +21,7 @@ export function OperatorSections({
       <section className="operator-map-panel" aria-label="Map">
         <div className="map-heading">
           <h1>Bemanding på stationerne</h1>
+          {mapControls}
         </div>
         <div className="map-legend" aria-label="Kortforklaring">
           <span>

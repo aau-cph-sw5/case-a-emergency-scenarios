@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ScenarioList } from "../ScenarioList";
 import { useLiveData } from "../data/liveData";
 import { useScenario } from "../data/useScenario";
@@ -19,6 +19,8 @@ export function ScenarioWorkspace({
   statusBar?: ReactNode;
 }) {
   const { activations } = useLiveData();
+  const [lineControlsTarget, setLineControlsTarget] =
+    useState<HTMLDivElement | null>(null);
   const isActive =
     selectedId !== null && activations.some((a) => a.scenarioId === selectedId);
   const previewId = isActive ? null : selectedId;
@@ -28,6 +30,9 @@ export function ScenarioWorkspace({
 
   return (
     <OperatorSections
+      mapControls={
+        <div className="operator-map-controls" ref={setLineControlsTarget} />
+      }
       scenarioSelection={
         <>
           <ScenarioList
@@ -42,6 +47,7 @@ export function ScenarioWorkspace({
       }
       map={
         <MetroMap
+          lineControlsTarget={lineControlsTarget}
           scenarioId={selectedId}
           scenario={isActive ? undefined : scenario}
         />

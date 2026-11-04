@@ -21,7 +21,7 @@ const STATION_RANK = new Map(
 );
 
 type Props =
-  | { scenario: Scenario; mode: "needed-only" }
+  | { scenario: Scenario; mode: "needed-only"; compact?: boolean }
   | {
       scenario: Scenario;
       mode?: "live-coverage";
@@ -73,7 +73,7 @@ export default function ScenarioStationList(props: Props) {
         <View style={styles.header}>
           <View style={styles.titleLine}>
             <Text style={styles.title}>
-              {props.mode === "needed-only"
+              {props.mode === "needed-only" && !props.compact
                 ? "Bemandingsbehov"
                 : "Påvirkede stationer"}
             </Text>
@@ -81,7 +81,13 @@ export default function ScenarioStationList(props: Props) {
           </View>
           {props.mode === "needed-only" ? (
             <Text style={styles.small}>
-              {stations.length} stationer · {needed} stewards kræves
+              {props.compact ? (
+                <>Nødvendige stewards: {needed}</>
+              ) : (
+                <>
+                  {stations.length} stationer · {needed} stewards kræves
+                </>
+              )}
             </Text>
           ) : (
             stewards !== null && (
@@ -103,7 +109,11 @@ export default function ScenarioStationList(props: Props) {
       }
       renderItem={({ item }) =>
         props.mode === "needed-only" ? (
-          <StationRow requirement={item} mode="needed-only" />
+          <StationRow
+            requirement={item}
+            mode="needed-only"
+            compact={props.compact}
+          />
         ) : (
           <StationRow
             requirement={item}

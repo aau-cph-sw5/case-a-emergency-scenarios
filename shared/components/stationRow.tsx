@@ -8,7 +8,7 @@ export type StationRequirement =
   Scenario["versions"][number]["stationRequirements"][number];
 
 type Props =
-  | { requirement: StationRequirement; mode: "needed-only" }
+  | { requirement: StationRequirement; mode: "needed-only"; compact?: boolean }
   | {
       requirement: StationRequirement;
       mode?: "live-coverage";
@@ -27,6 +27,7 @@ function coverageColor(arrived: number, needed: number) {
 export default function StationRow(props: Props) {
   const { requirement } = props;
   if (props.mode === "needed-only") {
+    if (props.compact) return <PreviewStationRow requirement={requirement} />;
     return (
       <View style={[card, { marginBottom: 8, gap: 4 }]}>
         <Text style={styles.name}>{requirement.station}</Text>
@@ -40,6 +41,41 @@ export default function StationRow(props: Props) {
   }
   return (
     <LiveStationRow requirement={requirement} deployments={props.deployments} />
+  );
+}
+
+function PreviewStationRow({
+  requirement,
+}: {
+  requirement: StationRequirement;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Pressable
+      testID="preview-station-card"
+      accessibilityRole="button"
+      accessibilityLabel={`${requirement.station}: ${requirement.minimumStaffing} stewards kræves`}
+      accessibilityState={{ expanded: open }}
+      onPress={() => setOpen(!open)}
+      style={[styles.card, { borderLeftColor: colors.statusRed }]}
+    >
+      <View style={styles.line}>
+        <Text style={styles.name}>{requirement.station}</Text>
+        <Text style={[styles.count, { color: colors.statusRed }]}>
+          {requirement.minimumStaffing}
+        </Text>
+      </View>
+      {open && (
+        <View style={styles.details}>
+          <Text style={styles.small}>Placering: {requirement.placement}</Text>
+          {(requirement.actions ?? []).map((action) => (
+            <Text key={action.sequence} style={styles.small}>
+              {action.sequence}. {action.instruction}
+            </Text>
+          ))}
+        </View>
+      )}
+    </Pressable>
   );
 }
 

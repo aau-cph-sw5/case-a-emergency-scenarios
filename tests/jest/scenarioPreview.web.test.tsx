@@ -146,12 +146,38 @@ afterEach(async () => {
 });
 
 describe("scenario preview and activation", () => {
+  it("hides the picker while active, keeps stand-down available without a selection, and restores the picker afterwards", async () => {
+    await renderList(null, { activations: [activated] });
+    expect(
+      container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
+    ).toBe(true);
+    expect(button("Deaktivér valgt scenarie").disabled).toBe(false);
+    await click("Deaktivér valgt scenarie");
+    expect(container.querySelector("dialog")?.textContent).toContain(
+      first.name,
+    );
+    jest
+      .mocked(postJson)
+      .mockResolvedValue({ ...activated, status: "STOOD_DOWN" });
+    await click("Deaktivér");
+    expect(jest.mocked(postJson)).toHaveBeenCalledWith(
+      `/api/v1/activations/${activated.activationId}/stand-down`,
+      "operator-token",
+      expect.any(Function),
+    );
+    await renderList(null, { activations: [] });
+    expect(
+      container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
+    ).toBe(false);
+  });
+
   it("puts requirements in the right column and the existing activation control on the left", async () => {
     await renderList(first.scenarioId);
     const columns = container.querySelectorAll(".operator-sections > section");
     expect(columns[0].contains(button("Aktivér valgt scenarie"))).toBe(true);
-    expect(columns[2].textContent).toContain("Placering: Platform A");
-    expect(columns[2].textContent).toContain("Minimum 2 stewards");
+    expect(columns[2].textContent).toContain("Station A");
+    expect(columns[2].textContent).toContain("Nødvendige stewards: 2");
+    expect(columns[2].textContent).not.toContain("Placering:");
     expect(columns[2].textContent).not.toMatch(
       /\d+\/\d+|på stationen|på vej|Mangler|Fuldt bemandet/,
     );
@@ -192,7 +218,9 @@ describe("scenario preview and activation", () => {
     expect(button("Aktivér valgt scenarie").disabled).toBe(true);
     await click("Prøv igen");
     expect(container.querySelector('[role="alert"]')).toBeNull();
-    expect(container.textContent).toContain("Placering: Platform A");
+    expect(container.querySelector(".scenario-preview")?.textContent).toContain(
+      "Station A",
+    );
     expect(loadScenario).toHaveBeenCalledTimes(2);
     expect(button("Aktivér valgt scenarie").disabled).toBe(false);
   });
@@ -204,10 +232,16 @@ describe("scenario preview and activation", () => {
       .mockResolvedValueOnce(second);
     await renderList(first.scenarioId);
     await click(second.name);
-    expect(container.textContent).toContain("Placering: Platform B");
+    expect(container.querySelector(".scenario-preview")?.textContent).toContain(
+      "Station B",
+    );
     await act(async () => pending.resolve(first));
-    expect(container.textContent).toContain("Placering: Platform B");
-    expect(container.textContent).not.toContain("Placering: Platform A");
+    expect(container.querySelector(".scenario-preview")?.textContent).toContain(
+      "Station B",
+    );
+    expect(
+      container.querySelector(".scenario-preview")?.textContent,
+    ).not.toContain("Station A");
     await click("Aktivér valgt scenarie");
     expect(container.querySelector("dialog")?.textContent).toContain(
       second.name,
@@ -252,13 +286,15 @@ describe("scenario preview and activation", () => {
     await click(second.name);
     expect(container.textContent).toContain("0/2");
     expect(container.querySelector(".scenario-preview")?.textContent).toContain(
-      "Placering: Platform B",
+      "Station B",
     );
     expect(
       container.querySelector(".scenario-preview")?.textContent,
     ).not.toMatch(/\d+\/\d+|på stationen|på vej|Mangler|Fuldt bemandet/);
     await renderList(second.scenarioId, { activations: [] });
     expect(container.textContent).not.toContain("0/2");
-    expect(container.textContent).toContain("Placering: Platform B");
+    expect(container.querySelector(".scenario-preview")?.textContent).toContain(
+      "Station B",
+    );
   });
 });

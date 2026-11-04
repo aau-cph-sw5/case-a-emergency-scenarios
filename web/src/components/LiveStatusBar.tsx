@@ -68,18 +68,18 @@ export function LiveStatusBar() {
   if (active === null) return null;
   if (scenario === null)
     return (
-      <p role={error ? "alert" : "status"}>
+      <div role={error ? "alert" : "status"}>
         <Text>{error ?? "Henter scenarie..."}</Text>
-      </p>
+      </div>
     );
   const version = scenario.versions.find(
     (v) => v.version === scenario.currentVersion,
   );
   if (!version)
     return (
-      <p role="alert">
+      <div role="alert">
         <Text>Scenariets aktuelle version blev ikke fundet.</Text>
-      </p>
+      </div>
     );
   const requirements = version.stationRequirements;
   const covered = countManned(active, requirements);
@@ -115,11 +115,11 @@ export function LiveStatusBar() {
       />
       <section className="operator-metric scenario-information">
         <h3 className="operator-eyebrow">SCENARIO INFO</h3>
-        <strong>
+        <div className="scenario-information-name">
           <Text>
             {active.scenarioId} {scenario.name}
           </Text>
-        </strong>
+        </div>
         <dl>
           <div>
             <dt>Aktiveret af</dt> <dd>{active.actor}</dd>
@@ -129,7 +129,7 @@ export function LiveStatusBar() {
             <dd>{formatDuration(active.startedAt, now)}</dd>
           </div>
         </dl>
-        <p
+        <div
           className={`connection-state ${!isConnected || liveError ? "is-offline" : ""}`}
           role="status"
         >
@@ -140,7 +140,7 @@ export function LiveStatusBar() {
                 ? `Kunne ikke opdatere: ${liveError}`
                 : `Live · opdateret ${formatTime(lastUpdatedAt?.toISOString())}`}
           </Text>
-        </p>
+        </div>
       </section>
     </div>
   );

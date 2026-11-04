@@ -66,6 +66,15 @@ export function ScenarioList({
   // Selecting the active scenario offers to stand it down instead.
   const selectedIsActive =
     selected !== null && activeIds.has(selected.scenarioId);
+  // Keep STOP available after a reload, even when no list item is selected.
+  const activeScenario = activations.at(-1);
+  const actionScenario = activeScenario
+    ? {
+        scenarioId: activeScenario.scenarioId,
+        name: names.get(activeScenario.scenarioId) ?? activeScenario.scenarioId,
+      }
+    : selected;
+  const actionIsActive = activeScenario !== undefined || selectedIsActive;
   // No new action is started while one is on its way to the server.
   const busy =
     activation.status === "activating" || activation.status === "standing-down";
@@ -123,14 +132,13 @@ export function ScenarioList({
     }
   }
 
-  // The search field is always shown, so it is there whenever the list is
-  // longer than one screen (MET-A-007 criterion 1 / #116 criterion 3).
+  // An active scenario uses this space for its live metrics instead of search.
   return (
     <section
-      className="scenario-selection"
-      aria-labelledby="scenario-list-heading"
+      className={`scenario-selection${activeScenario ? " scenario-selection--active" : ""}`}
+      aria-label="Scenarier og handlinger"
     >
-      <div className="scenario-picker">
+      <div className="scenario-picker" hidden={activeScenario !== undefined}>
         <span className="operator-eyebrow">SCENARIER</span>
         <h2 id="scenario-list-heading">Vælg scenarie</h2>
 
@@ -182,7 +190,7 @@ export function ScenarioList({
           the operator sees what a scenario requires before activating it. The
           active scenario is stood down instead (MET-A-009). */}
       <div className="scenario-actions">
-        {!selectedIsActive && (
+        {!actionIsActive && (
           <button
             type="button"
             className="scenario-cancel"
@@ -192,7 +200,7 @@ export function ScenarioList({
             Annuller
           </button>
         )}
-        {selectedIsActive ? (
+        {actionIsActive ? (
           <button
             type="button"
             className="scenario-stop"
@@ -217,20 +225,20 @@ export function ScenarioList({
       </div>
 
       {confirming &&
-        selected &&
-        (selectedIsActive ? (
+        actionScenario &&
+        (actionIsActive ? (
           <ConfirmStandDown
-            scenario={selected}
-            onConfirm={() => standDown(selected)}
+            scenario={actionScenario}
+            onConfirm={() => standDown(actionScenario)}
             onCancel={() => setConfirming(false)}
           />
         ) : (
           <ConfirmActivation
-            scenario={selected}
+            scenario={actionScenario}
             outgoing={activations
-              .filter((a) => a.scenarioId !== selected.scenarioId)
+              .filter((a) => a.scenarioId !== actionScenario.scenarioId)
               .map((a) => names.get(a.scenarioId) ?? a.scenarioId)}
-            onConfirm={() => activate(selected)}
+            onConfirm={() => activate(actionScenario)}
             onCancel={() => setConfirming(false)}
           />
         ))}
