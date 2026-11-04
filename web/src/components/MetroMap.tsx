@@ -34,6 +34,10 @@ export function mapView(scenario: Scenario | null) {
     scenario === null ? [] : affectedStretchAsMapLine(scenario).connections;
   const covered = linesThrough(network, stretch);
   const markedStations = scenario === null ? [] : requiredStations(scenario);
+  const requirements =
+    scenario?.versions.find(
+      (version) => version.version === scenario.currentVersion,
+    )?.stationRequirements ?? [];
   return {
     initiallyHidden:
       covered.length > 0
@@ -42,18 +46,36 @@ export function mapView(scenario: Scenario | null) {
             .map((line) => line.name)
         : [],
     markedStations,
+    requiredStaffing: Object.fromEntries(
+      requirements.map(({ station, minimumStaffing }) => [
+        station,
+        minimumStaffing,
+      ]),
+    ),
     // Undefined for the whole network, which keeps the map's own view.
     viewBox:
       covered.length > 0
-        ? areaAroundStations([...stretch.flat(), ...markedStations])
+        ? areaAroundStations([...stretch.flat(), ...markedStations], 160)
         : undefined,
   };
 }
 
-export function MetroMap({ scenarioId }: { scenarioId: string | null }) {
+export function MetroMap({
+  scenarioId,
+  scenario: previewScenario,
+}: {
+  scenarioId: string | null;
+  scenario?: Scenario | null;
+}) {
   // While the scenario loads, or if it cannot be loaded, scenario is null and
   // the whole network is shown. The preview next to the map shows the error.
-  const { scenario } = useScenario(scenarioId);
+  // The requirements panel can supply its result, including null while loading
+  // or retrying, so both previews always show the same saved version.
+  const { scenario: loadedScenario } = useScenario(
+    previewScenario === undefined ? scenarioId : null,
+  );
+  const scenario =
+    previewScenario === undefined ? loadedScenario : previewScenario;
   // Holds the scenario zoomed out from, so the next scenario zooms in again.
   const [zoomedOutOf, setZoomedOutOf] = useState<string | null>(null);
   const view = mapView(scenario);
@@ -61,6 +83,23 @@ export function MetroMap({ scenarioId }: { scenarioId: string | null }) {
   const zoomedOut = canZoom && zoomedOutOf === scenarioId;
   return (
     <View style={{ flex: 1 }}>
+      {scenario !== null && (
+        <Text
+          style={[
+            text.small,
+            {
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              zIndex: 2,
+              backgroundColor: theme.background,
+              padding: 4,
+            },
+          ]}
+        >
+          {scenario.name} · Tal på stationerne viser krævede stewards
+        </Text>
+      )}
       {canZoom && (
         <Pressable
           style={{
@@ -91,6 +130,7 @@ export function MetroMap({ scenarioId }: { scenarioId: string | null }) {
         initiallyHidden={view.initiallyHidden}
         viewBox={zoomedOut ? undefined : view.viewBox}
         markedStations={view.markedStations}
+        requiredStaffing={view.requiredStaffing}
         highlightColor={theme.requiredStation}
         blockedTracks={scenario?.covers ?? []}
       />
