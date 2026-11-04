@@ -249,3 +249,42 @@ test("a position report reaches operators only, with the server's time", async (
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.equal(stewardGotReport, false);
 });
+
+test("a stand-down reaches stewards and operators as signals", async () => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const operator = await open(operatorToken);
+  const steward = await open(
+    await login(stewardUsername, "steward123", "mobile"),
+  );
+
+  let operatorGotStandDown = false;
+  operator.on("scenario-stood-down", () => {
+    operatorGotStandDown = true;
+  });
+  const stewardGot = new Promise<unknown[]>((resolve) =>
+    steward.once("scenario-stood-down", (...args) => resolve(args)),
+  );
+  const operatorGot = new Promise<unknown[]>((resolve) =>
+    operator.once("activations-changed", (...args) => resolve(args)),
+  );
+
+  // DEMO-002 is still active from the tests above.
+  const active = await (
+    await fetch(`${baseUrl}/api/v1/scenario-state`, {
+      headers: { Authorization: `Bearer ${operatorToken}` },
+    })
+  ).json();
+  assert.equal(active?.scenarioId, "DEMO-002");
+
+  const response = await fetch(
+    `${baseUrl}/api/v1/activations/${active.activationId}/stand-down`,
+    { method: "POST", headers: { Authorization: `Bearer ${operatorToken}` } },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await stewardGot, []);
+  assert.deepEqual(await operatorGot, []);
+
+  // Give a wrongly sent event time to arrive before checking it did not.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(operatorGotStandDown, false);
+});

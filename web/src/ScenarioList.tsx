@@ -113,6 +113,8 @@ export function ScenarioList({
         isScenarioState,
       );
       setActivation({ status: "stood-down", state });
+      // The map returns to the default map that it shows at the start.
+      onSelect(null);
     } catch (error) {
       console.error(error);
       setActivation({
