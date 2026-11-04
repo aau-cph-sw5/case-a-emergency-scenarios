@@ -20,15 +20,16 @@ const STATION_RANK = new Map(
   STATION_ORDER.map((station, index) => [station, index]),
 );
 
-type Props = {
-  scenario: Scenario;
-  activeDeployments: ActiveDeployments;
-};
+type Props =
+  | { scenario: Scenario; mode: "needed-only" }
+  | {
+      scenario: Scenario;
+      mode?: "live-coverage";
+      activeDeployments: ActiveDeployments;
+    };
 
-export default function ScenarioStationList({
-  scenario,
-  activeDeployments,
-}: Props) {
+export default function ScenarioStationList(props: Props) {
+  const { scenario } = props;
   const version = scenario.versions.find(
     (item) => item.version === scenario.currentVersion,
   );
@@ -40,14 +41,27 @@ export default function ScenarioStationList({
   const rank = (station: string) =>
     STATION_RANK.get(station) ?? Number.MAX_SAFE_INTEGER;
   const stations = requirements
-    .map((r) => ({ r, share: coverageShare(activeDeployments, r) }))
+    .map((r) => ({
+      r,
+      share:
+        props.mode === "needed-only"
+          ? 0
+          : coverageShare(props.activeDeployments, r),
+    }))
     .sort((a, b) => a.share - b.share || rank(a.r.station) - rank(b.r.station))
     .map(({ r }) => r);
 
-  const coveredCount = countManned(activeDeployments, stations);
-  const stewards = countStewards(activeDeployments, stations);
+  const coveredCount =
+    props.mode === "needed-only"
+      ? null
+      : countManned(props.activeDeployments, stations);
+  const stewards =
+    props.mode === "needed-only"
+      ? null
+      : countStewards(props.activeDeployments, stations);
+  const needed = requirements.reduce((sum, r) => sum + r.minimumStaffing, 0);
 
-  if (stations.length === 0) {
+  if (stations.length === 0 && props.mode !== "needed-only") {
     return <Text style={styles.small}>Scenariet kræver ingen stationer.</Text>;
   }
 
@@ -58,21 +72,45 @@ export default function ScenarioStationList({
       ListHeaderComponent={
         <View style={styles.header}>
           <View style={styles.titleLine}>
-            <Text style={styles.title}>Påvirkede stationer</Text>
+            <Text style={styles.title}>
+              {props.mode === "needed-only"
+                ? "Bemandingsbehov"
+                : "Påvirkede stationer"}
+            </Text>
             <Text style={styles.badge}>{stations.length}</Text>
           </View>
-          <Text style={styles.small}>
-            {coveredCount}/{stations.length} stationer dækket
-          </Text>
-          <Text style={styles.small}>
-            {stewards.arrived}/{stewards.needed} stewards · {stewards.enRoute}{" "}
-            på vej
-          </Text>
+          {props.mode === "needed-only" ? (
+            <Text style={styles.small}>
+              {stations.length} stationer · {needed} stewards kræves
+            </Text>
+          ) : (
+            stewards !== null && (
+              <>
+                <Text style={styles.small}>
+                  {coveredCount}/{stations.length} stationer dækket
+                </Text>
+                <Text style={styles.small}>
+                  {stewards.arrived}/{stewards.needed} stewards ·{" "}
+                  {stewards.enRoute} på vej
+                </Text>
+              </>
+            )
+          )}
         </View>
       }
-      renderItem={({ item }) => (
-        <StationRow requirement={item} deployments={activeDeployments} />
-      )}
+      ListEmptyComponent={
+        <Text style={styles.small}>Scenariet kræver ingen stationer.</Text>
+      }
+      renderItem={({ item }) =>
+        props.mode === "needed-only" ? (
+          <StationRow requirement={item} mode="needed-only" />
+        ) : (
+          <StationRow
+            requirement={item}
+            deployments={props.activeDeployments}
+          />
+        )
+      }
     />
   );
 }

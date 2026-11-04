@@ -24,11 +24,13 @@ export function ScenarioList({
   selectedId,
   onSelect,
   onActivated,
+  previewReady = true,
 }: {
   token: string;
   selectedId: string | null;
   onSelect: (scenarioId: string | null) => void;
   onActivated: (scenarioId: string) => void;
+  previewReady?: boolean;
 }) {
   // The scenario list and the active activations come from LiveDataProvider,
   // which loads them once and reloads the activations when they change.
@@ -69,6 +71,8 @@ export function ScenarioList({
 
   async function activate(scenario: ScenarioSummary) {
     setConfirming(false);
+    if (!previewReady || !canActivate(scenario.scenarioId, busy, activeIds))
+      return;
     setActivation({ status: "activating" });
     // While another scenario is active this is a switch: replaces names the
     // activation the operator confirmed to stand down
@@ -180,7 +184,10 @@ export function ScenarioList({
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          disabled={!canActivate(selected?.scenarioId ?? null, busy, activeIds)}
+          disabled={
+            !previewReady ||
+            !canActivate(selected?.scenarioId ?? null, busy, activeIds)
+          }
         >
           Aktivér valgt scenarie
         </button>

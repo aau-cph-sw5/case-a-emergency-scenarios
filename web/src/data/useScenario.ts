@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import { userMessage } from "../get-json";
 import { useLiveContext } from "./liveData";
@@ -14,9 +14,15 @@ export function useScenario(scenarioId: string | null): {
   scenario: Scenario | null;
   isLoading: boolean;
   error: string | null;
+  retry: () => void;
 } {
   const { loadScenario } = useLiveContext();
   const [result, setResult] = useState<Result | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => {
+    setResult(null);
+    setAttempt((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     if (scenarioId === null) return;
@@ -36,16 +42,16 @@ export function useScenario(scenarioId: string | null): {
     return () => {
       wanted = false;
     };
-  }, [scenarioId, loadScenario]);
+  }, [scenarioId, loadScenario, attempt]);
 
   if (scenarioId === null) {
-    return { scenario: null, isLoading: false, error: null };
+    return { scenario: null, isLoading: false, error: null, retry };
   }
   // The result still belongs to the previous id until the new answer arrives.
   if (result === null || result.scenarioId !== scenarioId) {
-    return { scenario: null, isLoading: true, error: null };
+    return { scenario: null, isLoading: true, error: null, retry };
   }
   return "scenario" in result
-    ? { scenario: result.scenario, isLoading: false, error: null }
-    : { scenario: null, isLoading: false, error: result.error };
+    ? { scenario: result.scenario, isLoading: false, error: null, retry }
+    : { scenario: null, isLoading: false, error: result.error, retry };
 }

@@ -7,10 +7,13 @@ import { getStationState, type ActiveDeployments } from "./stationState";
 export type StationRequirement =
   Scenario["versions"][number]["stationRequirements"][number];
 
-type Props = {
-  requirement: StationRequirement;
-  deployments: ActiveDeployments;
-};
+type Props =
+  | { requirement: StationRequirement; mode: "needed-only" }
+  | {
+      requirement: StationRequirement;
+      mode?: "live-coverage";
+      deployments: ActiveDeployments;
+    };
 
 // Red with nobody arrived, yellow while some are missing, green when covered.
 function coverageColor(arrived: number, needed: number) {
@@ -21,7 +24,32 @@ function coverageColor(arrived: number, needed: number) {
 // One card per station, as in the wireframe: arrived against needed, how many
 // are on the station and on the way, and how many are still missing. Pressing
 // the card shows the placement and the actions.
-export default function StationRow({ requirement, deployments }: Props) {
+export default function StationRow(props: Props) {
+  const { requirement } = props;
+  if (props.mode === "needed-only") {
+    return (
+      <View style={[card, { marginBottom: 8, gap: 4 }]}>
+        <Text style={styles.name}>{requirement.station}</Text>
+        <Text style={styles.small}>Placering: {requirement.placement}</Text>
+        <Text style={styles.small}>
+          Minimum {requirement.minimumStaffing}{" "}
+          {requirement.minimumStaffing === 1 ? "steward" : "stewards"}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <LiveStationRow requirement={requirement} deployments={props.deployments} />
+  );
+}
+
+function LiveStationRow({
+  requirement,
+  deployments,
+}: {
+  requirement: StationRequirement;
+  deployments: ActiveDeployments;
+}) {
   const { current, enRoute } = getStationState(
     deployments,
     requirement.station,

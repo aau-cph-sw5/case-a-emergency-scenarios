@@ -50,12 +50,14 @@ function Station({
   x,
   y,
   highlightColor,
+  requiredStaffing,
 }: {
   name: string;
   x: number;
   y: number;
   // Set only for the station to highlight, e.g. the steward's own (MET-A-010).
   highlightColor?: string;
+  requiredStaffing?: number;
 }) {
   const [hover, setHover] = useState(false);
   // The same size for every station; a highlighted one differs only by colour.
@@ -80,6 +82,18 @@ function Station({
           onMouseLeave: () => setHover(false),
         } as any)}
       />
+      {requiredStaffing !== undefined && (
+        <Text
+          x={x}
+          y={y + 5}
+          textAnchor="middle"
+          fontSize={14}
+          fontWeight="bold"
+          fill={theme.text}
+        >
+          {requiredStaffing}
+        </Text>
+      )}
       <Text
         {...text.mapLabel}
         x={labelX}
@@ -212,6 +226,7 @@ export default function MapRender({
   markedStations = [],
   blockedTracks = [],
   initiallyHidden = [],
+  requiredStaffing = {},
 }: {
   lines: MapLine[];
   colors: Record<string, string>;
@@ -228,6 +243,8 @@ export default function MapRender({
   blockedTracks?: readonly BlockedTrack[];
   // Optional: lines that start switched off until their button is pressed.
   initiallyHidden?: string[];
+  // Saved staffing requirements, never current coverage.
+  requiredStaffing?: Readonly<Record<string, number>>;
 }) {
   // Each station once, so a station both marked and highlighted is drawn once.
   const highlighted = [
@@ -319,6 +336,7 @@ export default function MapRender({
               x={getStation(station)[0]}
               y={getStation(station)[1]}
               highlightColor={highlightColor}
+              requiredStaffing={requiredStaffing[station]}
             />
           ))}
       </Svg>

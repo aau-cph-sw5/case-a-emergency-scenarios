@@ -6,14 +6,14 @@ body {
   box-sizing: border-box;
   display: grid;
   /* Keep the side panels responsive within set width limits; the center fills the remaining space. */
-  grid-template-columns: clamp(180px, 14vw, 240px) minmax(0, 1fr) clamp(190px, 16vw, 270px);
+  grid-template-columns: clamp(220px, 18vw, 290px) minmax(0, 1fr) clamp(270px, 22vw, 330px);
   gap: 10px;
-  min-height: 100vh;
+  height: calc(100dvh - 24px);
   padding: 10px;
   background: #1E1E1E;
 }
 
-.operator-sections section {
+.operator-sections > section {
   box-sizing: border-box;
   min-width: 0;
   min-height: 0;
@@ -29,9 +29,60 @@ body {
   flex-direction: column;
 }
 
-@media (max-width: 700px) {
+.scenario-selection,
+.scenario-preview {
+  font-family: Arial, sans-serif;
+}
+
+.scenario-selection h2,
+.scenario-preview h2 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+.scenario-selection input {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.scenario-selection ul {
+  list-style: none;
+  padding: 0;
+  max-height: max(240px, calc(100dvh - 300px));
+  overflow-y: auto;
+}
+
+.scenario-selection li + li {
+  margin-top: 6px;
+}
+
+.scenario-selection li button,
+.scenario-selection > button,
+.scenario-preview > button {
+  width: 100%;
+  padding: 8px;
+  overflow-wrap: anywhere;
+}
+
+.scenario-preview {
+  font-size: 13px;
+  margin-top: 16px;
+}
+
+.scenario-preview h3 {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
   .operator-sections {
     grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .operator-sections section[aria-label="Map"] {
+    height: 60dvh;
   }
 }
 
@@ -77,5 +128,3 @@ body {
   background: #e6140f;
   color: white;
 }
-
-
