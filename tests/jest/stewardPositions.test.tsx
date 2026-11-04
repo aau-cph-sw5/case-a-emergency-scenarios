@@ -127,9 +127,7 @@ describe("StewardPositions pop-up", () => {
   it("starts closed with the number of stewards on the button", () => {
     renderWithLive(<StewardPositions />, {
       activations: [
-        activation(1, [
-          onTheWay("steward-002", "Nørreport", minutesAgo(2)),
-        ]),
+        activation(1, [onTheWay("steward-002", "Nørreport", minutesAgo(2))]),
       ],
     });
 
@@ -164,9 +162,7 @@ describe("StewardPositions pop-up", () => {
     jest.useFakeTimers({ now: NOW });
     renderWithLive(<StewardPositions />, {
       activations: [
-        activation(1, [
-          onTheWay("steward-002", "Nørreport", minutesAgo(2)),
-        ]),
+        activation(1, [onTheWay("steward-002", "Nørreport", minutesAgo(2))]),
       ],
     });
     fireEvent.press(screen.getByText("Status (1)"));
@@ -182,9 +178,7 @@ describe("StewardPositions pop-up", () => {
   it("updates when a steward moves to another station", () => {
     const view = renderWithLive(<StewardPositions />, {
       activations: [
-        activation(1, [
-          onTheWay("steward-002", "Nørreport", minutesAgo(5)),
-        ]),
+        activation(1, [onTheWay("steward-002", "Nørreport", minutesAgo(5))]),
       ],
     });
     fireEvent.press(screen.getByText("Status (1)"));
@@ -194,9 +188,7 @@ describe("StewardPositions pop-up", () => {
       <LiveDataContext
         value={liveValue({
           activations: [
-            activation(1, [
-              onTheWay("steward-002", "Vanløse", minutesAgo(0)),
-            ]),
+            activation(1, [onTheWay("steward-002", "Vanløse", minutesAgo(0))]),
           ],
         })}
       >
