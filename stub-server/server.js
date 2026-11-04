@@ -393,7 +393,7 @@ app.post("/api/v1/scenarios/:scenarioId/activate", requireAuth, (req, res) => {
   );
 
   const activation = {
-    activationId: `ACT-${scenarioId}-${activations.length + 1}`,
+    activationId: activations.length + 1,
     scenarioId,
     startedAt: new Date().toISOString(),
     endedAt: null,

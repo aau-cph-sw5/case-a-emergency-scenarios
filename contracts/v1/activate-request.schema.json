@@ -4,7 +4,8 @@
   "type": "object",
   "properties": {
     "replaces": {
-      "type": "string",
+      "type": "integer",
+      "minimum": 1,
       "description": "The activationId of the active activation to stand down."
     }
   }

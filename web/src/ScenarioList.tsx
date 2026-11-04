@@ -104,7 +104,7 @@ export function ScenarioList({
     setActivation({ status: "standing-down" });
     try {
       const state = await postJson(
-        `/api/v1/activations/${encodeURIComponent(active.activationId)}/stand-down`,
+        `/api/v1/activations/${active.activationId}/stand-down`,
         token,
         isScenarioState,
       );

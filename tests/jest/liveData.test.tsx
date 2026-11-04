@@ -20,7 +20,7 @@ const activationsMock = jest.mocked(fetchActiveActivations);
 const scenariosMock = jest.mocked(fetchScenarios);
 const scenarioMock = jest.mocked(fetchScenario);
 
-function activation(activationId: string): ScenarioState {
+function activation(activationId: number): ScenarioState {
   return {
     activationId,
     scenarioId: "DEMO-001",
@@ -75,9 +75,9 @@ beforeEach(() => {
 
 describe("useLiveData", () => {
   it("loads on login, again on activations-changed and on reconnect", async () => {
-    const first = [activation("ACT-1")];
-    const second = [activation("ACT-2")];
-    const third = [activation("ACT-1"), activation("ACT-2")];
+    const first = [activation(1)];
+    const second = [activation(2)];
+    const third = [activation(1), activation(2)];
     activationsMock
       .mockResolvedValueOnce(first)
       .mockResolvedValueOnce(second)
@@ -102,7 +102,7 @@ describe("useLiveData", () => {
 
   it("ignores an older answer that arrives after a newer one", async () => {
     let answerOld: (value: ScenarioState[]) => void = () => {};
-    const newer = [activation("ACT-NEW")];
+    const newer = [activation(3)];
     activationsMock
       .mockReturnValueOnce(
         new Promise<ScenarioState[]>((resolve) => {
@@ -118,12 +118,12 @@ describe("useLiveData", () => {
     fire("activations-changed");
     await waitFor(() => expect(result.current.activations).toEqual(newer));
 
-    await act(async () => answerOld([activation("ACT-OLD")]));
+    await act(async () => answerOld([activation(4)]));
     expect(result.current.activations).toEqual(newer);
   });
 
   it("keeps the last activations and reports the error when a load fails", async () => {
-    const first = [activation("ACT-1")];
+    const first = [activation(1)];
     activationsMock
       .mockResolvedValueOnce(first)
       .mockRejectedValueOnce(new Error("offline"));

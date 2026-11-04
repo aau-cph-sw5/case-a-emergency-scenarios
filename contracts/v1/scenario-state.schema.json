@@ -13,7 +13,8 @@
   ],
   "properties": {
     "activationId": {
-      "type": "string"
+      "type": "integer",
+      "minimum": 1
     },
     "scenarioId": {
       "type": "string"

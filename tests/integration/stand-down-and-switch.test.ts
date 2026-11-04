@@ -14,7 +14,7 @@ let server: Server;
 let baseUrl: string;
 let operatorToken: string;
 let operatorId: number;
-let activationId: string;
+let activationId: number;
 
 const OPERATOR_USERNAME = "switch-operator";
 const STEWARD_USERNAME = "switch-steward";
@@ -61,7 +61,7 @@ function activate(scenarioId: string, token?: string, body?: unknown) {
   });
 }
 
-function standDown(id: string, token?: string) {
+function standDown(id: string | number, token?: string) {
   return fetch(`${baseUrl}/api/v1/activations/${id}/stand-down`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -74,7 +74,7 @@ async function activations(status: "ACTIVE" | "CLOSED") {
     { headers: { Authorization: `Bearer ${operatorToken}` } },
   );
   return (await response.json()) as {
-    activationId: string;
+    activationId: number;
     scenarioId: string;
     endedAt: string | null;
   }[];
@@ -89,11 +89,11 @@ type LoggedEvent = {
   payload: { scenarioId: string };
 };
 
-function eventsFor(id: string) {
+function eventsFor(id: number) {
   return getDatabase()<LoggedEvent[]>`
     SELECT type, actor_id, actor_role, server_time, sequence, payload
     FROM incident_events
-    WHERE activation_id = ${id}
+    WHERE activation_id = ${String(id)}
     ORDER BY sequence
   `;
 }
@@ -139,7 +139,7 @@ test("a switch that replaces another activation than the active one changes noth
   const before = await eventsFor(activationId);
 
   const res = await activate("DEMO-002", operatorToken, {
-    replaces: "ACT-SOMETHING-ELSE-1",
+    replaces: 2147483647,
   });
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
@@ -152,7 +152,7 @@ test("a switch that replaces another activation than the active one changes noth
 });
 
 test("a body that does not match the contract is refused", async () => {
-  const res = await activate("DEMO-002", operatorToken, { replaces: 42 });
+  const res = await activate("DEMO-002", operatorToken, { replaces: "42" });
   assert.equal(res.status, 400);
   assert.deepEqual(
     (await activations("ACTIVE")).map((a) => a.activationId),

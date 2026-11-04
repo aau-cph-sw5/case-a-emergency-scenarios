@@ -4,9 +4,10 @@ import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 
 import {
   ACTIVATION_STATUSES,
+  findActiveScenarioVersion,
   type ActivationStatus,
   listActivations,
-} from "../repositories/fixture-repository.js";
+} from "../repositories/activation-repository.js";
 import {
   findScenario,
   getAllScenarios,
@@ -27,7 +28,35 @@ export async function getScenario(
   request: Request<{ scenarioId: string }>,
   response: Response,
 ) {
-  const scenario = await findScenario(request.params.scenarioId);
+  const { activationId } = request.query;
+  if (
+    activationId !== undefined &&
+    (typeof activationId !== "string" || !/^[1-9]\d*$/.test(activationId))
+  ) {
+    response
+      .status(400)
+      .json(
+        errorBody(
+          ERROR_CODES.INVALID_REQUEST,
+          "activationId must be a positive integer",
+        ),
+      );
+    return;
+  }
+  const versionId =
+    activationId === undefined
+      ? undefined
+      : await findActiveScenarioVersion(
+          Number(activationId),
+          request.params.scenarioId,
+        );
+  if (activationId !== undefined && versionId === undefined) {
+    response
+      .status(404)
+      .json({ error: "Active scenario activation not found" });
+    return;
+  }
+  const scenario = await findScenario(request.params.scenarioId, versionId);
   if (scenario === undefined) {
     response.status(404).json({ error: "Scenario not found" });
     return;
@@ -37,15 +66,18 @@ export async function getScenario(
 
 // Reads the same store as GET /api/v1/activations, so the two never disagree.
 // No active scenario is a normal state, so it answers 200 with null, not 404.
-export function getCurrentScenarioState(_request: Request, response: Response) {
-  const [active] = listActivations("ACTIVE");
+export async function getCurrentScenarioState(
+  _request: Request,
+  response: Response,
+) {
+  const [active] = await listActivations("ACTIVE");
   response.json(active ?? null);
 }
 
-export function getActivations(request: Request, response: Response) {
+export async function getActivations(request: Request, response: Response) {
   const { status } = request.query;
   if (status === undefined) {
-    response.json(listActivations());
+    response.json(await listActivations());
     return;
   }
   // A repeated or unknown status is refused, not silently treated as no filter.
@@ -63,7 +95,7 @@ export function getActivations(request: Request, response: Response) {
       );
     return;
   }
-  response.json(listActivations(status as ActivationStatus));
+  response.json(await listActivations(status as ActivationStatus));
 }
 
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
@@ -177,7 +209,10 @@ export async function standDown(
     return;
   }
 
-  const result = await standDownAndLog(response.locals.user, activationId);
+  const numericId = /^[1-9]\d*$/.test(activationId)
+    ? Number(activationId)
+    : NaN;
+  const result = await standDownAndLog(response.locals.user, numericId);
   if (result.kind === "not-found") {
     response
       .status(404)

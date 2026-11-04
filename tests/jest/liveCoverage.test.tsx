@@ -23,7 +23,7 @@ const scenario: Scenario = {
 
 function activation(deployments: ScenarioState["deployments"]): ScenarioState {
   return {
-    activationId: "activation-1",
+    activationId: 1,
     scenarioId: "TEST-001",
     startedAt: "2026-10-29T12:00:00Z",
     status: "ACTIVE",
