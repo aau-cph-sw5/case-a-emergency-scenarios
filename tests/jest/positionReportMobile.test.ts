@@ -17,6 +17,7 @@ it("persists a report and handles delivery outcomes", async () => {
     station: "FL",
     scenarioId: "VAN-FB",
     activationId: 12,
+    event: "ARRIVED",
   });
 
   expect(report.id).toBe("11111111-1111-4111-8111-111111111111");
@@ -51,6 +52,7 @@ it("persists a report and handles delivery outcomes", async () => {
   const [, options] = fetchMock.mock.calls[0];
   expect(JSON.parse(options?.body as string)).toMatchObject({
     id: report.id,
+    event: "ARRIVED",
     reportedAt: report.reportedAt,
   });
 

@@ -97,3 +97,19 @@ test("one user's reports are not shown to another user", async () => {
 
   assert.deepEqual(await queue.getPending("steward-2"), []);
 });
+test("stores all four position report events", async () => {
+  const storage = memoryStorage();
+  const events = ["EN_ROUTE", "ARRIVED", "CANCELLED", "CHECKED_OUT"];
+  const queue = createPositionReportQueueStore(storage);
+
+  for (const event of events) {
+    await queue.enqueue({ ...aReport(event), event });
+  }
+
+  const restored = createPositionReportQueueStore(storage);
+  const pending = await restored.getPending("steward-1");
+  assert.deepEqual(
+    pending.map((report) => report.event),
+    events,
+  );
+});
