@@ -47,12 +47,18 @@ export const colors = {
 // here (or no status) is shown as having none.
 export const stewardStatus: Partial<
   Record<
-    ScenarioState["deployments"][number]["status"],
+    // TASK_DONE is kept for later; the contract has no such status since 7.0.0.
+    ScenarioState["deployments"][number]["status"] | "TASK_DONE",
     { label: string; symbol?: string; color: string }
   >
 > = {
   PENDING: { label: "På vej", color: colors.statusYellowText },
   MANNED: { label: "Ankommet", symbol: "✓", color: colors.statusGreen },
+  TASK_DONE: {
+    label: "Opgave udført",
+    symbol: "✓✓",
+    color: colors.statusGreen,
+  },
 };
 
 export const lineColors = [
