@@ -84,7 +84,7 @@ export async function postPositionReport(request: Request, response: Response) {
       station,
       report.taskDone === true
         ? "TASK_DONE"
-        : report.arrived === true
+        : report.event === "ARRIVED"
           ? "MANNED"
           : "PENDING",
       now,

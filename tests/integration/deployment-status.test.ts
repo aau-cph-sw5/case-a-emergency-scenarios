@@ -62,7 +62,7 @@ after(async () => {
   await closeOwnerDatabase();
 });
 
-async function report(extra: { arrived?: boolean; taskDone?: boolean }) {
+async function report(extra: { event?: string; taskDone?: boolean }) {
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",
     headers: {
@@ -96,18 +96,18 @@ test("the steward's deployment follows on the way, arrived and task done", async
   assert.equal((await deploymentAtG())?.status, "PENDING");
   assert.equal((await deploymentAtG())?.staff, stewardId);
 
-  await report({ arrived: true });
+  await report({ event: "ARRIVED" });
   assert.equal((await deploymentAtG())?.status, "MANNED");
 
   await report({ taskDone: true });
   assert.equal((await deploymentAtG())?.status, "TASK_DONE");
 });
 
-test("the event records whether the steward arrived", async () => {
-  const events = await sql<{ payload: { arrived: boolean } }[]>`
+test("the event records that the steward arrived", async () => {
+  const events = await sql<{ payload: { event: string } }[]>`
     SELECT payload FROM incident_events
     WHERE type = 'POSITION_REPORTED' AND actor_id = ${stewardId}
-      AND payload->>'arrived' = 'true'
+      AND payload->>'event' = 'ARRIVED'
   `;
   assert.equal(events.length, 1);
 });

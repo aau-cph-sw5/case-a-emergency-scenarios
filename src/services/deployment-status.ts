@@ -1,6 +1,5 @@
-import type { ScenarioState } from "../../shared/types/v1/scenario-state.js";
+import type { Deployment } from "../repositories/fixture-repository.js";
 
-export type Deployment = ScenarioState["deployments"][number];
 type ReportedStatus = "PENDING" | "MANNED" | "TASK_DONE";
 
 const ORDER: Deployment["status"][] = [

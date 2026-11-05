@@ -1,7 +1,9 @@
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import type { Scenario } from "../../shared/types/v1/scenario.js";
-import type { Deployment } from "../services/deployment-status.js";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state.js";
+
+export type Deployment = ScenarioState["deployments"][number];
 
 // This file is temporary until the real database is populated
 // Right now it just imports the fixture data from the fixtures folder

@@ -35,7 +35,7 @@ export async function savePositionReport(
     payload: {
       stationId: report.station,
       taskDone: saved.taskDone,
-      arrived: report.arrived ?? false,
+      event: typeof report.event === "string" ? report.event : "EN_ROUTE",
     },
     clientTime,
   });

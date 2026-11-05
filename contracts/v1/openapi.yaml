@@ -139,10 +139,7 @@ paths:
         With taskDone true the steward reports the task at the station as
         done (MET-A-015). That is only allowed at the station of the
         steward's latest report (E1006 otherwise), and sending it again is
-        a harmless repeat. With arrived true the steward has arrived at the
-        station. An accepted report sets the steward's deployment in the
-        active scenario (see deployments[].status in scenario-state), and
-        connected operators get the activations-changed Socket.IO event.
+        a harmless repeat.
       security:
         - bearerAuth: []
       requestBody:

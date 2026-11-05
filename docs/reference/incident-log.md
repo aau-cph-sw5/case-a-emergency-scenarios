@@ -160,7 +160,7 @@ version.
 | `SCENARIO_STOOD_DOWN` | 1 | `activation` | `scenarioId` | `standDownAndLog` and `switchAndLog` in `src/services/activation-service.ts`. In a switch it is written in the same transaction as the new `SCENARIO_ACTIVATED`, right before it. The stand-down is in memory, so it is undone if this write fails |
 | `POSITION_REPORTED` | 1 | `position-report` | `stationId` | `savePositionReport` in `src/services/position-report-service.ts`, the worked example of `appendEvent` inside a transaction |
 | `POSITION_REPORTED` | 2 | `position-report` | `stationId`, `taskDone` (true when the steward finished the task, MET-A-015) | `savePositionReport` in `src/services/position-report-service.ts` |
-| `POSITION_REPORTED` | 3 | `position-report` | `stationId`, `taskDone`, `arrived` (true when the steward arrived at the station, MET-A-015) | `savePositionReport` in `src/services/position-report-service.ts` |
+| `POSITION_REPORTED` | 3 | `position-report` | `stationId`, `taskDone`, `event` (`EN_ROUTE` or `ARRIVED`, what the report says about the steward, MET-A-015) | `savePositionReport` in `src/services/position-report-service.ts` |
 
 ## Payload rules
 
