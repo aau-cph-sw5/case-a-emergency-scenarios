@@ -1,5 +1,6 @@
 import { ERROR_CODES } from "../../../shared/error-codes";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
+import { sendPositionReport } from "../api/position-report";
 
 // A steward's status, as the contract names it (scenario-state.schema.json).
 // The app declares no status type of its own (MET-A-015).
@@ -18,68 +19,59 @@ export type StatusRequest =
 
 export type StatusResult =
   | { ok: true; own: OwnStatus | null }
-  | { ok: false; code: string; message: string };
+  | { ok: false; code?: string; message: string };
 
-// E1006 comes with the status contract in #261. Use
-// ERROR_CODES.INVALID_STATUS_TRANSITION once that is merged.
-export const INVALID_STATUS_TRANSITION = "E1006";
+// The steward's status, the one place the app reads or changes it (MET-A-015,
+// #263). As agreed in #268, going on the way is a position report to the
+// server, through the existing position-report endpoint (#271). A new
+// station can be reported at any time, like the server allows.
+//
+// Two parts are kept in the app until the server supports them:
+// - Arrival: the contract has no way to report arrival separately from on
+//   the way yet (a report means "on the way or arrived"), so arrival is only
+//   shown to the steward and is not sent.
+// - The current status: there is no endpoint for the steward's latest report
+//   yet (#253), so the last status is remembered in memory per steward per
+//   activation, which survives logging out and in again.
+const remembered = new Map<string, OwnStatus>();
 
-// STUB: the server does not accept status changes yet (MET-A-015, #262). This
-// function stands in for it and is the only place the app reads or changes
-// the steward's status, so swapping the stub for the real endpoint does not
-// touch the view. It keeps each steward's status per activation in memory,
-// like the server would keep it across logins, and answers like the server:
-// only valid transitions are accepted, and an invalid one gets the
-// contract's error code with the server's message.
-const stubStatuses = new Map<string, OwnStatus>();
+const NOT_ON_THE_WAY =
+  "Du kan først godkende ankomst, når du er meldt på vej til en station.";
 
 export async function stewardStatus(
+  token: string,
   activationId: string,
   userId: string,
-  scenarioStations: string[],
   request: StatusRequest,
 ): Promise<StatusResult> {
   const key = `${activationId}/${userId}`;
-  const current = stubStatuses.get(key);
+  const current = remembered.get(key);
 
   if (request.type === "current") {
     return { ok: true, own: current ?? null };
   }
 
   if (request.type === "assign") {
-    if (current !== undefined) {
-      return rejected(
-        INVALID_STATUS_TRANSITION,
-        "The status change is not permitted from the steward's current status",
-      );
-    }
-    if (!scenarioStations.includes(request.station)) {
-      return rejected(
-        ERROR_CODES.STATION_NOT_IN_SCENARIO,
-        "The station is not part of the active scenario",
-      );
-    }
+    const report = await sendPositionReport(token, request.station);
+    if (!report.ok) return { ok: false, message: report.message };
     const own: OwnStatus = { station: request.station, status: "PENDING" };
-    stubStatuses.set(key, own);
+    remembered.set(key, own);
     return { ok: true, own };
   }
 
   if (current?.status !== "PENDING") {
-    return rejected(
-      INVALID_STATUS_TRANSITION,
-      "The status change is not permitted from the steward's current status",
-    );
+    return {
+      ok: false,
+      code: ERROR_CODES.INVALID_STATUS_TRANSITION,
+      message: NOT_ON_THE_WAY,
+    };
   }
   const own: OwnStatus = { station: current.station, status: "MANNED" };
-  stubStatuses.set(key, own);
+  remembered.set(key, own);
   return { ok: true, own };
 }
 
-function rejected(code: string, message: string): StatusResult {
-  return { ok: false, code, message };
-}
-
-// Test helper: forgets every stored status.
-export function resetStubStatuses(): void {
-  stubStatuses.clear();
+// Test helper: forgets every remembered status.
+export function resetRememberedStatuses(): void {
+  remembered.clear();
 }
