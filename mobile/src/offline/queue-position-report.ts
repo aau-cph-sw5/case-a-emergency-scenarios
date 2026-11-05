@@ -10,6 +10,7 @@ export type CreatePositionReportInput = {
   station: string;
   scenarioId: string;
   activationId: number;
+  event?: QueuedPositionReport["event"];
   taskDone?: boolean;
 };
 

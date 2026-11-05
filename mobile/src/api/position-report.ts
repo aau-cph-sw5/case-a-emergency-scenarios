@@ -33,6 +33,7 @@ export async function deliverPositionReport( //sends a position report to the se
         staff: "",
         station: report.station,
         reportedAt: report.reportedAt,
+        ...(report.event !== undefined ? { event: report.event } : {}),
         ...(report.taskDone !== undefined ? { taskDone: report.taskDone } : {}),
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), //abort the request if it takes longer than the specified timeout

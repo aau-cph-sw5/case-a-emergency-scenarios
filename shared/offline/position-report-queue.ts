@@ -2,6 +2,9 @@ import type { SnapshotStorage } from "./scenario-snapshot";
 
 export const POSITION_REPORT_QUEUE_KEY = "metro-pending-position-reports"; //stores the reports that have been queued for delivery to the server
 
+export type PositionReportEvent =
+  "EN_ROUTE" | "ARRIVED" | "CANCELLED" | "CHECKED_OUT";
+
 export type QueuedPositionReport = {
   id: string; //stable id for duplicate detection
   userId: string; //what steward
@@ -9,6 +12,7 @@ export type QueuedPositionReport = {
   reportedAt: string;
   scenarioId: string; //scenario the report wwas created against
   activationId: number; //specific activation the steward was participating in
+  event?: PositionReportEvent;
   taskDone?: boolean;
 };
 
@@ -32,7 +36,13 @@ function isQueuedReport(value: unknown): value is QueuedPositionReport {
     typeof report.activationId === "number" &&
     Number.isInteger(report.activationId) &&
     report.activationId > 0 &&
-    (report.taskDone === undefined || typeof report.taskDone === "boolean")
+    (report.taskDone === undefined || typeof report.taskDone === "boolean") &&
+    (report.event === undefined ||
+      report.event === "EN_ROUTE" ||
+      report.event === "ARRIVED" ||
+      report.event === "CANCELLED" ||
+      report.event === "CHECKED_OUT") &&
+    (report.event === undefined || report.taskDone === undefined)
   );
 }
 
