@@ -52,7 +52,7 @@ interface Route {
   shafts?: string;
 }
 function stopCode(stop: Route): string | undefined {
-  return (stop.station ?? stop.shafts)?.normalize("NFC");
+  return stop.station ?? stop.shafts;
 }
 interface StationRequirement {
   station: string;
@@ -85,7 +85,7 @@ export function validate(
 ): string[] {
   const errors: string[] = [];
   const checkStation = (code: string, where: string) => {
-    if (!allowedStations.has(code.normalize("NFC"))) {
+    if (!allowedStations.has(code)) {
       errors.push(`${where}: unknown station "${code}".`);
     }
   };
@@ -198,6 +198,11 @@ export function validate(
 }
 
 let stationNames = new Map<string, string>();
+export function parseSeedJson<T>(text: string): T {
+  return JSON.parse(text, (_key, value) =>
+    typeof value === "string" ? value.normalize("NFC") : value,
+  ) as T;
+}
 
 function readSeedData() {
   const {
@@ -215,10 +220,10 @@ function readSeedData() {
     console.warn(FETCH_HINT);
   }
   if (!SEED_SCENARIOS_DIR) process.exit(1);
-  const stations: { code: string; name: string }[] = JSON.parse(
+  const stations = parseSeedJson<{ code: string; name: string }[]>(
     readFileSync(join(SEED_DATA_DIR, STATIONS_FILE), "utf8"),
   );
-  const shafts: { code: string; name: string }[] = JSON.parse(
+  const shafts = parseSeedJson<{ code: string; name: string }[]>(
     readFileSync(join(SEED_DATA_DIR, SHAFTS_FILE), "utf8"),
   );
   const stationList = [...stations, ...shafts];
@@ -229,7 +234,7 @@ function readSeedData() {
   const scenarios: Scenario[] = [];
 
   for (const fileName of seedFiles) {
-    const scenario: Scenario = JSON.parse(
+    const scenario = parseSeedJson<Scenario>(
       readFileSync(join(SEED_SCENARIOS_DIR, fileName), "utf8"),
     );
     allErrors.push(
@@ -463,6 +468,8 @@ async function main() {
     user: "metro",
     password: process.env.POSTGRES_PASSWORD,
     database: "metro",
+    connectionTimeoutMillis: 10_000,
+    lock_timeout: 10_000,
   });
   const { scenarios, stationList } = readSeedData();
   await client.connect();
