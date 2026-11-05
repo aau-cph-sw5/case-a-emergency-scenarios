@@ -48,7 +48,11 @@ interface Pattern {
 }
 interface Route {
   sequence: number;
-  station: string;
+  station?: string;
+  shafts?: string;
+}
+function stopCode(stop: Route): string | undefined {
+  return stop.station ?? stop.shafts;
 }
 interface StationRequirement {
   station: string;
@@ -77,6 +81,7 @@ export function validate(
   scenario: Scenario,
   fileName: string,
   allowedStations: Set<string>,
+  shaftCodes: Set<string>,
 ): string[] {
   const errors: string[] = [];
   const checkStation = (code: string, where: string) => {
@@ -146,7 +151,19 @@ export function validate(
         }
       }
       pattern.route.forEach((stop, stopIndex) => {
-        checkStation(stop.station, `${where}.route[${stopIndex}]`);
+        const stopWhere = `${where}.route[${stopIndex}]`;
+        if ((stop.station === undefined) === (stop.shafts === undefined)) {
+          errors.push(
+            `${stopWhere}: must have either a station or a shaft, but not both. Got ${JSON.stringify(stop)}`,
+          );
+          return;
+        }
+        const code = stopCode(stop)!;
+        if (stop.shafts !== undefined && !shaftCodes.has(code)) {
+          errors.push(`${stopWhere}: unknown shaft code "${code}".`);
+        } else {
+          checkStation(code, stopWhere);
+        }
       });
     });
   });
@@ -181,6 +198,11 @@ export function validate(
 }
 
 let stationNames = new Map<string, string>();
+export function parseSeedJson<T>(text: string): T {
+  return JSON.parse(text, (_key, value) =>
+    typeof value === "string" ? value.normalize("NFC") : value,
+  ) as T;
+}
 
 function readSeedData() {
   const {
@@ -198,23 +220,26 @@ function readSeedData() {
     console.warn(FETCH_HINT);
   }
   if (!SEED_SCENARIOS_DIR) process.exit(1);
-  const stations: { code: string; name: string }[] = JSON.parse(
+  const stations = parseSeedJson<{ code: string; name: string }[]>(
     readFileSync(join(SEED_DATA_DIR, STATIONS_FILE), "utf8"),
   );
-  const shafts: { code: string; name: string }[] = JSON.parse(
+  const shafts = parseSeedJson<{ code: string; name: string }[]>(
     readFileSync(join(SEED_DATA_DIR, SHAFTS_FILE), "utf8"),
   );
   const stationList = [...stations, ...shafts];
   const allowedStations = new Set(stationList.map((s) => s.code));
+  const shaftCodes = new Set(shafts.map((s) => s.code));
   const allErrors: string[] = [];
   const seenIds = new Map<string, string>();
   const scenarios: Scenario[] = [];
 
   for (const fileName of seedFiles) {
-    const scenario: Scenario = JSON.parse(
+    const scenario = parseSeedJson<Scenario>(
       readFileSync(join(SEED_SCENARIOS_DIR, fileName), "utf8"),
     );
-    allErrors.push(...validate(scenario, fileName, allowedStations));
+    allErrors.push(
+      ...validate(scenario, fileName, allowedStations, shaftCodes),
+    );
     scenarios.push(scenario);
 
     const firstFile = seenIds.get(scenario.scenarioId);
@@ -355,7 +380,11 @@ async function loadScenario(
       for (const stop of pattern.route) {
         await client.query(
           `INSERT INTO line_stops (operating_pattern_id, station_id, sequence) VALUES ($1, $2, $3)`,
-          [patternId, await getStationId(client, stop.station), stop.sequence],
+          [
+            patternId,
+            await getStationId(client, stopCode(stop)!),
+            stop.sequence,
+          ],
         );
       }
     }
@@ -439,6 +468,8 @@ async function main() {
     user: "metro",
     password: process.env.POSTGRES_PASSWORD,
     database: "metro",
+    connectionTimeoutMillis: 10_000,
+    lock_timeout: 10_000,
   });
   const { scenarios, stationList } = readSeedData();
   await client.connect();
