@@ -33,6 +33,7 @@ export async function getAllScenarios(): Promise<ScenarioList> {
 // Find the current version of a scenario based on it's id.
 export async function findScenario(
   scenarioId: string,
+  versionId?: number,
 ): Promise<Scenario | undefined> {
   const sql = getDatabase();
 
@@ -40,7 +41,8 @@ export async function findScenario(
     SELECT s.scenario_id, s.name, s.line_group, v.id AS version_id, v.version, v.revision,
            p.name AS plan_name
     FROM scenarios s
-    JOIN scenario_versions v ON v.id = s.current_version_id
+    JOIN scenario_versions v ON v.scenario_id = s.scenario_id
+      AND v.id = COALESCE(${versionId ?? null}::integer, s.current_version_id)
     JOIN operating_plans p ON p.scenario_version_id = v.id
     WHERE s.scenario_id = ${scenarioId}
   `;

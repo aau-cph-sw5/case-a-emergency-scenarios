@@ -156,8 +156,8 @@ version.
 
 | Type | Version | Subject | Payload | Written by |
 |---|---|---|---|---|
-| `SCENARIO_ACTIVATED` | 1 | `activation` | `scenarioId` | `activateAndLog` and `switchAndLog` in `src/services/activation-service.ts`. The activation is in memory, so it is undone if this write fails |
-| `SCENARIO_STOOD_DOWN` | 1 | `activation` | `scenarioId` | `standDownAndLog` and `switchAndLog` in `src/services/activation-service.ts`. In a switch it is written in the same transaction as the new `SCENARIO_ACTIVATED`, right before it. The stand-down is in memory, so it is undone if this write fails |
+| `SCENARIO_ACTIVATED` | 1 | `activation` | `scenarioId` | `activateAndLog` and `switchAndLog` in `src/services/activation-service.ts`. The activation and event are written in the same transaction |
+| `SCENARIO_STOOD_DOWN` | 1 | `activation` | `scenarioId` | `standDownAndLog` and `switchAndLog` in `src/services/activation-service.ts`. The stand-down and its event are written in the same transaction. A switch also writes the new activation and its event in that transaction |
 | `POSITION_REPORTED` | 1 | `position-report` | `stationId` | `savePositionReport` in `src/services/position-report-service.ts`, the worked example of `appendEvent` inside a transaction |
 | `POSITION_REPORTED` | 2 | `position-report` | `stationId`, `taskDone` (true when the steward finished the task, MET-A-015) | `savePositionReport` in `src/services/position-report-service.ts` |
 

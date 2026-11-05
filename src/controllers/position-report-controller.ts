@@ -5,10 +5,7 @@ import {
   errorBody,
   type ErrorCode,
 } from "../../shared/error-codes.js";
-import {
-  activeStations,
-  listActivations,
-} from "../repositories/fixture-repository.js";
+import { listActivations } from "../repositories/activation-repository.js";
 import type { AuthUser } from "../services/auth-service.js";
 import { recordPositionReport } from "../services/position-report-service.js";
 
@@ -28,8 +25,6 @@ Reported in the postionreport is not part of the active scenario */
 export async function postPositionReport(request: Request, response: Response) {
   const { userId, role } = response.locals.user as AuthUser;
   const { station } = request.body;
-  const stations = activeStations();
-  const activation = listActivations("ACTIVE")[0];
 
   if (role !== "STEWARD") {
     return refuse(
@@ -39,6 +34,10 @@ export async function postPositionReport(request: Request, response: Response) {
       `role ${role}`,
     );
   }
+  const [activation] = await listActivations("ACTIVE");
+  const stations = new Set(
+    activation?.deployments.map((item) => item.fulfills),
+  );
   if (activation === undefined || stations.size === 0) {
     return refuse(response, 409, ERROR_CODES.NO_ACTIVE_SCENARIO, station);
   }

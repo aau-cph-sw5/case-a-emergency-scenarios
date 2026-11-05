@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 7.0.0 - 2026-11-04
+
+- Active and closed activations are stored in the database and survive server restarts. Activation, stand-down, and switch events commit with their activation changes.
+- Breaking: `activationId` and the switch request's `replaces` field are now positive integers corresponding to `incident_activations.id`. Clients must use numbers rather than strings.
+- Existing in-memory activations are not migrated during deployment.
+- `GET /api/v1/scenarios/{scenarioId}?activationId=...` returns the version captured by the active activation. It returns 404 if the activation is no longer active or belongs to another scenario; without the parameter it returns the scenario's current version.
+- `info.version` in `openapi.yaml` is now 7.0.0.
+
 ## 6.5.0 - 2026-11-04
 
 Additive. Stewards are told when a scenario is stood down (MET-A-009, #278).
