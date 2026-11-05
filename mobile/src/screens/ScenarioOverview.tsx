@@ -38,11 +38,14 @@ type StationRequirement = NonNullable<
 export function ScenarioOverview({
   snapshot,
   onAssign,
+  assignedStation,
 }: {
   snapshot: ScenarioSnapshot;
   // Offers + on each station, to report on the way there (MET-A-015, #263).
   // Left out when the steward cannot choose a station right now.
   onAssign?: (station: string) => void;
+  // The station the steward has reported, which gets no + of its own.
+  assignedStation?: string;
 }) {
   const { scenario, state, userId } = snapshot;
   const mapColors = {
@@ -166,7 +169,7 @@ export function ScenarioOverview({
               {getStationState(state, row.station, row.minimumStaffing).current}{" "}
               / {row.minimumStaffing}
             </Text>
-            {onAssign && (
+            {onAssign && row.station !== assignedStation && (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Meld dig på vej til ${row.station}`}

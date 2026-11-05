@@ -44,6 +44,7 @@ describe("StewardStatusControl", () => {
     expect(screen.getByText("DU ER PÅ VEJ")).toBeTruthy();
     expect(screen.getByText("Station B")).toBeTruthy();
     expect(screen.getByText("1 af 2 ankommet · 1 på vej")).toBeTruthy();
+    expect(screen.getByText(/Forkert station\?/)).toBeTruthy();
     confirmSlide();
     expect(onArrive).toHaveBeenCalledTimes(1);
   });
