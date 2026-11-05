@@ -53,6 +53,11 @@ export const stewardStatus: Partial<
 > = {
   PENDING: { label: "På vej", color: colors.statusYellowText },
   MANNED: { label: "Ankommet", symbol: "✓", color: colors.statusGreen },
+  TASK_DONE: {
+    label: "Opgave udført",
+    symbol: "✓✓",
+    color: colors.statusGreen,
+  },
 };
 
 export const lineColors = [
