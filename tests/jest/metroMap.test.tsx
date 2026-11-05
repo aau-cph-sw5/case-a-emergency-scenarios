@@ -5,7 +5,7 @@ import {
   waitFor,
 } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
-import Svg, { Circle, Line } from "react-native-svg";
+import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
 import { colors, lineColors } from "../../shared/Theme";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
@@ -35,6 +35,7 @@ const scenario: Scenario = {
 function withScenario(
   scenarioId: string | null,
   loadScenario: () => Promise<Scenario>,
+  preview?: Scenario | null,
 ) {
   const value = {
     live: {
@@ -51,7 +52,7 @@ function withScenario(
   };
   return (
     <LiveDataContext value={value}>
-      <MetroMap scenarioId={scenarioId} />
+      <MetroMap scenarioId={scenarioId} scenario={preview} />
     </LiveDataContext>
   );
 }
@@ -87,7 +88,7 @@ describe("MetroMap", () => {
     await waitFor(() => expect(shownLines()).toEqual(["M1"]));
     expect(markedDots().length).toBeGreaterThan(0);
     // The view zooms to the covered stretch ISB–UNI, not all of M1.
-    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"]));
+    expect(viewBox()).toBe("520 293 320 375");
   });
 
   it("keeps a required station on another line inside the view", async () => {
@@ -108,7 +109,7 @@ describe("MetroMap", () => {
     render(withScenario("TEST-MAP", async () => offLine));
 
     await waitFor(() => expect(shownLines()).toEqual(["M1"]));
-    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI", "CPH"]));
+    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI", "CPH"], 160));
   });
 
   it("draws the blocked track dashed and the required station orange", async () => {
@@ -123,6 +124,27 @@ describe("MetroMap", () => {
     expect(blocked[0].props.stroke).toBe(colors.blockedTrack);
     expect(markedDots().length).toBeGreaterThan(0);
     expect(markedDots()[0].props.stroke).toBe(colors.text);
+    expect(
+      screen
+        .UNSAFE_queryAllByType(SvgText)
+        .some((label) => label.props.children === 2),
+    ).toBe(true);
+  });
+
+  it("uses the preview's current requirements without fetching another result", () => {
+    const loadScenario = jest.fn<() => Promise<Scenario>>();
+    const view = render(
+      withScenario(scenario.scenarioId, loadScenario, scenario),
+    );
+    const counts = () =>
+      screen
+        .UNSAFE_queryAllByType(SvgText)
+        .map((label) => label.props.children);
+    expect(counts()).toContain(2);
+    expect(loadScenario).not.toHaveBeenCalled();
+    view.rerender(withScenario(scenario.scenarioId, loadScenario, null));
+    expect(markedDots()).toHaveLength(0);
+    expect(counts()).not.toContain(2);
   });
 
   it("zooms out to the full map and back, keeping the marked station", async () => {
@@ -137,7 +159,7 @@ describe("MetroMap", () => {
 
     fireEvent.press(screen.getByText("Zoom ind"));
     expect(shownLines()).toEqual(["M1"]);
-    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"]));
+    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"], 160));
   });
 
   it("shows another line only when its button is toggled on", async () => {
@@ -171,7 +193,7 @@ describe("MetroMap", () => {
     );
 
     await waitFor(() => expect(shownLines()).toEqual(["M1"]));
-    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"]));
+    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"], 160));
   });
 
   it("shows every line when the scenario cannot be loaded", async () => {

@@ -1,7 +1,10 @@
 import type { Server, Socket } from "socket.io";
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { verifyToken, type AuthUser } from "../services/auth-service.js";
-import { latestActivation } from "../repositories/fixture-repository.js";
+import {
+  findActiveScenarioVersion,
+  listActivations,
+} from "../repositories/activation-repository.js";
 
 import { findScenario } from "../repositories/scenario-repository.js";
 
@@ -87,10 +90,17 @@ export function attachSocketHandlers(io: Server) {
         socket.join(role satisfies RoleRoom);
         console.log("Socket connected:", socket.id, userId, role);
         socket.emit("welcome", "Connected to the emergency scenarios server.");
-        const latest = latestActivation();
+        const [latest] = await listActivations("ACTIVE");
         if (role === "STEWARD" && latest) {
           try {
-            const scenario = await findScenario(latest.scenarioId);
+            const versionId = await findActiveScenarioVersion(
+              latest.activationId,
+              latest.scenarioId,
+            );
+            const scenario =
+              versionId === undefined
+                ? undefined
+                : await findScenario(latest.scenarioId, versionId);
             if (scenario && socket.connected) {
               socket.emit("scenario-activated", {
                 scenario,

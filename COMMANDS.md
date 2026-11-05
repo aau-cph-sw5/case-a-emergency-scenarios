@@ -308,7 +308,7 @@ Use `npm run db:test:down` afterwards if you want to stop its container.
 
 Tests live in `tests/unit/`, `tests/jest/` and `tests/integration/`. GitHub Actions runs them as
 separate **Unit tests** **Jest tests** and  **Integration tests** checks, against a throwaway
-database, and reports coverage as a third check, **Backend coverage**. See
+database, and reports coverage in a separate **Backend coverage** check. See
 `docs/reference/automation.md`.
 
 ## Generate:

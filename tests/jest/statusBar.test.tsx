@@ -14,7 +14,7 @@ const requirements = [
 
 function createState(overrides: Partial<ScenarioState> = {}): ScenarioState {
   return {
-    activationId: "ACT-TEST-001",
+    activationId: 1,
     scenarioId: "TEST-001",
     startedAt: "2026-10-22T10:00:00Z",
     endedAt: null,
