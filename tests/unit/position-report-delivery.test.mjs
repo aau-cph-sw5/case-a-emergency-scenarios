@@ -261,3 +261,49 @@ test("different users can flush their own queues independently", async () => {
   assert.deepEqual(await queue.getPending("steward-1"), []);
   assert.deepEqual(await queue.getPending("steward-2"), []);
 });
+test("replays offline steward events in order with original timestamps", async () => {
+  const storage = memoryStorage();
+
+  const reports = [
+    {
+      ...aReport("assign"),
+      event: "EN_ROUTE",
+      reportedAt: "2026-11-05T12:01:00Z",
+    },
+    {
+      ...aReport("arrive"),
+      event: "ARRIVED",
+      reportedAt: "2026-11-05T12:04:00Z",
+    },
+    {
+      ...aReport("checkout"),
+      event: "CHECKED_OUT",
+      reportedAt: "2026-11-05T12:15:00Z",
+    },
+  ];
+
+  const offlineQueue = createPositionReportQueueStore(storage);
+
+  for (const report of reports) {
+    await offlineQueue.enqueue(report);
+  }
+
+  // Simulate an application restart using the same persistent storage.
+  const restoredQueue = createPositionReportQueueStore(storage);
+  const delivered = [];
+
+  const delivery = createPositionReportDelivery(
+    restoredQueue,
+    async (_token, report) => {
+      delivered.push(report);
+      return { status: "accepted" };
+    },
+  );
+
+  const result = await delivery.flush("steward-1", "test-token");
+
+  assert.deepEqual(delivered, reports);
+  assert.equal(result.acknowledged, 3);
+  assert.equal(result.pending, 0);
+  assert.deepEqual(await restoredQueue.getPending("steward-1"), []);
+});
