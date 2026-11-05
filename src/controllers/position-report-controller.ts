@@ -7,7 +7,10 @@ import {
 } from "../../shared/error-codes.js";
 import { listActivations } from "../repositories/activation-repository.js";
 import type { AuthUser } from "../services/auth-service.js";
-import { recordPositionReport } from "../services/position-report-service.js";
+import {
+  checkPositionReportReplay,
+  recordPositionReport,
+} from "../services/position-report-service.js";
 
 // The response carries the code's fixed message; the details go to the log.
 function refuse(
@@ -34,6 +37,25 @@ export async function postPositionReport(request: Request, response: Response) {
       `role ${role}`,
     );
   }
+  const clientTime = new Date(request.body.reportedAt);
+  const replay = await checkPositionReportReplay(
+    response.locals.user,
+    request.body,
+    clientTime,
+  );
+
+  if (replay === "repeat") {
+    return response.status(202).json({ accepted: true });
+  }
+
+  if (replay === "conflict") {
+    return refuse(
+      response,
+      409,
+      ERROR_CODES.CONFLICT,
+      "Client report ID reused for a different action",
+    );
+  }
   const [activation] = await listActivations("ACTIVE");
   const stations = new Set(
     activation?.deployments.map((item) => item.fulfills),
@@ -49,8 +71,6 @@ export async function postPositionReport(request: Request, response: Response) {
   // a phone with a wrong clock cannot reorder reports. Store the report and its
   // event first, so the operators are never told about a report that was lost.
   const now = new Date().toISOString();
-  // The phone's own time, for the event log, before reportedAt is replaced.
-  const clientTime = new Date(request.body.reportedAt);
   const report = { ...request.body, staff: userId, reportedAt: now };
   const result = await recordPositionReport(
     response.locals.user,
@@ -58,6 +78,14 @@ export async function postPositionReport(request: Request, response: Response) {
     clientTime,
     activation.startedAt,
   );
+  if (result.kind === "conflict") {
+    return refuse(
+      response,
+      409,
+      ERROR_CODES.CONFLICT,
+      "Client report ID reused for a different action",
+    );
+  }
   if (result.kind === "invalid") {
     return refuse(
       response,

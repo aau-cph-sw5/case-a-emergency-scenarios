@@ -4,6 +4,11 @@
   "type": "object",
   "required": ["staff", "station", "reportedAt"],
   "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Optional client-generated UUID identifying a position report. Used to recognise offline retries and prevent duplicate processing."
+    },
     "staff": {
       "type": "string"
     },
