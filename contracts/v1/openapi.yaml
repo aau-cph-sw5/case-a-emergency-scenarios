@@ -147,7 +147,12 @@ paths:
         CANCELLED are only allowed after EN_ROUTE, and CHECKED_OUT only
         after ARRIVED or taskDone, all at the station of the steward's
         latest report (E1006 otherwise). event and taskDone cannot be sent
-        together (E0006).
+        together (E0006). EN_ROUTE at the station of the latest report, while
+        on the way or arrived there, is a harmless repeat, so a report
+        without event never moves an arrived steward back to on the way.
+        EN_ROUTE to another station ends the old one: freed if the steward
+        was on the way there, CHECKED_OUT if they had arrived or finished
+        the task there.
       security:
         - bearerAuth: []
       requestBody:
