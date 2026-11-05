@@ -1,0 +1,60 @@
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import { sendPositionReport } from "../../mobile/src/api/position-report";
+import { ERROR_CODES } from "../../shared/error-codes";
+
+function respond(status: number, body?: unknown) {
+  return jest.spyOn(global, "fetch").mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => {
+      if (body === undefined) throw new SyntaxError("no body");
+      return body;
+    },
+  } as Response);
+}
+
+afterEach(() => jest.restoreAllMocks());
+
+describe("sendPositionReport (MET-A-013)", () => {
+  it("posts the station with the token and confirms an accepted report", async () => {
+    const fetchMock = respond(201, {});
+
+    const result = await sendPositionReport("token-1", "Station B");
+
+    expect(result).toEqual({ ok: true, message: "Position sendt: Station B" });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/api\/v1\/position-reports$/);
+    expect(init.method).toBe("POST");
+    expect(init.headers).toMatchObject({ Authorization: "Bearer token-1" });
+    expect(JSON.parse(init.body as string)).toMatchObject({
+      station: "Station B",
+    });
+  });
+
+  it("shows a refusal in Danish from the error code", async () => {
+    respond(422, { error: { code: ERROR_CODES.STATION_NOT_IN_SCENARIO } });
+
+    expect(await sendPositionReport("token", "Station X")).toEqual({
+      ok: false,
+      message: "Stationen er ikke en del af det aktive scenarie.",
+    });
+  });
+
+  it("falls back to a general message for an unknown code or no body", async () => {
+    respond(500);
+
+    expect(await sendPositionReport("token", "Station B")).toEqual({
+      ok: false,
+      message: "Positionen blev ikke modtaget.",
+    });
+  });
+
+  it("says there is no connection when the request fails", async () => {
+    jest.spyOn(global, "fetch").mockRejectedValue(new TypeError("offline"));
+
+    expect(await sendPositionReport("token", "Station B")).toEqual({
+      ok: false,
+      message: "Ingen forbindelse til serveren.",
+    });
+  });
+});
