@@ -1,5 +1,16 @@
 # Scenario State Contract Changelog
 
+## 6.6.0 - 2026-11-05
+
+Additive. The steward can arrive, cancel and check out (MET-A-015, #263). Agreed with the integration team.
+
+- A position report can carry `event`: `EN_ROUTE`, `ARRIVED`, `CANCELLED` or `CHECKED_OUT`. Left out, it is `EN_ROUTE`, so a report without it means on the way, as before.
+- `ARRIVED` and `CANCELLED` are only allowed after `EN_ROUTE`, and `CHECKED_OUT` only after `ARRIVED` or `taskDone`, all at the station of the steward's latest report in the activation. Anything else gets 409 `E1006`. Sending the same event again is a harmless repeat.
+- `CANCELLED` frees the station: its deployment goes back to `UNMANNED` with `staff` null.
+- `event` and `taskDone` cannot be sent together (400 `E0006`).
+- `deployments[].status` can be `CHECKED_OUT`. Clients must handle the new value. The server does not act on `event` yet.
+- `info.version` in `openapi.yaml` is now 6.6.0.
+
 ## 6.5.0 - 2026-11-04
 
 Additive. Stewards are told when a scenario is stood down (MET-A-009, #278).

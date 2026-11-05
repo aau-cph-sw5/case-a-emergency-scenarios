@@ -13,5 +13,9 @@ export interface PositionReport {
    * True when the steward has finished the task at the station (MET-A-015). Only allowed at the station of the steward's latest report.
    */
   taskDone?: boolean;
+  /**
+   * What the report says about the steward at the station (MET-A-015). EN_ROUTE: on the way, the default when left out. ARRIVED: arrived, only after EN_ROUTE at the same station. CANCELLED: no longer on the way, only after EN_ROUTE at the same station; the station is free again. CHECKED_OUT: left the station after arriving, only after ARRIVED or taskDone at the same station. The station must be the one in the steward's latest report for every event except EN_ROUTE. Anything else is rejected with E1006. Sending the same event again is a harmless repeat. Cannot be sent together with taskDone.
+   */
+  event?: "EN_ROUTE" | "ARRIVED" | "CANCELLED" | "CHECKED_OUT";
   [k: string]: unknown;
 }

@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 6.5.0
+  version: 6.6.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -140,6 +140,14 @@ paths:
         done (MET-A-015). That is only allowed at the station of the
         steward's latest report (E1006 otherwise), and sending it again is
         a harmless repeat.
+        The optional event says what the report means (MET-A-015):
+        EN_ROUTE (the default) is on the way, ARRIVED is arrived,
+        CANCELLED withdraws being on the way and frees the station, and
+        CHECKED_OUT is leaving the station after arriving. ARRIVED and
+        CANCELLED are only allowed after EN_ROUTE, and CHECKED_OUT only
+        after ARRIVED or taskDone, all at the station of the steward's
+        latest report (E1006 otherwise). event and taskDone cannot be sent
+        together (E0006).
       security:
         - bearerAuth: []
       requestBody:
@@ -152,6 +160,7 @@ paths:
               staff: "steward-002"
               station: "Station B"
               reportedAt: "2026-09-23T08:10:00Z"
+              event: "EN_ROUTE"
 
       responses:
         "202":
@@ -200,8 +209,9 @@ paths:
         "409":
           description: >
             No scenario is active (E1001), the station does not require
-            manning in an active scenario (E1004), or task done is reported
-            at another station than the steward's latest report (E1006).
+            manning in an active scenario (E1004), or task done or an event
+            other than EN_ROUTE is not allowed from the steward's current
+            status at the station (E1006).
           content:
             application/json:
               schema:
