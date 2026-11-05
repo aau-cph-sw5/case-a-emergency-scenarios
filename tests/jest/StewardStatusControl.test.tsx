@@ -24,10 +24,15 @@ function renderControl(
   return { onArrive, onCheckOut };
 }
 
-function confirmSlide() {
-  fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
-    nativeEvent: { actionName: "activate" },
-  });
+// 0 is the first slide shown: arrival when on the way, else check out.
+function confirmSlide(index = 0) {
+  fireEvent(
+    screen.getAllByTestId("slide-to-confirm")[index],
+    "accessibilityAction",
+    {
+      nativeEvent: { actionName: "activate" },
+    },
+  );
 }
 
 describe("StewardStatusControl", () => {
@@ -38,8 +43,8 @@ describe("StewardStatusControl", () => {
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
   });
 
-  it("shows on the way with the station and offers only the arrival slide", () => {
-    const { onArrive } = renderControl({
+  it("shows on the way with the station and offers arrival and check out", () => {
+    const { onArrive, onCheckOut } = renderControl({
       own: { station: "Station B", status: "PENDING" },
       coverage,
     });
@@ -48,6 +53,8 @@ describe("StewardStatusControl", () => {
     expect(screen.getByText("1 af 2 ankommet · 1 på vej")).toBeTruthy();
     confirmSlide();
     expect(onArrive).toHaveBeenCalledTimes(1);
+    confirmSlide(1);
+    expect(onCheckOut).toHaveBeenCalledTimes(1);
   });
 
   it("shows arrived and offers the check out slide", () => {

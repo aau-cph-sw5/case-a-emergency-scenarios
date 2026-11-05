@@ -130,10 +130,6 @@ test("assign, check in, check out, then assign to a new station", async () => {
   assert.equal(own(assigned.body)?.status, "PENDING");
   assert.ok(own(assigned.body)?.reportedAt);
 
-  const enRoute = await checkOut();
-  assert.equal(enRoute.status, 409, "check out is on site only");
-  assert.equal(enRoute.body.error.code, "E1006");
-
   const again = await assign(second);
   assert.equal(again.status, 409, "assign before check out");
   assert.equal(again.body.error.code, "E1006");
@@ -179,6 +175,18 @@ test("assign, check in, check out, then assign to a new station", async () => {
     ],
   );
   assert.ok(events.every((e) => e.serverTime instanceof Date));
+});
+
+test("check out on the way clears the status, so the steward can switch", async () => {
+  const checkedOut = await checkOut();
+  assert.equal(checkedOut.status, 200);
+  assert.equal(own(checkedOut.body), undefined);
+  const [last] = (await statusEvents()).slice(-1);
+  assert.deepEqual(
+    [last.payload.fromStatus, last.payload.toStatus],
+    ["PENDING", "UNMANNED"],
+  );
+  assert.equal((await assign("Station Extra")).status, 200);
 });
 
 test("a failed event write takes the status change back", async () => {

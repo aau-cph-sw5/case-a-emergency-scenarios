@@ -15,7 +15,7 @@ export interface ScenarioState {
   sequence: number;
   deployments: {
     /**
-     * UNMANNED: no steward. PENDING: a steward has assigned themselves to the station and is on the way. MANNED: the steward has checked in at the station. The server creates every deployment as UNMANNED. Only the steward changes it, and no position report is needed: assign (POST /api/v1/steward-status/assign) moves an UNMANNED deployment to PENDING, check in (POST /api/v1/steward-status/check-in) moves the steward's PENDING deployment to MANNED, and check out (POST /api/v1/steward-status/check-out) moves the steward's MANNED deployment back to UNMANNED with staff, reportedAt and arrivedAt null, so the steward has no status and can assign again. A steward holds at most one deployment per activation. Any other change is rejected with E1006.
+     * UNMANNED: no steward. PENDING: a steward has assigned themselves to the station and is on the way. MANNED: the steward has checked in at the station. The server creates every deployment as UNMANNED. Only the steward changes it, and no position report is needed: assign (POST /api/v1/steward-status/assign) moves an UNMANNED deployment to PENDING, check in (POST /api/v1/steward-status/check-in) moves the steward's PENDING deployment to MANNED, and check out (POST /api/v1/steward-status/check-out) moves the steward's PENDING or MANNED deployment back to UNMANNED with staff, reportedAt and arrivedAt null, so the steward has no status and can assign again. A steward holds at most one deployment per activation. Any other change is rejected with E1006.
      */
     status: "UNMANNED" | "PENDING" | "MANNED";
     /**

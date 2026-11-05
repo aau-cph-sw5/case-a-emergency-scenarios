@@ -50,8 +50,12 @@ function findTarget(
       reason: "Assign to a station before checking in",
     };
   }
-  if (action === "check-out" && own?.status !== "MANNED") {
-    return { kind: "invalid", reason: "Check in before checking out" };
+  // Check out works on the way too, so a steward can switch station.
+  if (action === "check-out" && own === undefined) {
+    return {
+      kind: "invalid",
+      reason: "Assign to a station before checking out",
+    };
   }
   return { kind: "found", deployment: own! };
 }

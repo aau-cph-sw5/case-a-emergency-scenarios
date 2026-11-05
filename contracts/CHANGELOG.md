@@ -6,8 +6,8 @@ Breaking. Steward status is assign, check in and check out (MET-A-015, #265). Re
 
 - New `POST /api/v1/steward-status/assign` with `assign-request.schema.json` (`station`): an `UNMANNED` deployment for the station becomes `PENDING` (on the way), with `staff` and `reportedAt`.
 - New `POST /api/v1/steward-status/check-in`: the steward's `PENDING` deployment becomes `MANNED`, with `arrivedAt`.
-- New `POST /api/v1/steward-status/check-out`: the steward's `MANNED` deployment becomes `UNMANNED` again with `staff`, `reportedAt` and `arrivedAt` null. The steward then has no status and can assign to a new station.
-- All three need the STEWARD role and no position report, answer 200 with the active activation, and answer 409 `E1006` for any other change (check in without assign, assign before check out, check out without check in). Assign also answers `E1004` for a station outside the scenario. Each change is written to the incident log and sends `activations-changed` to operators.
+- New `POST /api/v1/steward-status/check-out`: the steward's `PENDING` or `MANNED` deployment becomes `UNMANNED` again with `staff`, `reportedAt` and `arrivedAt` null. The steward then has no status and can assign to a new station.
+- All three need the STEWARD role and no position report, answer 200 with the active activation, and answer 409 `E1006` for any other change (check in without assign, assign before check out, check out without assign). Assign also answers `E1004` for a station outside the scenario. Each change is written to the incident log and sends `activations-changed` to operators.
 - Removed `taskDone` from position reports and `TASK_DONE` from `deployments[].status`. A position report no longer changes a status.
 - `info.version` in `openapi.yaml` is now 7.0.0.
 

@@ -152,10 +152,11 @@ export function StewardStatusControl({
         />
       )}
 
-      {own?.status === "MANNED" && (
+      {/* On the way too, so a steward can switch to another station. */}
+      {own !== null && (
         <SlideToConfirm
           label="TJEK UD"
-          color={colors.statusGreen}
+          color={colors.active}
           disabled={blockedReason !== null || sending}
           onConfirm={onCheckOut}
         />

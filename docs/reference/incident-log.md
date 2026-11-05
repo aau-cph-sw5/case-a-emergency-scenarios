@@ -161,7 +161,7 @@ version.
 | `POSITION_REPORTED` | 1 | `position-report` | `stationId` | `savePositionReport` in `src/services/position-report-service.ts`, the worked example of `appendEvent` inside a transaction |
 | `POSITION_REPORTED` | 2 | `position-report` | `stationId`, `taskDone` (true when the steward finished the task, MET-A-015) | `savePositionReport` in `src/services/position-report-service.ts` |
 | `POSITION_REPORTED` | 3 | `position-report` | `stationId` (`taskDone` dropped in contract 7.0.0) | `savePositionReport` in `src/services/position-report-service.ts` |
-| `STEWARD_STATUS_CHANGED` | 1 | `station` | `stationId`, `fromStatus`, `toStatus` (`UNMANNED`, `PENDING` or `MANNED`). Assign is `UNMANNED` to `PENDING`, check in `PENDING` to `MANNED`, check out `MANNED` to `UNMANNED` (MET-A-015) | `changeStewardStatus` in `src/services/steward-status-service.ts`. The deployment is in memory, so the change is undone if this write fails |
+| `STEWARD_STATUS_CHANGED` | 1 | `station` | `stationId`, `fromStatus`, `toStatus` (`UNMANNED`, `PENDING` or `MANNED`). Assign is `UNMANNED` to `PENDING`, check in `PENDING` to `MANNED`, check out `PENDING` or `MANNED` to `UNMANNED` (MET-A-015) | `changeStewardStatus` in `src/services/steward-status-service.ts`. The deployment is in memory, so the change is undone if this write fails |
 
 ## Payload rules
 

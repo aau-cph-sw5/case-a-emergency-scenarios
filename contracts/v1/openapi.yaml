@@ -344,7 +344,7 @@ paths:
     post:
       summary: The steward checks out of their station
       description: >
-        Requires a bearer token with the STEWARD role (MET-A-015). Moves the steward's MANNED deployment back to UNMANNED with staff, reportedAt and arrivedAt null. The steward then has no status and can assign to a new station. No body is needed.
+        Requires a bearer token with the STEWARD role (MET-A-015). Moves the steward's PENDING or MANNED deployment back to UNMANNED with staff, reportedAt and arrivedAt null. The steward then has no status and can assign to a new station. No body is needed.
         The change is written to the incident log with the actor, the old
         and new status and the time, and connected operators get the
         activations-changed Socket.IO event.
@@ -379,7 +379,7 @@ paths:
                   message: "The authenticated user's role does not permit this action"
         "409":
           description: >
-            No scenario is active (E1001), or the steward has no MANNED deployment (E1006).
+            No scenario is active (E1001), or the steward has no deployment (E1006).
           content:
             application/json:
               schema:
@@ -390,11 +390,11 @@ paths:
                     error:
                       code: "E1001"
                       message: "No scenario is currently active"
-                notCheckedIn:
+                notAssigned:
                   value:
                     error:
                       code: "E1006"
-                      message: "Check in before checking out"
+                      message: "Assign to a station before checking out"
 
   /api/v1/auth/login:
     post:
