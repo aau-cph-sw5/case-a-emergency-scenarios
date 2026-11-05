@@ -15,6 +15,7 @@ const fixture = (path) =>
 
 const activeState = fixture("scenario-state.json");
 const scenario = fixture("scenarios/DEMO-001.json");
+const scenarioUrl = `/api/v1/scenarios/DEMO-001?activationId=${activeState.activationId}`;
 
 // Answers each URL with its own status and body.
 function mockFetch(routes) {
@@ -54,7 +55,7 @@ test("a checked-out deployment passes the type guard", () => {
 test("loads the state and the scenario when a scenario is active", async () => {
   const { fetchImpl, calls } = mockFetch({
     "/api/v1/scenario-state": [200, activeState],
-    "/api/v1/scenarios/DEMO-001": [200, scenario],
+    [scenarioUrl]: [200, scenario],
   });
 
   const result = await loadActiveScenario(API, "abc", fetchImpl);
@@ -88,6 +89,67 @@ test("fetches nothing more when no scenario is active", async () => {
   assert.equal(calls.length, 1);
 });
 
+test("rechecks the active state when the activation is stood down during a fetch", async () => {
+  let stateReads = 0;
+  const fetchImpl = async (url) => {
+    if (url.endsWith("/api/v1/scenario-state")) {
+      stateReads++;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => (stateReads === 1 ? activeState : null),
+      };
+    }
+    return { ok: false, status: 404 };
+  };
+  assert.deepEqual(await loadActiveScenario(API, "abc", fetchImpl), {
+    active: false,
+  });
+  assert.equal(stateReads, 2);
+});
+
+test("loads the new activation after a switch during a fetch", async () => {
+  let stateReads = 0;
+  const nextState = { ...activeState, activationId: 2, scenarioId: "DEMO-002" };
+  const nextScenario = fixture("scenarios/DEMO-002.json");
+  const fetchImpl = async (url) => {
+    if (url.endsWith("/api/v1/scenario-state")) {
+      stateReads++;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => (stateReads === 1 ? activeState : nextState),
+      };
+    }
+    if (url.includes("activationId=2")) {
+      return { ok: true, status: 200, json: async () => nextScenario };
+    }
+    return { ok: false, status: 404 };
+  };
+  assert.deepEqual(await loadActiveScenario(API, "abc", fetchImpl), {
+    active: true,
+    state: nextState,
+    scenario: nextScenario,
+  });
+  assert.equal(stateReads, 2);
+});
+
+test("stops retrying if the activation-specific scenario is still missing", async () => {
+  let stateReads = 0;
+  const fetchImpl = async (url) => {
+    if (url.endsWith("/api/v1/scenario-state")) {
+      stateReads++;
+      return { ok: true, status: 200, json: async () => activeState };
+    }
+    return { ok: false, status: 404 };
+  };
+  await assert.rejects(
+    loadActiveScenario(API, "abc", fetchImpl),
+    (error) => error instanceof HttpError && error.status === 404,
+  );
+  assert.equal(stateReads, 2);
+});
+
 test("throws with the status when the token is refused", async () => {
   const { fetchImpl } = mockFetch({
     "/api/v1/scenario-state": [401, { error: { code: "E0001" } }],
@@ -104,7 +166,7 @@ test("rejects a scenario whose station requirement is malformed", async () => {
   broken.versions[0].stationRequirements[0].actions = {};
   const { fetchImpl } = mockFetch({
     "/api/v1/scenario-state": [200, activeState],
-    "/api/v1/scenarios/DEMO-001": [200, broken],
+    [scenarioUrl]: [200, broken],
   });
 
   await assert.rejects(
@@ -120,7 +182,7 @@ test("accepts a scenario with passenger information", async () => {
   ];
   const { fetchImpl } = mockFetch({
     "/api/v1/scenario-state": [200, activeState],
-    "/api/v1/scenarios/DEMO-001": [200, withInformation],
+    [scenarioUrl]: [200, withInformation],
   });
 
   const result = await loadActiveScenario(API, "abc", fetchImpl);
@@ -135,7 +197,7 @@ test("rejects a scenario whose passenger information is malformed", async () => 
   ];
   const { fetchImpl } = mockFetch({
     "/api/v1/scenario-state": [200, activeState],
-    "/api/v1/scenarios/DEMO-001": [200, broken],
+    [scenarioUrl]: [200, broken],
   });
 
   await assert.rejects(
@@ -147,10 +209,7 @@ test("rejects a scenario whose passenger information is malformed", async () => 
 test("rejects a scenario whose id does not match the active one", async () => {
   const { fetchImpl } = mockFetch({
     "/api/v1/scenario-state": [200, activeState],
-    "/api/v1/scenarios/DEMO-001": [
-      200,
-      { ...scenario, scenarioId: "DEMO-002" },
-    ],
+    [scenarioUrl]: [200, { ...scenario, scenarioId: "DEMO-002" }],
   });
 
   await assert.rejects(
@@ -163,7 +222,7 @@ test("rejects a scenario whose id does not match the active one", async () => {
 test("rejects a scenario without its current version", async () => {
   const { fetchImpl } = mockFetch({
     "/api/v1/scenario-state": [200, activeState],
-    "/api/v1/scenarios/DEMO-001": [200, { ...scenario, currentVersion: "99" }],
+    [scenarioUrl]: [200, { ...scenario, currentVersion: "99" }],
   });
 
   await assert.rejects(

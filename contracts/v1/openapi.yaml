@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 6.6.0
+  version: 7.1.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -73,6 +73,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: activationId
+          in: query
+          required: false
+          description: Return the version captured by this active activation; answers 404 if it is not active or belongs to another scenario.
+          schema:
+            type: integer
+            minimum: 1
       security:
         - bearerAuth: []
       responses:
@@ -411,7 +418,7 @@ paths:
             schema:
               $ref: "./activate-request.schema.json"
             example:
-              replaces: "ACT-DEMO-001-1"
+              replaces: 1
       responses:
         "201":
           description: Activation successful
@@ -467,7 +474,7 @@ paths:
                   value:
                     error:
                       code: "E0007"
-                      message: "'ACT-DEMO-001-1' is not the active activation"
+                      message: "'1' is not the active activation"
 
   /api/v1/activations/{activationId}/stand-down:
     post:
@@ -483,7 +490,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
+            minimum: 1
       responses:
         "200":
           description: Stood down. The closed activation.
@@ -520,7 +528,7 @@ paths:
               example:
                 error:
                   code: "E0004"
-                  message: "No activation with id 'ACT-S1-1' exists"
+                  message: "No activation with id '1' exists"
         "409":
           description: The activation is already stood down.
           content:
@@ -530,7 +538,7 @@ paths:
               example:
                 error:
                   code: "E1003"
-                  message: "'ACT-S1-1' is already stood down"
+                  message: "'1' is already stood down"
 
 components:
   securitySchemes:

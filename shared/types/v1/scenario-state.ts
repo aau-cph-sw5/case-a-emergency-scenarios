@@ -6,7 +6,7 @@
  */
 
 export interface ScenarioState {
-  activationId: string;
+  activationId: number;
   scenarioId: string;
   startedAt: string;
   endedAt?: string | null;

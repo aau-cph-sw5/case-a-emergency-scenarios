@@ -1,7 +1,7 @@
 // No react-native imports here, so the unit tests can import this file.
 // The one place the steward app fetches the active scenario (#157), so the
 // offline copy (MET-A-005) can wrap it.
-import { FormatError, getJson } from "../api/http";
+import { FormatError, HttpError, getJson } from "../api/http";
 import type { Scenario, TrackSegment } from "../types/v1/scenario";
 import type { ScenarioState } from "../types/v1/scenario-state";
 
@@ -37,7 +37,8 @@ export function isScenarioState(data: unknown): data is ScenarioState {
   if (typeof data !== "object" || data === null) return false;
   const state = data as Record<string, unknown>;
   return (
-    typeof state.activationId === "string" &&
+    Number.isInteger(state.activationId) &&
+    (state.activationId as number) > 0 &&
     typeof state.scenarioId === "string" &&
     typeof state.startedAt === "string" &&
     (state.status === "ACTIVE" || state.status === "CLOSED") &&
@@ -133,36 +134,50 @@ export async function loadActiveScenario(
   token: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<ActiveScenario> {
-  const state = await getJson(
-    apiBaseUrl,
-    "/api/v1/scenario-state",
-    token,
-    isScenarioStateOrNull,
-    fetchImpl,
-  );
-  if (state === null || state.status !== "ACTIVE") {
-    return { active: false };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const state = await getJson(
+      apiBaseUrl,
+      "/api/v1/scenario-state",
+      token,
+      isScenarioStateOrNull,
+      fetchImpl,
+    );
+    if (state === null || state.status !== "ACTIVE") {
+      return { active: false };
+    }
+    let scenario: ScenarioDefinition;
+    try {
+      scenario = await getJson(
+        apiBaseUrl,
+        `/api/v1/scenarios/${encodeURIComponent(state.scenarioId)}?activationId=${state.activationId}`,
+        token,
+        isScenarioDefinition,
+        fetchImpl,
+      );
+    } catch (error) {
+      // An activation may be stood down between the state and scenario reads.
+      if (attempt === 0 && error instanceof HttpError && error.status === 404) {
+        continue;
+      }
+      throw error;
+    }
+    // State and scenario are saved together as the offline copy, so another
+    // scenario must not end up under this activation.
+    if (scenario.scenarioId !== state.scenarioId) {
+      throw new FormatError(
+        "a scenario whose id does not match scenario-state",
+      );
+    }
+    // Without its current version there is nothing for the steward to read, and
+    // saving it would replace a good copy with an empty one.
+    if (
+      !scenario.versions.some(
+        (version) => version.version === scenario.currentVersion,
+      )
+    ) {
+      throw new FormatError("a scenario without its current version");
+    }
+    return { active: true, state, scenario };
   }
-  const scenario = await getJson(
-    apiBaseUrl,
-    `/api/v1/scenarios/${encodeURIComponent(state.scenarioId)}`,
-    token,
-    isScenarioDefinition,
-    fetchImpl,
-  );
-  // State and scenario are saved together as the offline copy, so another
-  // scenario must not end up under this activation.
-  if (scenario.scenarioId !== state.scenarioId) {
-    throw new FormatError("a scenario whose id does not match scenario-state");
-  }
-  // Without its current version there is nothing for the steward to read, and
-  // saving it would replace a good copy with an empty one.
-  if (
-    !scenario.versions.some(
-      (version) => version.version === scenario.currentVersion,
-    )
-  ) {
-    throw new FormatError("a scenario without its current version");
-  }
-  return { active: true, state, scenario };
+  throw new Error("Could not load the active scenario");
 }

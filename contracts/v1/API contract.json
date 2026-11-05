@@ -337,7 +337,7 @@
       ],
       "properties": {
         "activationId": {
-          "type": "string",
+          "type": "integer",
           "description": "Unique identifier for this particular activation."
         },
         "scenarioId": {
