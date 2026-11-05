@@ -12,16 +12,20 @@ export type StoredPositionReport = {
   reportedAt: Date;
   receivedAt: Date;
   taskDone: boolean;
+  clientReportId: string | null;
+  clientRequestHash: string | null;
 };
 
 export async function insertPositionReport(
   db: Db,
   report: NewPositionReport,
+  requestHash: string | null = null,
 ): Promise<StoredPositionReport> {
   const [inserted] = await db<StoredPositionReport[]>`
-    INSERT INTO position_reports (staff, station, reported_at, task_done)
+    INSERT INTO position_reports
+      (staff, station, reported_at, task_done, client_report_id, client_request_hash)
     VALUES (${report.staff}, ${report.station}, ${report.reportedAt},
-            ${report.taskDone ?? false})
+            ${report.taskDone ?? false}, ${report.id ?? null}, ${requestHash})
     RETURNING *
   `;
   return inserted;
@@ -41,4 +45,16 @@ export async function findLatestReport(
     LIMIT 1
   `;
   return latest ?? null;
+}
+export async function findByClientReportId( // Find a report by the client-generated ID, to detect duplicates
+  db: Db,
+  id: string,
+): Promise<StoredPositionReport | null> {
+  const [report] = await db<StoredPositionReport[]>`
+    SELECT *
+    FROM position_reports
+    WHERE client_report_id = ${id}
+  `;
+
+  return report ?? null;
 }
