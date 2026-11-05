@@ -8,6 +8,8 @@ export interface ServerToClientEvents {
   "scenario-activated": (activation: ScenarioActivated) => void;
   // No payload: operators refetch GET /api/v1/activations.
   "activations-changed": () => void;
+  // No payload: stewards refetch GET /api/v1/scenario-state.
+  "scenario-stood-down": () => void;
   "position-report": (
     PositionReport: PositionReport & { sentAt: string },
   ) => void;
