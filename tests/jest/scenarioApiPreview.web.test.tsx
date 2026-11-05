@@ -18,9 +18,6 @@ jest.mock("../../web/src/components/OperatorSections.css", () => ({}));
 jest.mock("../../web/src/components/MetroMap", () => ({
   MetroMap: jest.fn(() => null),
 }));
-jest.mock("../../web/src/local-settings", () => ({
-  mockStewardPositions: false,
-}));
 
 // Synthetic HTTP responses only in this test. The dashboard uses the real
 // provider and API functions, rather than injecting a preloaded context.

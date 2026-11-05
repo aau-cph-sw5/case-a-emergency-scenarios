@@ -18,48 +18,6 @@ type StewardPosition = {
   time?: string | null;
 };
 
-// TEMPORARY mock, shown while <StewardPositions mock /> is set in
-// OperatorDashboard. It plays one shift: stewards check in at a station (på
-// vej, then ankommet). Delete it and the `mock` prop when live data is enough.
-const MOCK_LOG: StewardPosition[] = [
-  {
-    staff: "ID-123",
-    status: "PENDING",
-    station: "Vanløse",
-    time: "2026-10-28T15:26:00",
-  },
-  {
-    staff: "ID-314",
-    status: "MANNED",
-    station: "Frederiksberg",
-    time: "2026-10-28T15:28:00",
-  },
-  {
-    staff: "ID-208",
-    status: "PENDING",
-    station: "Forum",
-    time: "2026-10-28T15:30:00",
-  },
-  {
-    staff: "ID-123",
-    status: "MANNED",
-    station: "Vanløse",
-    time: "2026-10-28T15:34:00",
-  },
-  {
-    staff: "ID-208",
-    status: "MANNED",
-    station: "Forum",
-    time: "2026-10-28T15:41:00",
-  },
-  {
-    staff: "ID-415",
-    status: "PENDING",
-    station: "Flintholm",
-    time: "2026-10-28T15:55:00",
-  },
-];
-
 // One row per steward with a deployment, across every active activation, oldest
 // first so the list reads like a log. The server counts a steward at one
 // station at a time, so a deployment with staff is that steward's current
@@ -113,11 +71,11 @@ function useNow(intervalMs: number) {
 // The status pop-up in the bottom right corner: a button that opens a list of
 // where each steward is. Stewards are shown by user id, because Metro avoids
 // identifying them by name.
-export function StewardPositions({ mock = false }: { mock?: boolean }) {
+export function StewardPositions() {
   const { activations, isConnected, error } = useLiveData();
-  const [open, setOpen] = useState(mock);
+  const [open, setOpen] = useState(false);
   const now = useNow(TICK_MS);
-  const positions = mock ? MOCK_LOG : stewardPositions(activations);
+  const positions = stewardPositions(activations);
 
   return (
     <View aria-label="Status" style={{ alignItems: "flex-end" }}>

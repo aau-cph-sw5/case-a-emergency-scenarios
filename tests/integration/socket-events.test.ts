@@ -250,6 +250,28 @@ test("a position report reaches operators only, with the server's time", async (
   assert.equal(stewardGotReport, false);
 });
 
+test("a steward's status change reaches operators as activations-changed", async () => {
+  const operator = await open(
+    await login(operatorUsername, "operator123", "web"),
+  );
+  const stewardToken = await login(stewardUsername, "steward123", "mobile");
+  const operatorGot = new Promise<unknown[]>((resolve) =>
+    operator.once("activations-changed", (...args) => resolve(args)),
+  );
+
+  // DEMO-002 is still active from the tests above.
+  const response = await fetch(`${baseUrl}/api/v1/steward-status/assign`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${stewardToken}`,
+    },
+    body: JSON.stringify({ station: "Station G" }),
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await operatorGot, []);
+});
+
 test("a stand-down reaches stewards and operators as signals", async () => {
   const operatorToken = await login(operatorUsername, "operator123", "web");
   const operator = await open(operatorToken);

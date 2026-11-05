@@ -130,6 +130,10 @@ test("assign, check in, check out, then assign to a new station", async () => {
   assert.equal(own(assigned.body)?.status, "PENDING");
   assert.ok(own(assigned.body)?.reportedAt);
 
+  const enRoute = await checkOut();
+  assert.equal(enRoute.status, 409, "check out is on site only");
+  assert.equal(enRoute.body.error.code, "E1006");
+
   const again = await assign(second);
   assert.equal(again.status, 409, "assign before check out");
   assert.equal(again.body.error.code, "E1006");
