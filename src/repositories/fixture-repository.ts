@@ -159,11 +159,15 @@ export function activateScenario(
     endedAt: null,
     status: "ACTIVE",
     actor,
-    deployments: (version?.stationRequirements ?? []).map((r) => ({
-      status: "UNMANNED",
-      staff: null,
-      fulfills: r.station,
-    })),
+    // One deployment per required steward, so each one can assign. At least
+    // one, so the station still counts as part of the scenario.
+    deployments: (version?.stationRequirements ?? []).flatMap((r) =>
+      Array.from({ length: Math.max(r.minimumStaffing, 1) }, () => ({
+        status: "UNMANNED" as const,
+        staff: null,
+        fulfills: r.station,
+      })),
+    ),
   };
   activations.push(activation);
   return { kind: "ok", activation };
