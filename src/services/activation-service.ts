@@ -45,7 +45,8 @@ const stoodDownEvent = (
 
 let queue: Promise<unknown> = Promise.resolve();
 
-function oneAtATime<T>(operation: () => Promise<T>): Promise<T> {
+// Also used by steward-status-service, so status changes and activations never interleave.
+export function oneAtATime<T>(operation: () => Promise<T>): Promise<T> {
   const run = queue.then(operation, operation);
   queue = run.catch(() => {});
   return run;

@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 6.5.0
+  version: 7.0.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -136,10 +136,8 @@ paths:
         server: staff by the userId from the token, reportedAt by the time
         the server accepted the report. An accepted report is forwarded to
         connected operators as the position-report Socket.IO event.
-        With taskDone true the steward reports the task at the station as
-        done (MET-A-015). That is only allowed at the station of the
-        steward's latest report (E1006 otherwise), and sending it again is
-        a harmless repeat.
+        A position report does not change a deployment's status; see
+        /api/v1/steward-status/assign, check-in and check-out.
       security:
         - bearerAuth: []
       requestBody:
@@ -199,9 +197,8 @@ paths:
                   message: "The authenticated user's role does not permit this action"
         "409":
           description: >
-            No scenario is active (E1001), the station does not require
-            manning in an active scenario (E1004), or task done is reported
-            at another station than the steward's latest report (E1006).
+            No scenario is active (E1001), or the station does not require
+            manning in an active scenario (E1004).
           content:
             application/json:
               schema:
@@ -217,11 +214,187 @@ paths:
                     error:
                       code: "E1004"
                       message: "The station is not part of the active scenario"
-                taskDoneElsewhere:
+
+  /api/v1/steward-status/assign:
+    post:
+      summary: The steward assigns themselves to a station
+      description: >
+        Requires a bearer token with the STEWARD role (MET-A-015). Moves an UNMANNED deployment for the station to PENDING (on the way) with staff from the token and reportedAt set to now. No position report is needed.
+        The change is written to the incident log with the actor, the old
+        and new status and the time, and connected operators get the
+        activations-changed Socket.IO event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./assign-request.schema.json"
+            example:
+              station: "Station B"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Changed. The active activation with the steward's deployment updated.
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-state.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not change a steward status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "The authenticated user's role does not permit this action"
+        "409":
+          description: >
+            No scenario is active (E1001), the station does not require manning in the active scenario (E1004), the steward already holds a deployment and must check out first, or the station has no UNMANNED deployment left (E1006).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                noActiveScenario:
+                  value:
+                    error:
+                      code: "E1001"
+                      message: "No scenario is currently active"
+                stationNotInScenario:
+                  value:
+                    error:
+                      code: "E1004"
+                      message: "The station is not part of the active scenario"
+                alreadyAssigned:
                   value:
                     error:
                       code: "E1006"
-                      message: "The status change is not permitted from the steward's current status"
+                      message: "Check out before assigning to another station"
+
+  /api/v1/steward-status/check-in:
+    post:
+      summary: The steward checks in at their station
+      description: >
+        Requires a bearer token with the STEWARD role (MET-A-015). Moves the steward's PENDING deployment to MANNED with arrivedAt set to now. No body and no position report are needed.
+        The change is written to the incident log with the actor, the old
+        and new status and the time, and connected operators get the
+        activations-changed Socket.IO event.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Changed. The active activation with the steward's deployment updated.
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-state.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not change a steward status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "The authenticated user's role does not permit this action"
+        "409":
+          description: >
+            No scenario is active (E1001), or the steward has no PENDING deployment (E1006).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                noActiveScenario:
+                  value:
+                    error:
+                      code: "E1001"
+                      message: "No scenario is currently active"
+                notAssigned:
+                  value:
+                    error:
+                      code: "E1006"
+                      message: "Assign to a station before checking in"
+
+  /api/v1/steward-status/check-out:
+    post:
+      summary: The steward checks out of their station
+      description: >
+        Requires a bearer token with the STEWARD role (MET-A-015). Moves the steward's MANNED deployment back to UNMANNED with staff, reportedAt and arrivedAt null. The steward then has no status and can assign to a new station. No body is needed.
+        The change is written to the incident log with the actor, the old
+        and new status and the time, and connected operators get the
+        activations-changed Socket.IO event.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Changed. The active activation with the steward's deployment updated.
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-state.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not change a steward status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "The authenticated user's role does not permit this action"
+        "409":
+          description: >
+            No scenario is active (E1001), or the steward has no MANNED deployment (E1006).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                noActiveScenario:
+                  value:
+                    error:
+                      code: "E1001"
+                      message: "No scenario is currently active"
+                notCheckedIn:
+                  value:
+                    error:
+                      code: "E1006"
+                      message: "Check in before checking out"
 
   /api/v1/auth/login:
     post:

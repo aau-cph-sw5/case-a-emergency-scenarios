@@ -1,132 +1,87 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  jest,
-} from "@jest/globals";
-import { sendPositionReport } from "../../mobile/src/api/position-report";
-import {
-  resetRememberedStatuses,
-  stewardStatus,
-} from "../../mobile/src/data/steward-status";
-import { ERROR_CODES } from "../../shared/error-codes";
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import { stewardStatus } from "../../mobile/src/data/steward-status";
 
-jest.mock("../../mobile/src/api/position-report", () => ({
-  sendPositionReport: jest.fn(),
-}));
-
-const report = sendPositionReport as jest.MockedFunction<
-  typeof sendPositionReport
->;
-
-beforeEach(() => {
-  report.mockResolvedValue({ ok: true, message: "Position sendt" });
+const state = (deployments: object[]) => ({
+  activationId: "ACT-1",
+  deployments,
 });
+const fetchMock = jest.fn<typeof fetch>();
+global.fetch = fetchMock;
 
-afterEach(() => resetRememberedStatuses());
+function answer(status: number, body: unknown) {
+  fetchMock.mockResolvedValueOnce(
+    new Response(JSON.stringify(body), { status }),
+  );
+}
 
-describe("stewardStatus (MET-A-015, #263)", () => {
-  it("has no status before anything is reported", async () => {
-    expect(
-      await stewardStatus("token", "ACT-1", "7", { type: "current" }),
-    ).toEqual({ ok: true, own: null });
-  });
+afterEach(() => fetchMock.mockReset());
 
-  it("reports on the way as a position report to the server", async () => {
+describe("stewardStatus (MET-A-015, #265)", () => {
+  it("assigns through the server and reads the steward's deployment", async () => {
+    answer(
+      200,
+      state([{ status: "PENDING", staff: "7", fulfills: "Station B" }]),
+    );
     const result = await stewardStatus("token", "ACT-1", "7", {
       type: "assign",
       station: "Station B",
     });
-    expect(report).toHaveBeenCalledWith("token", "Station B");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toMatch(/\/api\/v1\/steward-status\/assign$/);
+    expect(init?.body).toBe(JSON.stringify({ station: "Station B" }));
     expect(result).toEqual({
       ok: true,
       own: { station: "Station B", status: "PENDING" },
     });
   });
 
-  it("shows the server's refusal and keeps no status", async () => {
-    report.mockResolvedValue({
-      ok: false,
-      message: "Stationen er ikke en del af det aktive scenarie.",
-    });
-    const result = await stewardStatus("token", "ACT-1", "7", {
-      type: "assign",
-      station: "Station Z",
-    });
-    expect(result).toEqual({
-      ok: false,
-      message: "Stationen er ikke en del af det aktive scenarie.",
-    });
+  it("checks in and out at their endpoints; check out leaves no status", async () => {
+    answer(
+      200,
+      state([{ status: "MANNED", staff: "7", fulfills: "Station B" }]),
+    );
     expect(
-      await stewardStatus("token", "ACT-1", "7", { type: "current" }),
-    ).toEqual({ ok: true, own: null });
-  });
-
-  it("lets the steward report a new station, like the server allows", async () => {
-    await stewardStatus("token", "ACT-1", "7", {
-      type: "assign",
-      station: "Station A",
-    });
-    await stewardStatus("token", "ACT-1", "7", { type: "arrive" });
-    const result = await stewardStatus("token", "ACT-1", "7", {
-      type: "assign",
-      station: "Station B",
-    });
-    expect(result).toEqual({
-      ok: true,
-      own: { station: "Station B", status: "PENDING" },
-    });
-  });
-
-  it("confirms arrival in the app without sending anything", async () => {
-    await stewardStatus("token", "ACT-1", "7", {
-      type: "assign",
-      station: "Station B",
-    });
-    report.mockClear();
-    const result = await stewardStatus("token", "ACT-1", "7", {
-      type: "arrive",
-    });
-    expect(report).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      ok: true,
-      own: { station: "Station B", status: "MANNED" },
-    });
-  });
-
-  it("rejects arrival when the steward is not on the way", async () => {
-    const result = await stewardStatus("token", "ACT-1", "7", {
-      type: "arrive",
-    });
-    expect(result).toMatchObject({
-      ok: false,
-      code: ERROR_CODES.INVALID_STATUS_TRANSITION,
-    });
-  });
-
-  it("gives back the status after logging in again", async () => {
-    await stewardStatus("token", "ACT-1", "7", {
-      type: "assign",
-      station: "Station B",
-    });
-    await stewardStatus("token", "ACT-1", "7", { type: "arrive" });
-    expect(
-      await stewardStatus("other-token", "ACT-1", "7", { type: "current" }),
+      await stewardStatus("token", "ACT-1", "7", { type: "arrive" }),
     ).toEqual({ ok: true, own: { station: "Station B", status: "MANNED" } });
+    answer(
+      200,
+      state([{ status: "UNMANNED", staff: null, fulfills: "Station B" }]),
+    );
+    expect(
+      await stewardStatus("token", "ACT-1", "7", { type: "checkout" }),
+    ).toEqual({ ok: true, own: null });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      expect.stringMatching(/check-in$/),
+      expect.stringMatching(/check-out$/),
+    ]);
   });
 
-  it("keeps each steward and activation apart", async () => {
-    await stewardStatus("token", "ACT-1", "7", {
-      type: "assign",
-      station: "Station B",
-    });
-    expect(
-      await stewardStatus("token", "ACT-1", "8", { type: "current" }),
-    ).toEqual({ ok: true, own: null });
+  it("reads the current status from scenario-state, for this activation only", async () => {
+    answer(
+      200,
+      state([{ status: "PENDING", staff: "7", fulfills: "Station B" }]),
+    );
     expect(
       await stewardStatus("token", "ACT-2", "7", { type: "current" }),
     ).toEqual({ ok: true, own: null });
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/api\/v1\/scenario-state$/);
+  });
+
+  it("shows a refused change in Danish", async () => {
+    answer(409, { error: { code: "E1006", message: "for developers" } });
+    expect(
+      await stewardStatus("token", "ACT-1", "7", { type: "arrive" }),
+    ).toEqual({
+      ok: false,
+      code: "E1006",
+      message: "Den status kan du ikke skifte til lige nu.",
+    });
+  });
+
+  it("says so when the server cannot be reached", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
+    expect(
+      await stewardStatus("token", "ACT-1", "7", { type: "current" }),
+    ).toEqual({ ok: false, message: "Ingen forbindelse til serveren." });
   });
 });

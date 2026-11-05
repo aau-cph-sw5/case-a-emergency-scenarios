@@ -24,10 +24,7 @@ function isDeployment(data: unknown): data is Deployment {
   if (typeof data !== "object" || data === null) return false;
   const { status, fulfills } = data as Record<string, unknown>;
   return (
-    (status === "UNMANNED" ||
-      status === "PENDING" ||
-      status === "MANNED" ||
-      status === "TASK_DONE") &&
+    (status === "UNMANNED" || status === "PENDING" || status === "MANNED") &&
     typeof fulfills === "string"
   );
 }

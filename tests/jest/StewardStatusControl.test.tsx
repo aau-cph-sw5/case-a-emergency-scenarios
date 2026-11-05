@@ -8,6 +8,7 @@ function renderControl(
   props: Partial<Parameters<typeof StewardStatusControl>[0]> = {},
 ) {
   const onArrive = jest.fn();
+  const onCheckOut = jest.fn();
   render(
     <StewardStatusControl
       own={null}
@@ -16,10 +17,11 @@ function renderControl(
       sending={false}
       error={null}
       onArrive={onArrive}
+      onCheckOut={onCheckOut}
       {...props}
     />,
   );
-  return { onArrive };
+  return { onArrive, onCheckOut };
 }
 
 function confirmSlide() {
@@ -44,19 +46,20 @@ describe("StewardStatusControl", () => {
     expect(screen.getByText("DU ER PÅ VEJ")).toBeTruthy();
     expect(screen.getByText("Station B")).toBeTruthy();
     expect(screen.getByText("1 af 2 ankommet · 1 på vej")).toBeTruthy();
-    expect(screen.getByText(/Forkert station\?/)).toBeTruthy();
     confirmSlide();
     expect(onArrive).toHaveBeenCalledTimes(1);
   });
 
-  it("shows arrived and offers no further action", () => {
-    renderControl({
+  it("shows arrived and offers the check out slide", () => {
+    const { onArrive, onCheckOut } = renderControl({
       own: { station: "Station B", status: "MANNED" },
       coverage: { arrived: 2, enRoute: 0, needed: 2 },
     });
     expect(screen.getByText("✓ DU ER ANKOMMET")).toBeTruthy();
     expect(screen.getByText("Du er tjekket ind på Station B.")).toBeTruthy();
-    expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
+    confirmSlide();
+    expect(onCheckOut).toHaveBeenCalledTimes(1);
+    expect(onArrive).not.toHaveBeenCalled();
   });
 
   it("shows the rejection message", () => {

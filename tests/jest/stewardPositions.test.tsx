@@ -160,27 +160,6 @@ describe("StewardPositions pop-up", () => {
     expect(screen.queryByText(/steward-002/)).toBeNull();
   });
 
-  it("shows a steward who has finished the task as Opgave udført", () => {
-    renderWithLive(<StewardPositions />, {
-      activations: [
-        activation("ACT-1", [
-          {
-            status: "TASK_DONE",
-            staff: "steward-005",
-            fulfills: "Forum",
-            reportedAt: minutesAgo(4),
-          } as Deployment,
-        ]),
-      ],
-    });
-    fireEvent.press(screen.getByText("Status (1)"));
-
-    expect(
-      screen.getByText("steward-005 | ✓✓ Opgave udført | Forum"),
-    ).toBeTruthy();
-    expect(screen.queryByText(/Ingen status/)).toBeNull();
-  });
-
   it("shows a steward without a status as having none", () => {
     renderWithLive(<StewardPositions />, {
       activations: [

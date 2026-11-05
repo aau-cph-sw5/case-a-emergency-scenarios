@@ -1,6 +1,7 @@
 import { ERROR_CODES } from "../../../shared/error-codes";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
-import { sendPositionReport } from "../api/position-report";
+import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
+import { apiBaseUrl } from "../api-base-url";
 
 // A steward's status, as the contract names it (scenario-state.schema.json).
 // The app declares no status type of its own (MET-A-015).
@@ -10,68 +11,81 @@ export type StewardStatusValue = ScenarioState["deployments"][number]["status"];
 export type OwnStatus = { station: string; status: StewardStatusValue };
 
 // What the steward asks for: their current status (e.g. after logging in
-// again), report on the way to a station, or arrival at the station they are
-// on the way to.
+// again), assign to a station, check in there, or check out.
 export type StatusRequest =
   | { type: "current" }
   | { type: "assign"; station: string }
-  | { type: "arrive" };
+  | { type: "arrive" }
+  | { type: "checkout" };
 
 export type StatusResult =
   | { ok: true; own: OwnStatus | null }
   | { ok: false; code?: string; message: string };
 
+const PATHS = {
+  assign: "assign",
+  arrive: "check-in",
+  checkout: "check-out",
+} as const;
+
+// What the steward reads for each refusal; the server's message is for developers.
+const ERRORS: Record<string, string> = {
+  [ERROR_CODES.AUTH_TOKEN_INVALID]: "Din session er udløbet. Log ind igen.",
+  [ERROR_CODES.NO_ACTIVE_SCENARIO]: "Der er ikke noget aktivt scenarie.",
+  [ERROR_CODES.STATION_NOT_IN_SCENARIO]:
+    "Stationen er ikke en del af det aktive scenarie.",
+  [ERROR_CODES.INVALID_STATUS_TRANSITION]:
+    "Den status kan du ikke skifte til lige nu.",
+};
+
 // The steward's status, the one place the app reads or changes it (MET-A-015,
-// #263). As agreed in #268, going on the way is a position report to the
-// server, through the existing position-report endpoint (#271). A new
-// station can be reported at any time, like the server allows.
-//
-// Two parts are kept in the app until the server supports them:
-// - Arrival: the contract has no way to report arrival separately from on
-//   the way yet (a report means "on the way or arrived"), so arrival is only
-//   shown to the steward and is not sent.
-// - The current status: there is no endpoint for the steward's latest report
-//   yet (#253), so the last status is remembered in memory per steward per
-//   activation, which survives logging out and in again.
-const remembered = new Map<string, OwnStatus>();
-
-const NOT_ON_THE_WAY =
-  "Du kan først godkende ankomst, når du er meldt på vej til en station.";
-
+// #263). The server keeps it on the deployments (contract 7.0.0): assign,
+// check in and check out each answer with the scenario state, and the current
+// status is read from GET /api/v1/scenario-state.
 export async function stewardStatus(
   token: string,
   activationId: string,
   userId: string,
   request: StatusRequest,
 ): Promise<StatusResult> {
-  const key = `${activationId}/${userId}`;
-  const current = remembered.get(key);
-
-  if (request.type === "current") {
-    return { ok: true, own: current ?? null };
-  }
-
-  if (request.type === "assign") {
-    const report = await sendPositionReport(token, request.station);
-    if (!report.ok) return { ok: false, message: report.message };
-    const own: OwnStatus = { station: request.station, status: "PENDING" };
-    remembered.set(key, own);
-    return { ok: true, own };
-  }
-
-  if (current?.status !== "PENDING") {
+  const current = request.type === "current";
+  const path = current
+    ? "scenario-state"
+    : `steward-status/${PATHS[request.type]}`;
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/${path}`, {
+      method: current ? "GET" : "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body:
+        request.type === "assign"
+          ? JSON.stringify({ station: request.station })
+          : undefined,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      const code = body?.error?.code;
+      return {
+        ok: false,
+        code,
+        message: ERRORS[code] ?? "Statussen blev ikke ændret.",
+      };
+    }
+    // Check out leaves no deployment with the steward: no status.
+    const own = (body as ScenarioState | null)?.deployments.find(
+      (deployment) => deployment.staff === userId,
+    );
     return {
-      ok: false,
-      code: ERROR_CODES.INVALID_STATUS_TRANSITION,
-      message: NOT_ON_THE_WAY,
+      ok: true,
+      own:
+        own && body.activationId === activationId
+          ? { station: own.fulfills, status: own.status }
+          : null,
     };
+  } catch {
+    return { ok: false, message: "Ingen forbindelse til serveren." };
   }
-  const own: OwnStatus = { station: current.station, status: "MANNED" };
-  remembered.set(key, own);
-  return { ok: true, own };
-}
-
-// Test helper: forgets every remembered status.
-export function resetRememberedStatuses(): void {
-  remembered.clear();
 }

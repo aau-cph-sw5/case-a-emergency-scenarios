@@ -1,6 +1,9 @@
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import type { Scenario } from "../../shared/types/v1/scenario.js";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state.js";
+
+export type Deployment = ScenarioState["deployments"][number];
 
 // This file is temporary until the real database is populated
 // Right now it just imports the fixture data from the fixtures folder
@@ -45,7 +48,7 @@ type Activation = {
   endedAt: string | null;
   status: ActivationStatus;
   actor: string;
-  deployments: { status: "UNMANNED"; staff: null; fulfills: string }[];
+  deployments: Deployment[];
 };
 
 // In-memory until the database is populated, so activations reset when the
@@ -60,7 +63,7 @@ type PendingActivation = Pick<
   "activationId" | "scenarioId" | "startedAt" | "endedAt"
 > & {
   status: ActivationStatus;
-  deployments: { fulfills: string }[];
+  deployments: Deployment[];
   sequence?: number;
 };
 

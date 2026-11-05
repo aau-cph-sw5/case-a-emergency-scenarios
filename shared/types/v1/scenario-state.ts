@@ -15,13 +15,19 @@ export interface ScenarioState {
   sequence: number;
   deployments: {
     /**
-     * UNMANNED: no steward yet. PENDING: a steward has reported a position for the station and is on the way. MANNED: the steward has arrived. TASK_DONE: the steward has finished the task (a position report with taskDone, MET-A-015). The server creates every deployment as UNMANNED and does not move it to another status yet. The only transition it checks is task done: a position report with taskDone is only allowed at the station of the steward's latest report in the activation, otherwise it is rejected with E1006.
+     * UNMANNED: no steward. PENDING: a steward has assigned themselves to the station and is on the way. MANNED: the steward has checked in at the station. The server creates every deployment as UNMANNED. Only the steward changes it, and no position report is needed: assign (POST /api/v1/steward-status/assign) moves an UNMANNED deployment to PENDING, check in (POST /api/v1/steward-status/check-in) moves the steward's PENDING deployment to MANNED, and check out (POST /api/v1/steward-status/check-out) moves the steward's MANNED deployment back to UNMANNED with staff, reportedAt and arrivedAt null, so the steward has no status and can assign again. A steward holds at most one deployment per activation. Any other change is rejected with E1006.
      */
-    status: "UNMANNED" | "PENDING" | "MANNED" | "TASK_DONE";
+    status: "UNMANNED" | "PENDING" | "MANNED";
+    /**
+     * When the steward assigned themselves. Null when UNMANNED.
+     */
     reportedAt?: string | null;
+    /**
+     * When the steward checked in. Null unless MANNED.
+     */
     arrivedAt?: string | null;
     /**
-     * The userId of the steward who reported to this station, the same id GET /api/v1/me and the login token return, written as text (for example "1"). Null when nobody has reported.
+     * The userId of the steward assigned to this station, the same id GET /api/v1/me and the login token return, written as text (for example "1"). Null when UNMANNED.
      */
     staff?: string | null;
     fulfills: string;

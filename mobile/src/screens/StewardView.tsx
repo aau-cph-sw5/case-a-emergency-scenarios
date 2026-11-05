@@ -140,8 +140,7 @@ export function StewardView({
     setReportStatus((await sendPositionReport(token, station)).message);
   }
 
-  // Sends a status change and shows the answer. Going on the way is a
-  // position report to the server (#268). Only while live: the saved copy
+  // Sends a status change and shows the answer. Only while live: the saved copy
   // can not change status, and nothing is sent then.
   async function changeStatus(change: StatusRequest) {
     if (
@@ -235,12 +234,14 @@ export function StewardView({
               sending={sendingStatus}
               error={statusError}
               onArrive={() => void changeStatus({ type: "arrive" })}
+              onCheckOut={() => void changeStatus({ type: "checkout" })}
             />
             <ScenarioOverview
               snapshot={shown}
               assignedStation={ownStatus?.station}
               onAssign={
-                view.status === "live" && !sendingStatus
+                // A new station only after check out (no status).
+                view.status === "live" && !sendingStatus && ownStatus === null
                   ? (station) => void changeStatus({ type: "assign", station })
                   : undefined
               }

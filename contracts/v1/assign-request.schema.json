@@ -1,0 +1,12 @@
+{
+  "$id": "assign-request.schema.json",
+  "title": "Assign Request",
+  "type": "object",
+  "required": ["station"],
+  "properties": {
+    "station": {
+      "type": "string",
+      "description": "The station the steward picks. It must require manning in the active scenario."
+    }
+  }
+}
