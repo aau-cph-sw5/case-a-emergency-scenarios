@@ -26,6 +26,17 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
     expect(onAssign).toHaveBeenCalledWith("Station B");
   });
 
+  it("offers no + on the station the steward has already reported", () => {
+    render(
+      <ScenarioOverview
+        snapshot={snapshot}
+        onAssign={jest.fn()}
+        assignedStation="Station B"
+      />,
+    );
+    expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
+  });
+
   it("offers no + when the steward cannot choose a station", () => {
     render(<ScenarioOverview snapshot={snapshot} />);
     expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();

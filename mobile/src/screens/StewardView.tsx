@@ -29,7 +29,6 @@ import { ScenarioNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
 import { ScenarioOverview } from "./ScenarioOverview";
-import { statusErrorMessage, withOwnStatus } from "./own-status";
 
 // Shown instead of the status actions while the app shows the saved copy
 // (MET-A-015, #263 criterion 4). Nothing is sent then.
@@ -121,7 +120,7 @@ export function StewardView({
   useEffect(() => {
     if (activationId === undefined || userId === undefined) return;
     let cancelled = false;
-    void stewardStatus(activationId, userId, [], { type: "current" }).then(
+    void stewardStatus(token, activationId, userId, { type: "current" }).then(
       (result) => {
         if (!cancelled && result.ok) setOwnStatus(result.own);
       },
@@ -129,7 +128,7 @@ export function StewardView({
     return () => {
       cancelled = true;
     };
-  }, [activationId, userId]);
+  }, [token, activationId, userId]);
 
   // The stations of the active scenario's current version, for the picker.
   // Positions can only be reported while live.
@@ -141,8 +140,9 @@ export function StewardView({
     setReportStatus((await sendPositionReport(token, station)).message);
   }
 
-  // Sends a status change through the stub and shows the answer. Only while
-  // live: the saved copy can not change status, and nothing is sent then.
+  // Sends a status change and shows the answer. Going on the way is a
+  // position report to the server (#268). Only while live: the saved copy
+  // can not change status, and nothing is sent then.
   async function changeStatus(change: StatusRequest) {
     if (
       view.status !== "live" ||
@@ -155,36 +155,27 @@ export function StewardView({
     setSendingStatus(true);
     setStatusError(null);
     try {
-      const result = await stewardStatus(
-        activationId,
-        userId,
-        stations,
-        change,
-      );
+      const result = await stewardStatus(token, activationId, userId, change);
       if (result.ok) setOwnStatus(result.own);
-      else setStatusError(statusErrorMessage(result.code));
+      else setStatusError(result.message);
     } finally {
       setSendingStatus(false);
     }
   }
 
-  // The overview with the steward's own status filled in, so the coverage and
-  // the "Opgaver på" card (#158) show it straight away.
-  const shownWithStatus = shown && {
-    ...shown,
-    state: withOwnStatus(shown.state, shown.userId, ownStatus),
-  };
+  // The coverage of the steward's station, from the server's deployments
+  // only, so the steward sees the same as the control room.
   const ownRequirement =
-    ownStatus && shownWithStatus
-      ? shownWithStatus.scenario.versions[0]?.stationRequirements?.find(
+    ownStatus && shown
+      ? shown.scenario.versions[0]?.stationRequirements?.find(
           (requirement) => requirement.station === ownStatus.station,
         )
       : undefined;
   const ownCoverage =
-    ownStatus && shownWithStatus && ownRequirement
+    ownStatus && shown && ownRequirement
       ? (() => {
           const state = getStationState(
-            shownWithStatus.state,
+            shown.state,
             ownStatus.station,
             ownRequirement.minimumStaffing,
           );
@@ -233,7 +224,7 @@ export function StewardView({
             onRetry={retry}
           />
         )}
-        {shownWithStatus && (
+        {shown && (
           <>
             <StewardStatusControl
               own={ownStatus}
@@ -246,9 +237,10 @@ export function StewardView({
               onArrive={() => void changeStatus({ type: "arrive" })}
             />
             <ScenarioOverview
-              snapshot={shownWithStatus}
+              snapshot={shown}
+              assignedStation={ownStatus?.station}
               onAssign={
-                view.status === "live" && ownStatus === null && !sendingStatus
+                view.status === "live" && !sendingStatus
                   ? (station) => void changeStatus({ type: "assign", station })
                   : undefined
               }

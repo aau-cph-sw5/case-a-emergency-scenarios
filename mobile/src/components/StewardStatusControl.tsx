@@ -141,6 +141,12 @@ export function StewardStatusControl({
         </View>
       )}
 
+      {own !== null && blockedReason === null && (
+        <Text style={styles.hint}>
+          Forkert station? Tryk + ved den rigtige under Påvirkede stationer.
+        </Text>
+      )}
+
       {own?.status === "PENDING" && (
         <SlideToConfirm
           label="GODKEND ANKOMST"
@@ -168,6 +174,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: "600",
     marginBottom: 8,
+  },
+  hint: {
+    ...text.body,
+    color: colors.text,
+    marginTop: 8,
   },
   noStatus: {
     ...surface,
