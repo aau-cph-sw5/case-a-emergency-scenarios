@@ -150,9 +150,10 @@ paths:
         together (E0006). EN_ROUTE at the station of the latest report, while
         on the way or arrived there, is a harmless repeat, so a report
         without event never moves an arrived steward back to on the way.
-        EN_ROUTE to another station ends the old one: freed if the steward
-        was on the way there, CHECKED_OUT if they had arrived or finished
-        the task there.
+        EN_ROUTE to another station is only allowed with no station in the
+        activation, or after CANCELLED or CHECKED_OUT. While on the way,
+        arrived or done at another station it is rejected with E1006: the
+        steward cancels or checks out first.
       security:
         - bearerAuth: []
       requestBody:
@@ -214,9 +215,10 @@ paths:
         "409":
           description: >
             No scenario is active (E1001), the station does not require
-            manning in an active scenario (E1004), or task done or an event
-            other than EN_ROUTE is not allowed from the steward's current
-            status at the station (E1006).
+            manning in an active scenario (E1004), or task done or the event
+            is not allowed from the steward's current status (E1006), for
+            example EN_ROUTE to another station before cancelling or
+            checking out.
           content:
             application/json:
               schema:

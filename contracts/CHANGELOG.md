@@ -8,7 +8,7 @@ Additive. The steward can arrive, cancel and check out (MET-A-015, #263). Agreed
 - `ARRIVED` and `CANCELLED` are only allowed after `EN_ROUTE`, and `CHECKED_OUT` only after `ARRIVED` or `taskDone`, all at the station of the steward's latest report in the activation. Anything else gets 409 `E1006`. Sending the same event again is a harmless repeat.
 - `CANCELLED` frees the station: its deployment goes back to `UNMANNED` with `staff` null.
 - `EN_ROUTE` at the station of the steward's latest report, while on the way or arrived there, is a harmless repeat and does not change the status. A report without `event`, for example a tap in the station list or a report sent late from an offline queue, therefore never moves an arrived steward back to on the way.
-- `EN_ROUTE` to another station ends the old one: if the steward was on the way there, it is freed as with `CANCELLED`; if they had arrived or finished the task there, it becomes `CHECKED_OUT`.
+- To move on, the steward leaves the old station first: `CANCELLED` while on the way, `CHECKED_OUT` after arriving or task done, then `EN_ROUTE` to the new station. `EN_ROUTE` to another station while on the way, arrived or done somewhere is rejected with 409 `E1006`, as the flow in the PBI describes.
 - `event` and `taskDone` cannot be sent together (400 `E0006`).
 - `deployments[].status` can be `CHECKED_OUT`. Clients must handle the new value. The server does not act on `event` yet.
 - `info.version` in `openapi.yaml` is now 6.6.0.
