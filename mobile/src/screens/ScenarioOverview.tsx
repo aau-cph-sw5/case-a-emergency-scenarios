@@ -44,7 +44,8 @@ export function ScenarioOverview({
   // Offers + on each station, to report on the way there (MET-A-015, #263).
   // Left out when the steward cannot choose a station right now.
   onAssign?: (station: string) => void;
-  // The station the steward has reported, which gets no + of its own.
+  // The station the steward has reported on the way to with +. It is shown
+  // as their own station, and gets no + of its own.
   assignedStation?: string;
 }) {
   const { scenario, state, userId } = snapshot;
@@ -69,8 +70,10 @@ export function ScenarioOverview({
   const mapLines = [...networkLines, stretch];
   // MET-A-010 criterion 2: the steward's own assignment stands out without
   // interaction. userId comes from the offline copy, so this works offline.
+  // The station chosen with + comes first, since the server does not record
+  // it in the deployments yet (#263).
   const ownAssignment = findOwnAssignment(state.deployments, userId);
-  const ownStation = ownAssignment?.fulfills;
+  const ownStation = assignedStation ?? ownAssignment?.fulfills;
   const ownRow = rows.find((row) => row.station === ownStation);
   const ownActions = sortedActions(ownRow);
 

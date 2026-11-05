@@ -37,6 +37,18 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
     expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
   });
 
+  it("shows the reported station as the steward's own, with its tasks", () => {
+    render(
+      <ScenarioOverview
+        snapshot={snapshot}
+        onAssign={jest.fn()}
+        assignedStation="Station B"
+      />,
+    );
+    expect(screen.getByText("Opgaver på Station B")).toBeTruthy();
+    expect(screen.queryByText("Ingen opgave endnu")).toBeNull();
+  });
+
   it("offers no + when the steward cannot choose a station", () => {
     render(<ScenarioOverview snapshot={snapshot} />);
     expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
