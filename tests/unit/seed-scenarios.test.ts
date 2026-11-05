@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validate, type Scenario } from "../../scripts/seed-scenarios.ts";
+import {
+  parseSeedJson,
+  validate,
+  type Scenario,
+} from "../../scripts/seed-scenarios.ts";
 
 const STATIONS = ["VAN", "FL", "LIT", "KN"];
 const SHAFTS = ["ØSØ", "GÅB"];
@@ -67,14 +71,27 @@ test("a shaft in the middle of a route is valid", () => {
   );
 });
 
-test("a shaft code saved in decomposed form (macOS) still matches", () => {
-  const decomposed = "GÅB".normalize("NFD");
-  assert.notEqual(decomposed, "GÅB"); // proves the test input really differs
+const DECOMPOSED_GAB = "GÅB".normalize("NFD");
+
+test("decomposed codes are normalised when a seed file is parsed", () => {
+  assert.notEqual(DECOMPOSED_GAB, "GÅB");
+  const parsed = parseSeedJson<{ shafts: string }>(
+    JSON.stringify({ shafts: DECOMPOSED_GAB }),
+  );
+  assert.equal(parsed.shafts, "GÅB");
+});
+
+test("a decomposed shaft code in a route is valid after parsing", () => {
+  const scenario = parseSeedJson<Scenario>(
+    JSON.stringify(
+      scenarioWithRoute([
+        { sequence: 1, station: "VAN" },
+        { sequence: 2, shafts: DECOMPOSED_GAB },
+      ]),
+    ),
+  );
   assert.deepEqual(
-    errorsFor([
-      { sequence: 1, station: "VAN" },
-      { sequence: 2, shafts: decomposed },
-    ]),
+    validate(scenario, "test.json", allowedStations, shaftCodes),
     [],
   );
 });
