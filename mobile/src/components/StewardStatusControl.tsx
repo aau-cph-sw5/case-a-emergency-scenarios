@@ -28,6 +28,7 @@ export function StewardStatusControl({
   error,
   onArrive,
   onCheckOut,
+  onSlidingChange,
 }: {
   own: OwnStatus | null;
   coverage: StationCoverage | null;
@@ -37,6 +38,7 @@ export function StewardStatusControl({
   error: string | null;
   onArrive: () => void;
   onCheckOut: () => void;
+  onSlidingChange?: (sliding: boolean) => void;
 }) {
   const pending = stewardStatus.PENDING;
   const manned = stewardStatus.MANNED;
@@ -148,6 +150,7 @@ export function StewardStatusControl({
           label="GODKEND ANKOMST"
           color={colors.statusGreen}
           disabled={blockedReason !== null || sending}
+          onSlidingChange={onSlidingChange}
           onConfirm={onArrive}
         />
       )}
@@ -158,6 +161,7 @@ export function StewardStatusControl({
           label="TJEK UD"
           color={colors.active}
           disabled={blockedReason !== null || sending}
+          onSlidingChange={onSlidingChange}
           onConfirm={onCheckOut}
         />
       )}

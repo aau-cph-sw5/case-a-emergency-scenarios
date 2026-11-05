@@ -227,6 +227,7 @@ export default function MapRender({
   blockedTracks = [],
   initiallyHidden = [],
   requiredStaffing = {},
+  stationColors = {},
 }: {
   lines: MapLine[];
   colors: Record<string, string>;
@@ -245,6 +246,8 @@ export default function MapRender({
   initiallyHidden?: string[];
   // Saved staffing requirements, never current coverage.
   requiredStaffing?: Readonly<Record<string, number>>;
+  // Optional: a colour per station, e.g. live coverage, instead of highlightColor.
+  stationColors?: Readonly<Record<string, string>>;
 }) {
   // Each station once, so a station both marked and highlighted is drawn once.
   const highlighted = [
@@ -254,7 +257,9 @@ export default function MapRender({
     ]),
   ];
   const highlightFor = (station: string) =>
-    highlighted.includes(station) ? highlightColor : undefined;
+    highlighted.includes(station)
+      ? (stationColors[station] ?? highlightColor)
+      : undefined;
   const [hidden, setHidden] = useState<string[]>(initiallyHidden);
   const visible = lines.filter((l) => !hidden.includes(l.name));
   return (
@@ -335,7 +340,7 @@ export default function MapRender({
               name={station}
               x={getStation(station)[0]}
               y={getStation(station)[1]}
-              highlightColor={highlightColor}
+              highlightColor={highlightFor(station)}
               requiredStaffing={requiredStaffing[station]}
             />
           ))}

@@ -15,10 +15,15 @@ type Props =
       deployments: ActiveDeployments;
     };
 
-// Red with nobody arrived, yellow while some are missing, green when covered.
-function coverageColor(arrived: number, needed: number) {
+// Red with nobody arrived or on the way, yellow while some are missing,
+// green when covered.
+export function coverageColor(
+  arrived: number,
+  enRoute: number,
+  needed: number,
+) {
   if (arrived >= needed) return colors.statusGreen;
-  return arrived === 0 ? colors.statusRed : colors.statusYellow;
+  return arrived + enRoute === 0 ? colors.statusRed : colors.statusYellow;
 }
 
 // One card per station, as in the wireframe: arrived against needed, how many
@@ -57,7 +62,7 @@ function LiveStationRow({
   );
   const needed = requirement.minimumStaffing;
   const missing = Math.max(0, needed - current);
-  const color = coverageColor(current, needed);
+  const color = coverageColor(current, enRoute, needed);
   // Yellow text is unreadable on white, so the number uses a darker shade.
   const numberColor =
     color === colors.statusYellow ? colors.statusYellowText : color;

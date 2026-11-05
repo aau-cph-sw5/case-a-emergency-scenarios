@@ -4,6 +4,7 @@ import StationRow, {
   type StationRequirement,
 } from "../../shared/components/stationRow";
 import type { ActiveDeployments } from "../../shared/components/stationState";
+import { colors } from "../../shared/Theme";
 
 const requirement: StationRequirement = {
   station: "Station A",
@@ -37,6 +38,23 @@ describe("StationRow", () => {
     expect(screen.getByText("1 på vej")).toBeTruthy();
     expect(screen.getByText("Mangler 1 steward")).toBeTruthy();
     expect(screen.queryByText("Platform 1, near the elevators")).toBeNull();
+  });
+
+  it("is red with nobody arrived or on the way, yellow once someone is on the way", () => {
+    const { rerender } = render(
+      <StationRow requirement={requirement} deployments={deployments()} />,
+    );
+    expect(screen.getByText("0/2")).toHaveStyle({ color: colors.statusRed });
+
+    rerender(
+      <StationRow
+        requirement={requirement}
+        deployments={deployments("PENDING")}
+      />,
+    );
+    expect(screen.getByText("0/2")).toHaveStyle({
+      color: colors.statusYellowText,
+    });
   });
 
   it("says the station is fully staffed when everyone has arrived", () => {

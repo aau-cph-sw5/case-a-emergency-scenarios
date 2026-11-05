@@ -36,10 +36,11 @@ function withScenario(
   scenarioId: string | null,
   loadScenario: () => Promise<Scenario>,
   preview?: Scenario | null,
+  activations: object[] = [],
 ) {
   const value = {
     live: {
-      activations: [],
+      activations,
       scenarios: [],
       isConnected: true,
       isLoading: false,
@@ -73,6 +74,23 @@ const markedDots = () =>
     .filter((dot) => dot.props.fill === colors.requiredStation);
 
 describe("MetroMap", () => {
+  it("colours a required station by live coverage while the scenario is active", async () => {
+    const active = {
+      scenarioId: "TEST-MAP",
+      deployments: [{ status: "PENDING", staff: "1", fulfills: "UNI" }],
+    };
+    render(withScenario("TEST-MAP", async () => scenario, undefined, [active]));
+
+    await waitFor(() =>
+      expect(
+        screen
+          .UNSAFE_queryAllByType(Circle)
+          .some((dot) => dot.props.fill === colors.statusYellow),
+      ).toBe(true),
+    );
+    expect(markedDots()).toHaveLength(0);
+  });
+
   it("shows every line and marks nothing when no scenario is selected", () => {
     render(withScenario(null, async () => scenario));
 

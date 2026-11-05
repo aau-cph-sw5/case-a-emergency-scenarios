@@ -16,6 +16,9 @@ import {
 } from "../../../shared/scenario/affected-stations";
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import { useScenario } from "../data/useScenario";
+import { useLiveData } from "../data/liveData";
+import { coverageColor } from "../../../shared/components/stationRow";
+import { getStationState } from "../../../shared/components/stationState";
 
 // The whole metro network, each line in its own colour (M1 to M4). The colour
 // belongs to the line, so M2 keeps its colour when it is shown alone.
@@ -79,6 +82,18 @@ export function MetroMap({
   // Holds the scenario zoomed out from, so the next scenario zooms in again.
   const [zoomedOutOf, setZoomedOutOf] = useState<string | null>(null);
   const view = mapView(scenario);
+  // While the scenario is active, each station is coloured by its live
+  // coverage, as on its card (red, yellow, green).
+  const { activations } = useLiveData();
+  const active = activations.find((a) => a.scenarioId === scenario?.scenarioId);
+  const stationColors = active
+    ? Object.fromEntries(
+        Object.entries(view.requiredStaffing).map(([station, needed]) => {
+          const { current, enRoute } = getStationState(active, station, needed);
+          return [station, coverageColor(current, enRoute, needed)];
+        }),
+      )
+    : undefined;
   const canZoom = view.viewBox !== undefined;
   const zoomedOut = canZoom && zoomedOutOf === scenarioId;
   return (
@@ -132,6 +147,7 @@ export function MetroMap({
         markedStations={view.markedStations}
         requiredStaffing={view.requiredStaffing}
         highlightColor={theme.requiredStation}
+        stationColors={stationColors}
         blockedTracks={scenario?.covers ?? []}
       />
     </View>

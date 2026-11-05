@@ -22,11 +22,14 @@ export function SlideToConfirm({
   color,
   disabled = false,
   onConfirm,
+  onSlidingChange,
 }: {
   label: string;
   color: string;
   disabled?: boolean;
   onConfirm: () => void;
+  // Told when a drag starts and ends, so the screen can stop scrolling.
+  onSlidingChange?: (sliding: boolean) => void;
 }) {
   const [trackWidth, setTrackWidth] = useState(0);
   const [offset] = useState(() => new Animated.Value(0));
@@ -35,11 +38,19 @@ export function SlideToConfirm({
   // Rebuilt when the width, the disabled state or the action changes, so the
   // gesture always uses the current values.
   const responder = useMemo(() => {
-    const reset = () =>
+    const reset = () => {
+      onSlidingChange?.(false);
       Animated.spring(offset, { toValue: 0, useNativeDriver: false }).start();
+    };
     return PanResponder.create({
+      // Capture, and never hand the touch to the scroll view around it, so a
+      // drag that drifts up or down does not scroll the page or snap back.
       onStartShouldSetPanResponder: () => !disabled,
+      onStartShouldSetPanResponderCapture: () => !disabled,
       onMoveShouldSetPanResponder: () => !disabled,
+      onMoveShouldSetPanResponderCapture: () => !disabled,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => onSlidingChange?.(true),
       onPanResponderMove: (_event, gesture) => {
         offset.setValue(Math.min(Math.max(gesture.dx, 0), maxOffset));
       },
@@ -52,7 +63,7 @@ export function SlideToConfirm({
       },
       onPanResponderTerminate: reset,
     });
-  }, [disabled, maxOffset, offset, onConfirm]);
+  }, [disabled, maxOffset, offset, onConfirm, onSlidingChange]);
 
   return (
     <View

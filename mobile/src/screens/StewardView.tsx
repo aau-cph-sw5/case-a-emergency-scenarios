@@ -66,6 +66,8 @@ export function StewardView({
   const [ownStatus, setOwnStatus] = useState<OwnStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [sendingStatus, setSendingStatus] = useState(false);
+  // Off while a slider is dragged, so the page does not scroll under it.
+  const [sliding, setSliding] = useState(false);
 
   // Fetches again when the app returns to the foreground, when the socket
   // announces an activation or a stand-down, and when the socket reconnects,
@@ -195,7 +197,10 @@ export function StewardView({
       onLogout={onLogout}
     >
       <ScenarioNotice view={view} onDismiss={dismissNotice} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        scrollEnabled={!sliding}
+      >
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
         )}
@@ -235,6 +240,7 @@ export function StewardView({
               error={statusError}
               onArrive={() => void changeStatus({ type: "arrive" })}
               onCheckOut={() => void changeStatus({ type: "checkout" })}
+              onSlidingChange={setSliding}
             />
             <ScenarioOverview
               snapshot={shown}
