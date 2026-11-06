@@ -1,7 +1,8 @@
-# ADR 0010. Keep a Bounded Copy of the Active Scenario on the Steward's Phone
+# ADR 0011. Keep a Bounded Copy of the Active Scenario on the Steward's Phone
 
 **Status.** Accepted
 **Date.** 2026-10-27
+**Revised.** 2026-11-04: renumbered from 0010, which ADR 0010 (shared client data layer) already uses, and the socket only triggers a fetch (#257).
 **Deciders.** Andreas Foverskov, Group 7
 **Related backlog items.** MET-A-005 (#5), MET-A-004 (#4), MET-A-010 (#10, #157, #158)
 
@@ -25,8 +26,15 @@ session existed, which opened the copy in place of the login screen.
 The app keeps one copy of the active scenario on the phone. Every fetch while
 a scenario is active replaces it; when no scenario is active it is removed.
 The steward view fetches when it opens, when the app returns to the
-foreground, when the connection changes and when the socket announces an
-activation. The steward does not have to do anything.
+foreground, when the connection changes, when the socket announces an
+activation and when the socket reconnects. The steward does not have to do
+anything.
+
+The socket only says when to fetch; the scenario shown is always the server's
+answer to the fetch. That gives the steward app one source for the active
+scenario, the same one that is saved as the copy, and an activation missed
+while the socket was disconnected is picked up on reconnect. It is the same
+rule as the control-room web app in ADR 0010.
 
 The copy is bounded. It holds one activation and, of that scenario, only its
 id, name, `covers` and the current version's station requirements and
