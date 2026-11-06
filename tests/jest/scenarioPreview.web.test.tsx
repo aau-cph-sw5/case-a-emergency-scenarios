@@ -113,6 +113,14 @@ async function click(name: string) {
   await act(async () => button(name).click());
 }
 
+async function finishSwitchAnimation() {
+  await act(async () => {
+    const event = new Event("animationend", { bubbles: true });
+    Object.assign(event, { animationName: "scenario-picker-out" });
+    container.querySelector(".scenario-picker")!.dispatchEvent(event);
+  });
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((yes) => {
@@ -146,6 +154,124 @@ afterEach(async () => {
 });
 
 describe("scenario preview and activation", () => {
+  it("opens switching and cancels back to the current scenario without an API call", async () => {
+    await renderList(null, { activations: [activated] });
+    await click("Skift scenarie");
+    expect(
+      container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
+    ).toBe(false);
+    expect(button("Annuller").disabled).toBe(false);
+    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    await click(second.name);
+    expect(button("Aktivér valgt scenarie").disabled).toBe(false);
+    await click("Annuller");
+    expect(
+      container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
+    ).toBe(false);
+    expect(
+      container.querySelector(".scenario-selection.is-closing"),
+    ).not.toBeNull();
+    await finishSwitchAnimation();
+    expect(
+      container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
+    ).toBe(true);
+    expect(container.querySelector(".scenario-preview")).toBeNull();
+    expect(button("Deaktivér valgt scenarie").disabled).toBe(false);
+    expect(jest.mocked(postJson)).not.toHaveBeenCalled();
+  });
+
+  it("finishes cancelling even if the browser does not emit an animation event", async () => {
+    jest.useFakeTimers();
+    try {
+      await renderList(null, { activations: [activated] });
+      await click("Skift scenarie");
+      await click("Annuller");
+      await act(async () => {
+        jest.advanceTimersByTime(350);
+      });
+      expect(
+        container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
+      ).toBe(true);
+      expect(button("Deaktivér valgt scenarie").disabled).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("confirms both scenario names and switches using the existing replaces API", async () => {
+    const switched = {
+      ...activated,
+      activationId: 2,
+      scenarioId: second.scenarioId,
+    };
+    jest.mocked(postJson).mockResolvedValue(switched);
+    await renderList(null, { activations: [activated] });
+    await click("Skift scenarie");
+    await click(first.name);
+    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    await click(second.name);
+    await click("Aktivér valgt scenarie");
+    const heading = container.querySelector(
+      "#confirm-activation-heading",
+    )?.textContent;
+    expect(heading).toContain("skifte fra");
+    expect(heading).toContain(first.name);
+    expect(heading).toContain(second.name);
+    expect(jest.mocked(postJson)).not.toHaveBeenCalled();
+    await click("Annullér");
+    expect(container.querySelector("dialog")).toBeNull();
+    expect(
+      container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
+    ).toBe(false);
+    await click("Aktivér valgt scenarie");
+    await click("Bekræft");
+    expect(jest.mocked(postJson)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(postJson)).toHaveBeenCalledWith(
+      `/api/v1/scenarios/${second.scenarioId}/activate`,
+      "operator-token",
+      expect.any(Function),
+      { replaces: activated.activationId },
+    );
+    await renderList(null, { activations: [switched] });
+    expect(
+      container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
+    ).toBe(true);
+    expect(container.querySelector(".scenario-preview")).toBeNull();
+    await click("Deaktivér valgt scenarie");
+    expect(container.querySelector("dialog")?.textContent).toContain(
+      second.name,
+    );
+  });
+
+  it("keeps the switch picker and current activation when switching fails", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.mocked(postJson).mockRejectedValue(new Error("offline"));
+    await renderList(null, { activations: [activated] });
+    await click("Skift scenarie");
+    await click(second.name);
+    await click("Aktivér valgt scenarie");
+    await click("Bekræft");
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Ingen forbindelse til serveren",
+    );
+    expect(
+      container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
+    ).toBe(false);
+    expect(button("Aktivér valgt scenarie").disabled).toBe(false);
+    await click("Annuller");
+    expect(
+      container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
+    ).toBe(false);
+    expect(
+      container.querySelector(".scenario-selection.is-closing"),
+    ).not.toBeNull();
+    await finishSwitchAnimation();
+    await click("Deaktivér valgt scenarie");
+    expect(container.querySelector("dialog")?.textContent).toContain(
+      first.name,
+    );
+  });
+
   it("hides the picker while active, keeps stand-down available without a selection, and restores the picker afterwards", async () => {
     await renderList(null, { activations: [activated] });
     expect(

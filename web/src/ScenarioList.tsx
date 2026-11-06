@@ -38,6 +38,10 @@ export function ScenarioList({
   const { scenarios, scenariosError, reloadScenarios, activations, error } =
     useLiveData();
   const [query, setQuery] = useState("");
+  const [switchPhase, setSwitchPhase] = useState<"closed" | "open" | "closing">(
+    "closed",
+  );
+  const switching = switchPhase !== "closed";
   // True while the confirmation dialog is open for the selected scenario.
   const [confirming, setConfirming] = useState(false);
   // Names for the scenarios being deactivated, shown in the confirmation.
@@ -68,16 +72,39 @@ export function ScenarioList({
     selected !== null && activeIds.has(selected.scenarioId);
   // Keep STOP available after a reload, even when no list item is selected.
   const activeScenario = activations.at(-1);
-  const actionScenario = activeScenario
-    ? {
-        scenarioId: activeScenario.scenarioId,
-        name: names.get(activeScenario.scenarioId) ?? activeScenario.scenarioId,
-      }
-    : selected;
-  const actionIsActive = activeScenario !== undefined || selectedIsActive;
+  const actionScenario =
+    activeScenario && !switching
+      ? {
+          scenarioId: activeScenario.scenarioId,
+          name:
+            names.get(activeScenario.scenarioId) ?? activeScenario.scenarioId,
+        }
+      : selected;
+  const actionIsActive =
+    !switching && (activeScenario !== undefined || selectedIsActive);
+  const choosingScenario = activeScenario === undefined || switching;
   // No new action is started while one is on its way to the server.
   const busy =
-    activation.status === "activating" || activation.status === "standing-down";
+    activation.status === "activating" ||
+    activation.status === "standing-down" ||
+    switchPhase === "closing";
+
+  const activeScenarioId = activeScenario?.scenarioId ?? null;
+  // Keep the picker mounted until the exit animation finishes. The timeout
+  // also completes cancellation if animations are disabled outside our CSS.
+  useEffect(() => {
+    if (switchPhase !== "closing") return;
+    const timer = setTimeout(() => {
+      setSwitchPhase("closed");
+      onSelect(activeScenarioId);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [switchPhase, activeScenarioId, onSelect]);
+
+  function finishSwitch() {
+    setSwitchPhase("closed");
+    onSelect(activeScenarioId);
+  }
 
   async function activate(scenario: ScenarioSummary) {
     setConfirming(false);
@@ -97,6 +124,8 @@ export function ScenarioList({
         outgoing && { replaces: outgoing.activationId },
       );
       setActivation({ status: "done", state });
+      setSwitchPhase("closed");
+      onSelect(state.scenarioId);
       onActivated(state.scenarioId);
     } catch (error) {
       console.error(error);
@@ -137,10 +166,21 @@ export function ScenarioList({
   // An active scenario uses this space for its live metrics instead of search.
   return (
     <section
-      className={`scenario-selection${activeScenario ? " scenario-selection--active" : ""}`}
+      className={`scenario-selection${!choosingScenario ? " scenario-selection--active" : ""}${switching ? " scenario-selection--switching" : ""}${switchPhase === "closing" ? " is-closing" : ""}`}
       aria-label="Scenarier og handlinger"
     >
-      <div className="scenario-picker" hidden={activeScenario !== undefined}>
+      <div
+        className="scenario-picker"
+        hidden={!choosingScenario}
+        onAnimationEnd={(event) => {
+          if (
+            event.target === event.currentTarget &&
+            event.animationName === "scenario-picker-out" &&
+            switchPhase === "closing"
+          )
+            finishSwitch();
+        }}
+      >
         <h2 id="scenario-list-heading">Vælg scenarie</h2>
 
         <label>
@@ -184,19 +224,41 @@ export function ScenarioList({
           <p role="status">Aktive scenarier kunne ikke vises.</p>
         )}
       </div>
-      {summary && <div className="operator-summaries">{summary}</div>}
+      {summary && !switching && (
+        <div className="operator-summaries">{summary}</div>
+      )}
 
-      {/* Opens the confirmation for the selected scenario. It sits under the
-          list for now; it belongs at the bottom of the scenario preview, so
-          the operator sees what a scenario requires before activating it. The
-          active scenario is stood down instead (MET-A-009). */}
+      {/* Switching previews another scenario without stopping the current one. */}
       <div className="scenario-actions">
+        {actionIsActive && activeScenario && (
+          <button
+            type="button"
+            className="scenario-switch"
+            disabled={busy}
+            onClick={() => {
+              setSwitchPhase("open");
+              setQuery("");
+              onSelect(null);
+            }}
+          >
+            Skift scenarie
+          </button>
+        )}
         {!actionIsActive && (
           <button
             type="button"
             className="scenario-cancel"
-            disabled={busy || selectedId === null}
-            onClick={() => onSelect(null)}
+            disabled={busy || (!switching && selectedId === null)}
+            onClick={() => {
+              if (switching) {
+                if (
+                  window.matchMedia?.("(prefers-reduced-motion: reduce)")
+                    .matches
+                )
+                  finishSwitch();
+                else setSwitchPhase("closing");
+              } else onSelect(null);
+            }}
           >
             Annuller
           </button>
@@ -352,13 +414,11 @@ function ConfirmActivation({
       onClose={onCancel}
       aria-labelledby="confirm-activation-heading"
     >
-      <h3 id="confirm-activation-heading">Aktivér “{scenario.name}”?</h3>
-      {outgoing.length > 0 && (
-        <p className="confirm-warning">
-          Dette vil deaktivere scenarie{" "}
-          {outgoing.map((name) => `“${name}”`).join(", ")}
-        </p>
-      )}
+      <h3 id="confirm-activation-heading">
+        {outgoing.length > 0
+          ? `Er du sikker på, at du vil skifte fra ${outgoing.map((name) => `“${name}”`).join(", ")} til “${scenario.name}”?`
+          : `Aktivér “${scenario.name}”?`}
+      </h3>
       <div className="confirm-actions">
         <button
           type="button"

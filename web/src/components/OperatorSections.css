@@ -207,6 +207,7 @@ body {
   flex-direction: column;
 }
 .scenario-selection {
+  overflow-x: clip;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -338,6 +339,13 @@ body {
   font-size: 12px;
   line-height: 1.4;
   font-weight: bold;
+}
+.scenario-actions .scenario-switch {
+  flex: 0 0 26%;
+  max-width: 76px;
+  background: var(--operator-yellow);
+  color: var(--operator-ink);
+  font-size: 10px;
 }
 .scenario-start {
   background: var(--operator-green, #007d55);
@@ -832,6 +840,34 @@ body {
 }
 .operator-dashboard [data-testid="status-launcher"]:hover {
   background: #0088a2;
+}
+.scenario-selection--switching > :is(.scenario-picker, .scenario-actions) {
+  animation: scenario-picker-in 0.28s ease-out both;
+}
+.scenario-selection--switching.is-closing
+  > :is(.scenario-picker, .scenario-actions) {
+  animation: scenario-picker-out 0.28s ease-in both;
+  pointer-events: none;
+}
+@keyframes scenario-picker-in {
+  from {
+    transform: translateX(-110%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes scenario-picker-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-110%);
+    opacity: 0;
+  }
 }
 @keyframes summary-enter {
   from {
