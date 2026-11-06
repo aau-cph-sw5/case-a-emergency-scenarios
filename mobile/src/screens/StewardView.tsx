@@ -87,7 +87,7 @@ export function StewardView({
   // Reports the chosen station and shows the answer.
   async function reportPosition() {
     if (station === "") return;
-    setReportStatus(await sendPositionReport(token, station));
+    setReportStatus((await sendPositionReport(token, station)).message);
   }
 
   const retry = onRetry ?? (() => void refresh());
