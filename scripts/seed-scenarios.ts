@@ -287,7 +287,7 @@ export function readDemoData(
   );
   const files = readdirSync(scenariosDir)
     .filter((fileName) => fileName.endsWith(".json"))
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .map((fileName) => ({
       fileName,
       text: readFileSync(join(scenariosDir, fileName), "utf8"),
