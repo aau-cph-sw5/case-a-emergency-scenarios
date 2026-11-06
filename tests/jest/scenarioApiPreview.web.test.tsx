@@ -128,7 +128,7 @@ describe("API-backed scenario preview", () => {
       path === "/api/v1/activations?status=ACTIVE"
         ? response([
             {
-              activationId: "active-1",
+              activationId: 1,
               scenarioId: summaries[0].scenarioId,
               status: "ACTIVE",
               startedAt: "2026-11-01T12:00:00Z",

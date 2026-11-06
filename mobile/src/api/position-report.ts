@@ -1,5 +1,6 @@
 import { ERROR_CODES } from "../../../shared/error-codes";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
+import type { PositionReport } from "../../../shared/types/v1/position-report";
 import { apiBaseUrl } from "../api-base-url";
 
 // What the steward reads for each refusal; the server's message is for developers.
@@ -11,12 +12,17 @@ const REPORT_ERRORS: Record<string, string> = {
     "Stationen er ikke en del af det aktive scenarie.",
 };
 
-// Sends a position report over HTTP; returns the text to show the steward.
-// The server forwards an accepted report to the operators over the socket.
+export type PositionReportResult = { ok: boolean; message: string };
+
+// Sends a position report over HTTP; returns whether it was accepted and the
+// text to show the steward. The server forwards an accepted report to the
+// operators over the socket. event says what the report means (contract
+// 7.1.0); left out, the server reads it as on the way.
 export async function sendPositionReport(
   token: string,
   station: string,
-): Promise<string> {
+  event?: PositionReport["event"],
+): Promise<PositionReportResult> {
   try {
     const response = await fetch(`${apiBaseUrl}/api/v1/position-reports`, {
       method: "POST",
@@ -28,14 +34,19 @@ export async function sendPositionReport(
         staff: "",
         station,
         reportedAt: new Date().toISOString(),
+        ...(event === undefined ? {} : { event }),
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    if (response.ok) return `Position sendt: ${station}`;
+    if (response.ok) return { ok: true, message: `Position sendt: ${station}` };
 
     const body = await response.json().catch(() => null);
-    return REPORT_ERRORS[body?.error?.code] ?? "Positionen blev ikke modtaget.";
+    return {
+      ok: false,
+      message:
+        REPORT_ERRORS[body?.error?.code] ?? "Positionen blev ikke modtaget.",
+    };
   } catch {
-    return "Ingen forbindelse til serveren.";
+    return { ok: false, message: "Ingen forbindelse til serveren." };
   }
 }

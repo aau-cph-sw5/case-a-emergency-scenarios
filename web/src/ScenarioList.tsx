@@ -118,11 +118,13 @@ export function ScenarioList({
     setActivation({ status: "standing-down" });
     try {
       const state = await postJson(
-        `/api/v1/activations/${encodeURIComponent(active.activationId)}/stand-down`,
+        `/api/v1/activations/${active.activationId}/stand-down`,
         token,
         isScenarioState,
       );
       setActivation({ status: "stood-down", state });
+      // The map returns to the default map that it shows at the start.
+      onSelect(null);
     } catch (error) {
       console.error(error);
       setActivation({

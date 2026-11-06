@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
 import {
   box,
@@ -8,6 +14,7 @@ import {
   colors,
   text,
   palette,
+  panelRadius,
 } from "../../../shared/Theme";
 import MapRender from "../../../shared/MapRenderer";
 import { getLines } from "../../../mockData/data";
@@ -16,6 +23,7 @@ import {
   affectedStretchAsMapLine,
   networkWithoutStretch,
 } from "../../../shared/scenario/affected-stations";
+import { getStationState } from "../../../shared/components/stationState";
 import { zoomedViewBox } from "./map-zoom";
 import { findOwnAssignment } from "./own-assignment";
 
@@ -28,7 +36,19 @@ type StationRequirement = NonNullable<
   ScenarioSnapshot["scenario"]["versions"][number]["stationRequirements"]
 >[number];
 
-export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
+export function ScenarioOverview({
+  snapshot,
+  onAssign,
+  assignedStation,
+}: {
+  snapshot: ScenarioSnapshot;
+  // Offers + on each station, to report on the way there (MET-A-015, #263).
+  // Left out when the steward cannot choose a station right now.
+  onAssign?: (station: string) => void;
+  // The station the steward has reported on the way to with +. It is shown
+  // as their own station, and gets no + of its own.
+  assignedStation?: string;
+}) {
   const { scenario, state, userId } = snapshot;
   const mapColors = {
     [scenario.name]: STRETCH_COLOR,
@@ -51,8 +71,10 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
   const mapLines = [...networkLines, stretch];
   // MET-A-010 criterion 2: the steward's own assignment stands out without
   // interaction. userId comes from the offline copy, so this works offline.
+  // The station chosen with + comes first, since the server does not record
+  // it in the deployments yet (#263).
   const ownAssignment = findOwnAssignment(state.deployments, userId);
-  const ownStation = ownAssignment?.fulfills;
+  const ownStation = assignedStation ?? ownAssignment?.fulfills;
   const ownRow = rows.find((row) => row.station === ownStation);
   const ownActions = sortedActions(ownRow);
 
@@ -143,9 +165,25 @@ export function ScenarioOverview({ snapshot }: { snapshot: ScenarioSnapshot }) {
           {row.station === ownStation && (
             <Text style={styles.ownLabel}>Din station</Text>
           )}
-          <Text style={styles.stationName}>
-            {row.station} · {row.minimumStaffing} påkrævet
-          </Text>
+          <View style={styles.stationHeader}>
+            <Text style={[styles.stationName, styles.grow]}>
+              {row.station} · {row.minimumStaffing} påkrævet
+            </Text>
+            <Text style={styles.coverageCount}>
+              {getStationState(state, row.station, row.minimumStaffing).current}{" "}
+              / {row.minimumStaffing}
+            </Text>
+            {onAssign && row.station !== assignedStation && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Meld dig på vej til ${row.station}`}
+                onPress={() => onAssign(row.station)}
+                style={styles.assignButton}
+              >
+                <Text style={styles.assignText}>+</Text>
+              </Pressable>
+            )}
+          </View>
           {row.station !== ownStation && (
             <Text style={styles.body}>{row.placement}</Text>
           )}
@@ -195,6 +233,32 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
+  grow: {
+    flex: 1,
+  },
+  stationHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  coverageCount: {
+    ...text.body,
+    color: colors.text,
+    fontWeight: "600",
+  },
+  assignButton: {
+    alignItems: "center",
+    backgroundColor: colors.active,
+    borderRadius: 8,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  assignText: {
+    color: colors.textInverse,
+    fontSize: 22,
+    fontWeight: "700",
+  },
   stationName: {
     ...text.body,
     color: colors.text,
@@ -241,9 +305,8 @@ const styles = StyleSheet.create({
   // not rely on colour alone.
   ownCard: {
     backgroundColor: colors.active,
-    // Rounded as in the design group's sketch. Only this card: the theme's
-    // radius stays 0 for the rest of the app.
-    borderRadius: 12,
+    // Rounded as in the design group's sketch, like the status panels.
+    borderRadius: panelRadius,
     padding: 12,
     marginBottom: 8,
   },

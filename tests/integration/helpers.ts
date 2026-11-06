@@ -59,6 +59,9 @@ export async function seedTestScenarios() {
   });
   await client.connect();
   try {
+    // Each test file starts with the same empty activation state as the server.
+    // This is the dedicated test database and the test runner is serial.
+    await client.query("DELETE FROM incident_activations");
     await seedScenarios(client, scenarios, TEST_STATIONS);
   } finally {
     await client.end();

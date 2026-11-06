@@ -93,6 +93,11 @@ test("an operator activates a scenario and writes an incident event", async () =
   assert.equal(res.status, 201);
 
   const activation = await res.json();
+  assert.ok(Number.isInteger(activation.activationId));
+  const [stored] = await getDatabase()<{ id: number }[]>`
+    SELECT id FROM incident_activations WHERE id = ${activation.activationId}
+  `;
+  assert.equal(stored.id, activation.activationId);
   assert.equal(activation.scenarioId, "DEMO-002");
   assert.equal(activation.status, "ACTIVE");
   assert.equal(activation.actor, OPERATOR_USERNAME);
@@ -100,7 +105,7 @@ test("an operator activates a scenario and writes an incident event", async () =
 
   const events = await eventsBy(OPERATOR_USERNAME);
   assert.equal(events.length, beforeCount + 1);
-  assert.equal(events.at(-1)?.activationId, activation.activationId);
+  assert.equal(events.at(-1)?.activationId, String(activation.activationId));
   // The activation carries its event's sequence, for ordering (MET-A-004).
   assert.equal(activation.sequence, Number(events.at(-1)?.sequence));
 });

@@ -22,7 +22,7 @@ const scenario = {
 
 function activation(overrides: Partial<ScenarioState> = {}): ScenarioState {
   return {
-    activationId: "ACT-001",
+    activationId: 1,
     scenarioId: "DEMO-001",
     startedAt: "2026-10-22T10:00:00Z",
     status: "ACTIVE",
