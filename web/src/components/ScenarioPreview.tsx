@@ -14,7 +14,6 @@ export function ScenarioPreview({
 
   return (
     <section className="scenario-preview" aria-label="Scenariepreview">
-      {scenario === null && <h2>Påvirkede stationer</h2>}
       {scenarioId === null && (
         <p role="status">Vælg et scenarie for at se bemandingsbehov.</p>
       )}

@@ -124,6 +124,23 @@ describe("stewardPositions", () => {
 });
 
 describe("StewardPositions pop-up", () => {
+  it("keeps its launcher visible and toggles the popup on repeated clicks", () => {
+    renderWithLive(<StewardPositions />, {});
+    fireEvent.press(screen.getByTestId("status-launcher"));
+    expect(screen.getByTestId("status-window")).toBeTruthy();
+    expect(
+      screen.getByTestId("status-launcher").props.accessibilityState,
+    ).toEqual({
+      expanded: true,
+    });
+    fireEvent.press(screen.getByTestId("status-launcher"));
+    expect(screen.queryByTestId("status-window")).toBeNull();
+    expect(
+      screen.getByTestId("status-launcher").props.accessibilityState,
+    ).toEqual({
+      expanded: false,
+    });
+  });
   it("starts closed with the number of stewards on the button", () => {
     renderWithLive(<StewardPositions />, {
       activations: [

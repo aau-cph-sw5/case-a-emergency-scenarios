@@ -12,11 +12,13 @@ export function ScenarioWorkspace({
   selectedId,
   onSelect,
   statusBar,
+  statusPopup,
 }: {
   token: string;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   statusBar?: ReactNode;
+  statusPopup?: ReactNode;
 }) {
   const { activations } = useLiveData();
   const [lineControlsTarget, setLineControlsTarget] =
@@ -30,6 +32,7 @@ export function ScenarioWorkspace({
 
   return (
     <OperatorSections
+      statusPopup={statusPopup}
       mapControls={
         <div className="operator-map-controls" ref={setLineControlsTarget} />
       }

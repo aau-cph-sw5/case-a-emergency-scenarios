@@ -6,7 +6,8 @@ import {
 } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
-import { colors, lineColors } from "../../shared/Theme";
+import { StyleSheet } from "react-native";
+import { colors, lineColors, palette } from "../../shared/Theme";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
 import { MetroMap } from "../../web/src/components/MetroMap";
@@ -81,11 +82,11 @@ describe("MetroMap", () => {
     expect(viewBox()).toBe("0 0 950 700");
   });
 
-  it("shows only the covered line, centred, and marks the required station", async () => {
+  it("shows the covered line group, centred, and marks the required station", async () => {
     render(withScenario("TEST-MAP", async () => scenario));
 
     // The whole network shows while the scenario loads, so wait for the change.
-    await waitFor(() => expect(shownLines()).toEqual(["M1"]));
+    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
     expect(markedDots().length).toBeGreaterThan(0);
     // The view zooms to the covered stretch ISB–UNI, not all of M1.
     expect(viewBox()).toBe("520 293 320 375");
@@ -108,13 +109,13 @@ describe("MetroMap", () => {
     };
     render(withScenario("TEST-MAP", async () => offLine));
 
-    await waitFor(() => expect(shownLines()).toEqual(["M1"]));
+    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
     expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI", "CPH"], 160));
   });
 
   it("draws the blocked track dashed and the required station orange", async () => {
     render(withScenario("TEST-MAP", async () => scenario));
-    await waitFor(() => expect(shownLines()).toEqual(["M1"]));
+    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
 
     const blocked = screen
       .UNSAFE_queryAllByType(Line)
@@ -149,41 +150,54 @@ describe("MetroMap", () => {
 
   it("zooms out to the full map and back, keeping the marked station", async () => {
     render(withScenario("TEST-MAP", async () => scenario));
-    await waitFor(() => expect(shownLines()).toEqual(["M1"]));
+    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
 
-    fireEvent.press(screen.getByText("Vis hele kortet"));
+    expect(
+      StyleSheet.flatten(screen.getByTestId("map-zoom-toggle").props.style)
+        .backgroundColor,
+    ).toBe(palette.metroLineFour);
+    expect(
+      StyleSheet.flatten(screen.getByText("Zoom ud").props.style).color,
+    ).toBe(colors.textInverse);
+    fireEvent.press(screen.getByText("Zoom ud"));
     // The frame widens, but the other lines stay off until they are toggled.
-    expect(shownLines()).toEqual(["M1"]);
+    expect(shownLines()).toEqual(["M1", "M2"]);
     expect(viewBox()).toBe("0 0 950 700");
     expect(markedDots().length).toBeGreaterThan(0);
 
     fireEvent.press(screen.getByText("Zoom ind"));
-    expect(shownLines()).toEqual(["M1"]);
+    expect(shownLines()).toEqual(["M1", "M2"]);
     expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"], 160));
   });
 
-  it("shows another line only when its button is toggled on", async () => {
+  it("toggles each line pair together and preserves the choices while zooming", async () => {
     render(withScenario("TEST-MAP", async () => scenario));
-    await waitFor(() => expect(shownLines()).toEqual(["M1"]));
+    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
 
     fireEvent.press(screen.getByText("M2"));
+    expect(shownLines()).toEqual([]);
+    fireEvent.press(screen.getByText("M1"));
+    expect(shownLines()).toEqual(["M1", "M2"]);
+    fireEvent.press(screen.getByText("M3"));
+    expect(shownLines()).toEqual(["M1", "M2", "M3", "M4"]);
+    fireEvent.press(screen.getByText("M4"));
     expect(shownLines()).toEqual(["M1", "M2"]);
 
     // The choice survives zooming out.
-    fireEvent.press(screen.getByText("Vis hele kortet"));
+    fireEvent.press(screen.getByText("Zoom ud"));
     expect(shownLines()).toEqual(["M1", "M2"]);
   });
 
   it("offers no zoom button when the full map already shows", () => {
     render(withScenario(null, async () => scenario));
 
-    expect(screen.queryByText("Vis hele kortet")).toBeNull();
+    expect(screen.queryByText("Zoom ud")).toBeNull();
   });
 
   it("zooms in again when another scenario is selected", async () => {
     const view = render(withScenario("TEST-MAP", async () => scenario));
-    await waitFor(() => expect(shownLines()).toEqual(["M1"]));
-    fireEvent.press(screen.getByText("Vis hele kortet"));
+    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
+    fireEvent.press(screen.getByText("Zoom ud"));
 
     view.rerender(
       withScenario("OTHER", async () => ({
@@ -192,7 +206,7 @@ describe("MetroMap", () => {
       })),
     );
 
-    await waitFor(() => expect(shownLines()).toEqual(["M1"]));
+    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
     expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"], 160));
   });
 

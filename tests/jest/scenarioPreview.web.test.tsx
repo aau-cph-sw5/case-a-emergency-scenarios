@@ -257,6 +257,13 @@ describe("scenario preview and activation", () => {
       first.name,
     );
     expect(jest.mocked(postJson)).not.toHaveBeenCalled();
+    expect(
+      [...container.querySelectorAll("dialog .confirm-actions button")].map(
+        (item) => item.textContent,
+      ),
+    ).toEqual(["Annullér", "Bekræft"]);
+    expect(container.querySelector("dialog .confirm-accept")).not.toBeNull();
+    expect(container.querySelector("dialog .confirm-cancel")).not.toBeNull();
     await click("Annullér");
     expect(container.querySelector("dialog")).toBeNull();
     await click("Aktivér valgt scenarie");

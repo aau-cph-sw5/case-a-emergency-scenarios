@@ -252,24 +252,22 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
           </ScrollView>
         </View>
       )}
-      {!open && (
-        <Pressable
-          accessibilityRole="button"
-          testID="status-launcher"
-          accessibilityState={{ expanded: open }}
-          onPress={() => setOpen(true)}
-          style={{
-            paddingHorizontal: 20,
-            paddingVertical: 12,
-            borderRadius: 24,
-            backgroundColor: palette.metroLineFour,
-          }}
-        >
-          <Text style={[text.title, { color: colors.textInverse }]}>
-            Status ({positions.length})
-          </Text>
-        </Pressable>
-      )}
+      <Pressable
+        accessibilityRole="button"
+        testID="status-launcher"
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen((previous) => !previous)}
+        style={{
+          paddingHorizontal: 20,
+          paddingVertical: 12,
+          borderRadius: 24,
+          backgroundColor: palette.metroLineFour,
+        }}
+      >
+        <Text style={[text.title, { color: colors.textInverse }]}>
+          Status ({positions.length})
+        </Text>
+      </Pressable>
     </View>
   );
 }

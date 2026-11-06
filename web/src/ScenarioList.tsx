@@ -139,11 +139,10 @@ export function ScenarioList({
       aria-label="Scenarier og handlinger"
     >
       <div className="scenario-picker" hidden={activeScenario !== undefined}>
-        <span className="operator-eyebrow">SCENARIER</span>
         <h2 id="scenario-list-heading">Vælg scenarie</h2>
 
         <label>
-          Søg efter scenarier{" "}
+          <span className="visually-hidden">Søg efter scenarier</span>
           <input
             type="search"
             placeholder="Søg efter scenarie"
@@ -363,12 +362,18 @@ function ConfirmActivation({
           {outgoing.map((name) => `“${name}”`).join(", ")}
         </p>
       )}
-      <button type="button" onClick={onConfirm}>
-        Bekræft
-      </button>{" "}
-      <button type="button" onClick={() => dialogRef.current?.close()}>
-        Annullér
-      </button>
+      <div className="confirm-actions">
+        <button
+          type="button"
+          className="confirm-cancel"
+          onClick={() => dialogRef.current?.close()}
+        >
+          Annullér
+        </button>
+        <button type="button" className="confirm-accept" onClick={onConfirm}>
+          Bekræft
+        </button>
+      </div>
     </dialog>
   );
 }
@@ -399,12 +404,18 @@ function ConfirmStandDown({
       <h3 id="confirm-stand-down-heading" className="confirm-warning">
         Vil du deaktivere “{scenario.name}”?
       </h3>
-      <button type="button" className="confirm-danger" onClick={onConfirm}>
-        Deaktivér
-      </button>{" "}
-      <button type="button" onClick={() => dialogRef.current?.close()}>
-        Annullér
-      </button>
+      <div className="confirm-actions">
+        <button
+          type="button"
+          className="confirm-cancel"
+          onClick={() => dialogRef.current?.close()}
+        >
+          Annullér
+        </button>
+        <button type="button" className="confirm-accept" onClick={onConfirm}>
+          Deaktivér
+        </button>
+      </div>
     </dialog>
   );
 }

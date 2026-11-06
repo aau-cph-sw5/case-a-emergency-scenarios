@@ -13,6 +13,7 @@ type Props =
       requirement: StationRequirement;
       mode?: "live-coverage";
       deployments: ActiveDeployments;
+      operatorLayout?: boolean;
     };
 
 // Red with nobody arrived, yellow while some are missing, green when covered.
@@ -40,7 +41,11 @@ export default function StationRow(props: Props) {
     );
   }
   return (
-    <LiveStationRow requirement={requirement} deployments={props.deployments} />
+    <LiveStationRow
+      requirement={requirement}
+      deployments={props.deployments}
+      operatorLayout={props.operatorLayout}
+    />
   );
 }
 
@@ -57,7 +62,14 @@ function PreviewStationRow({
       accessibilityLabel={`${requirement.station}: ${requirement.minimumStaffing} stewards kræves`}
       accessibilityState={{ expanded: open }}
       onPress={() => setOpen(!open)}
-      style={[styles.card, { borderLeftColor: colors.statusRed }]}
+      style={[
+        styles.card,
+        {
+          borderLeftColor: colors.statusRed,
+          borderRightWidth: 4,
+          borderRightColor: colors.statusRed,
+        },
+      ]}
     >
       <View style={styles.line}>
         <Text style={styles.name}>{requirement.station}</Text>
@@ -82,9 +94,11 @@ function PreviewStationRow({
 function LiveStationRow({
   requirement,
   deployments,
+  operatorLayout = false,
 }: {
   requirement: StationRequirement;
   deployments: ActiveDeployments;
+  operatorLayout?: boolean;
 }) {
   const { current, enRoute } = getStationState(
     deployments,
@@ -102,28 +116,77 @@ function LiveStationRow({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
       onPress={() => setOpen(!open)}
-      style={[styles.card, { borderLeftColor: color }]}
+      style={[
+        styles.card,
+        { borderLeftColor: color },
+        operatorLayout && { borderRightWidth: 4, borderRightColor: color },
+      ]}
     >
       <View style={styles.line}>
-        <Text style={styles.name} numberOfLines={1}>
+        <Text
+          style={[styles.name, operatorLayout && styles.operatorName]}
+          numberOfLines={1}
+        >
           {requirement.station}
         </Text>
-        <Text style={[styles.count, { color: numberColor }]}>
+        {operatorLayout && (
+          <View
+            testID="station-staffing-slots"
+            accessible
+            accessibilityLabel={`${current} ankommet, ${enRoute} på vej, ${Math.max(0, needed - current - enRoute)} afventer`}
+            style={styles.slots}
+          >
+            {Array.from({ length: needed }, (_, index) => {
+              // Exactly one slot per required steward, ordered green/yellow/red.
+              const status =
+                index < current
+                  ? "MANNED"
+                  : index < current + enRoute
+                    ? "PENDING"
+                    : "UNMANNED";
+              const backgroundColor =
+                status === "MANNED"
+                  ? colors.statusGreen
+                  : status === "PENDING"
+                    ? colors.statusYellow
+                    : colors.statusRed;
+              return (
+                <View
+                  key={index}
+                  testID={`station-slot-${status}`}
+                  style={[styles.slot, { backgroundColor }]}
+                />
+              );
+            })}
+          </View>
+        )}
+        <Text
+          style={[
+            styles.count,
+            { color: numberColor },
+            operatorLayout && styles.operatorCount,
+          ]}
+        >
           {current}/{needed}
         </Text>
       </View>
       <View style={styles.line}>
         <Text style={styles.small}>{current} på stationen</Text>
+
         <Text style={[styles.small, styles.bold]}>{enRoute} på vej</Text>
       </View>
-      <Text
-        style={[styles.small, missing === 0 && { color: colors.statusGreen }]}
-      >
-        {missing === 0
-          ? "Fuldt bemandet"
-          : `Mangler ${missing} ${missing === 1 ? "steward" : "stewards"}`}
-      </Text>
+      {(!operatorLayout || missing === 0) && (
+        <Text
+          style={[styles.small, missing === 0 && { color: colors.statusGreen }]}
+        >
+          {missing === 0
+            ? "Fuldt bemandet"
+            : `Mangler ${missing} ${missing === 1 ? "steward" : "stewards"}`}
+        </Text>
+      )}
 
       {open && (
         <View style={styles.details}>
@@ -151,7 +214,25 @@ const styles = StyleSheet.create({
   },
   name: { ...text.body, flexShrink: 1, fontSize: 14, fontWeight: "600" },
   count: { fontSize: 20, fontWeight: "700" },
+  operatorName: { flexBasis: 0, flexGrow: 1 },
+  operatorCount: { flexBasis: 0, flexGrow: 1, textAlign: "right" },
   small: text.small,
   bold: { fontWeight: "600" },
   details: { marginTop: 4, gap: 2 },
+  slots: {
+    flexBasis: 0,
+    flexGrow: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 4,
+    flexShrink: 1,
+  },
+  slot: {
+    width: 13,
+    height: 22,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
 });

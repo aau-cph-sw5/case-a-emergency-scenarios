@@ -41,12 +41,8 @@ export function OperatorDashboard({
         selectedId={selectedId}
         onSelect={setSelectedId}
         statusBar={<LiveStatusBar />}
+        statusPopup={<StewardPositions mock={mockStewardPositions} />}
       />
-      {/* Fixed in the bottom right corner, so it follows the wireframe whatever
-          the section layout does. */}
-      <div className="status-popup">
-        <StewardPositions mock={mockStewardPositions} />
-      </div>
     </main>
   );
 }

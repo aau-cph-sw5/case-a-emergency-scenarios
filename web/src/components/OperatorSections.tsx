@@ -7,11 +7,13 @@ export function OperatorSections({
   map,
   coverage,
   mapControls,
+  statusPopup,
 }: {
   scenarioSelection: ReactNode;
   map: ReactNode;
   coverage: ReactNode;
   mapControls?: ReactNode;
+  statusPopup?: ReactNode;
 }) {
   return (
     <div className="operator-sections">
@@ -20,7 +22,7 @@ export function OperatorSections({
       </section>
       <section className="operator-map-panel" aria-label="Map">
         <div className="map-heading">
-          <h1>Bemanding på stationerne</h1>
+          <h1>Oversigt</h1>
           {mapControls}
         </div>
         <div className="map-legend" aria-label="Kortforklaring">
@@ -39,7 +41,23 @@ export function OperatorSections({
         className="operator-coverage-panel"
         aria-label="Steward coverage"
       >
-        {coverage}
+        <div className="operator-coverage-content">
+          <h2 className="coverage-heading">Bemandingsplan</h2>
+          {coverage}
+        </div>
+        {statusPopup && (
+          <div className="operator-status-footer">
+            <div className="status-popup">{statusPopup}</div>
+            <button
+              type="button"
+              className="operator-message-button"
+              disabled
+              title="Beskeder er endnu ikke tilgængelige"
+            >
+              Beskeder
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );
