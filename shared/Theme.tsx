@@ -58,6 +58,8 @@ export const stewardStatus: Partial<
     symbol: "✓✓",
     color: colors.statusGreen,
   },
+  // The steward has left the station after arriving (contract 7.1.0, #305).
+  CHECKED_OUT: { label: "Tjekket ud", color: colors.text },
 };
 
 export const lineColors = [
@@ -74,6 +76,9 @@ export const radius = 0;
 // Cards in the operator view follow the wireframe's rounded corners, without
 // rounding every other element.
 export const cardRadius = 6;
+// The steward app's status and task panels follow the design group's sketch,
+// which is rounder than the operator cards.
+export const panelRadius = 12;
 
 export const text = {
   body: {},

@@ -14,6 +14,7 @@ import {
   colors,
   text,
   palette,
+  panelRadius,
 } from "../../../shared/Theme";
 import MapRender from "../../../shared/MapRenderer";
 import { getLines } from "../../../mockData/data";
@@ -304,9 +305,8 @@ const styles = StyleSheet.create({
   // not rely on colour alone.
   ownCard: {
     backgroundColor: colors.active,
-    // Rounded as in the design group's sketch. Only this card: the theme's
-    // radius stays 0 for the rest of the app.
-    borderRadius: 12,
+    // Rounded as in the design group's sketch, like the status panels.
+    borderRadius: panelRadius,
     padding: 12,
     marginBottom: 8,
   },

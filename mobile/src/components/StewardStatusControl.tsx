@@ -1,7 +1,9 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   box,
   colors,
+  panelRadius,
+  spacing,
   stewardStatus,
   surface,
   text,
@@ -15,11 +17,11 @@ export type StationCoverage = {
   needed: number;
 };
 
-// The steward's own status in the active scenario (MET-A-015, #263): no
-// status, on the way or arrived. Only the next valid action is offered.
-// Choosing a station happens with + in "Påvirkede stationer"; arrival is
-// confirmed with a slide, so it is not sent by accident. Colours, words and
-// symbols come from Theme.tsx.
+// The steward's own status in the active scenario (MET-A-015, #263, #305):
+// no status, on the way, arrived or checked out. Only the next valid actions
+// are offered: on the way, the arrival slide and Fortryd; arrived, Tjek ud.
+// Choosing a station happens with + in "Påvirkede stationer". Colours, words,
+// symbols, spacing and radius come from Theme.tsx.
 export function StewardStatusControl({
   own,
   coverage,
@@ -27,6 +29,8 @@ export function StewardStatusControl({
   sending,
   error,
   onArrive,
+  onCancel,
+  onCheckOut,
 }: {
   own: OwnStatus | null;
   coverage: StationCoverage | null;
@@ -35,9 +39,14 @@ export function StewardStatusControl({
   sending: boolean;
   error: string | null;
   onArrive: () => void;
+  onCancel: () => void;
+  onCheckOut: () => void;
 }) {
   const pending = stewardStatus.PENDING;
   const manned = stewardStatus.MANNED;
+  // After checking out the steward is free again, like with no status.
+  const active = own !== null && own.status !== "CHECKED_OUT" ? own : null;
+  const disabled = blockedReason !== null || sending;
 
   return (
     <View style={styles.container}>
@@ -52,9 +61,12 @@ export function StewardStatusControl({
         </Text>
       )}
 
-      {own === null && (
+      {active === null && (
         <View style={styles.noStatus}>
           <Text style={styles.heading}>Ingen status</Text>
+          {own?.status === "CHECKED_OUT" && (
+            <Text style={styles.body}>Du er tjekket ud fra {own.station}.</Text>
+          )}
           <Text style={styles.body}>
             Tryk + ved en station under Påvirkede stationer for at melde dig på
             vej.
@@ -62,19 +74,19 @@ export function StewardStatusControl({
         </View>
       )}
 
-      {own?.status === "PENDING" && (
+      {active?.status === "PENDING" && (
         <View style={[styles.banner, { backgroundColor: colors.statusYellow }]}>
           <Text style={styles.bannerTitle} accessibilityRole="header">
             DU ER {pending?.label.toUpperCase()}
           </Text>
           <Text style={styles.body}>
             Du er registreret som {pending?.label.toLowerCase()} til{" "}
-            {own.station}.
+            {active.station}.
           </Text>
         </View>
       )}
 
-      {own?.status === "MANNED" && (
+      {active?.status === "MANNED" && (
         <View style={[styles.banner, { backgroundColor: colors.statusGreen }]}>
           <Text
             style={[styles.bannerTitle, styles.inverse]}
@@ -84,15 +96,15 @@ export function StewardStatusControl({
             {manned?.label.toUpperCase()}
           </Text>
           <Text style={[styles.body, styles.inverse]}>
-            Du er tjekket ind på {own.station}.
+            Du er tjekket ind på {active.station}.
           </Text>
         </View>
       )}
 
-      {own !== null && (
+      {active !== null && (
         <View style={styles.stationCard}>
           <Text style={styles.caption}>STATION</Text>
-          <Text style={styles.stationName}>{own.station}</Text>
+          <Text style={styles.stationName}>{active.station}</Text>
           <View style={styles.statusLine}>
             <Text style={styles.caption}>STATUS</Text>
             <Text
@@ -100,16 +112,18 @@ export function StewardStatusControl({
                 styles.chip,
                 {
                   backgroundColor:
-                    own.status === "MANNED"
+                    active.status === "MANNED"
                       ? colors.statusGreen
                       : colors.statusYellow,
                   color:
-                    own.status === "MANNED" ? colors.textInverse : colors.text,
+                    active.status === "MANNED"
+                      ? colors.textInverse
+                      : colors.text,
                 },
               ]}
             >
               {(
-                stewardStatus[own.status]?.label ?? "Ingen status"
+                stewardStatus[active.status]?.label ?? "Ingen status"
               ).toUpperCase()}
             </Text>
           </View>
@@ -141,19 +155,47 @@ export function StewardStatusControl({
         </View>
       )}
 
-      {own !== null && blockedReason === null && (
+      {active?.status === "PENDING" && blockedReason === null && (
         <Text style={styles.hint}>
-          Forkert station? Tryk + ved den rigtige under Påvirkede stationer.
+          Forkert station? Tryk + ved den rigtige, eller fortryd.
+        </Text>
+      )}
+      {active?.status === "MANNED" && blockedReason === null && (
+        <Text style={styles.hint}>
+          Tjek ud, når du forlader stationen. Så kan du melde dig til en ny.
         </Text>
       )}
 
-      {own?.status === "PENDING" && (
-        <SlideToConfirm
-          label="GODKEND ANKOMST"
-          color={colors.statusGreen}
-          disabled={blockedReason !== null || sending}
-          onConfirm={onArrive}
-        />
+      {active?.status === "PENDING" && (
+        <>
+          <SlideToConfirm
+            label="GODKEND ANKOMST"
+            color={colors.statusGreen}
+            disabled={disabled}
+            onConfirm={onArrive}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled }}
+            disabled={disabled}
+            onPress={onCancel}
+            style={[styles.secondaryButton, disabled && styles.disabled]}
+          >
+            <Text style={styles.secondaryText}>FORTRYD</Text>
+          </Pressable>
+        </>
+      )}
+
+      {active?.status === "MANNED" && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          onPress={onCheckOut}
+          style={[styles.primaryButton, disabled && styles.disabled]}
+        >
+          <Text style={styles.primaryText}>TJEK UD</Text>
+        </Pressable>
       )}
     </View>
   );
@@ -161,34 +203,34 @@ export function StewardStatusControl({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12,
+    marginBottom: spacing.medium,
   },
   error: {
     ...text.body,
     color: colors.statusRed,
     fontWeight: "600",
-    marginBottom: 8,
+    marginBottom: spacing.small,
   },
   blocked: {
     ...text.body,
     color: colors.text,
     fontWeight: "600",
-    marginBottom: 8,
+    marginBottom: spacing.small,
   },
   hint: {
     ...text.body,
     color: colors.text,
-    marginTop: 8,
+    marginTop: spacing.small,
   },
   noStatus: {
     ...surface,
     ...box,
-    padding: 12,
+    padding: spacing.medium,
   },
   heading: {
     ...text.header,
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: spacing.small,
   },
   body: {
     ...text.body,
@@ -198,60 +240,88 @@ const styles = StyleSheet.create({
     color: colors.textInverse,
   },
   banner: {
-    borderRadius: 12,
-    marginBottom: 8,
-    padding: 16,
+    borderRadius: panelRadius,
+    marginBottom: spacing.small,
+    padding: spacing.large,
   },
+  // Larger than text.title on purpose: the status has to be readable at a
+  // glance while walking, as in the design group's sketch.
   bannerTitle: {
     ...text.title,
     color: colors.text,
     fontSize: 24,
     fontWeight: "800",
-    marginBottom: 4,
+    marginBottom: spacing.small,
   },
   stationCard: {
     backgroundColor: colors.active,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: panelRadius,
+    padding: spacing.large,
   },
   caption: {
+    ...text.label,
     color: colors.textInverse,
-    fontSize: 12,
-    letterSpacing: 1,
     opacity: 0.7,
   },
   stationName: {
     ...text.title,
     color: colors.textInverse,
     fontSize: 22,
-    marginBottom: 12,
+    marginBottom: spacing.medium,
   },
   statusLine: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: spacing.medium,
   },
   chip: {
-    borderRadius: 12,
+    borderRadius: panelRadius,
     fontWeight: "700",
     overflow: "hidden",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
   },
   coverage: {
     color: colors.textInverse,
     fontWeight: "700",
-    marginBottom: 6,
+    marginBottom: spacing.small,
   },
   bars: {
     flexDirection: "row",
-    gap: 4,
+    gap: spacing.small,
   },
   bar: {
     backgroundColor: colors.subtleBorder,
     borderRadius: 2,
     flex: 1,
     height: 6,
+  },
+  primaryButton: {
+    alignItems: "center",
+    backgroundColor: colors.active,
+    borderRadius: panelRadius,
+    marginTop: spacing.medium,
+    padding: spacing.large,
+  },
+  primaryText: {
+    ...text.button,
+    letterSpacing: 1,
+  },
+  secondaryButton: {
+    alignItems: "center",
+    borderColor: colors.border,
+    borderRadius: panelRadius,
+    borderWidth: 2,
+    marginTop: spacing.medium,
+    padding: spacing.medium,
+  },
+  secondaryText: {
+    ...text.button,
+    color: colors.text,
+    letterSpacing: 1,
+  },
+  disabled: {
+    opacity: 0.4,
   },
 });

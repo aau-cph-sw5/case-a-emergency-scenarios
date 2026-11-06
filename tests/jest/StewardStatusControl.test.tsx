@@ -8,6 +8,8 @@ function renderControl(
   props: Partial<Parameters<typeof StewardStatusControl>[0]> = {},
 ) {
   const onArrive = jest.fn();
+  const onCancel = jest.fn();
+  const onCheckOut = jest.fn();
   render(
     <StewardStatusControl
       own={null}
@@ -16,10 +18,12 @@ function renderControl(
       sending={false}
       error={null}
       onArrive={onArrive}
+      onCancel={onCancel}
+      onCheckOut={onCheckOut}
       {...props}
     />,
   );
-  return { onArrive };
+  return { onArrive, onCancel, onCheckOut };
 }
 
 function confirmSlide() {
@@ -28,7 +32,7 @@ function confirmSlide() {
   });
 }
 
-describe("StewardStatusControl", () => {
+describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
   it("shows no status and points to + when the steward has none", () => {
     renderControl();
     expect(screen.getByText("Ingen status")).toBeTruthy();
@@ -49,14 +53,49 @@ describe("StewardStatusControl", () => {
     expect(onArrive).toHaveBeenCalledTimes(1);
   });
 
-  it("shows arrived and offers no further action", () => {
-    renderControl({
+  it("shows arrived and offers only Tjek ud", () => {
+    const { onCheckOut } = renderControl({
       own: { station: "Station B", status: "MANNED" },
       coverage: { arrived: 2, enRoute: 0, needed: 2 },
     });
     expect(screen.getByText("✓ DU ER ANKOMMET")).toBeTruthy();
     expect(screen.getByText("Du er tjekket ind på Station B.")).toBeTruthy();
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
+    expect(screen.queryByText("FORTRYD")).toBeNull();
+    fireEvent.press(screen.getByText("TJEK UD"));
+    expect(onCheckOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Fortryd while on the way", () => {
+    const { onCancel } = renderControl({
+      own: { station: "Station B", status: "PENDING" },
+    });
+    expect(screen.queryByText("TJEK UD")).toBeNull();
+    fireEvent.press(screen.getByText("FORTRYD"));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows no status after checking out, with the station that was left", () => {
+    renderControl({ own: { station: "Station B", status: "CHECKED_OUT" } });
+    expect(screen.getByText("Ingen status")).toBeTruthy();
+    expect(screen.getByText("Du er tjekket ud fra Station B.")).toBeTruthy();
+    expect(screen.queryByText("TJEK UD")).toBeNull();
+  });
+
+  it("locks Fortryd and Tjek ud while blocked", () => {
+    const pending = renderControl({
+      own: { station: "Station B", status: "PENDING" },
+      blockedReason: "Offline.",
+    });
+    fireEvent.press(screen.getByText("FORTRYD"));
+    expect(pending.onCancel).not.toHaveBeenCalled();
+    screen.unmount();
+    const manned = renderControl({
+      own: { station: "Station B", status: "MANNED" },
+      sending: true,
+    });
+    fireEvent.press(screen.getByText("TJEK UD"));
+    expect(manned.onCheckOut).not.toHaveBeenCalled();
   });
 
   it("shows the rejection message", () => {
