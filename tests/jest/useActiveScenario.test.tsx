@@ -43,7 +43,9 @@ function serverAnswers(scenarioState: ScenarioState = state) {
     if (url.endsWith("/api/v1/scenario-state")) {
       return response(200, scenarioState);
     }
-    if (url.endsWith(`/api/v1/scenarios/${definition.scenarioId}`)) {
+    if (
+      new URL(url).pathname === `/api/v1/scenarios/${definition.scenarioId}`
+    ) {
       return response(200, definition);
     }
     return response(404);
@@ -309,7 +311,9 @@ describe("useActiveScenario", () => {
       if (url.endsWith("/api/v1/scenario-state")) {
         return response(200, scenarioState);
       }
-      if (url.endsWith(`/api/v1/scenarios/${definition.scenarioId}`)) {
+      if (
+        new URL(url).pathname === `/api/v1/scenarios/${definition.scenarioId}`
+      ) {
         return response(200, definition);
       }
       return response(404);
@@ -357,7 +361,9 @@ describe("useActiveScenario", () => {
       if (url.endsWith("/api/v1/scenario-state")) {
         return response(200, { ...state, sequence });
       }
-      if (url.endsWith(`/api/v1/scenarios/${definition.scenarioId}`)) {
+      if (
+        new URL(url).pathname === `/api/v1/scenarios/${definition.scenarioId}`
+      ) {
         return response(200, definition);
       }
       return response(404);
@@ -395,7 +401,9 @@ describe("useActiveScenario", () => {
         }
         return Promise.resolve(response(200, { ...state, sequence: 2 }));
       }
-      if (url.endsWith(`/api/v1/scenarios/${definition.scenarioId}`)) {
+      if (
+        new URL(url).pathname === `/api/v1/scenarios/${definition.scenarioId}`
+      ) {
         return Promise.resolve(response(200, definition));
       }
       return Promise.resolve(response(404));

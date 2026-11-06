@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { app } from "../../src/app.js";
+import { listActivations } from "../../src/repositories/activation-repository.js";
 import { getDatabase } from "../../src/db/client.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
 import {
@@ -62,7 +63,7 @@ after(async () => {
   await closeOwnerDatabase();
 });
 
-async function report(extra: { event?: string; taskDone?: boolean }) {
+async function report(extra: { event?: string; taskDone?: boolean } = {}) {
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",
     headers: {
@@ -72,11 +73,11 @@ async function report(extra: { event?: string; taskDone?: boolean }) {
     body: JSON.stringify({
       staff: "",
       station: "Station G",
-      reportedAt: "2026-11-03T08:00:00Z",
+      reportedAt: "2026-11-06T08:00:00Z",
       ...extra,
     }),
   });
-  assert.equal(response.status, 202);
+  return { status: response.status, body: await response.json() };
 }
 
 async function deploymentAtG() {
@@ -84,30 +85,81 @@ async function deploymentAtG() {
     headers: { Authorization: `Bearer ${operatorToken}` },
   });
   const [activation] = (await response.json()) as {
-    deployments: { status: string; staff: string | null; fulfills: string }[];
+    deployments: {
+      status: string;
+      staff: string | null;
+      fulfills: string;
+      arrivedAt?: string | null;
+    }[];
   }[];
   return activation.deployments.find((d) => d.fulfills === "Station G");
 }
 
-test("the steward's deployment follows on the way, arrived and task done", async () => {
-  assert.equal((await deploymentAtG())?.status, "UNMANNED");
+async function expectRefused(extra: { event?: string; taskDone?: boolean }) {
+  const res = await report(extra);
+  assert.equal(res.status, 409);
+  assert.equal(res.body.error.code, "E1006");
+}
 
-  await report({});
+test("ARRIVED without being on the way is refused with E1006", async () => {
+  await expectRefused({ event: "ARRIVED" });
+  assert.equal((await deploymentAtG())?.status, "UNMANNED");
+});
+
+test("on the way, arrived and checked out move the deployment", async () => {
+  assert.equal((await report()).status, 202);
   assert.equal((await deploymentAtG())?.status, "PENDING");
   assert.equal((await deploymentAtG())?.staff, stewardId);
 
-  await report({ event: "ARRIVED" });
+  assert.equal((await report({ event: "ARRIVED" })).status, 202);
+  const arrived = await deploymentAtG();
+  assert.equal(arrived?.status, "MANNED");
+  assert.ok(arrived?.arrivedAt);
+
+  // A report without event while arrived is a repeat, not a step back.
+  assert.equal((await report()).status, 202);
   assert.equal((await deploymentAtG())?.status, "MANNED");
 
-  await report({ taskDone: true });
-  assert.equal((await deploymentAtG())?.status, "TASK_DONE");
+  assert.equal((await report({ event: "CHECKED_OUT" })).status, 202);
+  const checkedOut = await deploymentAtG();
+  assert.equal(checkedOut?.status, "CHECKED_OUT");
+  assert.equal(checkedOut?.staff, stewardId);
 });
 
-test("the event records that the steward arrived", async () => {
+test("the deployments read again from the database are the same", async () => {
+  const [fromDatabase] = await listActivations("ACTIVE");
+  assert.deepEqual(
+    fromDatabase.deployments.find((d) => d.fulfills === "Station G"),
+    await deploymentAtG(),
+  );
+});
+
+test("cancelling frees the station", async () => {
+  assert.equal((await report({ event: "EN_ROUTE" })).status, 202);
+  assert.equal((await deploymentAtG())?.status, "PENDING");
+  assert.equal((await report({ event: "CANCELLED" })).status, 202);
+  const freed = await deploymentAtG();
+  assert.equal(freed?.status, "UNMANNED");
+  assert.equal(freed?.staff, null);
+});
+
+test("a new station after arriving is refused with E1006", async () => {
+  // DEMO-002 has only Station G, so the arrival elsewhere is written directly.
+  await owner`
+    INSERT INTO position_reports (staff, station, reported_at, event)
+    VALUES (${stewardId}, 'Station H', now(), 'ARRIVED')
+  `;
+  await expectRefused({});
+});
+
+test("the event records what the report said", async () => {
   const events = await sql<{ payload: { event: string } }[]>`
     SELECT payload FROM incident_events
     WHERE type = 'POSITION_REPORTED' AND actor_id = ${stewardId}
-      AND payload->>'event' = 'ARRIVED'
+    ORDER BY sequence
   `;
-  assert.equal(events.length, 1);
+  assert.deepEqual(
+    events.map((e) => e.payload.event),
+    ["EN_ROUTE", "ARRIVED", "CHECKED_OUT", "EN_ROUTE", "CANCELLED"],
+  );
 });

@@ -35,10 +35,10 @@ test("a body is sent as JSON, as a switch sends replaces (MET-A-009)", async () 
   const sent = recordRequest();
 
   await postJson("/api/v1/scenarios/DEMO-002/activate", "abc", anything, {
-    replaces: "ACT-DEMO-001-1",
+    replaces: 1,
   });
 
-  assert.deepEqual(JSON.parse(sent.init.body), { replaces: "ACT-DEMO-001-1" });
+  assert.deepEqual(JSON.parse(sent.init.body), { replaces: 1 });
   assert.equal(sent.init.headers["Content-Type"], "application/json");
   assert.equal(sent.init.headers.Authorization, "Bearer abc");
 });

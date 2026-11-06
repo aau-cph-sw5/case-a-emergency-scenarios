@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyPositionReport } from "../../src/services/deployment-status.ts";
+import { deploymentsFromReports } from "../../src/repositories/deployment-status.ts";
 
 const free = (station) => ({
   status: "UNMANNED",
@@ -9,51 +9,123 @@ const free = (station) => ({
   arrivedAt: null,
   fulfills: station,
 });
-const start = [free("A"), free("B")];
+const required = [free("A"), free("B")];
+const report = (staff, station, step, reportedAt) => ({
+  staff,
+  station,
+  step,
+  reportedAt,
+});
+const at = (deployments, station) =>
+  deployments.filter((d) => d.fulfills === station);
 
-test("a report takes a free deployment as on the way", () => {
-  const [a] = applyPositionReport(start, "7", "A", "PENDING", "t1");
-  assert.deepEqual(a, {
-    status: "PENDING",
-    staff: "7",
-    fulfills: "A",
-    reportedAt: "t1",
-    arrivedAt: null,
+test("no reports leaves every deployment free", () => {
+  assert.deepEqual(deploymentsFromReports(required, []), required);
+});
+
+test("on the way, arrived, task done and checked out keep the arrival time", () => {
+  const steps = [
+    report("7", "A", "EN_ROUTE", "t1"),
+    report("7", "A", "ARRIVED", "t2"),
+    report("7", "A", "TASK_DONE", "t3"),
+    report("7", "A", "CHECKED_OUT", "t4"),
+  ];
+  const expected = [
+    ["PENDING", null],
+    ["MANNED", "t2"],
+    ["TASK_DONE", "t2"],
+    ["CHECKED_OUT", "t2"],
+  ];
+  steps.forEach((_, i) => {
+    const [a] = deploymentsFromReports(required, steps.slice(0, i + 1));
+    assert.deepEqual(a, {
+      status: expected[i][0],
+      staff: "7",
+      fulfills: "A",
+      reportedAt: steps[i].reportedAt,
+      arrivedAt: expected[i][1],
+    });
   });
 });
 
-test("arriving and finishing keep the arrival time", () => {
-  const onTheWay = applyPositionReport(start, "7", "A", "PENDING", "t1");
-  const arrived = applyPositionReport(onTheWay, "7", "A", "MANNED", "t2");
-  const done = applyPositionReport(arrived, "7", "A", "TASK_DONE", "t3");
-  assert.equal(arrived[0].status, "MANNED");
-  assert.equal(arrived[0].arrivedAt, "t2");
-  assert.equal(done[0].status, "TASK_DONE");
-  assert.equal(done[0].arrivedAt, "t2");
+test("cancelling frees the station", () => {
+  const deployments = deploymentsFromReports(required, [
+    report("7", "A", "EN_ROUTE", "t1"),
+    report("7", "A", "CANCELLED", "t2"),
+  ]);
+  assert.deepEqual(deployments, required);
 });
 
-test("reporting the same station again does not go back", () => {
-  const arrived = applyPositionReport(start, "7", "A", "MANNED", "t1");
-  const again = applyPositionReport(arrived, "7", "A", "PENDING", "t2");
-  assert.equal(again[0].status, "MANNED");
-  assert.equal(again[0].reportedAt, "t2");
+test("on the way to another station frees the old one", () => {
+  const deployments = deploymentsFromReports(required, [
+    report("7", "A", "EN_ROUTE", "t1"),
+    report("7", "B", "EN_ROUTE", "t2"),
+  ]);
+  assert.deepEqual(at(deployments, "A"), [free("A")]);
+  assert.equal(at(deployments, "B")[0].status, "PENDING");
 });
 
-test("moving to another station frees the old one", () => {
-  const atA = applyPositionReport(start, "7", "A", "MANNED", "t1");
-  const atB = applyPositionReport(atA, "7", "B", "PENDING", "t2");
-  assert.deepEqual(atB[0], free("A"));
-  assert.equal(atB[1].staff, "7");
-  assert.equal(atB[1].status, "PENDING");
+test("a checked-out deployment keeps its staff after the steward moves on", () => {
+  const deployments = deploymentsFromReports(required, [
+    report("7", "A", "EN_ROUTE", "t1"),
+    report("7", "A", "ARRIVED", "t2"),
+    report("7", "A", "CHECKED_OUT", "t3"),
+    report("7", "B", "EN_ROUTE", "t4"),
+  ]);
+  assert.equal(at(deployments, "A")[0].status, "CHECKED_OUT");
+  assert.equal(at(deployments, "A")[0].staff, "7");
+  assert.equal(at(deployments, "B")[0].staff, "7");
 });
 
-test("a second steward gets an extra deployment, removed when they leave", () => {
-  const first = applyPositionReport(start, "7", "A", "MANNED", "t1");
-  const second = applyPositionReport(first, "8", "A", "PENDING", "t2");
-  assert.equal(second.length, 3);
-  assert.equal(second[2].staff, "8");
+test("a new steward takes over a checked-out deployment", () => {
+  const deployments = deploymentsFromReports(required, [
+    report("7", "A", "ARRIVED", "t1"),
+    report("7", "A", "CHECKED_OUT", "t2"),
+    report("8", "A", "EN_ROUTE", "t3"),
+  ]);
+  assert.deepEqual(
+    at(deployments, "A").map((d) => [d.status, d.staff]),
+    [["PENDING", "8"]],
+  );
+});
 
-  const left = applyPositionReport(second, "8", "B", "PENDING", "t3");
-  assert.equal(left.filter((d) => d.fulfills === "A").length, 1);
-  assert.equal(left[0].staff, "7");
+test("an extra steward gets an extra deployment that goes when they leave", () => {
+  const two = deploymentsFromReports(required, [
+    report("7", "A", "EN_ROUTE", "t1"),
+    report("8", "A", "EN_ROUTE", "t2"),
+  ]);
+  assert.equal(at(two, "A").length, 2);
+
+  const left = deploymentsFromReports(required, [
+    report("7", "A", "EN_ROUTE", "t1"),
+    report("8", "A", "EN_ROUTE", "t2"),
+    report("8", "A", "CANCELLED", "t3"),
+  ]);
+  assert.deepEqual(
+    at(left, "A").map((d) => d.staff),
+    ["7"],
+  );
+});
+
+test("a station that requires two keeps both slots when one steward leaves", () => {
+  const deployments = deploymentsFromReports(
+    [free("A"), free("A")],
+    [report("7", "A", "EN_ROUTE", "t1"), report("7", "A", "CANCELLED", "t2")],
+  );
+  assert.deepEqual(deployments, [free("A"), free("A")]);
+});
+
+test("on the way again while arrived keeps the arrival", () => {
+  const [a] = deploymentsFromReports(required, [
+    report("7", "A", "ARRIVED", "t1"),
+    report("7", "A", "EN_ROUTE", "t2"),
+  ]);
+  assert.equal(a.status, "MANNED");
+});
+
+test("a report for a station outside the activation is ignored", () => {
+  assert.deepEqual(
+    deploymentsFromReports(required, [report("7", "Z", "EN_ROUTE", "t1")]),
+    required,
+  );
 });
