@@ -1,4 +1,9 @@
 import { getDatabase, type Db } from "../db/client.js";
+import {
+  deploymentsFromReports,
+  type Deployment,
+  type DeploymentReport,
+} from "./deployment-status.js";
 
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
@@ -11,7 +16,7 @@ export type StoredActivation = {
   status: ActivationStatus;
   actor: string;
   sequence: number;
-  deployments: { status: "UNMANNED"; staff: null; fulfills: string }[];
+  deployments: Deployment[];
 };
 
 export async function lockActivationLifecycle(db: Db): Promise<void> {
@@ -31,7 +36,7 @@ export async function listActivations(
       deactivatedAt: Date | null;
       actor: string;
       sequence: string;
-      deployments: StoredActivation["deployments"];
+      deployments: Deployment[];
     }[]
   >`
     SELECT a.id, a.scenario_id, a.activated_at, a.deactivated_at,
@@ -51,6 +56,10 @@ export async function listActivations(
       OR (${status ?? null} = 'CLOSED' AND a.deactivated_at IS NOT NULL))
     ORDER BY a.id
   `;
+  const reports = await reportsDuring(
+    db,
+    rows.map((row) => row.id),
+  );
   return rows.map((row) => ({
     activationId: row.id,
     scenarioId: row.scenarioId,
@@ -59,8 +68,51 @@ export async function listActivations(
     status: row.deactivatedAt ? "CLOSED" : "ACTIVE",
     actor: row.actor,
     sequence: Number(row.sequence),
-    deployments: row.deployments,
+    // Derived from the stored reports, so they survive a restart (MET-A-015).
+    deployments: deploymentsFromReports(
+      row.deployments,
+      reports.get(row.id) ?? [],
+    ),
   }));
+}
+
+// The accepted position reports received while each activation was active,
+// oldest first.
+async function reportsDuring(
+  db: Db,
+  ids: number[],
+): Promise<Map<number, DeploymentReport[]>> {
+  const byActivation = new Map<number, DeploymentReport[]>();
+  if (ids.length === 0) return byActivation;
+  const rows = await db<
+    {
+      activationId: number;
+      staff: string;
+      station: string;
+      event: DeploymentReport["step"];
+      taskDone: boolean;
+      reportedAt: Date;
+    }[]
+  >`
+    SELECT a.id AS activation_id, p.staff, p.station, p.event, p.task_done,
+      p.reported_at
+    FROM incident_activations a
+    JOIN position_reports p ON p.received_at >= a.activated_at
+      AND (a.deactivated_at IS NULL OR p.received_at < a.deactivated_at)
+    WHERE a.id IN ${db(ids)}
+    ORDER BY p.received_at, p.id
+  `;
+  for (const row of rows) {
+    const list = byActivation.get(row.activationId) ?? [];
+    list.push({
+      staff: row.staff,
+      station: row.station,
+      step: row.taskDone ? "TASK_DONE" : row.event,
+      reportedAt: row.reportedAt.toISOString(),
+    });
+    byActivation.set(row.activationId, list);
+  }
+  return byActivation;
 }
 
 export async function findActivation(

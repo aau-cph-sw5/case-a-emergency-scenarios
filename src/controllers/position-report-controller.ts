@@ -63,15 +63,17 @@ export async function postPositionReport(request: Request, response: Response) {
       response,
       409,
       ERROR_CODES.INVALID_STATUS_TRANSITION,
-      `task done at ${station}, latest report at ${result.latestStation}`,
+      `${report.taskDone === true ? "task done" : (report.event ?? "EN_ROUTE")} at ${station}, latest report at ${result.latestStation}`,
     );
   }
-  // A repeated task done changes nothing, so the operators are not told again.
+  // A repeat changes nothing, so the operators are not told again.
   if (result.kind === "repeat") {
     return response.status(202).json({ accepted: true });
   }
 
   const io = request.app.locals.io as Server | undefined;
   io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
+  // The deployments changed, so the control room loads the activations again.
+  io?.to("OPERATOR").emit("activations-changed");
   response.status(202).json({ accepted: true });
 }
