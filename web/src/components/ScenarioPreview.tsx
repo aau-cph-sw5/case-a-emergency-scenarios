@@ -13,11 +13,7 @@ export function ScenarioPreview({
   const { scenario, isLoading, error, retry } = preview;
 
   return (
-    <section
-      className="scenario-preview"
-      aria-labelledby="scenario-preview-heading"
-    >
-      <h2 id="scenario-preview-heading">Påvirkede stationer</h2>
+    <section className="scenario-preview" aria-label="Scenariepreview">
       {scenarioId === null && (
         <p role="status">Vælg et scenarie for at se bemandingsbehov.</p>
       )}
@@ -31,11 +27,7 @@ export function ScenarioPreview({
         </>
       )}
       {scenario !== null && (
-        <>
-          <h3>{scenario.name}</h3>
-          <p>Bemandingskrav · scenariet er ikke aktiveret</p>
-          <ScenarioStationList scenario={scenario} mode="needed-only" />
-        </>
+        <ScenarioStationList scenario={scenario} mode="needed-only" compact />
       )}
     </section>
   );

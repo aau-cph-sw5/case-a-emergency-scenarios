@@ -38,6 +38,32 @@ function textContent(value: unknown): string {
 }
 
 describe("ScenarioStationList", () => {
+  it("shows planning totals only before activation", () => {
+    const scenario = createScenario(["Station A", "Station C"]);
+    scenario.versions[0].stationRequirements[1].minimumStaffing = 3;
+    const view = render(
+      <ScenarioStationList scenario={scenario} mode="needed-only" compact />,
+    );
+    expect(screen.getByTestId("staffing-plan-summary")).toBeTruthy();
+    expect(screen.getByText(/Påvirkede stationer:/)).toBeTruthy();
+    expect(screen.getByText(/Nødvendige stewards:/)).toBeTruthy();
+    expect(screen.getByText("2")).toBeTruthy();
+    expect(screen.getByText("4")).toBeTruthy();
+    expect(screen.queryByTestId("station-staffing-slots")).toBeNull();
+    view.rerender(
+      <ScenarioStationList
+        scenario={scenario}
+        activeDeployments={{ deployments: [] }}
+        operatorLayout
+      />,
+    );
+    expect(screen.queryByTestId("staffing-plan-summary")).toBeNull();
+    expect(screen.queryByText(/stationer dækket/)).toBeNull();
+    expect(screen.queryByText(/stewards ·/)).toBeNull();
+    expect(screen.queryByText(/Mangler/)).toBeNull();
+    expect(screen.getAllByTestId("station-slot-UNMANNED")).toHaveLength(4);
+  });
+
   it("shows only current-version requirements and totals in Metro order", () => {
     const scenario = createScenario(["Station C", "Station A"]);
     scenario.versions[0].stationRequirements[0].minimumStaffing = 3;

@@ -21,11 +21,12 @@ const STATION_RANK = new Map(
 );
 
 type Props =
-  | { scenario: Scenario; mode: "needed-only" }
+  | { scenario: Scenario; mode: "needed-only"; compact?: boolean }
   | {
       scenario: Scenario;
       mode?: "live-coverage";
       activeDeployments: ActiveDeployments;
+      operatorLayout?: boolean;
     };
 
 export default function ScenarioStationList(props: Props) {
@@ -60,6 +61,8 @@ export default function ScenarioStationList(props: Props) {
       ? null
       : countStewards(props.activeDeployments, stations);
   const needed = requirements.reduce((sum, r) => sum + r.minimumStaffing, 0);
+  const operatorLayout =
+    props.mode === "needed-only" ? props.compact : props.operatorLayout;
 
   if (stations.length === 0 && props.mode !== "needed-only") {
     return <Text style={styles.small}>Scenariet kræver ingen stationer.</Text>;
@@ -70,44 +73,72 @@ export default function ScenarioStationList(props: Props) {
       data={stations}
       keyExtractor={(item) => item.station}
       ListHeaderComponent={
-        <View style={styles.header}>
-          <View style={styles.titleLine}>
-            <Text style={styles.title}>
-              {props.mode === "needed-only"
-                ? "Bemandingsbehov"
-                : "Påvirkede stationer"}
-            </Text>
-            <Text style={styles.badge}>{stations.length}</Text>
+        operatorLayout && props.mode !== "needed-only" ? undefined : (
+          <View style={styles.header}>
+            {operatorLayout ? (
+              <View testID="staffing-plan-summary" style={styles.planSummary}>
+                <View style={styles.planSummaryRow}>
+                  <Text style={styles.planSummaryText}>
+                    Påvirkede stationer:{" "}
+                  </Text>
+                  <Text style={styles.planSummaryText}>{stations.length}</Text>
+                </View>
+                <View
+                  style={[styles.planSummaryRow, styles.planSummaryDivider]}
+                >
+                  <Text style={styles.planSummaryText}>
+                    Nødvendige stewards:{" "}
+                  </Text>
+                  <Text style={styles.planSummaryText}>{needed}</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.titleLine}>
+                <Text style={styles.title}>
+                  {props.mode === "needed-only" && !props.compact
+                    ? "Bemandingsbehov"
+                    : "Påvirkede stationer"}
+                </Text>
+                <Text style={styles.badge}>{stations.length}</Text>
+              </View>
+            )}
+            {props.mode === "needed-only" ? (
+              operatorLayout ? null : (
+                <Text style={styles.small}>
+                  {stations.length} stationer · {needed} stewards kræves
+                </Text>
+              )
+            ) : (
+              stewards !== null && (
+                <>
+                  <Text style={styles.small}>
+                    {coveredCount}/{stations.length} stationer dækket
+                  </Text>
+                  <Text style={styles.small}>
+                    {stewards.arrived}/{stewards.needed} stewards ·{" "}
+                    {stewards.enRoute} på vej
+                  </Text>
+                </>
+              )
+            )}
           </View>
-          {props.mode === "needed-only" ? (
-            <Text style={styles.small}>
-              {stations.length} stationer · {needed} stewards kræves
-            </Text>
-          ) : (
-            stewards !== null && (
-              <>
-                <Text style={styles.small}>
-                  {coveredCount}/{stations.length} stationer dækket
-                </Text>
-                <Text style={styles.small}>
-                  {stewards.arrived}/{stewards.needed} stewards ·{" "}
-                  {stewards.enRoute} på vej
-                </Text>
-              </>
-            )
-          )}
-        </View>
+        )
       }
       ListEmptyComponent={
         <Text style={styles.small}>Scenariet kræver ingen stationer.</Text>
       }
       renderItem={({ item }) =>
         props.mode === "needed-only" ? (
-          <StationRow requirement={item} mode="needed-only" />
+          <StationRow
+            requirement={item}
+            mode="needed-only"
+            compact={props.compact}
+          />
         ) : (
           <StationRow
             requirement={item}
             deployments={props.activeDeployments}
+            operatorLayout={props.operatorLayout}
           />
         )
       }
@@ -126,4 +157,27 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: "700", color: colors.text, flexShrink: 1 },
   badge,
   small: text.small,
+  planSummary: {
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 9,
+    backgroundColor: colors.blockedTrack,
+    overflow: "hidden",
+    marginBottom: 22,
+  },
+  planSummaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+  },
+  planSummaryDivider: { borderTopWidth: 1, borderTopColor: colors.textInverse },
+  planSummaryText: {
+    color: colors.textInverse,
+    fontSize: 13,
+    fontWeight: "700",
+    flexShrink: 1,
+  },
 });

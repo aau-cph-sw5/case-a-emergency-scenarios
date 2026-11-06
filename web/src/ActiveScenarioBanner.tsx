@@ -1,93 +1,80 @@
-import { StyleSheet, Text, View } from "react-native";
-import { box, colors, text } from "../../shared/Theme";
+import { useLayoutEffect, useRef } from "react";
 import { useLiveData } from "./data/liveData";
 
-function startedLabel(startedAt: string) {
-  return new Date(startedAt).toLocaleString("da-DK", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+function ScenarioOrbit() {
+  const orbitRef = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const orbit = orbitRef.current;
+    if (!orbit) return;
+    const resize = () => {
+      const { width: w, height: h } = orbit.getBoundingClientRect();
+      const r = Math.min(12, w / 2, h / 2);
+      // Start and finish at the resting dot, halfway down the label's left edge.
+      const path = `M 0 ${h / 2} V ${h - r} Q 0 ${h} ${r} ${h} H ${w - r} Q ${w} ${h} ${w} ${h - r} V ${r} Q ${w} 0 ${w - r} 0 H ${r} Q 0 0 0 ${r} Z`;
+      orbit.style.setProperty("--scenario-orbit-path", `path("${path}")`);
+    };
+    resize();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", resize);
+      return () => window.removeEventListener("resize", resize);
+    }
+    const observer = new ResizeObserver(resize);
+    observer.observe(orbit);
+    return () => observer.disconnect();
+  }, []);
+  return <span ref={orbitRef} className="scenario-orbit" aria-hidden="true" />;
 }
 
-// Shown by App above every view, so an active scenario is visible wherever
-// the operator is (MET-A-007 criterion 3). Shows the scenario name, falling
-// back to scenarioId; the line is not shown yet.
+// Always visible in the operator header; server state remains authoritative.
 export function ActiveScenarioBanner() {
-  const {
-    activations: active,
-    scenarios,
-    error,
-    isLoading: loading,
-  } = useLiveData();
-  const names = new Map((scenarios ?? []).map((s) => [s.scenarioId, s]));
-
+  const { activations, scenarios, error, isLoading } = useLiveData();
+  const names = new Map((scenarios ?? []).map((s) => [s.scenarioId, s.name]));
   return (
-    <View aria-label="Aktive scenarier" role="complementary" style={styles.bar}>
+    <aside
+      className="active-scenario-banner"
+      aria-label="Aktive scenarier"
+      aria-live="polite"
+    >
       {error !== null ? (
-        <View role="alert" style={styles.row}>
-          <View style={[styles.dot, styles.dotIdle]} />
-          <Text style={styles.meta}>
-            Kunne ikke hente aktive scenarier: {error}
-          </Text>
-        </View>
-      ) : loading ? (
-        <View role="status" style={styles.row}>
-          <Text style={styles.meta}>Henter aktive scenarier…</Text>
-        </View>
-      ) : active.length === 0 ? (
-        <View role="status" style={styles.row}>
-          <View style={[styles.dot, styles.dotIdle]} />
-          <Text style={styles.meta}>Ingen aktive scenarier</Text>
-        </View>
+        <p role="alert">Kunne ikke hente aktive scenarier: {error}</p>
+      ) : isLoading ? (
+        <p role="status">Henter aktive scenarier.</p>
+      ) : activations.length === 0 ? (
+        <div className="active-scenario-item">
+          <span className="active-scenario-dot" />
+          <span>Ingen aktive scenarier</span>
+        </div>
       ) : (
-        active.map((a) => (
-          <View key={a.scenarioId} style={styles.item}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <Text style={[styles.title, styles.side]}>
-              {names.get(a.scenarioId)?.name ?? a.scenarioId}
-            </Text>
-            <Text style={styles.meta}>
-              Aktivt scenarie · {startedLabel(a.startedAt)}
-            </Text>
-            {/* The line goes here, right-aligned, once real line data exists. */}
-            <View style={[styles.side, styles.line]} />
-          </View>
+        activations.map((active) => (
+          <div
+            key={active.activationId}
+            className="active-scenario-item is-running"
+          >
+            <div className="active-scenario-label">
+              <span>Aktivt scenarie</span>
+              <strong>
+                {names.get(active.scenarioId) ?? active.scenarioId}
+              </strong>
+              <ScenarioOrbit />
+            </div>
+            <time className="active-start-time" dateTime={active.startedAt}>
+              <span>
+                {new Date(active.startedAt).toLocaleDateString("da-DK", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })}
+              </span>
+              <span>
+                {new Date(active.startedAt).toLocaleTimeString("da-DK", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </time>
+          </div>
         ))
       )}
-    </View>
+    </aside>
   );
 }
-
-const styles = StyleSheet.create({
-  // position sticky is web only, so the types do not know it. The control-room
-  // dashboard runs on the web.
-  bar: {
-    ...box,
-    position: "sticky" as "absolute",
-    top: 0,
-    zIndex: 10,
-    backgroundColor: colors.background,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 12,
-  },
-  row: { flexDirection: "row", alignItems: "center", gap: 12 },
-  item: {
-    flex: 1,
-    flexBasis: 220,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  dot: { width: 9, height: 9, borderRadius: 5 },
-  dotActive: { backgroundColor: colors.statusGreen },
-  dotIdle: { backgroundColor: colors.statusRed },
-  // Equal side slots keep the middle text centred, with or without a line.
-  side: { flex: 1 },
-  line: { alignItems: "flex-end" },
-  title: { ...text.title },
-  meta: { ...text.body },
-});

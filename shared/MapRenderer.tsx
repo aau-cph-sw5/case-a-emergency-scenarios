@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { View, Pressable, Text as RNText } from "react-native";
 import Svg, { Text, Line, Circle } from "react-native-svg";
 import { getStation } from "../mockData/data";
@@ -169,16 +169,93 @@ function LineButtons({
   colors,
   hidden,
   setHidden,
+  groups,
 }: {
   colors: Record<string, string>;
   hidden: string[];
   setHidden: React.Dispatch<React.SetStateAction<string[]>>;
+  groups?: readonly (readonly string[])[];
 }) {
+  if (groups) {
+    return (
+      <View
+        testID="metro-line-controls"
+        style={{
+          position: "absolute",
+          flexDirection: "row",
+          zIndex: 1,
+          gap: 4,
+        }}
+      >
+        {groups.map((group) => {
+          const enabled = group.every((line) => !hidden.includes(line));
+          return (
+            <Pressable
+              key={group.join("-")}
+              testID={`metro-line-group-${group.join("-")}`}
+              accessibilityRole="button"
+              accessibilityLabel={group.join(" / ")}
+              accessibilityState={{ selected: enabled }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                padding: 3,
+                borderWidth: 2,
+                borderColor: theme.text,
+                borderRadius: 10,
+                backgroundColor: theme.background,
+              }}
+              onPress={() =>
+                setHidden((previous) =>
+                  group.every((line) => !previous.includes(line))
+                    ? [...new Set([...previous, ...group])]
+                    : previous.filter((line) => !group.includes(line)),
+                )
+              }
+            >
+              {group.map((line) => (
+                <View
+                  key={line}
+                  testID="metro-line-badge"
+                  style={{
+                    width: 32,
+                    height: 36,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: 7,
+                    backgroundColor: colors[line],
+                    opacity: enabled ? 1 : 0.3,
+                  }}
+                >
+                  <RNText
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "700",
+                      color: theme.text,
+                    }}
+                  >
+                    {line}
+                  </RNText>
+                </View>
+              ))}
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
   return (
-    <View style={{ position: "absolute", flexDirection: "row", zIndex: 1 }}>
+    <View
+      testID="metro-line-controls"
+      style={{ position: "absolute", flexDirection: "row", zIndex: 1 }}
+    >
       {Object.keys(colors).map((n) => (
         <Pressable
           key={n}
+          accessibilityRole="button"
+          accessibilityLabel={n}
+          accessibilityState={{ selected: !hidden.includes(n) }}
           style={{
             backgroundColor: colors[n],
             opacity: hidden.includes(n) ? 0.3 : 1,
@@ -221,6 +298,8 @@ export default function MapRender({
   colors,
   viewBox = "0 0 950 700",
   showLineButtons = true,
+  renderLineButtons,
+  lineGroups,
   highlightStation,
   highlightColor = theme.text,
   markedStations = [],
@@ -232,6 +311,9 @@ export default function MapRender({
   colors: Record<string, string>;
   viewBox?: string;
   showLineButtons?: boolean;
+  // Web can place the existing controls in its panel header.
+  renderLineButtons?: (buttons: ReactNode) => ReactNode;
+  lineGroups?: readonly (readonly string[])[];
   // Optional: one station drawn filled. Leaving it out draws the
   // map exactly as before.
   highlightStation?: string;
@@ -257,11 +339,17 @@ export default function MapRender({
     highlighted.includes(station) ? highlightColor : undefined;
   const [hidden, setHidden] = useState<string[]>(initiallyHidden);
   const visible = lines.filter((l) => !hidden.includes(l.name));
+  const lineButtons = showLineButtons ? (
+    <LineButtons
+      colors={colors}
+      hidden={hidden}
+      setHidden={setHidden}
+      groups={lineGroups}
+    />
+  ) : null;
   return (
     <View style={{ flex: 1 }}>
-      {showLineButtons && (
-        <LineButtons colors={colors} hidden={hidden} setHidden={setHidden} />
-      )}
+      {renderLineButtons ? renderLineButtons(lineButtons) : lineButtons}
       <Svg
         width="100%"
         height="100%"

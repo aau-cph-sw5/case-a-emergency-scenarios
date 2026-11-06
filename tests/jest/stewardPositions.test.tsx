@@ -124,6 +124,23 @@ describe("stewardPositions", () => {
 });
 
 describe("StewardPositions pop-up", () => {
+  it("keeps its launcher visible and toggles the popup on repeated clicks", () => {
+    renderWithLive(<StewardPositions />, {});
+    fireEvent.press(screen.getByTestId("status-launcher"));
+    expect(screen.getByTestId("status-window")).toBeTruthy();
+    expect(
+      screen.getByTestId("status-launcher").props.accessibilityState,
+    ).toEqual({
+      expanded: true,
+    });
+    fireEvent.press(screen.getByTestId("status-launcher"));
+    expect(screen.queryByTestId("status-window")).toBeNull();
+    expect(
+      screen.getByTestId("status-launcher").props.accessibilityState,
+    ).toEqual({
+      expanded: false,
+    });
+  });
   it("starts closed with the number of stewards on the button", () => {
     renderWithLive(<StewardPositions />, {
       activations: [
@@ -161,7 +178,7 @@ describe("StewardPositions pop-up", () => {
   it("shows a steward who has finished the task as Opgave udført", () => {
     renderWithLive(<StewardPositions />, {
       activations: [
-        activation("ACT-1", [
+        activation(1, [
           {
             status: "TASK_DONE",
             staff: "steward-005",
@@ -182,7 +199,7 @@ describe("StewardPositions pop-up", () => {
   it("shows a steward without a status as having none", () => {
     renderWithLive(<StewardPositions />, {
       activations: [
-        activation("ACT-1", [
+        activation(1, [
           { status: "UNMANNED", staff: "steward-004", fulfills: "Forum" },
         ]),
       ],
