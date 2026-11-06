@@ -91,7 +91,10 @@ export function deploymentsFromReports(
   const stations = new Set(required.map((d) => d.fulfills));
   const filled = reports
     .filter((r) => stations.has(r.station))
-    .reduce(applyReport, required);
+    .reduce(
+      (deployments, report) => applyReport(deployments, report),
+      required,
+    );
   const freeAllowed = new Map<string, number>();
   for (const d of required) {
     freeAllowed.set(d.fulfills, (freeAllowed.get(d.fulfills) ?? 0) + 1);
