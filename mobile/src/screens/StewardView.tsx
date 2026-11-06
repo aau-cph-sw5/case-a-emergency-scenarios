@@ -6,7 +6,10 @@ import {
   StyleSheet,
   Text,
 } from "react-native";
-import { currentStations } from "../../../shared/components/stationState";
+import {
+  currentStations,
+  getStationState,
+} from "../../../shared/components/stationState";
 import { NO_COPY_MESSAGES } from "../../../shared/offline/copy-reason";
 import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
@@ -14,12 +17,23 @@ import { colors, palette, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
 import { sendPositionReport } from "../api/position-report";
 import { StationPicker } from "../components/StationPicker";
+import { StewardStatusControl } from "../components/StewardStatusControl";
+import {
+  stewardStatus,
+  type OwnStatus,
+  type StatusRequest,
+} from "../data/steward-status";
 import { snapshotStore } from "../offline/snapshot-store";
 import { socket } from "../socket";
 import { ScenarioNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
 import { ScenarioOverview } from "./ScenarioOverview";
+
+// Shown instead of the status actions while the app shows the saved copy
+// (MET-A-015, #263 criterion 4). Nothing is sent then.
+const STATUS_BLOCKED_OFFLINE =
+  "Uden forbindelse kan din status ikke ændres. Du ser den gemte kopi.";
 
 // online is false when the phone has no connection or the session could not
 // be confirmed; the saved copy is shown then, and nothing is sent.
@@ -48,6 +62,10 @@ export function StewardView({
   });
   const [station, setStation] = useState<string>("");
   const [reportStatus, setReportStatus] = useState<string | null>(null);
+  // The steward's own status in the active scenario (MET-A-015, #263).
+  const [ownStatus, setOwnStatus] = useState<OwnStatus | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [sendingStatus, setSendingStatus] = useState(false);
 
   // Fetches again when the app returns to the foreground, when the socket
   // announces an activation or a stand-down, and when the socket reconnects,
@@ -80,6 +98,38 @@ export function StewardView({
     setReportStatus(null);
   }
 
+  // The status belongs to one steward in one activation. When either
+  // changes, the old status is cleared and the current one is fetched, so a
+  // steward who logs in again sees the status they had, and a new activation
+  // starts with no status (#263 criterion 2). The saved copy keeps its
+  // activation, so the status stays while offline.
+  const shown =
+    view.status === "live" || view.status === "copy" ? view.snapshot : null;
+  const activationId = shown?.state.activationId;
+  const userId = shown?.userId;
+  const statusKey =
+    activationId === undefined || userId === undefined
+      ? undefined
+      : `${activationId}/${userId}`;
+  const [shownStatusKey, setShownStatusKey] = useState(statusKey);
+  if (statusKey !== shownStatusKey) {
+    setShownStatusKey(statusKey);
+    setOwnStatus(null);
+    setStatusError(null);
+  }
+  useEffect(() => {
+    if (activationId === undefined || userId === undefined) return;
+    let cancelled = false;
+    void stewardStatus(token, activationId, userId, { type: "current" }).then(
+      (result) => {
+        if (!cancelled && result.ok) setOwnStatus(result.own);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [token, activationId, userId]);
+
   // The stations of the active scenario's current version, for the picker.
   // Positions can only be reported while live.
   const stations = live ? currentStations(live) : [];
@@ -89,6 +139,53 @@ export function StewardView({
     if (station === "") return;
     setReportStatus((await sendPositionReport(token, station)).message);
   }
+
+  // Sends a status change and shows the answer. Going on the way is a
+  // position report to the server (#268). Only while live: the saved copy
+  // can not change status, and nothing is sent then.
+  async function changeStatus(change: StatusRequest) {
+    if (
+      view.status !== "live" ||
+      activationId === undefined ||
+      userId === undefined ||
+      sendingStatus
+    ) {
+      return;
+    }
+    setSendingStatus(true);
+    setStatusError(null);
+    try {
+      const result = await stewardStatus(token, activationId, userId, change);
+      if (result.ok) setOwnStatus(result.own);
+      else setStatusError(result.message);
+    } finally {
+      setSendingStatus(false);
+    }
+  }
+
+  // The coverage of the steward's station, from the server's deployments
+  // only, so the steward sees the same as the control room.
+  const ownRequirement =
+    ownStatus && shown
+      ? shown.scenario.versions[0]?.stationRequirements?.find(
+          (requirement) => requirement.station === ownStatus.station,
+        )
+      : undefined;
+  const ownCoverage =
+    ownStatus && shown && ownRequirement
+      ? (() => {
+          const state = getStationState(
+            shown.state,
+            ownStatus.station,
+            ownRequirement.minimumStaffing,
+          );
+          return {
+            arrived: state.current,
+            enRoute: state.enRoute,
+            needed: ownRequirement.minimumStaffing,
+          };
+        })()
+      : null;
 
   const retry = onRetry ?? (() => void refresh());
 
@@ -127,8 +224,28 @@ export function StewardView({
             onRetry={retry}
           />
         )}
-        {(view.status === "live" || view.status === "copy") && (
-          <ScenarioOverview snapshot={view.snapshot} />
+        {shown && (
+          <>
+            <StewardStatusControl
+              own={ownStatus}
+              coverage={ownCoverage}
+              blockedReason={
+                view.status === "copy" ? STATUS_BLOCKED_OFFLINE : null
+              }
+              sending={sendingStatus}
+              error={statusError}
+              onArrive={() => void changeStatus({ type: "arrive" })}
+            />
+            <ScenarioOverview
+              snapshot={shown}
+              assignedStation={ownStatus?.station}
+              onAssign={
+                view.status === "live" && !sendingStatus
+                  ? (station) => void changeStatus({ type: "assign", station })
+                  : undefined
+              }
+            />
+          </>
         )}
 
         {online && (
