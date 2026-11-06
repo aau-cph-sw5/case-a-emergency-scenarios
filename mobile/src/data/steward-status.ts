@@ -40,7 +40,8 @@ const NOT_ON_THE_WAY =
 
 export async function stewardStatus(
   token: string,
-  activationId: string,
+  // A number since contract 7.0.0; taken from the contract, not declared here.
+  activationId: ScenarioState["activationId"],
   userId: string,
   request: StatusRequest,
 ): Promise<StatusResult> {
