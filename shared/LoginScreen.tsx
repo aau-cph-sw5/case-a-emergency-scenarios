@@ -51,13 +51,26 @@ export function LoginScreen({
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Emergency Scenarios</Text>
+    <View style={[styles.container, client === "web" && styles.webContainer]}>
+      <View style={[styles.card, client === "web" && styles.webCard]}>
+        {client === "web" && (
+          <View style={styles.brand}>
+            <View style={styles.brandMark}>
+              <Text style={styles.brandLetter}>M</Text>
+            </View>
+            <Text style={styles.brandName}>Metro Service</Text>
+          </View>
+        )}
+        <Text style={[styles.title, client === "web" && styles.webTitle]}>
+          {client === "web" ? "Log ind" : "Emergency Scenarios"}
+        </Text>
 
-        <Text style={styles.label}>Brugernavn</Text>
+        <Text style={[styles.label, client === "web" && styles.webLabel]}>
+          Brugernavn
+        </Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, client === "web" && styles.webInput]}
+          accessibilityLabel="Brugernavn"
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
@@ -66,9 +79,12 @@ export function LoginScreen({
           editable={!submitting}
         />
 
-        <Text style={styles.label}>Adgangskode</Text>
+        <Text style={[styles.label, client === "web" && styles.webLabel]}>
+          Adgangskode
+        </Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, client === "web" && styles.webInput]}
+          accessibilityLabel="Adgangskode"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -78,7 +94,11 @@ export function LoginScreen({
         />
 
         <Pressable
-          style={[styles.button, !canSubmit && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            client === "web" && styles.webButton,
+            !canSubmit && styles.buttonDisabled,
+          ]}
           onPress={() => void handleSubmit()}
           disabled={!canSubmit}
           accessibilityRole="button"
@@ -102,6 +122,44 @@ export function LoginScreen({
 // Styling comes from shared/Theme so the login matches the control-room
 // dashboard.
 const styles = StyleSheet.create({
+  webContainer: {
+    minHeight: "100%",
+    justifyContent: "center",
+    paddingVertical: 32,
+  },
+  webCard: { borderWidth: 0, borderRadius: 12, padding: 32, maxWidth: 440 },
+  brand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 18,
+  },
+  brandMark: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#e81919",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brandLetter: { color: "#fff", fontSize: 23, fontWeight: "700" },
+  brandName: { color: "#182127", fontSize: 17, fontWeight: "700" },
+  webTitle: { fontSize: 26, fontWeight: "700", marginBottom: 20, textAlign: "center" },
+  webLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#34484e",
+    marginBottom: 7,
+  },
+  webInput: {
+    borderColor: "#cbd5d8",
+    borderRadius: 8,
+    backgroundColor: "#f7f9f9",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 18,
+  },
+  webButton: { backgroundColor: "#b42420", borderRadius: 8, marginTop: 4 },
   container: {
     flex: 1,
     justifyContent: "center",

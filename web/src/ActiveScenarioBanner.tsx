@@ -1,6 +1,11 @@
-import { StyleSheet, Text, View } from "react-native";
-import { box, colors, text } from "../../shared/Theme";
+import { useState } from "react";
 import { useLiveData } from "./data/liveData";
+import { postJson, userMessage } from "./get-json";
+import { isScenarioState } from "./scenario-state";
+import { ConfirmStandDown } from "./ScenarioList";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state";
+import { formatDuration } from "../../shared/components/statusBar";
+import { useNow } from "./useNow";
 
 function startedLabel(startedAt: string) {
   return new Date(startedAt).toLocaleString("da-DK", {
@@ -9,85 +14,111 @@ function startedLabel(startedAt: string) {
   });
 }
 
-// Shown by App above every view, so an active scenario is visible wherever
-// the operator is (MET-A-007 criterion 3). Shows the scenario name, falling
-// back to scenarioId; the line is not shown yet.
-export function ActiveScenarioBanner() {
-  const {
-    activations: active,
-    scenarios,
-    error,
-    isLoading: loading,
-  } = useLiveData();
-  const names = new Map((scenarios ?? []).map((s) => [s.scenarioId, s]));
+export function ActiveScenarioBanner({ token }: { token: string }) {
+  const { activations, scenarios, error, isLoading, isConnected } =
+    useLiveData();
+  const [confirming, setConfirming] = useState<ScenarioState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const now = useNow();
+  const nameFor = (scenarioId: string) =>
+    scenarios?.find((scenario) => scenario.scenarioId === scenarioId)?.name ??
+    scenarioId;
+
+  async function standDown(activation: ScenarioState) {
+    setConfirming(null);
+    if (
+      busy ||
+      !activations.some((item) => item.activationId === activation.activationId)
+    )
+      return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      await postJson(
+        `/api/v1/activations/${activation.activationId}/stand-down`,
+        token,
+        isScenarioState,
+      );
+    } catch (failure) {
+      setActionError(
+        `Kunne ikke deaktivere scenariet: ${userMessage(failure)}`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
-    <View aria-label="Aktive scenarier" role="complementary" style={styles.bar}>
-      {error !== null ? (
-        <View role="alert" style={styles.row}>
-          <View style={[styles.dot, styles.dotIdle]} />
-          <Text style={styles.meta}>
-            Kunne ikke hente aktive scenarier: {error}
-          </Text>
-        </View>
-      ) : loading ? (
-        <View role="status" style={styles.row}>
-          <Text style={styles.meta}>Henter aktive scenarier…</Text>
-        </View>
-      ) : active.length === 0 ? (
-        <View role="status" style={styles.row}>
-          <View style={[styles.dot, styles.dotIdle]} />
-          <Text style={styles.meta}>Ingen aktive scenarier</Text>
-        </View>
+    <aside className="active-banner" aria-label="Aktive scenarier">
+      {isLoading && activations.length === 0 ? (
+        <div className="active-banner-message" role="status">
+          Henter aktive scenarier…
+        </div>
+      ) : error && activations.length === 0 ? (
+        <div
+          className="active-banner-message active-banner-message--warning"
+          role="alert"
+        >
+          Kunne ikke hente aktive scenarier: {error}
+        </div>
+      ) : activations.length === 0 ? (
+        <div className="active-banner-idle" role="status">
+          <span className="active-banner-indicator" aria-hidden="true" />
+          <div>
+            <span className="active-banner-label">Scenariestatus</span>
+            <strong>Intet aktivt scenarie</strong>
+          </div>
+        </div>
       ) : (
-        active.map((a) => (
-          <View key={a.scenarioId} style={styles.item}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <Text style={[styles.title, styles.side]}>
-              {names.get(a.scenarioId)?.name ?? a.scenarioId}
-            </Text>
-            <Text style={styles.meta}>
-              Aktivt scenarie · {startedLabel(a.startedAt)}
-            </Text>
-            {/* The line goes here, right-aligned, once real line data exists. */}
-            <View style={[styles.side, styles.line]} />
-          </View>
-        ))
+        <div className="active-banner-list">
+          {activations.map((activation) => (
+            <div className="active-banner-item" key={activation.activationId}>
+              <span className="active-banner-indicator" aria-hidden="true" />
+              <div className="active-banner-details">
+                <span className="active-banner-label">
+                  Aktivt scenarie · startet {startedLabel(activation.startedAt)}
+                </span>
+                <strong>{nameFor(activation.scenarioId)}</strong>
+              </div>
+              <span className="active-banner-duration">
+                Aktiv i {formatDuration(activation.startedAt, now)}
+              </span>
+              <button
+                type="button"
+                className="active-banner-stop"
+                disabled={busy}
+                onClick={() => setConfirming(activation)}
+              >
+                Stop scenarie
+              </button>
+            </div>
+          ))}
+        </div>
       )}
-    </View>
+      {(error || !isConnected) && activations.length > 0 && (
+        <p className="active-banner-warning" role="alert">
+          {error
+            ? `Kunne ikke opdatere: ${error}. `
+            : "Forbindelsen er afbrudt. "}
+          Status kan være forældet.
+        </p>
+      )}
+      {actionError && (
+        <p className="active-banner-warning" role="alert">
+          {actionError}
+        </p>
+      )}
+      {confirming && (
+        <ConfirmStandDown
+          scenario={{
+            scenarioId: confirming.scenarioId,
+            name: nameFor(confirming.scenarioId),
+          }}
+          onConfirm={() => void standDown(confirming)}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
+    </aside>
   );
 }
-
-const styles = StyleSheet.create({
-  // position sticky is web only, so the types do not know it. The control-room
-  // dashboard runs on the web.
-  bar: {
-    ...box,
-    position: "sticky" as "absolute",
-    top: 0,
-    zIndex: 10,
-    backgroundColor: colors.background,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 12,
-  },
-  row: { flexDirection: "row", alignItems: "center", gap: 12 },
-  item: {
-    flex: 1,
-    flexBasis: 220,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  dot: { width: 9, height: 9, borderRadius: 5 },
-  dotActive: { backgroundColor: colors.statusGreen },
-  dotIdle: { backgroundColor: colors.statusRed },
-  // Equal side slots keep the middle text centred, with or without a line.
-  side: { flex: 1 },
-  line: { alignItems: "flex-end" },
-  title: { ...text.title },
-  meta: { ...text.body },
-});

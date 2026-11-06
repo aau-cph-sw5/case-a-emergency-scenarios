@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { colors } from "../../shared/Theme";
 import { useLiveData } from "./data/liveData";
 import { filterScenarios } from "./filter-scenarios";
 import { postJson, userMessage } from "./get-json";
@@ -13,7 +12,11 @@ type ActivationState =
   | { status: "activating" }
   | { status: "standing-down" }
   | { status: "error"; message: string }
-  | { status: "done"; state: ScenarioState }
+  | {
+      status: "done";
+      state: ScenarioState;
+      previousActivations: ScenarioState[];
+    }
   | { status: "stood-down"; state: ScenarioState };
 
 // The list does not keep the selection itself. OperatorDashboard holds it and
@@ -48,7 +51,13 @@ export function ScenarioList({
   // as active straight away, so the operator cannot try to activate it again
   // before the reloaded activations arrive.
   const activeIds = new Set(activations.map((a) => a.scenarioId));
-  if (activation.status === "done") activeIds.add(activation.state.scenarioId);
+  const displayActivation: ActivationState =
+    activation.status === "done" &&
+    activation.previousActivations !== activations
+      ? { status: "idle" }
+      : activation;
+  if (displayActivation.status === "done")
+    activeIds.add(displayActivation.state.scenarioId);
   // If the active scenarios cannot be loaded, the operator can still find and
   // activate scenarios, and a message says that they could not be shown.
   const activeFailed = error !== null;
@@ -86,7 +95,11 @@ export function ScenarioList({
         isScenarioState,
         outgoing && { replaces: outgoing.activationId },
       );
-      setActivation({ status: "done", state });
+      setActivation({
+        status: "done",
+        state,
+        previousActivations: activations,
+      });
       onActivated(state.scenarioId);
     } catch (error) {
       console.error(error);
@@ -127,13 +140,17 @@ export function ScenarioList({
   // The search field is always shown, so it is there whenever the list is
   // longer than one screen (MET-A-007 criterion 1 / #116 criterion 3).
   return (
-    <section aria-labelledby="scenario-list-heading">
+    <section
+      className="scenario-selection"
+      aria-labelledby="scenario-list-heading"
+    >
       <h2 id="scenario-list-heading">Nødscenarier</h2>
 
       <label>
         Søg efter scenarier{" "}
         <input
           type="search"
+          placeholder="Søg efter scenarie"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -174,14 +191,16 @@ export function ScenarioList({
           active scenario is stood down instead (MET-A-009). */}
       {selectedIsActive ? (
         <button
+          className="scenario-action scenario-action--stop"
           type="button"
           onClick={() => setConfirming(true)}
           disabled={busy}
         >
-          Deaktivér valgt scenarie
+          Stop scenarie
         </button>
       ) : (
         <button
+          className="scenario-action scenario-action--start"
           type="button"
           onClick={() => setConfirming(true)}
           disabled={
@@ -206,13 +225,14 @@ export function ScenarioList({
             scenario={selected}
             outgoing={activations
               .filter((a) => a.scenarioId !== selected.scenarioId)
+              .slice(0, 1)
               .map((a) => names.get(a.scenarioId) ?? a.scenarioId)}
             onConfirm={() => activate(selected)}
             onCancel={() => setConfirming(false)}
           />
         ))}
 
-      <ActivationStatus activation={activation} />
+      <ActivationStatus activation={displayActivation} />
     </section>
   );
 }
@@ -243,12 +263,6 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
   }
 }
 
-const selectedStyle = {
-  backgroundColor: colors.active,
-  color: colors.textInverse,
-  fontWeight: "bold",
-} as const;
-
 function ScenarioResults({
   scenarios,
   query,
@@ -261,7 +275,7 @@ function ScenarioResults({
   query: string;
   selectedId: string | null;
   activeIds: ReadonlySet<string>;
-  onSelect: (scenarioId: string) => void;
+  onSelect: (scenarioId: string | null) => void;
   disabled: boolean;
 }) {
   // No match is an empty list, not an error.
@@ -277,13 +291,17 @@ function ScenarioResults({
         // Theme, and bold, so it is marked by more than colour. aria-pressed
         // tells screen readers which one is selected.
         return (
-          <li key={scenario.scenarioId}>
+          <li
+            key={scenario.scenarioId}
+            className={live ? "scenario-list-item--live" : undefined}
+          >
             <button
               type="button"
               aria-pressed={isSelected}
-              onClick={() => onSelect(scenario.scenarioId)}
+              onClick={() =>
+                onSelect(isSelected && !live ? null : scenario.scenarioId)
+              }
               disabled={disabled}
-              style={isSelected ? selectedStyle : undefined}
             >
               {scenario.name}
             </button>
@@ -291,12 +309,14 @@ function ScenarioResults({
                 when it is not, so it is marked by shape as well as colour. */}
             <span
               className={
-                live ? "scenario-dot scenario-dot--live" : "scenario-dot"
+                live ? "scenario-badge scenario-badge--live" : "scenario-badge"
               }
               role="img"
               aria-label={live ? "Aktiv" : "Ikke aktiv"}
               title={live ? "Aktiv" : "Ikke aktiv"}
-            />
+            >
+              {live ? "Aktiv" : "Ikke aktiv"}
+            </span>
           </li>
         );
       })}
@@ -325,34 +345,68 @@ function ConfirmActivation({
 
   return (
     <dialog
+      className="scenario-dialog"
       ref={dialogRef}
       onClose={onCancel}
       aria-labelledby="confirm-activation-heading"
+      aria-describedby="confirm-activation-description"
     >
-      <h3 id="confirm-activation-heading">Aktivér “{scenario.name}”?</h3>
-      {outgoing.length > 0 && (
-        <p className="confirm-warning">
-          Dette vil deaktivere scenarie{" "}
-          {outgoing.map((name) => `“${name}”`).join(", ")}
-        </p>
-      )}
-      <button type="button" onClick={onConfirm}>
-        Bekræft
-      </button>{" "}
-      <button type="button" onClick={() => dialogRef.current?.close()}>
-        Annullér
-      </button>
+      <h3 id="confirm-activation-heading">
+        {outgoing.length > 0
+          ? "Skift til dette scenarie?"
+          : "Start dette scenarie?"}
+      </h3>
+      <div className="scenario-dialog-scenario">
+        <span>Scenarie</span>
+        <strong>
+          {scenario.scenarioId} · {scenario.name}
+        </strong>
+      </div>
+      <p
+        id="confirm-activation-description"
+        className={
+          outgoing.length > 0
+            ? "scenario-dialog-note scenario-dialog-note--warning"
+            : "scenario-dialog-note"
+        }
+      >
+        {outgoing.length > 0 && (
+          <>
+            Det aktive scenarie <strong>{outgoing[0]}</strong> stoppes, når
+            dette scenarie startes.
+          </>
+        )}
+        {outgoing.length === 0 &&
+          "Scenariet bliver aktivt for kontrolrummet og stewards."}
+      </p>
+      <div className="scenario-dialog-actions">
+        <button
+          type="button"
+          className="scenario-dialog-cancel"
+          onClick={() => dialogRef.current?.close()}
+        >
+          Annullér
+        </button>
+        <button
+          type="button"
+          className="scenario-dialog-primary"
+          onClick={onConfirm}
+        >
+          {outgoing.length > 0 ? "Skift scenarie" : "Start scenarie"}
+        </button>
+      </div>
     </dialog>
   );
 }
 
 // Confirm Standing down the active scenario.
-function ConfirmStandDown({
+export function ConfirmStandDown({
   scenario,
   onConfirm,
   onCancel,
 }: {
-  scenario: ScenarioSummary;
+  scenario: Pick<ScenarioSummary, "name"> &
+    Partial<Pick<ScenarioSummary, "scenarioId">>;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -364,19 +418,39 @@ function ConfirmStandDown({
 
   return (
     <dialog
+      className="scenario-dialog"
       ref={dialogRef}
       onClose={onCancel}
       aria-labelledby="confirm-stand-down-heading"
+      aria-describedby="confirm-stand-down-description"
     >
-      <h3 id="confirm-stand-down-heading" className="confirm-warning">
-        Vil du deaktivere “{scenario.name}”?
-      </h3>
-      <button type="button" className="confirm-danger" onClick={onConfirm}>
-        Deaktivér
-      </button>{" "}
-      <button type="button" onClick={() => dialogRef.current?.close()}>
-        Annullér
-      </button>
+      <h3 id="confirm-stand-down-heading">Stop dette scenarie?</h3>
+      <div className="scenario-dialog-scenario">
+        <span>Aktivt scenarie</span>
+        <strong>
+          {scenario.scenarioId ? `${scenario.scenarioId} · ` : ""}
+          {scenario.name}
+        </strong>
+      </div>
+      <p id="confirm-stand-down-description" className="scenario-dialog-note">
+        Scenariet afsluttes for alle brugere.
+      </p>
+      <div className="scenario-dialog-actions">
+        <button
+          type="button"
+          className="scenario-dialog-cancel"
+          onClick={() => dialogRef.current?.close()}
+        >
+          Annullér
+        </button>
+        <button
+          type="button"
+          className="scenario-dialog-primary confirm-danger"
+          onClick={onConfirm}
+        >
+          Stop scenarie
+        </button>
+      </div>
     </dialog>
   );
 }

@@ -141,7 +141,8 @@ describe("API-backed scenario preview", () => {
     await mount();
     await searchAndSelect(221);
     const columns = container.querySelectorAll(".operator-sections > section");
-    expect(columns[0].textContent).toContain("Aktiveret af operator-test");
+    expect(columns[0].textContent).toContain("Aktiv i");
+    expect(columns[0].textContent).not.toContain("Aktiveret af");
     expect(columns[0].textContent).toContain(summaries[0].name);
     expect(columns[2].textContent).toContain("0/7");
     expect(container.querySelector(".scenario-preview")?.textContent).toContain(

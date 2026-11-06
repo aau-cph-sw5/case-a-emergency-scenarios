@@ -8,20 +8,19 @@ import { mockStewardPositions } from "./local-settings";
 // its own sub-issue of MET-A-011, so the dashboard keeps working until then.
 export function OperatorDashboard({
   token,
-  onLogout,
+  lineGroup,
 }: {
   token: string;
   onLogout: () => void;
+  lineGroup?: "M1/M2" | "M3/M4";
 }) {
   // The map and requirements preview share the selected scenario.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   return (
-    <main>
-      <button onClick={onLogout} type="button">
-        Log ud
-      </button>
+    <main className="operator-dashboard">
       <ScenarioWorkspace
         token={token}
+        lineGroup={lineGroup}
         selectedId={selectedId}
         onSelect={setSelectedId}
         statusBar={<LiveStatusBar />}

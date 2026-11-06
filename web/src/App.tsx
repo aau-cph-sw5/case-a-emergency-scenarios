@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { LoginScreen } from "../../shared/LoginScreen";
 import { useSession } from "../../shared/auth/use-session";
 import { useAuthenticatedSocket } from "../../shared/socket/useAuthenticatedSocket";
@@ -68,7 +68,9 @@ export function App() {
       );
     }
     return (
-      <LoginScreen apiBaseUrl="" client="web" onLoggedIn={completeLogin} />
+      <div className="login-page">
+        <LoginScreen apiBaseUrl="" client="web" onLoggedIn={completeLogin} />
+      </div>
     );
   }
 
@@ -98,12 +100,50 @@ function ControlRoom({
   token: string;
   onLogout: () => void;
 }) {
+  const [lineGroup, setLineGroup] = useState<"M1/M2" | "M3/M4">("M1/M2");
   // The banner sits outside any view, so every view added below it keeps it.
   // LiveDataProvider loads the server data once for both.
   return (
     <LiveDataProvider socket={socket} token={token}>
-      <ActiveScenarioBanner />
-      <OperatorDashboard token={token} onLogout={onLogout} />
+      <div className="control-room">
+        <header className="control-room-header">
+          <div className="control-room-brand">
+            <span aria-hidden="true">M</span> Metro Service
+          </div>
+          <ActiveScenarioBanner token={token} />
+          <div className="control-room-account">
+            <div
+              className="line-switcher"
+              role="group"
+              aria-label="Vælg metrolinjer"
+            >
+              <button
+                type="button"
+                aria-pressed={lineGroup === "M1/M2"}
+                onClick={() => setLineGroup("M1/M2")}
+              >
+                M1 / M2
+              </button>
+              <button
+                type="button"
+                aria-pressed={lineGroup === "M3/M4"}
+                onClick={() => setLineGroup("M3/M4")}
+              >
+                M3 / M4
+              </button>
+            </div>
+            Operatør{" "}
+            <button type="button" onClick={onLogout}>
+              Log ud
+            </button>
+          </div>
+        </header>
+        <OperatorDashboard
+          token={token}
+          onLogout={onLogout}
+          lineGroup={lineGroup}
+        />
+      </div>
     </LiveDataProvider>
   );
 }

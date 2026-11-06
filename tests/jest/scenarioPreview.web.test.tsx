@@ -148,6 +148,9 @@ afterEach(async () => {
 describe("scenario preview and activation", () => {
   it("puts requirements in the right column and the existing activation control on the left", async () => {
     await renderList(first.scenarioId);
+    expect(container.querySelector(".map-heading h1")?.textContent).toBe(
+      "TEST-001 First scenario",
+    );
     const columns = container.querySelectorAll(".operator-sections > section");
     expect(columns[0].contains(button("Aktivér valgt scenarie"))).toBe(true);
     expect(columns[2].textContent).toContain("Placering: Platform A");
@@ -226,7 +229,7 @@ describe("scenario preview and activation", () => {
     await click("Annullér");
     expect(container.querySelector("dialog")).toBeNull();
     await click("Aktivér valgt scenarie");
-    await click("Bekræft");
+    await click("Start scenarie");
     expect(jest.mocked(postJson)).toHaveBeenCalledWith(
       `/api/v1/scenarios/${first.scenarioId}/activate`,
       "operator-token",
@@ -241,12 +244,20 @@ describe("scenario preview and activation", () => {
     expect(container.querySelector(".scenario-preview")).not.toBeNull();
     await renderList(first.scenarioId, { activations: [activated] });
     expect(container.querySelector(".scenario-preview")).toBeNull();
+    expect(button("Stop scenarie").disabled).toBe(false);
+    // A stand-down from elsewhere removes the activation from shared data.
+    await renderList(first.scenarioId, { activations: [] });
+    expect(container.textContent).not.toContain("Stop scenarie");
+    expect(container.textContent).not.toContain("er ACTIVE");
+    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    expect(button(first.name).getAttribute("aria-pressed")).toBe("false");
+    expect(container.querySelector('[aria-label="Ikke aktiv"]')).not.toBeNull();
     expect(jest.mocked(postJson)).toHaveBeenCalledTimes(1);
   });
 
   it("keeps live coverage visible while previewing another scenario and clears it on stand-down", async () => {
     await renderList(first.scenarioId, { activations: [activated] });
-    expect(button("Deaktivér valgt scenarie").disabled).toBe(false);
+    expect(button("Stop scenarie").disabled).toBe(false);
     expect(container.querySelector(".scenario-preview")).toBeNull();
     expect(container.textContent).toContain("0/2");
     await click(second.name);
@@ -260,5 +271,46 @@ describe("scenario preview and activation", () => {
     await renderList(second.scenarioId, { activations: [] });
     expect(container.textContent).not.toContain("0/2");
     expect(container.textContent).toContain("Placering: Platform B");
+  });
+
+  it("deselects an inactive scenario when clicked again, but keeps an active one selected", async () => {
+    await renderList(first.scenarioId);
+    await click(first.name);
+    expect(button(first.name).getAttribute("aria-pressed")).toBe("false");
+    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    await click(first.name);
+    await renderList(first.scenarioId, { activations: [activated] });
+    await click(first.name);
+    expect(button(first.name).getAttribute("aria-pressed")).toBe("true");
+    expect(button("Stop scenarie").disabled).toBe(false);
+  });
+
+  it("defaults to the active scenario and returns to it after dismissing a preview", async () => {
+    await renderList(null, { activations: [activated] });
+    expect(button(first.name).getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector(".map-heading h1")?.textContent).toBe(
+      "TEST-001 First scenario",
+    );
+    await click(second.name);
+    expect(button(second.name).getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector(".scenario-preview")?.textContent).toContain(
+      "Placering: Platform B",
+    );
+    await click(second.name);
+    expect(button(first.name).getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector(".scenario-preview")).toBeNull();
+  });
+
+  it("names the current and replacement scenarios before switching", async () => {
+    await renderList(first.scenarioId, { activations: [activated] });
+    await click(second.name);
+    await click("Aktivér valgt scenarie");
+    const dialog = container.querySelector("dialog")!;
+    expect(dialog.textContent).toContain(first.name);
+    expect(dialog.textContent).toContain(second.name);
+    expect(dialog.textContent).toContain("stoppes");
+    expect(jest.mocked(postJson)).not.toHaveBeenCalled();
+    await click("Annullér");
+    expect(container.querySelector("dialog")).toBeNull();
   });
 });
