@@ -80,8 +80,8 @@ beforeEach(() => {
 
 afterEach(() => resetRememberedStatuses());
 
-describe("StewardView status (MET-A-015, #263)", () => {
-  it("goes from no status, via on the way, to arrived", async () => {
+describe("StewardView status (MET-A-015, #263, #305)", () => {
+  it("goes from no status, via on the way and arrived, to checked out", async () => {
     showView({ status: "live", snapshot });
     await renderView();
     expect(screen.getByText("Ingen status")).toBeTruthy();
@@ -90,7 +90,7 @@ describe("StewardView status (MET-A-015, #263)", () => {
       fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
     });
 
-    expect(report).toHaveBeenCalledWith("token", "Station B");
+    expect(report).toHaveBeenCalledWith("token", "Station B", "EN_ROUTE");
     expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
     expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
 
@@ -100,7 +100,36 @@ describe("StewardView status (MET-A-015, #263)", () => {
       });
     });
 
+    expect(report).toHaveBeenLastCalledWith("token", "Station B", "ARRIVED");
     expect(screen.getByText(/DU ER ANKOMMET/)).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("TJEK UD"));
+    });
+
+    expect(report).toHaveBeenLastCalledWith(
+      "token",
+      "Station B",
+      "CHECKED_OUT",
+    );
+    expect(screen.getByText("Du er tjekket ud fra Station B.")).toBeTruthy();
+    expect(screen.getByLabelText("Meld dig på vej til Station B")).toBeTruthy();
+  });
+
+  it("cancels while on the way and offers + again", async () => {
+    showView({ status: "live", snapshot });
+    await renderView();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("FORTRYD"));
+    });
+
+    expect(report).toHaveBeenLastCalledWith("token", "Station B", "CANCELLED");
+    expect(screen.getByText("Ingen status")).toBeTruthy();
+    expect(screen.getByLabelText("Meld dig på vej til Station B")).toBeTruthy();
   });
 
   it("shows the refusal and keeps no status when the report is refused", async () => {

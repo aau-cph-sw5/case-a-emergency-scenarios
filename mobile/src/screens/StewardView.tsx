@@ -163,20 +163,33 @@ export function StewardView({
     }
   }
 
+  // The station the steward is on the way to or at. After checking out they
+  // have none, so + comes back and nothing is highlighted.
+  const ownStation =
+    ownStatus && ownStatus.status !== "CHECKED_OUT"
+      ? ownStatus.station
+      : undefined;
+  // After arriving the steward checks out before choosing a new station.
+  const canAssign =
+    view.status === "live" &&
+    !sendingStatus &&
+    ownStatus?.status !== "MANNED" &&
+    ownStatus?.status !== "TASK_DONE";
+
   // The coverage of the steward's station, from the server's deployments
   // only, so the steward sees the same as the control room.
   const ownRequirement =
-    ownStatus && shown
+    ownStation && shown
       ? shown.scenario.versions[0]?.stationRequirements?.find(
-          (requirement) => requirement.station === ownStatus.station,
+          (requirement) => requirement.station === ownStation,
         )
       : undefined;
   const ownCoverage =
-    ownStatus && shown && ownRequirement
+    ownStation && shown && ownRequirement
       ? (() => {
           const state = getStationState(
             shown.state,
-            ownStatus.station,
+            ownStation,
             ownRequirement.minimumStaffing,
           );
           return {
@@ -235,12 +248,14 @@ export function StewardView({
               sending={sendingStatus}
               error={statusError}
               onArrive={() => void changeStatus({ type: "arrive" })}
+              onCancel={() => void changeStatus({ type: "cancel" })}
+              onCheckOut={() => void changeStatus({ type: "checkOut" })}
             />
             <ScenarioOverview
               snapshot={shown}
-              assignedStation={ownStatus?.station}
+              assignedStation={ownStation}
               onAssign={
-                view.status === "live" && !sendingStatus
+                canAssign
                   ? (station) => void changeStatus({ type: "assign", station })
                   : undefined
               }

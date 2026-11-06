@@ -7,9 +7,11 @@ import {
   View,
   type LayoutChangeEvent,
 } from "react-native";
-import { colors, text } from "../../../shared/Theme";
+import { colors, panelRadius, spacing, text } from "../../../shared/Theme";
 
 const KNOB_SIZE = 52;
+// The gap between the knob and the edge of the track.
+const INSET = spacing.small;
 // How far the knob must travel before the action counts, so a brush with a
 // thumb while walking does not confirm anything.
 const CONFIRM_SHARE = 0.85;
@@ -30,7 +32,7 @@ export function SlideToConfirm({
 }) {
   const [trackWidth, setTrackWidth] = useState(0);
   const [offset] = useState(() => new Animated.Value(0));
-  const maxOffset = Math.max(trackWidth - KNOB_SIZE - 8, 0);
+  const maxOffset = Math.max(trackWidth - KNOB_SIZE - 2 * INSET, 0);
 
   // Rebuilt when the width, the disabled state or the action changes, so the
   // gesture always uses the current values.
@@ -90,11 +92,11 @@ export function SlideToConfirm({
 
 const styles = StyleSheet.create({
   track: {
-    borderRadius: 12,
-    height: KNOB_SIZE + 8,
+    borderRadius: panelRadius,
+    height: KNOB_SIZE + 2 * INSET,
     justifyContent: "center",
-    marginTop: 12,
-    padding: 4,
+    marginTop: spacing.medium,
+    padding: INSET,
   },
   disabled: {
     opacity: 0.4,
@@ -103,15 +105,16 @@ const styles = StyleSheet.create({
     ...text.button,
     color: colors.textInverse,
     letterSpacing: 1,
-    paddingLeft: KNOB_SIZE + 16,
+    paddingLeft: KNOB_SIZE + spacing.large,
   },
   knob: {
     alignItems: "center",
     backgroundColor: colors.background,
-    borderRadius: 10,
+    // Follows the track's corner, inset by the gap.
+    borderRadius: panelRadius - INSET,
     height: KNOB_SIZE,
     justifyContent: "center",
-    left: 4,
+    left: INSET,
     position: "absolute",
     width: KNOB_SIZE,
   },

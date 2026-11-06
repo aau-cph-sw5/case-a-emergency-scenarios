@@ -31,6 +31,19 @@ describe("sendPositionReport (MET-A-013)", () => {
     });
   });
 
+  it("sends the event when one is given, and leaves it out otherwise", async () => {
+    const fetchMock = respond(202, {});
+
+    await sendPositionReport("token", "Station B", "ARRIVED");
+    await sendPositionReport("token", "Station B");
+
+    const bodies = fetchMock.mock.calls.map(([, init]) =>
+      JSON.parse((init as RequestInit).body as string),
+    );
+    expect(bodies[0].event).toBe("ARRIVED");
+    expect("event" in bodies[1]).toBe(false);
+  });
+
   it("shows a refusal in Danish from the error code", async () => {
     respond(422, { error: { code: ERROR_CODES.STATION_NOT_IN_SCENARIO } });
 
