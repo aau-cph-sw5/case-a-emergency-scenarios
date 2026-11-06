@@ -142,6 +142,10 @@ body {
   overflow-wrap: anywhere;
 }
 .active-start-time {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
   font-size: 11px;
   color: #aaa;
   font-variant-numeric: tabular-nums;
@@ -317,16 +321,19 @@ body {
 }
 .scenario-actions {
   display: flex;
+  align-items: center;
+  height: 68px;
   gap: 8px;
-  padding: 12px;
+  padding: 10px 12px;
   flex-shrink: 0;
   margin-top: auto;
 }
 .scenario-actions button {
   flex: 1;
+  height: 44px;
   border: 0;
   border-radius: 10px;
-  padding: 14px 8px;
+  padding: 0 8px;
   color: white;
   font-size: 12px;
   line-height: 1.4;
@@ -646,15 +653,6 @@ body {
 .operator-coverage-panel [role="alert"] {
   color: #a30e0b;
   line-height: 1.6;
-}
-.scenario-selection > [role="status"] {
-  margin: 0;
-  padding: 10px 12px;
-  background: #fff;
-  border-radius: 10px;
-  font-size: 11px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
 }
 .operator-confirm {
   width: min(370px, calc(100vw - 32px));

@@ -58,10 +58,19 @@ export function ActiveScenarioBanner() {
               <ScenarioOrbit />
             </div>
             <time className="active-start-time" dateTime={active.startedAt}>
-              {new Date(active.startedAt).toLocaleTimeString("da-DK", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              <span>
+                {new Date(active.startedAt).toLocaleDateString("da-DK", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })}
+              </span>
+              <span>
+                {new Date(active.startedAt).toLocaleTimeString("da-DK", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
             </time>
           </div>
         ))

@@ -160,6 +160,11 @@ describe("scenario preview and activation", () => {
       .mocked(postJson)
       .mockResolvedValue({ ...activated, status: "STOOD_DOWN" });
     await click("Deaktivér");
+    expect(
+      container.querySelector(
+        ".scenario-selection > [role=status]:not(.visually-hidden)",
+      ),
+    ).toBeNull();
     expect(jest.mocked(postJson)).toHaveBeenCalledWith(
       `/api/v1/activations/${activated.activationId}/stand-down`,
       "operator-token",
@@ -277,6 +282,11 @@ describe("scenario preview and activation", () => {
     expect(button("Aktivér valgt scenarie").disabled).toBe(true);
     expect(button(second.name).disabled).toBe(true);
     await act(async () => pending.resolve(activated));
+    expect(
+      container.querySelector(
+        ".scenario-selection > [role=status]:not(.visually-hidden)",
+      ),
+    ).toBeNull();
     expect(button(first.name).getAttribute("aria-pressed")).toBe("true");
     // Coverage changes only when the shared activations reload arrives.
     expect(container.querySelector(".scenario-preview")).not.toBeNull();

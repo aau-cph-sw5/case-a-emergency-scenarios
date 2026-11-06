@@ -251,27 +251,22 @@ export function ScenarioList({
 
 function ActivationStatus({ activation }: { activation: ActivationState }) {
   switch (activation.status) {
-    case "idle":
-      return null;
     case "activating":
-      return <p role="status">Aktiverer scenarie…</p>;
+      return (
+        <p className="visually-hidden" role="status">
+          Aktiverer scenarie.
+        </p>
+      );
     case "standing-down":
-      return <p role="status">Deaktiverer scenarie…</p>;
+      return (
+        <p className="visually-hidden" role="status">
+          Deaktiverer scenarie.
+        </p>
+      );
     case "error":
       return <p role="alert">{activation.message}</p>;
-    case "done":
-      return (
-        <p role="status">
-          Scenarie {activation.state.scenarioId} er {activation.state.status},
-          startet {activation.state.startedAt} af {activation.state.actor}.
-        </p>
-      );
-    case "stood-down":
-      return (
-        <p role="status">
-          Scenarie {activation.state.scenarioId} er deaktiveret.
-        </p>
-      );
+    default:
+      return null;
   }
 }
 
