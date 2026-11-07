@@ -270,7 +270,7 @@ export function ScenarioList({
             onClick={() => setConfirming(true)}
             disabled={busy}
           >
-            Deaktivér valgt scenarie
+            Annuller scenarie
           </button>
         ) : (
           <button

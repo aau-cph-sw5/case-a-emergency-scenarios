@@ -6,19 +6,19 @@ import { OperatorSections } from "./OperatorSections";
 import { ScenarioPreview } from "./ScenarioPreview";
 import { LiveCoverage } from "./LiveCoverage";
 import { MetroMap } from "./MetroMap";
+import { StewardPositions } from "./StewardPositions";
+import { mockStewardPositions } from "../local-settings";
 
 export function ScenarioWorkspace({
   token,
   selectedId,
   onSelect,
   statusBar,
-  statusPopup,
 }: {
   token: string;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   statusBar?: ReactNode;
-  statusPopup?: ReactNode;
 }) {
   const { activations } = useLiveData();
   const [lineControlsTarget, setLineControlsTarget] =
@@ -29,10 +29,14 @@ export function ScenarioWorkspace({
   const preview = useScenario(previewId);
   const { scenario } = preview;
   const hasActiveScenario = activations.length > 0;
+  // The mock plays a shift without a live scenario, so it shows the log too.
+  const showStatusLog = hasActiveScenario || mockStewardPositions;
 
   return (
     <OperatorSections
-      statusPopup={statusPopup}
+      statusLog={
+        showStatusLog && <StewardPositions mock={mockStewardPositions} />
+      }
       mapControls={
         <div className="operator-map-controls" ref={setLineControlsTarget} />
       }

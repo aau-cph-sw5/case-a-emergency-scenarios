@@ -71,8 +71,11 @@ describe("LiveCoverage", () => {
         ],
       }),
     );
-    expect(await screen.findByText("0/2")).toBeTruthy();
-    expect(screen.getByText("1 på vej")).toBeTruthy();
+    // The counts are in the slots and their label, not in the row's text.
+    expect(
+      await screen.findByLabelText("0 ankommet, 1 på vej, 1 afventer"),
+    ).toBeTruthy();
+    expect(screen.getAllByTestId("station-slot-PENDING")).toHaveLength(1);
 
     view.rerender(
       withLive({
@@ -84,8 +87,10 @@ describe("LiveCoverage", () => {
         ],
       }),
     );
-    expect(await screen.findByText("2/2")).toBeTruthy();
-    expect(screen.getByText("Fuldt bemandet")).toBeTruthy();
+    expect(
+      await screen.findByLabelText("2 ankommet, 0 på vej, 0 afventer"),
+    ).toBeTruthy();
+    expect(screen.getAllByTestId("station-slot-MANNED")).toHaveLength(2);
   });
 
   it("says that coverage may be out of date while the socket is down", async () => {

@@ -102,86 +102,17 @@ body {
   background: #ffffff15;
   color: white;
 }
-.active-scenario-banner {
-  min-width: 0;
+.operator-clock {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-  color: #c8c8c8;
-  font-size: 12px;
-}
-.active-scenario-banner p {
-  margin: 0;
-}
-.active-scenario-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-.active-scenario-dot {
-  width: 7px;
-  height: 7px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--operator-red);
-}
-.is-running .active-scenario-label {
-  margin-left: 19px;
-}
-.active-scenario-label {
-  position: relative;
-  min-width: 0;
-}
-.active-scenario-label strong {
-  display: block;
-  font-size: 15px;
-  color: white;
-  margin-top: 4px;
-  overflow-wrap: anywhere;
-}
-.active-start-time {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: right;
-  font-size: 11px;
-  color: #aaa;
+  gap: 28px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   font-variant-numeric: tabular-nums;
-}
-.scenario-orbit {
-  position: absolute;
-  inset: -7px -12px -7px -16px;
-  pointer-events: none;
-}
-.scenario-orbit::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  offset-path: var(--scenario-orbit-path);
-  background: var(--operator-green);
-  animation: scenario-orbit 1.6s ease-in-out forwards;
-}
-@keyframes scenario-orbit {
-  0% {
-    offset-distance: 100%;
-    background: var(--operator-red);
-    box-shadow: 3px 0 7px #e6140f60;
-  }
-  100% {
-    offset-distance: 0%;
-    background: var(--operator-green);
-    box-shadow: none;
-  }
 }
 .operator-sections {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr) 290px;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 26vw, 400px);
   gap: 16px;
   padding: 20px;
   height: calc(100dvh - 88px);
@@ -194,33 +125,42 @@ body {
 }
 .operator-map-panel,
 .operator-coverage-content,
-.operator-status-footer,
+.operator-status-log,
 .scenario-picker,
-.operator-metric,
+.active-scenario-card,
 .scenario-actions {
   background: white;
   border: 1px solid #1e1e1e;
   border-radius: 15px;
 }
-.operator-sidebar {
-  display: flex;
-  flex-direction: column;
+/* The scenario controls float on the map: the picker or the active scenario
+   in the top-left corner, the actions in the bottom-left corner. The layer
+   itself lets clicks through to the map. */
+.operator-map-overlay {
+  position: absolute;
+  inset: 16px;
+  pointer-events: none;
+  z-index: 5;
 }
 .scenario-selection {
-  overflow-x: clip;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 12px;
-  min-height: 0;
   height: 100%;
+}
+.scenario-selection > * {
+  pointer-events: auto;
 }
 .scenario-picker {
   display: flex;
   flex-direction: column;
-  padding: 22px 18px;
-  flex: 1;
-  min-height: 180px;
+  width: min(320px, 100%);
+  min-height: 0;
+  max-height: calc(100% - 80px);
+  padding: 18px;
   overflow: hidden;
+  box-shadow: 0 6px 24px #0002;
 }
 .operator-eyebrow {
   display: block;
@@ -232,19 +172,14 @@ body {
   color: #656565;
 }
 .scenario-picker h2,
-.map-heading h1,
 .coverage-heading {
   display: flex;
   align-items: center;
-  min-height: 46px;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
   line-height: 1.25;
-  letter-spacing: -0.6px;
-  margin: 0;
-}
-.scenario-picker h2 {
-  margin-bottom: 38px;
+  letter-spacing: -0.5px;
+  margin: 0 0 16px;
 }
 .scenario-picker label {
   font-size: 11px;
@@ -276,6 +211,9 @@ body {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #aaa #f2f2f2;
+  /* Fades the last visible scenario, so a long list reads as scrollable. */
+  mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent);
+  padding-bottom: 20px;
 }
 .scenario-list li {
   display: flex;
@@ -323,29 +261,27 @@ body {
 .scenario-actions {
   display: flex;
   align-items: center;
-  height: 68px;
   gap: 8px;
-  padding: 10px 12px;
-  flex-shrink: 0;
   margin-top: auto;
+  padding: 0;
+  border: 0;
+  background: none;
 }
 .scenario-actions button {
-  flex: 1;
-  height: 44px;
+  min-width: 96px;
+  height: 48px;
   border: 0;
   border-radius: 10px;
-  padding: 0 8px;
+  padding: 0 16px;
+  box-shadow: 0 4px 14px #0003;
   color: white;
   font-size: 12px;
   line-height: 1.4;
   font-weight: bold;
 }
 .scenario-actions .scenario-switch {
-  flex: 0 0 26%;
-  max-width: 76px;
   background: var(--operator-yellow);
   color: var(--operator-ink);
-  font-size: 10px;
 }
 .scenario-start {
   background: var(--operator-green, #007d55);
@@ -360,100 +296,48 @@ body {
 .operator-summaries:empty {
   display: none;
 }
-.scenario-picker[hidden] {
-  display: none;
+.active-scenario-card {
+  width: min(340px, 100%);
+  padding: 14px 18px;
+  background: #f3f3f3;
+  border-color: #b5b5b5;
+  box-shadow: 0 6px 24px #0002;
+  animation: status-enter 0.25s ease-out;
 }
-.scenario-selection--active .operator-summaries {
-  flex: 1;
-  max-height: none;
-}
-.scenario-selection--active .active-metrics {
-  min-height: 100%;
-}
-.scenario-selection--active .operator-metric {
-  flex: 1;
-}
-.operator-summaries {
-  min-height: 0;
-  overflow: auto;
-  flex-shrink: 1;
-  max-height: 64%;
-  scrollbar-width: thin;
-}
-.active-metrics {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  animation: summary-enter 0.4s ease-out;
-}
-.operator-metric {
-  padding: 15px;
-}
-.metric-value {
+.active-scenario-card h2 {
   display: flex;
   align-items: baseline;
-  gap: 12px;
-  margin: 8px 0;
-}
-.metric-value strong {
-  font-size: 32px;
-  letter-spacing: -1px;
-  color: var(--metric-color);
-}
-.metric-value > span,
-.metric-note {
-  font-size: 11px;
-  color: var(--operator-muted);
-}
-.metric-note {
-  margin: 8px 0 0;
-}
-.tone-green {
-  --metric-color: var(--operator-green);
-}
-.tone-yellow {
-  --metric-color: #8a6a00;
-}
-.tone-red {
-  --metric-color: var(--operator-red);
-}
-.metric-meter {
-  height: 5px;
-  background: #e5e5e5;
-  border-radius: 6px;
-  overflow: hidden;
-}
-.metric-meter span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--metric-color);
-  transition: width 0.35s ease;
-}
-.scenario-information-name {
-  display: block;
-  margin-top: 10px;
-  font-size: 13px;
-  font-weight: bold;
-  line-height: 1.5;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 15px;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
-.scenario-information dl {
-  margin: 12px 0;
-  color: var(--operator-muted);
-  font-size: 11px;
+.active-scenario-dot {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--operator-green);
 }
-.scenario-information dl > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 8px 0;
-}
-.scenario-information dd {
+.active-scenario-card dl {
   margin: 0;
-  text-align: right;
+  font-size: 12px;
+}
+.active-scenario-card dl > div {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.active-scenario-card dt {
+  font-weight: 700;
+}
+.active-scenario-card dd {
+  margin: 0;
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+}
+.scenario-picker[hidden] {
+  display: none;
 }
 .connection-state {
   font-size: 10px;
@@ -465,23 +349,22 @@ body {
   color: #a30e0b;
 }
 .operator-map-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  padding: 22px;
-}
-.map-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  min-height: 46px;
+  overflow: hidden;
 }
 .map-legend {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 4;
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  margin: 14px 0 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #ffffffd9;
   color: var(--operator-muted);
   font-size: 10px;
   line-height: 12px;
@@ -510,9 +393,9 @@ body {
   position: relative;
   display: flex;
   flex: 1;
-  min-height: 350px;
-  border: 1px solid var(--operator-ink);
-  border-radius: 15px;
+  min-height: 0;
+  /* Room for the legend and so stations never touch the panel's edge. */
+  padding: 24px 24px 48px;
   overflow: hidden;
   background: white;
 }
@@ -535,7 +418,10 @@ body {
   width: 100%;
 }
 .operator-map-controls {
-  flex-shrink: 0;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 6;
 }
 .operator-map-controls [data-testid="metro-line-controls"] {
   /* Override the shared renderer's inline React Native Web layout. */
@@ -558,9 +444,10 @@ body {
   font-size: 11px;
   font-weight: 700;
 }
+/* Under the line buttons, out of the way of the scenario card. */
 .operator-map-panel [data-testid="map-zoom-toggle"] {
-  top: 12px;
-  right: 12px;
+  top: 76px !important;
+  right: 16px !important;
   z-index: 10;
   border-radius: 8px !important;
   background: var(--operator-blue) !important;
@@ -574,53 +461,50 @@ body {
   font-size: 11px;
   font-weight: bold;
 }
-.operator-map-caption {
-  padding: 12px;
-  background: #f5f5f5;
-  border-top: 1px solid #e5e5e5;
-  color: var(--operator-muted);
-  font-size: 11px;
-  line-height: 1.5;
-}
 .operator-coverage-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  overflow: visible;
+  gap: 16px;
 }
 .operator-coverage-content {
-  padding: 22px 16px;
+  padding: 20px 18px;
   min-height: 0;
   flex: 1;
   overflow: auto;
   scrollbar-width: thin;
 }
-.coverage-heading {
-  margin-bottom: 38px;
+.operator-coverage-panel:has(.operator-status-log)
+  > .operator-coverage-content {
+  flex: 1 1 50%;
 }
-.operator-status-footer {
-  flex-shrink: 0;
-  height: 68px;
-  min-height: 68px;
-  padding: 10px 12px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
+/* The status log, under the staffing plan while a scenario is live. Its
+   header stays put while the rows scroll. */
+.operator-status-log {
+  display: flex;
+  flex: 1 1 50%;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  animation: status-enter 0.18s ease-out;
 }
-.operator-status-footer .operator-message-button:disabled {
-  height: 44px;
-  margin: 0;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 7px;
-  background: var(--operator-blue);
-  color: white;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  opacity: 1;
-  cursor: default;
+.operator-status-log [data-testid="status-message"] {
+  transition: border-color 0.15s;
+}
+.operator-status-log [data-testid="status-message"]:hover {
+  border-color: #aaa;
+}
+.operator-status-log [data-testid="messages-switch"]:focus-visible {
+  outline: 3px solid var(--operator-blue);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+.operator-coverage-content [data-testid="operator-station-row"],
+.operator-coverage-content [data-testid="preview-station-card"] {
+  transition: filter 0.15s;
+}
+.operator-coverage-content [data-testid="operator-station-row"]:hover,
+.operator-coverage-content [data-testid="preview-station-card"]:hover {
+  filter: brightness(0.97);
 }
 .scenario-preview h2 {
   font-size: 18px;
@@ -637,19 +521,6 @@ body {
   font-size: 11px;
   line-height: 1.7;
   color: var(--operator-muted);
-}
-.operator-coverage-panel [role="button"] {
-  padding: 14px 11px;
-  border-radius: 10px;
-  margin-bottom: 10px;
-  transition: background 0.15s;
-}
-.operator-coverage-panel [role="button"]:hover {
-  background: #f8f8f8;
-}
-.operator-coverage-panel [role="button"]:focus-visible {
-  outline: 3px solid var(--operator-blue);
-  outline-offset: -3px;
 }
 .operator-coverage-content > div + .scenario-preview {
   margin-top: 22px;
@@ -734,113 +605,7 @@ body {
   outline: 3px solid white;
   outline-offset: 3px;
 }
-.status-popup {
-  position: fixed;
-  bottom: 36px;
-  right: 40px;
-  z-index: 30;
-  width: min(420px, calc(100vw - 48px));
-  pointer-events: none;
-}
-.operator-status-footer .status-popup {
-  position: relative;
-  inset: auto;
-  width: 100%;
-  height: 100%;
-}
-.operator-status-footer [data-testid="steward-status"] {
-  height: 100%;
-  gap: 0 !important;
-  justify-content: center !important;
-  align-items: center !important;
-}
-.operator-status-footer [data-testid="status-launcher"] {
-  border-radius: 7px !important;
-  height: 44px;
-  padding: 0 !important;
-  margin: 0 !important;
-  align-items: center;
-  align-self: center;
-  width: 100%;
-  justify-content: center;
-}
-.operator-status-footer [data-testid="status-window"] {
-  position: absolute !important;
-  right: 0;
-  bottom: calc(100% + 12px);
-  margin-bottom: 0 !important;
-  width: min(420px, calc(100vw - 48px)) !important;
-}
 /* Hooks style the existing status component without changing its live data. */
-.operator-dashboard [data-testid="steward-status"] {
-  gap: 12px;
-}
-.operator-dashboard [data-testid="status-window"] {
-  width: 100%;
-  border-radius: 16px;
-  box-shadow: 0 12px 40px #0005;
-  pointer-events: auto;
-  animation: status-enter 0.18s ease-out;
-}
-.operator-dashboard [data-testid="status-window-header"] {
-  padding: 16px 18px;
-}
-.operator-dashboard [data-testid="status-window-header"] > div {
-  font-size: 16px;
-}
-.operator-dashboard [data-testid="status-window-header"] [role="button"] {
-  padding: 2px 6px;
-  border-radius: 6px;
-}
-.operator-dashboard [data-testid="status-window-header"] [role="button"]:hover {
-  background: #ffffff25;
-}
-.operator-dashboard [data-testid="status-messages"] {
-  padding: 0 18px;
-  max-height: min(400px, calc(100dvh - 240px));
-}
-.operator-dashboard [data-testid="status-message"] {
-  padding: 17px 0;
-  gap: 12px;
-  border-bottom: 1px solid #e5e5e5;
-}
-.operator-dashboard [data-testid="status-message"]:last-child {
-  border-bottom: 0;
-}
-.operator-dashboard [data-testid="status-message"] > div:first-child {
-  flex: 1;
-  flex-shrink: 1;
-  min-width: 0;
-}
-.operator-dashboard
-  [data-testid="status-message"]
-  > div:first-child
-  > div:last-child {
-  font-size: 12px;
-  flex-shrink: 1;
-  line-height: 1.8;
-}
-.operator-dashboard [data-testid="status-message-time"] {
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-  gap: 3px;
-}
-.operator-dashboard [data-testid="status-message-time"] > div:last-child {
-  color: var(--operator-muted);
-}
-.operator-dashboard [data-testid="status-launcher"] {
-  padding: 15px 22px;
-  border-radius: 30px;
-  box-shadow: 0 5px 24px #0003;
-  pointer-events: auto;
-}
-.operator-dashboard [data-testid="status-launcher"] > div {
-  font-size: 14px;
-  font-weight: 700;
-}
-.operator-dashboard [data-testid="status-launcher"]:hover {
-  background: #0088a2;
-}
 .scenario-selection--switching > :is(.scenario-picker, .scenario-actions) {
   animation: scenario-picker-in 0.28s ease-out both;
 }
@@ -869,16 +634,6 @@ body {
     opacity: 0;
   }
 }
-@keyframes summary-enter {
-  from {
-    opacity: 0;
-    transform: translateX(-24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
 @keyframes status-enter {
   from {
     opacity: 0;
@@ -889,36 +644,22 @@ body {
     transform: translateY(0);
   }
 }
-@media (min-width: 1700px) {
-  .operator-sections {
-    grid-template-columns: 290px minmax(0, 1fr) 330px;
-  }
-  .operator-map-panel {
-    padding: 22px;
-  }
-  .map-heading h1 {
-    font-size: 24px;
-  }
-}
 @media (max-width: 1150px) {
   .operator-sections {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     height: auto;
-    min-height: calc(100dvh - 88px);
   }
-  .operator-sidebar,
   .operator-map-panel {
-    height: 680px;
+    height: 640px;
   }
   .operator-coverage-panel {
-    grid-column: 1 / -1;
-    max-height: 480px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+    height: 480px;
   }
-  .operator-topbar {
-    gap: 18px;
-  }
-  .operator-map-panel {
-    padding: 16px;
+  .operator-coverage-panel:not(:has(.operator-status-log)) {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 760px) {
@@ -930,6 +671,12 @@ body {
   .operator-brand > strong {
     font-size: 16px;
   }
+  .operator-clock {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    font-size: 18px;
+  }
   .operator-profile {
     gap: 8px;
     margin-left: auto;
@@ -937,45 +684,39 @@ body {
   .operator-profile > strong {
     display: none;
   }
-  .active-scenario-banner {
-    order: 3;
-    width: 100%;
-    padding-top: 14px;
-    border-top: 1px solid #444;
-  }
   .operator-sections {
-    display: flex;
-    flex-direction: column;
     gap: 12px;
     padding: 12px;
   }
-  .operator-sidebar {
-    height: auto;
-  }
-  .scenario-selection {
-    height: auto;
-  }
-  .scenario-picker {
-    flex: auto;
-    height: 340px;
-  }
-  .operator-summaries {
-    max-height: none;
-    overflow: visible;
-  }
   .operator-map-panel {
-    height: 560px;
+    height: 600px;
   }
-  .operator-coverage-panel {
-    max-height: none;
+  .operator-map-overlay {
+    inset: 12px;
+  }
+  .operator-map-controls {
+    top: 12px;
+    right: 12px;
+  }
+  /* The picker sits under the line buttons, which share the top edge. */
+  .scenario-selection {
+    padding-top: 60px;
+  }
+  .map-legend {
+    display: none;
+  }
+  .operator-coverage-panel,
+  .operator-coverage-panel:not(:has(.operator-status-log)) {
+    display: flex;
+    height: auto;
   }
   .operator-coverage-content {
-    flex: auto;
+    flex: none;
     overflow: visible;
   }
-  .status-popup {
-    right: 24px;
-    bottom: 28px;
+  .operator-status-log {
+    flex: none;
+    height: 420px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -984,8 +725,5 @@ body {
   .operator-dashboard *::after {
     animation: none !important;
     transition: none !important;
-  }
-  .scenario-orbit::after {
-    offset-distance: 0%;
   }
 }

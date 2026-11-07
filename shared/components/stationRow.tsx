@@ -40,12 +40,16 @@ export default function StationRow(props: Props) {
       </View>
     );
   }
+  if (props.operatorLayout) {
+    return (
+      <OperatorStationRow
+        requirement={requirement}
+        deployments={props.deployments}
+      />
+    );
+  }
   return (
-    <LiveStationRow
-      requirement={requirement}
-      deployments={props.deployments}
-      operatorLayout={props.operatorLayout}
-    />
+    <LiveStationRow requirement={requirement} deployments={props.deployments} />
   );
 }
 
@@ -62,20 +66,18 @@ function PreviewStationRow({
       accessibilityLabel={`${requirement.station}: ${requirement.minimumStaffing} stewards kræves`}
       accessibilityState={{ expanded: open }}
       onPress={() => setOpen(!open)}
-      style={[
-        styles.card,
-        {
-          borderLeftColor: colors.statusRed,
-          borderRightWidth: 4,
-          borderRightColor: colors.statusRed,
-        },
-      ]}
+      style={[styles.tinted, { backgroundColor: colors.coverageNone }]}
     >
       <View style={styles.line}>
-        <Text style={styles.name}>{requirement.station}</Text>
-        <Text style={[styles.count, { color: colors.statusRed }]}>
-          {requirement.minimumStaffing}
+        <Text style={styles.tintedName} numberOfLines={1}>
+          {requirement.station}
         </Text>
+        <Slots
+          statuses={Array.from(
+            { length: requirement.minimumStaffing },
+            () => "UNMANNED" as const,
+          )}
+        />
       </View>
       {open && (
         <View style={styles.details}>
@@ -91,14 +93,121 @@ function PreviewStationRow({
   );
 }
 
-function LiveStationRow({
+type SlotStatus = "MANNED" | "PENDING" | "UNMANNED";
+
+const SLOT_COLOR: Record<SlotStatus, string> = {
+  MANNED: colors.statusGreen,
+  PENDING: colors.statusYellow,
+  UNMANNED: colors.statusRed,
+};
+
+// One slot per required steward, so the colours read without the numbers.
+function Slots({
+  statuses,
+  label,
+}: {
+  statuses: SlotStatus[];
+  label?: string;
+}) {
+  return (
+    <View
+      testID="station-staffing-slots"
+      accessible={label !== undefined}
+      accessibilityLabel={label}
+      style={styles.slots}
+    >
+      {statuses.map((status, index) => (
+        <View
+          key={index}
+          testID={`station-slot-${status}`}
+          style={[styles.slot, { backgroundColor: SLOT_COLOR[status] }]}
+        />
+      ))}
+    </View>
+  );
+}
+
+// The row's background in the control room: red with nobody coming, orange
+// while some are missing, yellow when the rest are on the way, green when
+// everyone has arrived.
+function coverageTint(arrived: number, enRoute: number, needed: number) {
+  if (arrived >= needed) return colors.coverageFull;
+  if (arrived + enRoute >= needed) return colors.coverageEnRoute;
+  return arrived + enRoute === 0 ? colors.coverageNone : colors.coveragePartial;
+}
+
+// The control room's row: the station and its slots on a tinted background,
+// with the counts, placement and actions behind a press.
+function OperatorStationRow({
   requirement,
   deployments,
-  operatorLayout = false,
 }: {
   requirement: StationRequirement;
   deployments: ActiveDeployments;
-  operatorLayout?: boolean;
+}) {
+  const { current, enRoute } = getStationState(
+    deployments,
+    requirement.station,
+    requirement.minimumStaffing,
+  );
+  const needed = requirement.minimumStaffing;
+  const waiting = Math.max(0, needed - current - enRoute);
+  const [open, setOpen] = useState(false);
+  // Exactly one slot per required steward, ordered green/yellow/red.
+  const statuses = Array.from({ length: needed }, (_, index) =>
+    index < current
+      ? "MANNED"
+      : index < current + enRoute
+        ? "PENDING"
+        : "UNMANNED",
+  );
+
+  return (
+    <Pressable
+      testID="operator-station-row"
+      accessibilityRole="button"
+      accessibilityLabel={`${requirement.station}: ${current} af ${needed} ankommet`}
+      accessibilityState={{ expanded: open }}
+      onPress={() => setOpen(!open)}
+      style={[
+        styles.tinted,
+        { backgroundColor: coverageTint(current, enRoute, needed) },
+      ]}
+    >
+      <View style={styles.line}>
+        <Text style={styles.tintedName} numberOfLines={1}>
+          {requirement.station}
+        </Text>
+        <Slots
+          statuses={statuses}
+          label={`${current} ankommet, ${enRoute} på vej, ${waiting} afventer`}
+        />
+      </View>
+      {open && (
+        <View style={styles.details}>
+          <Text style={[styles.small, styles.bold]}>
+            {current}/{needed} ankommet · {enRoute} på vej
+          </Text>
+          <Text style={[styles.small, styles.bold]}>
+            {requirement.placement}
+          </Text>
+          {(requirement.actions ?? []).map((a) => (
+            <Text key={a.sequence} style={styles.small}>
+              {a.sequence}. {a.instruction}
+            </Text>
+          ))}
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+function LiveStationRow({
+  requirement,
+  deployments,
+}: {
+  requirement: StationRequirement;
+  deployments: ActiveDeployments;
 }) {
   const { current, enRoute } = getStationState(
     deployments,
@@ -119,57 +228,13 @@ function LiveStationRow({
       accessibilityRole="button"
       accessibilityState={{ expanded: open }}
       onPress={() => setOpen(!open)}
-      style={[
-        styles.card,
-        { borderLeftColor: color },
-        operatorLayout && { borderRightWidth: 4, borderRightColor: color },
-      ]}
+      style={[styles.card, { borderLeftColor: color }]}
     >
       <View style={styles.line}>
-        <Text
-          style={[styles.name, operatorLayout && styles.operatorName]}
-          numberOfLines={1}
-        >
+        <Text style={styles.name} numberOfLines={1}>
           {requirement.station}
         </Text>
-        {operatorLayout && (
-          <View
-            testID="station-staffing-slots"
-            accessible
-            accessibilityLabel={`${current} ankommet, ${enRoute} på vej, ${Math.max(0, needed - current - enRoute)} afventer`}
-            style={styles.slots}
-          >
-            {Array.from({ length: needed }, (_, index) => {
-              // Exactly one slot per required steward, ordered green/yellow/red.
-              const status =
-                index < current
-                  ? "MANNED"
-                  : index < current + enRoute
-                    ? "PENDING"
-                    : "UNMANNED";
-              const backgroundColor =
-                status === "MANNED"
-                  ? colors.statusGreen
-                  : status === "PENDING"
-                    ? colors.statusYellow
-                    : colors.statusRed;
-              return (
-                <View
-                  key={index}
-                  testID={`station-slot-${status}`}
-                  style={[styles.slot, { backgroundColor }]}
-                />
-              );
-            })}
-          </View>
-        )}
-        <Text
-          style={[
-            styles.count,
-            { color: numberColor },
-            operatorLayout && styles.operatorCount,
-          ]}
-        >
+        <Text style={[styles.count, { color: numberColor }]}>
           {current}/{needed}
         </Text>
       </View>
@@ -178,15 +243,13 @@ function LiveStationRow({
 
         <Text style={[styles.small, styles.bold]}>{enRoute} på vej</Text>
       </View>
-      {(!operatorLayout || missing === 0) && (
-        <Text
-          style={[styles.small, missing === 0 && { color: colors.statusGreen }]}
-        >
-          {missing === 0
-            ? "Fuldt bemandet"
-            : `Mangler ${missing} ${missing === 1 ? "steward" : "stewards"}`}
-        </Text>
-      )}
+      <Text
+        style={[styles.small, missing === 0 && { color: colors.statusGreen }]}
+      >
+        {missing === 0
+          ? "Fuldt bemandet"
+          : `Mangler ${missing} ${missing === 1 ? "steward" : "stewards"}`}
+      </Text>
 
       {open && (
         <View style={styles.details}>
@@ -214,25 +277,32 @@ const styles = StyleSheet.create({
   },
   name: { ...text.body, flexShrink: 1, fontSize: 14, fontWeight: "600" },
   count: { fontSize: 20, fontWeight: "700" },
-  operatorName: { flexBasis: 0, flexGrow: 1 },
-  operatorCount: { flexBasis: 0, flexGrow: 1, textAlign: "right" },
+  tinted: {
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  tintedName: {
+    ...text.body,
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
   small: text.small,
   bold: { fontWeight: "600" },
   details: { marginTop: 4, gap: 2 },
   slots: {
-    flexBasis: 0,
-    flexGrow: 1,
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "center",
+    justifyContent: "flex-end",
     gap: 4,
-    flexShrink: 1,
+    flexShrink: 0,
   },
   slot: {
-    width: 13,
+    width: 30,
     height: 22,
-    borderRadius: 3,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 4,
   },
 });

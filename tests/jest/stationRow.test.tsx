@@ -62,14 +62,9 @@ describe("StationRow", () => {
       StyleSheet.flatten(
         screen.getByTestId("preview-station-card").props.style,
       ),
-    ).toMatchObject({
-      borderLeftWidth: 4,
-      borderRightWidth: 4,
-      borderLeftColor: colors.statusRed,
-      borderRightColor: colors.statusRed,
-    });
+    ).toMatchObject({ backgroundColor: colors.coverageNone });
     expect(screen.getByText("Station A")).toBeTruthy();
-    expect(screen.getByText("2")).toBeTruthy();
+    expect(screen.getAllByTestId("station-slot-UNMANNED")).toHaveLength(2);
     expect(
       screen.queryByText(/\d+\/\d+|Minimum|Placering:|Mangler/),
     ).toBeNull();

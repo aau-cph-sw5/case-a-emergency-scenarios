@@ -49,7 +49,9 @@ describe("ScenarioStationList", () => {
     expect(screen.getByText(/Nødvendige stewards:/)).toBeTruthy();
     expect(screen.getByText("2")).toBeTruthy();
     expect(screen.getByText("4")).toBeTruthy();
-    expect(screen.queryByTestId("station-staffing-slots")).toBeNull();
+    // Before activation every slot is red: nobody is on the way yet.
+    expect(screen.getAllByTestId("station-slot-UNMANNED")).toHaveLength(4);
+    expect(screen.queryByTestId("station-slot-PENDING")).toBeNull();
     view.rerender(
       <ScenarioStationList
         scenario={scenario}

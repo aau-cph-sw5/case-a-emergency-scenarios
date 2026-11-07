@@ -96,20 +96,6 @@ export function MetroMap({
   const zoomedOut = canZoom && zoomedOutOf === scenarioId;
   return (
     <View style={{ flex: 1 }}>
-      {scenario !== null && (
-        <Text
-          style={[
-            text.small,
-            {
-              backgroundColor: theme.background,
-              padding: 12,
-              paddingRight: canZoom ? 130 : 12,
-            },
-          ]}
-        >
-          {scenario.name} · Tal på stationerne viser krævede stewards
-        </Text>
-      )}
       {canZoom && (
         <Pressable
           testID="map-zoom-toggle"

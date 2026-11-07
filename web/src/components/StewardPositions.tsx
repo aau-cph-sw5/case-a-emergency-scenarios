@@ -19,7 +19,7 @@ type StewardPosition = {
 };
 
 // TEMPORARY mock, shown while <StewardPositions mock /> is set in
-// OperatorDashboard. It plays one shift: stewards check in at a station (på
+// ScenarioWorkspace. It plays one shift: stewards check in at a station (på
 // vej, then ankommet). Delete it and the `mock` prop when live data is enough.
 const MOCK_LOG: StewardPosition[] = [
   {
@@ -110,59 +110,78 @@ function useNow(intervalMs: number) {
   return now;
 }
 
-// The status pop-up in the bottom right corner: a button that opens a list of
-// where each steward is. Stewards are shown by user id, because Metro avoids
+// The status log, under the coverage while a scenario is live: where each
+// steward is. The Beskeder switch turns the same card into the messages, which
+// are not built yet. Stewards are shown by user id, because Metro avoids
 // identifying them by name.
 export function StewardPositions({ mock = false }: { mock?: boolean }) {
   const { activations, isConnected, error } = useLiveData();
-  const [open, setOpen] = useState(mock);
+  const [showMessages, setShowMessages] = useState(false);
   const now = useNow(TICK_MS);
   const positions = mock ? MOCK_LOG : stewardPositions(activations);
 
   return (
     <View
-      testID="steward-status"
+      testID="status-window"
       aria-label="Status"
-      style={{ alignItems: "flex-end" }}
+      style={{ flex: 1, minHeight: 0, backgroundColor: colors.background }}
     >
-      {open && (
-        <View
-          testID="status-window"
-          style={{
-            alignSelf: "stretch",
-            marginBottom: 8,
-            overflow: "hidden",
-            borderRadius: 8,
-            backgroundColor: colors.background,
-            borderWidth: 1,
-            borderColor: palette.metroLineFour,
-          }}
+      <View
+        testID="status-window-header"
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          paddingHorizontal: 18,
+          paddingTop: 18,
+          paddingBottom: 12,
+        }}
+      >
+        <Text accessibilityRole="header" style={text.title}>
+          {showMessages ? "Beskeder" : `Status log (${positions.length})`}
+        </Text>
+        <Pressable
+          testID="messages-switch"
+          accessibilityRole="switch"
+          accessibilityLabel="Beskeder"
+          accessibilityState={{ checked: showMessages }}
+          onPress={() => setShowMessages((previous) => !previous)}
+          style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
         >
           <View
-            testID="status-window-header"
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: 12,
-              backgroundColor: palette.metroLineFour,
+              width: 40,
+              height: 22,
+              padding: 2,
+              borderRadius: 11,
+              alignItems: showMessages ? "flex-end" : "flex-start",
+              backgroundColor: showMessages
+                ? palette.metroLineFour
+                : colors.subtleBorder,
             }}
           >
-            <Text style={[text.title, { color: colors.textInverse }]}>
-              Status ({positions.length})
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Luk status"
-              onPress={() => setOpen(false)}
-            >
-              <Text style={[text.title, { color: colors.textInverse }]}>✕</Text>
-            </Pressable>
+            <View
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: colors.background,
+              }}
+            />
           </View>
-          <ScrollView
-            testID="status-messages"
-            style={{ padding: 12, maxHeight: 360 }}
-          >
+          <Text style={{ fontSize: 11, fontWeight: "600" }}>Beskeder</Text>
+        </Pressable>
+      </View>
+      <ScrollView
+        testID="status-messages"
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 18 }}
+      >
+        {showMessages ? (
+          <Text style={text.small}>Beskeder er endnu ikke tilgængelige.</Text>
+        ) : (
+          <>
             {!isConnected && (
               <Text role="alert">
                 Ingen forbindelse til serveren. Positionerne kan være forældede.
@@ -172,7 +191,7 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
               <Text role="alert">Kunne ikke hente positioner: {error}</Text>
             )}
             {positions.length === 0 ? (
-              <Text>Ingen positioner endnu.</Text>
+              <Text style={text.small}>Ingen positioner endnu.</Text>
             ) : (
               positions.map((p) => (
                 <View
@@ -182,10 +201,22 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
                     flexDirection: "row",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    paddingVertical: 8,
+                    gap: 12,
+                    marginBottom: 8,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: colors.subtleBorder,
                   }}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      flexShrink: 1,
+                    }}
+                  >
                     <View
                       style={{
                         width: 10,
@@ -196,14 +227,14 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
                           stewardStatus[p.status]?.color ?? colors.text,
                       }}
                     />
-                    <Text style={{ fontSize: 14 }}>
+                    <Text style={{ fontSize: 13, flexShrink: 1 }}>
                       {p.staff} | <StewardStatus status={p.status} /> |{" "}
                       {p.station}
                     </Text>
                   </View>
                   <View
                     testID="status-message-time"
-                    style={{ alignItems: "flex-end" }}
+                    style={{ alignItems: "flex-end", flexShrink: 0 }}
                   >
                     <Text style={{ fontSize: 12 }}>
                       {p.time && !Number.isNaN(Date.parse(p.time))
@@ -220,25 +251,9 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
                 </View>
               ))
             )}
-          </ScrollView>
-        </View>
-      )}
-      <Pressable
-        accessibilityRole="button"
-        testID="status-launcher"
-        accessibilityState={{ expanded: open }}
-        onPress={() => setOpen((previous) => !previous)}
-        style={{
-          paddingHorizontal: 20,
-          paddingVertical: 12,
-          borderRadius: 24,
-          backgroundColor: palette.metroLineFour,
-        }}
-      >
-        <Text style={[text.title, { color: colors.textInverse }]}>
-          Status ({positions.length})
-        </Text>
-      </Pressable>
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 }

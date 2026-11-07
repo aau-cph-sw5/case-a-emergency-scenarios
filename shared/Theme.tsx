@@ -22,6 +22,11 @@ export const palette = {
   darkYellow: "#8A6A00", // yellow dark enough to read as text on white
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
+  // Light tints behind the control room's station rows, one per coverage tone.
+  tintRed: "#FBD3D1",
+  tintOrange: "#FFDDB3",
+  tintYellow: "#FFF3BF",
+  tintGreen: "#CFE9DC",
 };
 
 export const colors = {
@@ -39,6 +44,11 @@ export const colors = {
   subtleBorder: palette.lightGrey, // card outlines that should not compete with the status colour
   requiredStation: palette.signalOrange, // a station the scenario needs staff at; no line on the map uses it
   blockedTrack: palette.metroDeepRed, // darker than M3's red, and drawn dashed to tell them apart
+  // Station row backgrounds: nobody coming, some coming, all coming, all arrived.
+  coverageNone: palette.tintRed,
+  coveragePartial: palette.tintOrange,
+  coverageEnRoute: palette.tintYellow,
+  coverageFull: palette.tintGreen,
 };
 
 // How a steward's status looks, in the control room and the steward app. The

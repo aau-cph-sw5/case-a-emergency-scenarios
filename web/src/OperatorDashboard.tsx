@@ -1,9 +1,32 @@
-import { useState } from "react";
-import { StewardPositions } from "./components/StewardPositions";
+import { useEffect, useState } from "react";
 import { ScenarioWorkspace } from "./components/ScenarioWorkspace";
 import { LiveStatusBar } from "./components/LiveStatusBar";
-import { mockStewardPositions } from "./local-settings";
-import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
+
+// The time and date in the header, as "17:30" and "06-11-2026".
+function Clock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const time = now.toLocaleTimeString("da-DK", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const date = now
+    .toLocaleDateString("da-DK", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+    .replaceAll(".", "-");
+  return (
+    <time className="operator-clock" dateTime={now.toISOString()}>
+      <span>{time.replace(".", ":")}</span>
+      <span>{date}</span>
+    </time>
+  );
+}
 
 // The control-room dashboard. App opens the socket. Each section is filled by
 // its own sub-issue of MET-A-011, so the dashboard keeps working until then.
@@ -25,7 +48,7 @@ export function OperatorDashboard({
           </span>
           <strong>Metro Service</strong>
         </div>
-        <ActiveScenarioBanner />
+        <Clock />
         <div className="operator-profile">
           <span className="operator-avatar" aria-hidden="true">
             OP
@@ -41,7 +64,6 @@ export function OperatorDashboard({
         selectedId={selectedId}
         onSelect={setSelectedId}
         statusBar={<LiveStatusBar />}
-        statusPopup={<StewardPositions mock={mockStewardPositions} />}
       />
     </main>
   );

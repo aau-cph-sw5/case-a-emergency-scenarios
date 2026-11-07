@@ -139,16 +139,14 @@ describe("API-backed scenario preview", () => {
         : normalFetch(path, options),
     );
     await mount();
-    const startedAt = container.querySelector(".active-start-time")!;
-    expect(startedAt.getAttribute("datetime")).toBe("2026-11-01T12:00:00Z");
-    expect(startedAt.children).toHaveLength(2);
-    expect(startedAt.children[0].textContent).toBe("01.11.2026");
-    expect(startedAt.children[1].textContent).toMatch(/\d{2}[.:]\d{2}/);
     await searchAndSelect(221);
     const columns = container.querySelectorAll(".operator-sections > section");
-    expect(columns[0].textContent).toContain("Aktiveret af operator-test");
-    expect(columns[0].textContent).toContain(summaries[0].name);
-    expect(columns[2].textContent).toContain("0/7");
+    const card = columns[0].querySelector(".active-scenario-card")!;
+    expect(card.textContent).toContain(`Aktivt scenarie: ${summaries[0].name}`);
+    expect(card.textContent).toContain("Tid aktivt:");
+    expect(
+      columns[1].querySelector('[aria-label$=": 0 af 7 ankommet"]'),
+    ).not.toBeNull();
     expect(container.querySelector(".scenario-preview")?.textContent).toContain(
       "API-STATION-221",
     );
