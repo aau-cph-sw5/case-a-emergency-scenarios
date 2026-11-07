@@ -185,14 +185,28 @@ export function ScenarioList({
   }
 
   // Switching previews another scenario without stopping the current one.
+  function cancelSwitch() {
+    setListOpen(false);
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
+      finishSwitch();
+    else setSwitchPhase("closing");
+  }
+
+  // Switching previews another scenario without stopping the current one;
+  // pressing Skift scenarie again goes back to it.
   const actions = (
     <div className="scenario-actions">
-      {actionIsActive && activeScenario && (
+      {activeScenario && (actionIsActive || switching) && (
         <button
           type="button"
           className="scenario-switch"
+          aria-pressed={switching}
           disabled={busy}
           onClick={() => {
+            if (switching) {
+              cancelSwitch();
+              return;
+            }
             setSwitchPhase("open");
             setQuery("");
             setListOpen(true);
@@ -200,25 +214,6 @@ export function ScenarioList({
           }}
         >
           Skift scenarie
-        </button>
-      )}
-      {!actionIsActive && (
-        <button
-          type="button"
-          className="scenario-cancel"
-          disabled={busy || (!switching && selectedId === null)}
-          onClick={() => {
-            if (switching) {
-              if (
-                window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-              )
-                finishSwitch();
-              else setSwitchPhase("closing");
-            } else onSelect(null);
-            setListOpen(false);
-          }}
-        >
-          Annuller
         </button>
       )}
       {actionIsActive ? (
@@ -231,17 +226,20 @@ export function ScenarioList({
           Annuller scenarie
         </button>
       ) : (
-        <button
-          type="button"
-          className="scenario-start"
-          onClick={() => setConfirming(true)}
-          disabled={
-            !previewReady ||
-            !canActivate(selected?.scenarioId ?? null, busy, activeIds)
-          }
-        >
-          Aktivér valgt scenarie
-        </button>
+        // Activation appears once there is a scenario to activate.
+        selected !== null && (
+          <button
+            type="button"
+            className="scenario-start"
+            onClick={() => setConfirming(true)}
+            disabled={
+              !previewReady ||
+              !canActivate(selected.scenarioId, busy, activeIds)
+            }
+          >
+            Aktivér valgt scenarie
+          </button>
+        )
       )}
     </div>
   );
@@ -332,16 +330,12 @@ export function ScenarioList({
         {activeFailed && (
           <p role="status">Aktive scenarier kunne ikke vises.</p>
         )}
-
-        {/* Activation appears once there is something to activate, and
-            cancelling a switch is always possible. */}
-        {choosingScenario && (selected !== null || switching) && actions}
       </div>
       {summary && !switching && (
         <div className="operator-summaries">{summary}</div>
       )}
 
-      {!choosingScenario && actions}
+      {actions}
 
       {confirming &&
         actionScenario &&

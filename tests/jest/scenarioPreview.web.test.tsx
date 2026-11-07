@@ -169,11 +169,13 @@ describe("scenario preview and activation", () => {
     expect(
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(false);
-    expect(button("Annuller").disabled).toBe(false);
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    // Skift scenarie stays pressed; pressing it again goes back.
+    expect(button("Skift scenarie").getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector(".scenario-start")).toBeNull();
+    expect(container.textContent).not.toContain("Annuller scenarie");
     await click(second.name);
     expect(button("Aktivér valgt scenarie").disabled).toBe(false);
-    await click("Annuller");
+    await click("Skift scenarie");
     expect(
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(false);
@@ -194,7 +196,7 @@ describe("scenario preview and activation", () => {
     try {
       await renderList(null, { activations: [activated] });
       await click("Skift scenarie");
-      await click("Annuller");
+      await click("Skift scenarie");
       await act(async () => {
         jest.advanceTimersByTime(350);
       });
@@ -268,7 +270,7 @@ describe("scenario preview and activation", () => {
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(false);
     expect(button("Aktivér valgt scenarie").disabled).toBe(false);
-    await click("Annuller");
+    await click("Skift scenarie");
     expect(
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(false);
@@ -337,7 +339,7 @@ describe("scenario preview and activation", () => {
     expect(chosen.textContent).toContain(second.name);
     expect(
       container
-        .querySelector(".scenario-picker")
+        .querySelector(".scenario-actions")
         ?.contains(button("Aktivér valgt scenarie")),
     ).toBe(true);
     await act(async () => chosen.click());

@@ -286,28 +286,18 @@ body {
   background: var(--operator-yellow);
   color: var(--operator-ink);
 }
+/* Pressed while switching: pressing it again goes back. */
+.scenario-actions .scenario-switch[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px var(--operator-ink);
+}
 .scenario-start {
   background: var(--operator-green, #007d55);
 }
-.scenario-stop,
-.scenario-cancel {
+.scenario-stop {
   background: var(--operator-red);
 }
 .scenario-actions button:not(:disabled):hover {
   filter: brightness(0.9);
-}
-/* Inside the picker the actions span its width, under the chosen scenario. */
-.scenario-picker .scenario-actions {
-  margin-top: 14px;
-  flex-shrink: 0;
-}
-.scenario-picker .scenario-actions button {
-  flex: 1;
-  min-width: 0;
-  box-shadow: none;
-}
-.scenario-picker .scenario-actions .scenario-start {
-  flex: 2;
 }
 .scenario-chosen {
   display: flex;
@@ -654,11 +644,10 @@ body {
   outline-offset: 3px;
 }
 /* Hooks style the existing status component without changing its live data. */
-.scenario-selection--switching > :is(.scenario-picker, .scenario-actions) {
+.scenario-selection--switching > .scenario-picker {
   animation: scenario-picker-in 0.28s ease-out both;
 }
-.scenario-selection--switching.is-closing
-  > :is(.scenario-picker, .scenario-actions) {
+.scenario-selection--switching.is-closing > .scenario-picker {
   animation: scenario-picker-out 0.28s ease-in both;
   pointer-events: none;
 }
