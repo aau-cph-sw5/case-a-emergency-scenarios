@@ -110,9 +110,50 @@ function useNow(intervalMs: number) {
   return now;
 }
 
+// One half of the card's header. The shown tab is marked in blue.
+function Tab({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={{
+        flex: 1,
+        alignItems: "center",
+        paddingVertical: 16,
+        borderBottomWidth: 3,
+        borderBottomColor: selected
+          ? palette.metroLineFour
+          : colors.subtleBorder,
+        backgroundColor: selected ? palette.tintBlue : colors.background,
+      }}
+    >
+      <Text
+        style={[
+          text.title,
+          {
+            fontSize: 15,
+            color: selected ? palette.metroLineFour : colors.text,
+          },
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 // The status log, under the coverage while a scenario is live: where each
-// steward is. The Beskeder switch turns the same card into the messages, which
-// are not built yet. Stewards are shown by user id, because Metro avoids
+// steward is. The Beskeder tab shows the messages instead, which are not
+// built yet. Stewards are shown by user id, because Metro avoids
 // identifying them by name.
 export function StewardPositions({ mock = false }: { mock?: boolean }) {
   const { activations, isConnected, error } = useLiveData();
@@ -128,55 +169,24 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
     >
       <View
         testID="status-window-header"
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          paddingHorizontal: 18,
-          paddingTop: 18,
-          paddingBottom: 12,
-        }}
+        accessibilityRole="tablist"
+        style={{ flexDirection: "row" }}
       >
-        <Text accessibilityRole="header" style={text.title}>
-          {showMessages ? "Beskeder" : `Status log (${positions.length})`}
-        </Text>
-        <Pressable
-          testID="messages-switch"
-          accessibilityRole="switch"
-          accessibilityLabel="Beskeder"
-          accessibilityState={{ checked: showMessages }}
-          onPress={() => setShowMessages((previous) => !previous)}
-          style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-        >
-          <View
-            style={{
-              width: 40,
-              height: 22,
-              padding: 2,
-              borderRadius: 11,
-              alignItems: showMessages ? "flex-end" : "flex-start",
-              backgroundColor: showMessages
-                ? palette.metroLineFour
-                : colors.subtleBorder,
-            }}
-          >
-            <View
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 9,
-                backgroundColor: colors.background,
-              }}
-            />
-          </View>
-          <Text style={{ fontSize: 11, fontWeight: "600" }}>Beskeder</Text>
-        </Pressable>
+        <Tab
+          label={`Status log (${positions.length})`}
+          selected={!showMessages}
+          onPress={() => setShowMessages(false)}
+        />
+        <Tab
+          label="Beskeder"
+          selected={showMessages}
+          onPress={() => setShowMessages(true)}
+        />
       </View>
       <ScrollView
         testID="status-messages"
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 18 }}
+        contentContainerStyle={{ padding: 18 }}
       >
         {showMessages ? (
           <Text style={text.small}>Beskeder er endnu ikke tilgængelige.</Text>

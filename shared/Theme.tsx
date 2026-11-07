@@ -27,6 +27,7 @@ export const palette = {
   tintOrange: "#FFDDB3",
   tintYellow: "#FFF3BF",
   tintGreen: "#CFE9DC",
+  tintBlue: "#E5F5F8", // behind the selected tab, a light M4 blue
 };
 
 export const colors = {

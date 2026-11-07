@@ -137,25 +137,30 @@ describe("StewardPositions status log", () => {
     expect(screen.queryByLabelText("Luk status")).toBeNull();
   });
 
-  it("switches between the log and the messages, which are not built yet", () => {
+  it("has a tab for the log and one for the messages, which are not built yet", () => {
     renderWithLive(<StewardPositions />, {
       activations: [
         activation(1, [onTheWay("steward-002", "Nørreport", minutesAgo(2))]),
       ],
     });
-    const toggle = screen.getByRole("switch", { name: "Beskeder" });
-    expect(toggle.props.accessibilityState).toEqual({ checked: false });
+    const tab = (name: string) => screen.getByRole("tab", { name });
+    expect(tab("Status log (1)").props.accessibilityState).toEqual({
+      selected: true,
+    });
+    expect(tab("Beskeder").props.accessibilityState).toEqual({
+      selected: false,
+    });
 
-    fireEvent.press(toggle);
+    fireEvent.press(tab("Beskeder"));
     expect(
       screen.getByText("Beskeder er endnu ikke tilgængelige."),
     ).toBeTruthy();
     expect(screen.queryByText(/steward-002/)).toBeNull();
-    expect(
-      screen.getByRole("switch", { name: "Beskeder" }).props.accessibilityState,
-    ).toEqual({ checked: true });
+    expect(tab("Beskeder").props.accessibilityState).toEqual({
+      selected: true,
+    });
 
-    fireEvent.press(screen.getByRole("switch", { name: "Beskeder" }));
+    fireEvent.press(tab("Status log (1)"));
     expect(screen.getByText("steward-002 | På vej | Nørreport")).toBeTruthy();
   });
 

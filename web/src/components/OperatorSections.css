@@ -531,10 +531,12 @@ body {
 .operator-status-log [data-testid="status-message"]:hover {
   border-color: #aaa;
 }
-.operator-status-log [data-testid="messages-switch"]:focus-visible {
+.operator-status-log [role="tab"]:focus-visible {
   outline: 3px solid var(--operator-blue);
-  outline-offset: 3px;
-  border-radius: 12px;
+  outline-offset: -3px;
+}
+.operator-status-log [role="tab"][aria-selected="false"]:hover {
+  background: #f6f6f6 !important;
 }
 .operator-coverage-content [data-testid="operator-station-row"],
 .operator-coverage-content [data-testid="preview-station-card"] {
