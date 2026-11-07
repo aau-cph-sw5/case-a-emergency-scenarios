@@ -38,6 +38,10 @@ export function ScenarioList({
   const { scenarios, scenariosError, reloadScenarios, activations, error } =
     useLiveData();
   const [query, setQuery] = useState("");
+  // The list opens from the search field and closes once a scenario is
+  // chosen, so the picker covers as little of the map as it can.
+  const [listOpen, setListOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const [switchPhase, setSwitchPhase] = useState<"closed" | "open" | "closing">(
     "closed",
   );
@@ -101,6 +105,23 @@ export function ScenarioList({
     return () => clearTimeout(timer);
   }, [switchPhase, activeScenarioId, onSelect]);
 
+  // A click anywhere outside the picker closes the list.
+  useEffect(() => {
+    if (!listOpen) return;
+    const closeOutside = (event: MouseEvent) => {
+      if (!pickerRef.current?.contains(event.target as Node))
+        setListOpen(false);
+    };
+    document.addEventListener("mousedown", closeOutside);
+    return () => document.removeEventListener("mousedown", closeOutside);
+  }, [listOpen]);
+
+  function choose(scenarioId: string) {
+    onSelect(scenarioId);
+    setQuery("");
+    setListOpen(false);
+  }
+
   function finishSwitch() {
     setSwitchPhase("closed");
     onSelect(activeScenarioId);
@@ -163,6 +184,68 @@ export function ScenarioList({
     }
   }
 
+  // Switching previews another scenario without stopping the current one.
+  const actions = (
+    <div className="scenario-actions">
+      {actionIsActive && activeScenario && (
+        <button
+          type="button"
+          className="scenario-switch"
+          disabled={busy}
+          onClick={() => {
+            setSwitchPhase("open");
+            setQuery("");
+            setListOpen(true);
+            onSelect(null);
+          }}
+        >
+          Skift scenarie
+        </button>
+      )}
+      {!actionIsActive && (
+        <button
+          type="button"
+          className="scenario-cancel"
+          disabled={busy || (!switching && selectedId === null)}
+          onClick={() => {
+            if (switching) {
+              if (
+                window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+              )
+                finishSwitch();
+              else setSwitchPhase("closing");
+            } else onSelect(null);
+            setListOpen(false);
+          }}
+        >
+          Annuller
+        </button>
+      )}
+      {actionIsActive ? (
+        <button
+          type="button"
+          className="scenario-stop"
+          onClick={() => setConfirming(true)}
+          disabled={busy}
+        >
+          Annuller scenarie
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="scenario-start"
+          onClick={() => setConfirming(true)}
+          disabled={
+            !previewReady ||
+            !canActivate(selected?.scenarioId ?? null, busy, activeIds)
+          }
+        >
+          Aktivér valgt scenarie
+        </button>
+      )}
+    </div>
+  );
+
   // An active scenario uses this space for its live metrics instead of search.
   return (
     <section
@@ -170,6 +253,7 @@ export function ScenarioList({
       aria-label="Scenarier og handlinger"
     >
       <div
+        ref={pickerRef}
         className="scenario-picker"
         hidden={!choosingScenario}
         onAnimationEnd={(event) => {
@@ -189,7 +273,16 @@ export function ScenarioList({
             type="search"
             placeholder="Søg efter scenarie"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            aria-expanded={listOpen}
+            aria-controls="scenario-results"
+            onFocus={() => setListOpen(true)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setListOpen(true);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setListOpen(false);
+            }}
           />
         </label>
 
@@ -210,82 +303,45 @@ export function ScenarioList({
           (scenarios.length === 0 ? (
             <p role="status">Ingen scenarier tilgængelige.</p>
           ) : (
-            <ScenarioResults
-              scenarios={filterScenarios(scenarios, query)}
-              query={query}
-              selectedId={selectedId}
-              activeIds={activeIds}
-              onSelect={onSelect}
-              disabled={busy}
-            />
+            listOpen && (
+              <ScenarioResults
+                scenarios={filterScenarios(scenarios, query)}
+                query={query}
+                selectedId={selectedId}
+                activeIds={activeIds}
+                onSelect={choose}
+                disabled={busy}
+              />
+            )
           ))}
+
+        {/* The chosen scenario stays in view; pressing it opens the list. */}
+        {!listOpen && selected && (
+          <button
+            type="button"
+            className="scenario-chosen"
+            onClick={() => setListOpen(true)}
+            disabled={busy}
+          >
+            <span className="visually-hidden">Valgt scenarie: </span>
+            <span className="scenario-chosen-name">{selected.name}</span>
+            <span className="scenario-chosen-change">Skift</span>
+          </button>
+        )}
 
         {activeFailed && (
           <p role="status">Aktive scenarier kunne ikke vises.</p>
         )}
+
+        {/* Activation appears once there is something to activate, and
+            cancelling a switch is always possible. */}
+        {choosingScenario && (selected !== null || switching) && actions}
       </div>
       {summary && !switching && (
         <div className="operator-summaries">{summary}</div>
       )}
 
-      {/* Switching previews another scenario without stopping the current one. */}
-      <div className="scenario-actions">
-        {actionIsActive && activeScenario && (
-          <button
-            type="button"
-            className="scenario-switch"
-            disabled={busy}
-            onClick={() => {
-              setSwitchPhase("open");
-              setQuery("");
-              onSelect(null);
-            }}
-          >
-            Skift scenarie
-          </button>
-        )}
-        {!actionIsActive && (
-          <button
-            type="button"
-            className="scenario-cancel"
-            disabled={busy || (!switching && selectedId === null)}
-            onClick={() => {
-              if (switching) {
-                if (
-                  window.matchMedia?.("(prefers-reduced-motion: reduce)")
-                    .matches
-                )
-                  finishSwitch();
-                else setSwitchPhase("closing");
-              } else onSelect(null);
-            }}
-          >
-            Annuller
-          </button>
-        )}
-        {actionIsActive ? (
-          <button
-            type="button"
-            className="scenario-stop"
-            onClick={() => setConfirming(true)}
-            disabled={busy}
-          >
-            Annuller scenarie
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="scenario-start"
-            onClick={() => setConfirming(true)}
-            disabled={
-              !previewReady ||
-              !canActivate(selected?.scenarioId ?? null, busy, activeIds)
-            }
-          >
-            Aktivér valgt scenarie
-          </button>
-        )}
-      </div>
+      {!choosingScenario && actions}
 
       {confirming &&
         actionScenario &&
@@ -352,7 +408,7 @@ function ScenarioResults({
     return <p role="status">Ingen scenarier matcher “{query.trim()}”.</p>;
   }
   return (
-    <ul className="scenario-list">
+    <ul className="scenario-list" id="scenario-results">
       {scenarios.map((scenario) => {
         const isSelected = scenario.scenarioId === selectedId;
         const live = activeIds.has(scenario.scenarioId);

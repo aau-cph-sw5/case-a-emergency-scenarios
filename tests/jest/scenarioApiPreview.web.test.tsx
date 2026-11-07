@@ -154,6 +154,9 @@ describe("API-backed scenario preview", () => {
 
   it("searches 240 server scenarios and fetches only selected details, sharing cached results", async () => {
     await mount();
+    // The list stays closed until the operator uses the search field.
+    expect(container.querySelectorAll("li button")).toHaveLength(0);
+    await act(async () => container.querySelector("input")!.focus());
     expect(container.querySelectorAll("li button")).toHaveLength(240);
     expect(detailRequests()).toHaveLength(0);
 

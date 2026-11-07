@@ -117,6 +117,11 @@ async function click(name: string) {
   await act(async () => button(name).click());
 }
 
+// The list opens from the search field, as an operator clicking into it.
+async function openList() {
+  await act(async () => container.querySelector("input")!.focus());
+}
+
 async function finishSwitchAnimation() {
   await act(async () => {
     const event = new Event("animationend", { bubbles: true });
@@ -213,6 +218,7 @@ describe("scenario preview and activation", () => {
     await click("Skift scenarie");
     await click(first.name);
     expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    await openList();
     await click(second.name);
     await click("Aktivér valgt scenarie");
     const heading = container.querySelector(
@@ -321,12 +327,48 @@ describe("scenario preview and activation", () => {
     expect(container.querySelector("dialog")).toBeNull();
   });
 
+  it("opens the list from search, collapses it to the chosen scenario, and reopens it", async () => {
+    await renderList();
+    await openList();
+    await click(second.name);
+    expect(container.querySelectorAll("li button")).toHaveLength(0);
+    const chosen =
+      container.querySelector<HTMLButtonElement>(".scenario-chosen")!;
+    expect(chosen.textContent).toContain(second.name);
+    expect(
+      container
+        .querySelector(".scenario-picker")
+        ?.contains(button("Aktivér valgt scenarie")),
+    ).toBe(true);
+    await act(async () => chosen.click());
+    expect(container.querySelectorAll("li button")).toHaveLength(2);
+    await act(async () => {
+      container
+        .querySelector("input")!
+        .dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+    });
+    expect(container.querySelectorAll("li button")).toHaveLength(0);
+    await openList();
+    await act(async () => {
+      document.body.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true }),
+      );
+    });
+    expect(container.querySelectorAll("li button")).toHaveLength(0);
+  });
+
   it("shows an empty preview and disables activation until a scenario is selected", async () => {
     await renderList();
     expect(container.textContent).toContain(
       "Vælg et scenarie for at se bemandingsbehov.",
     );
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    // Activation appears once a scenario is chosen.
+    expect(container.querySelector(".scenario-start")).toBeNull();
+    expect(container.querySelectorAll("li button")).toHaveLength(0);
+    await openList();
+    expect(container.querySelectorAll("li button")).toHaveLength(2);
     expect(loadScenario).not.toHaveBeenCalled();
   });
 
@@ -367,6 +409,7 @@ describe("scenario preview and activation", () => {
       .mockReturnValueOnce(pending.promise)
       .mockResolvedValueOnce(second);
     await renderList(first.scenarioId);
+    await openList();
     await click(second.name);
     expect(container.querySelector(".scenario-preview")?.textContent).toContain(
       "Station B",
@@ -411,6 +454,7 @@ describe("scenario preview and activation", () => {
       undefined,
     );
     expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    await openList();
     expect(button(second.name).disabled).toBe(true);
     await act(async () => pending.resolve(activated));
     expect(
@@ -433,6 +477,7 @@ describe("scenario preview and activation", () => {
     expect(
       container.querySelector('[data-testid="operator-station-row"]'),
     ).not.toBeNull();
+    await openList();
     await click(second.name);
     expect(
       container.querySelector('[data-testid="operator-station-row"]'),

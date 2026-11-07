@@ -189,7 +189,7 @@ body {
 .scenario-picker input {
   width: 100%;
   padding: 12px 10px;
-  margin: 0 0 14px;
+  margin: 0;
   border: 2px solid var(--operator-ink);
   border-radius: 9px;
   color: white;
@@ -202,6 +202,9 @@ body {
 }
 .scenario-picker input::-webkit-search-cancel-button {
   cursor: pointer;
+}
+.scenario-picker label + * {
+  margin-top: 14px;
 }
 .scenario-list {
   list-style: none;
@@ -293,6 +296,46 @@ body {
 .scenario-actions button:not(:disabled):hover {
   filter: brightness(0.9);
 }
+/* Inside the picker the actions span its width, under the chosen scenario. */
+.scenario-picker .scenario-actions {
+  margin-top: 14px;
+  flex-shrink: 0;
+}
+.scenario-picker .scenario-actions button {
+  flex: 1;
+  min-width: 0;
+  box-shadow: none;
+}
+.scenario-picker .scenario-actions .scenario-start {
+  flex: 2;
+}
+.scenario-chosen {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 12px;
+  border: 1px solid var(--operator-yellow);
+  border-radius: 9px;
+  background: var(--operator-yellow);
+  color: var(--operator-ink);
+  text-align: left;
+  line-height: 1.4;
+}
+.scenario-chosen:not(:disabled):hover {
+  filter: brightness(0.95);
+}
+.scenario-chosen-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+.scenario-chosen-change {
+  flex-shrink: 0;
+  font-size: 11px;
+  text-decoration: underline;
+}
 .operator-summaries:empty {
   display: none;
 }
@@ -331,6 +374,11 @@ body {
 }
 .active-scenario-card dt {
   font-weight: 700;
+}
+/* React Native's Text sets its own font; here it follows the card's. */
+.active-scenario-card :is(h2, dd, p) > * {
+  font: inherit;
+  color: inherit;
 }
 .active-scenario-card dd {
   margin: 0;
