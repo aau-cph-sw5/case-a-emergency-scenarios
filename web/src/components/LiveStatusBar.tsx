@@ -8,7 +8,7 @@ import { useLiveData } from "../data/liveData";
 import { useScenario } from "../data/useScenario";
 
 // The active scenario, in the map's top-left corner: its name, how long it
-// has run and when the data last arrived. The station colours carry the
+// has run, who activated it and when the data last arrived. The station colours carry the
 // coverage, so the card holds no counts.
 export function LiveStatusBar() {
   const {
@@ -44,19 +44,30 @@ export function LiveStatusBar() {
       aria-label="Aktivt scenarie"
       key={active.activationId}
     >
-      <h2>
-        <span className="active-scenario-dot" aria-hidden="true" />
-        <Text>Aktivt scenarie: {scenario.name}</Text>
-      </h2>
+      <header>
+        <span className="active-scenario-eyebrow">
+          <span className="active-scenario-dot" aria-hidden="true" />
+          Aktivt scenarie
+        </span>
+        <h2>
+          <Text>{scenario.name}</Text>
+        </h2>
+      </header>
       <dl>
         <div>
-          <dt>Tid aktivt:</dt>
-          <dd>
+          <dt>Tid aktivt</dt>
+          <dd className="active-scenario-duration">
             <Text>{formatDuration(active.startedAt, now)}</Text>
           </dd>
         </div>
         <div>
-          <dt>Sidst opdateret:</dt>
+          <dt>Aktiveret af</dt>
+          <dd>
+            <Text>{active.actor}</Text>
+          </dd>
+        </div>
+        <div>
+          <dt>Sidst opdateret</dt>
           <dd>
             <Text>{formatTime(lastUpdatedAt?.toISOString())}</Text>
           </dd>

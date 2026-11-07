@@ -32,7 +32,9 @@ export function formatTime(iso?: string | null) {
   if (!iso) return "--:--";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "--:--";
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  // Always 24-hour "17:30", whatever the browser's locale would show.
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 function Metric({
   label,

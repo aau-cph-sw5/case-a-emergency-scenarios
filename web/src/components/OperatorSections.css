@@ -329,50 +329,89 @@ body {
 .operator-summaries:empty {
   display: none;
 }
+/* Large and green, so a live scenario is impossible to miss. */
 .active-scenario-card {
-  width: min(340px, 100%);
-  padding: 14px 18px;
-  background: #f3f3f3;
-  border-color: #b5b5b5;
-  box-shadow: 0 6px 24px #0002;
+  width: min(440px, 100%);
+  overflow: hidden;
+  padding: 0;
+  border: 2px solid var(--operator-green);
+  box-shadow: 0 10px 30px #0003;
   animation: status-enter 0.25s ease-out;
 }
-.active-scenario-card h2 {
+.active-scenario-card header {
+  padding: 16px 20px 18px;
+  background: var(--operator-green);
+  color: white;
+}
+.active-scenario-eyebrow {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
-  margin: 0 0 8px;
-  font-size: 15px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
 }
 .active-scenario-dot {
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: var(--operator-green);
+  background: white;
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 #ffffffb0;
+  }
+  50% {
+    box-shadow: 0 0 0 6px #ffffff00;
+  }
+}
+.active-scenario-card h2 {
+  margin: 8px 0 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+  overflow-wrap: anywhere;
 }
 .active-scenario-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  gap: 12px;
   margin: 0;
-  font-size: 12px;
-}
-.active-scenario-card dl > div {
-  display: flex;
-  gap: 6px;
-  margin-top: 4px;
+  padding: 14px 20px 16px;
+  background: white;
 }
 .active-scenario-card dt {
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--operator-muted);
+}
+.active-scenario-card dd {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 /* React Native's Text sets its own font; here it follows the card's. */
 .active-scenario-card :is(h2, dd, p) > * {
   font: inherit;
   color: inherit;
 }
-.active-scenario-card dd {
+.active-scenario-card .active-scenario-duration {
+  font-size: 22px;
+}
+.active-scenario-card .connection-state {
   margin: 0;
-  font-variant-numeric: tabular-nums;
+  padding: 0 20px 14px;
+  background: white;
 }
 .scenario-picker[hidden] {
   display: none;

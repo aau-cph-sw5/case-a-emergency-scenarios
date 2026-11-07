@@ -70,7 +70,7 @@ describe("LiveStatusBar", () => {
   it("shows the scenario name when a scenario is active", async () => {
     renderWith([activation()], async () => scenario);
 
-    await screen.findByText("Aktivt scenarie: Demo scenario");
+    await screen.findByText("Demo scenario");
   });
 
   it("says it is loading while the scenario has not arrived", () => {
@@ -116,7 +116,7 @@ describe("LiveStatusBar", () => {
       },
     );
 
-    await screen.findByText("Aktivt scenarie: Demo scenario");
+    await screen.findByText("Demo scenario");
     expect(asked).toEqual(["DEMO-001"]);
   });
 });

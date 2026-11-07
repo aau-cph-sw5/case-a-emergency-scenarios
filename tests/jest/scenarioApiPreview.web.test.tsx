@@ -142,8 +142,9 @@ describe("API-backed scenario preview", () => {
     await searchAndSelect(221);
     const columns = container.querySelectorAll(".operator-sections > section");
     const card = columns[0].querySelector(".active-scenario-card")!;
-    expect(card.textContent).toContain(`Aktivt scenarie: ${summaries[0].name}`);
-    expect(card.textContent).toContain("Tid aktivt:");
+    expect(card.textContent).toContain(summaries[0].name);
+    expect(card.textContent).toContain("Tid aktivt");
+    expect(card.textContent).toContain("Aktiveret afoperator-test");
     expect(
       columns[1].querySelector('[aria-label$=": 0 af 7 ankommet"]'),
     ).not.toBeNull();
