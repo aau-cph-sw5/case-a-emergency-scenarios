@@ -41,10 +41,13 @@ async function fetchWithTimeout(
 // vite.config forwards /api to the server
 export async function getJson<T>(
   path: string,
+  token: string,
   isValid: (data: unknown) => data is T,
   ...signals: AbortSignal[]
 ): Promise<T> {
-  const response = await fetchWithTimeout(path, signals);
+  const response = await fetchWithTimeout(path, signals, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!response.ok) {
     throw new ApiError(
       `GET ${path} failed with ${response.status}`,
@@ -58,14 +61,23 @@ export async function getJson<T>(
   return data;
 }
 
+// body is sent as JSON when given; without it the request has no body.
 export async function postJson<T>(
   path: string,
   token: string,
   isValid: (data: unknown) => data is T,
+  body?: unknown,
 ): Promise<T> {
   const response = await fetchWithTimeout(path, [], {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers:
+      body === undefined
+        ? { Authorization: `Bearer ${token}` }
+        : {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
@@ -101,6 +113,8 @@ export function userMessage(error: unknown): string {
       return "Scenariet findes ikke længere.";
     case ERROR_CODES.CONFLICT:
       return "Scenariet er allerede aktivt.";
+    case ERROR_CODES.SCENARIO_STOOD_DOWN:
+      return "Scenariet er allerede deaktiveret.";
   }
   if (error.status === 401) return "Din session er udløbet. Log ind igen.";
   if (error.status === 403) return "Du har ikke adgang til denne handling.";

@@ -6,16 +6,23 @@
  */
 
 export interface ScenarioState {
-  activationId: string;
+  activationId: number;
   scenarioId: string;
   startedAt: string;
   endedAt?: string | null;
   status: "ACTIVE" | "CLOSED";
   actor: string;
+  sequence: number;
   deployments: {
-    status: "UNMANNED" | "PENDING" | "MANNED";
+    /**
+     * UNMANNED: no steward yet. PENDING: a steward has reported a position for the station and is on the way. MANNED: the steward has arrived. TASK_DONE: the steward has finished the task (a position report with taskDone, MET-A-015). CHECKED_OUT: the steward has left the station after arriving (event CHECKED_OUT). A cancelled report (event CANCELLED), or EN_ROUTE to another station while on the way, frees the station, so it goes back to UNMANNED with staff null. The server creates every deployment as UNMANNED and does not move it to another status yet. The only transition it checks is task done: a position report with taskDone is only allowed at the station of the steward's latest report in the activation, otherwise it is rejected with E1006. The position report events ARRIVED, CANCELLED and CHECKED_OUT follow the same rule once the server acts on them.
+     */
+    status: "UNMANNED" | "PENDING" | "MANNED" | "TASK_DONE" | "CHECKED_OUT";
     reportedAt?: string | null;
     arrivedAt?: string | null;
+    /**
+     * The userId of the steward who reported to this station, the same id GET /api/v1/me and the login token return, written as text (for example "1"). Null when nobody has reported.
+     */
     staff?: string | null;
     fulfills: string;
     [k: string]: unknown;

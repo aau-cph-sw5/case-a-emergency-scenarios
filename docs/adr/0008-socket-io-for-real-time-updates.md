@@ -25,9 +25,17 @@ The server pushes changes to clients over Socket.IO, and clients send their own
 changes to the server over the HTTP API.
 
 An operator activates a scenario with `POST /api/v1/scenarios/{scenarioId}/activate`,
-and the server then emits `scenario-activated` to the connected stewards. A
-steward sends `POST /api/v1/position-reports`, and the server forwards the
+and the server then emits `scenario-activated` to the connected stewards and an
+empty `activations-changed` to the connected operators, who refetch the active
+activations for their banner.
+
+A steward sends `POST /api/v1/position-reports`, and the server forwards the
 report to the connected operators as `position-report`.
+
+An operator stands down a scenario with
+`POST /api/v1/activations/{activationId}/stand-down`, and the server emits an
+empty `scenario-stood-down` to the connected stewards, who refetch the scenario
+state, and `activations-changed` to the connected operators.
 
 A client sends its bearer token when it opens the socket, and the server
 refuses the connection without a valid token (error code `E0001`). Each socket

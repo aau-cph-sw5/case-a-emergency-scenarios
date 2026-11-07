@@ -4,24 +4,59 @@ import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 
 import {
   ACTIVATION_STATUSES,
+  findActiveScenarioVersion,
   type ActivationStatus,
-  activateScenario,
-  findScenario,
-  getScenarioState,
   listActivations,
-  listScenarios,
-} from "../repositories/fixture-repository.js";
+} from "../repositories/activation-repository.js";
+import {
+  findScenario,
+  getAllScenarios,
+} from "../repositories/scenario-repository.js";
 import { userRepository } from "../repositories/user-repository.js";
+import {
+  activateAndLog,
+  standDownAndLog,
+  switchAndLog,
+} from "../services/activation-service.js";
+import type { ActivateRequest } from "../../shared/types/v1/activate-request.js";
 
-export function getScenarios(_request: Request, response: Response) {
-  response.json(listScenarios());
+export async function getScenarios(_request: Request, response: Response) {
+  response.json(await getAllScenarios());
 }
 
-export function getScenario(
+export async function getScenario(
   request: Request<{ scenarioId: string }>,
   response: Response,
 ) {
-  const scenario = findScenario(request.params.scenarioId);
+  const { activationId } = request.query;
+  if (
+    activationId !== undefined &&
+    (typeof activationId !== "string" || !/^[1-9]\d*$/.test(activationId))
+  ) {
+    response
+      .status(400)
+      .json(
+        errorBody(
+          ERROR_CODES.INVALID_REQUEST,
+          "activationId must be a positive integer",
+        ),
+      );
+    return;
+  }
+  const versionId =
+    activationId === undefined
+      ? undefined
+      : await findActiveScenarioVersion(
+          Number(activationId),
+          request.params.scenarioId,
+        );
+  if (activationId !== undefined && versionId === undefined) {
+    response
+      .status(404)
+      .json({ error: "Active scenario activation not found" });
+    return;
+  }
+  const scenario = await findScenario(request.params.scenarioId, versionId);
   if (scenario === undefined) {
     response.status(404).json({ error: "Scenario not found" });
     return;
@@ -29,14 +64,20 @@ export function getScenario(
   response.json(scenario);
 }
 
-export function getCurrentScenarioState(_request: Request, response: Response) {
-  response.json(getScenarioState());
+// Reads the same store as GET /api/v1/activations, so the two never disagree.
+// No active scenario is a normal state, so it answers 200 with null, not 404.
+export async function getCurrentScenarioState(
+  _request: Request,
+  response: Response,
+) {
+  const [active] = await listActivations("ACTIVE");
+  response.json(active ?? null);
 }
 
-export function getActivations(request: Request, response: Response) {
+export async function getActivations(request: Request, response: Response) {
   const { status } = request.query;
   if (status === undefined) {
-    response.json(listActivations());
+    response.json(await listActivations());
     return;
   }
   // A repeated or unknown status is refused, not silently treated as no filter.
@@ -54,7 +95,7 @@ export function getActivations(request: Request, response: Response) {
       );
     return;
   }
-  response.json(listActivations(status as ActivationStatus));
+  response.json(await listActivations(status as ActivationStatus));
 }
 
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
@@ -65,6 +106,7 @@ export async function activate(
 ) {
   const { userId, role } = response.locals.user;
   const { scenarioId } = request.params;
+  const { replaces } = (request.body ?? {}) as ActivateRequest;
 
   if (role !== "OPERATOR") {
     response
@@ -89,8 +131,8 @@ export async function activate(
     return;
   }
 
-  const result = activateScenario(scenarioId, user.username);
-  if (result.kind === "not-found") {
+  const scenario = await findScenario(scenarioId);
+  if (scenario === undefined) {
     response
       .status(404)
       .json(
@@ -99,29 +141,104 @@ export async function activate(
           `No scenario with id '${scenarioId}' exists`,
         ),
       );
+    return;
+  }
+
+  const result =
+    replaces === undefined
+      ? await activateAndLog(response.locals.user, scenario, user.username)
+      : await switchAndLog(
+          response.locals.user,
+          scenario,
+          user.username,
+          replaces,
+        );
+  if (result.kind === "replaces-not-active") {
+    response
+      .status(409)
+      .json(
+        errorBody(
+          ERROR_CODES.CONFLICT,
+          `'${replaces}' is not the active activation`,
+        ),
+      );
   } else if (result.kind === "already-active") {
     response
       .status(409)
       .json(
         errorBody(
           ERROR_CODES.CONFLICT,
-          `Scenario '${scenarioId}' is already active`,
+          `A scenario is already active, so '${scenarioId}' cannot be activated`,
         ),
       );
   } else {
-    // Push the whole activated scenario to the connected stewards.
+    // Push the whole activated scenario to the connected stewards. Operators
+    // get an empty signal, so their active-scenario banner refetches at once.
     const io = request.app.locals.io as Server | undefined;
     if (!io) {
       console.warn("Socket.IO not attached; scenario-activated not sent");
     }
     io?.to("STEWARD").emit("scenario-activated", {
-      scenario: findScenario(scenarioId),
+      scenario,
       sentAt: new Date().toISOString(),
+      sequence: result.sequence,
     });
+    io?.to("OPERATOR").emit("activations-changed");
     console.log("Scenario activated:", result.activation);
-    console.log(
-      `scenario-activated sent to ${io?.sockets.adapter.rooms.get("STEWARD")?.size ?? 0} steward(s)`,
-    );
     response.status(201).json(result.activation);
   }
+}
+
+// Standing down returns every client to normal
+export async function standDown(
+  request: Request<{ activationId: string }>,
+  response: Response,
+) {
+  const { role } = response.locals.user;
+  const { activationId } = request.params;
+
+  if (role !== "OPERATOR") {
+    response
+      .status(403)
+      .json(
+        errorBody(
+          ERROR_CODES.ROLE_NOT_PERMITTED,
+          `Role ${role} may not stand down a scenario`,
+        ),
+      );
+    return;
+  }
+
+  const numericId = /^[1-9]\d*$/.test(activationId)
+    ? Number(activationId)
+    : Number.NaN;
+  const result = await standDownAndLog(response.locals.user, numericId);
+  if (result.kind === "not-found") {
+    response
+      .status(404)
+      .json(
+        errorBody(
+          ERROR_CODES.NOT_FOUND,
+          `No activation with id '${activationId}' exists`,
+        ),
+      );
+    return;
+  }
+  if (result.kind === "already-closed") {
+    response
+      .status(409)
+      .json(
+        errorBody(
+          ERROR_CODES.SCENARIO_STOOD_DOWN,
+          `'${activationId}' is already stood down`,
+        ),
+      );
+    return;
+  }
+
+  // Stewards refetch the scenario state, operators their activations.
+  const io = request.app.locals.io as Server | undefined;
+  io?.to("STEWARD").emit("scenario-stood-down");
+  io?.to("OPERATOR").emit("activations-changed");
+  response.json(result.activation);
 }

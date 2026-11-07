@@ -11,16 +11,37 @@ export type StoredPositionReport = {
   station: string;
   reportedAt: Date;
   receivedAt: Date;
+  taskDone: boolean;
+  event: ReportEvent;
 };
+
+export type ReportEvent = NonNullable<NewPositionReport["event"]>;
 
 export async function insertPositionReport(
   db: Db,
   report: NewPositionReport,
 ): Promise<StoredPositionReport> {
   const [inserted] = await db<StoredPositionReport[]>`
-    INSERT INTO position_reports (staff, station, reported_at)
-    VALUES (${report.staff}, ${report.station}, ${report.reportedAt})
+    INSERT INTO position_reports (staff, station, reported_at, task_done, event)
+    VALUES (${report.staff}, ${report.station}, ${report.reportedAt},
+            ${report.taskDone ?? false}, ${report.event ?? "EN_ROUTE"})
     RETURNING *
   `;
   return inserted;
+}
+
+// The steward's latest report since the activation started, to check the next
+// report against (MET-A-015).
+export async function findLatestReport(
+  db: Db,
+  staff: string,
+  since: string,
+): Promise<StoredPositionReport | null> {
+  const [latest] = await db<StoredPositionReport[]>`
+    SELECT * FROM position_reports
+    WHERE staff = ${staff} AND received_at >= ${since}
+    ORDER BY received_at DESC
+    LIMIT 1
+  `;
+  return latest ?? null;
 }

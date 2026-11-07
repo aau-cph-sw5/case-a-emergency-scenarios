@@ -22,3 +22,8 @@ test("rejects anything that is not an object", () => {
   assert.equal(isScenarioState(null), false);
   assert.equal(isScenarioState([]), false);
 });
+
+test("rejects a state without activationId or deployments", () => {
+  assert.equal(isScenarioState({ ...fixture, activationId: undefined }), false);
+  assert.equal(isScenarioState({ ...fixture, deployments: undefined }), false);
+});

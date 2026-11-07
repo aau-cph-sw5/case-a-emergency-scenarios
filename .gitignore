@@ -29,4 +29,4 @@ dist/
 build/
 
 
-docs/scenario-state/
+docs/scenario-state/SeedDataScenario_*.json

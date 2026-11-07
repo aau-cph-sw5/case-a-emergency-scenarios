@@ -3,6 +3,8 @@ name: Discord Review Notifications
 on:
   pull_request_target:
     types: [opened, review_requested, closed]
+  pull_request_review:
+    types: [submitted]
 
 permissions:
   issues: write
@@ -17,10 +19,15 @@ concurrency:
 jobs:
   notify-discord:
     if: >-
-      github.event.action == 'opened' ||
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      (github.event.action == 'opened' ||
       github.event.action == 'review_requested' ||
-      github.event.pull_request.merged == true
+      github.event.pull_request.merged == true ||
+      github.event_name == 'pull_request_review')
 
+    # Never expose the Discord webhook to workflows triggered by forks.
+    # Do not check out or run PR-controlled code in this privileged workflow.
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -114,7 +121,8 @@ jobs:
               initial: null,
               notifications: [],
               merged: false,
-              mergeEdits: {}
+              mergeEdits: {},
+              reviewNotifications: { changes: [], approvalAlerts: [] }
             });
 
             let state = defaultState();
@@ -201,6 +209,23 @@ jobs:
 
             state.mergeEdits ||= {};
             state.notifications ||= [];
+            state.reviewNotifications ||= { changes: [], approvalAlerts: [] };
+            state.reviewNotifications.changes ||= [];
+            state.reviewNotifications.approvalAlerts ||= [];
+
+            // Preserve any approval alert sent by the previous implementation.
+            // The old approval object is stored separately from new alerts.
+            const oldApproval = state.reviewNotifications.approval;
+            const oldHead = state.reviewNotifications.approvalHeadSha;
+            if (oldApproval && oldHead &&
+                !state.reviewNotifications.approvalAlerts.some(a => a.headSha === oldHead)) {
+              state.reviewNotifications.approvalAlerts.push({
+                headSha: oldHead,
+                reviewId: oldApproval.reviewId || null,
+                status: oldApproval.status || 'sent',
+                messageId: oldApproval.messageId
+              });
+            }
 
             async function saveState() {
               const body =
@@ -536,6 +561,12 @@ jobs:
                     state.initial?.messageId,
                     ...state.notifications.map(
                       n => n.messageId
+                    ),
+                    ...state.reviewNotifications.changes.map(
+                      n => n.messageId
+                    ),
+                    ...state.reviewNotifications.approvalAlerts.map(
+                      n => n.messageId
                     )
                   ].filter(Boolean)
                 )
@@ -591,6 +622,111 @@ jobs:
             }
 
             // ============================================
+            // Notify PR author about submitted reviews
+            // ============================================
+
+            async function notifyChangesRequested() {
+              const review = context.payload.review;
+              if (!review || String(review.state).toLowerCase() !== 'changes_requested') return;
+              if (pr.user.login.toLowerCase() === review.user?.login?.toLowerCase()) return;
+
+              const current = await currentPr();
+              if (current.state !== 'open' || state.merged) return;
+
+              const authorId = users[pr.user.login.toLowerCase()];
+              if (!authorId) {
+                console.warn(`No Discord mapping for PR author ${pr.user.login}`);
+                return;
+              }
+              const id = String(review.id);
+              const existing = state.reviewNotifications.changes.find(r => r.reviewId === id);
+              // A pending record is intentionally NOT resent: Discord may have
+              // received a request even if the response/storage failed.
+              if (existing) {
+                console.log(`Changes-requested review ${id} already reserved`);
+                return;
+              }
+              const record = { reviewId: id, status: 'pending', messageId: null };
+              state.reviewNotifications.changes.push(record);
+              await saveState();
+
+              const reviewer = String(review.user?.login || 'A reviewer').replace(/@/g, '@\u200b');
+              const link = review.html_url || pr.html_url;
+              const messageId = await sendMessage(
+                `🔴 **Changes Requested**\n\n<@${authorId}> — ${reviewer} requested changes.\n\n` +
+                `${prText}\nReview: ${link}`,
+                [authorId]
+              );
+              record.status = 'sent';
+              record.messageId = messageId;
+              await saveState();
+              console.log(`Notified PR author of changes-requested review ${id}`);
+            }
+
+            async function notifyApprovalReceived() {
+              // An approval is useful to the PR author even while another
+              // reviewer's changes request remains outstanding. GitHub itself
+              // determines whether the PR is mergeable.
+              if (context.eventName !== 'pull_request_review' || action !== 'submitted') return;
+              const review = context.payload.review;
+              if (!review || String(review.state).toLowerCase() !== 'approved') return;
+
+              const reviewer = review.user?.login?.toLowerCase();
+              const author = pr.user.login.toLowerCase();
+              if (!reviewer || reviewer === author) return;
+
+              const current = await currentPr();
+              if (current.state !== 'open' || state.merged) return;
+              const headSha = current.head.sha;
+
+              // A delayed review event for an older commit must not be
+              // presented as a new approval of the latest PR changes.
+              if (!review.commit_id || review.commit_id !== headSha) {
+                console.log('Approval is for an earlier commit; no author notification');
+                return;
+              }
+
+              // One approval notification per PR HEAD, regardless of how many
+              // people approve. Do not reset on changes-requested/dismissal:
+              // those events shouldn't cause repeated alerts on the same SHA.
+              const alerts = state.reviewNotifications.approvalAlerts;
+              if (alerts.some(a => a.headSha === headSha)) {
+                console.log('Approval already notified/reserved for this commit');
+                return;
+              }
+
+              const authorId = users[author];
+              if (!authorId) {
+                console.warn(`No Discord mapping for PR author ${pr.user.login}`);
+                return;
+              }
+
+              const record = {
+                headSha,
+                reviewId: String(review.id),
+                status: 'pending',
+                messageId: null
+              };
+              alerts.push(record);
+              // Save before Discord to prevent duplicate pings if comment
+              // persistence fails. Ambiguous network failure stays pending.
+              await saveState();
+
+              const safeReviewer = String(review.user.login).replace(/@/g, '@\u200b');
+              const messageId = await sendMessage(
+                `✅ **Approval Received**\n\n` +
+                `<@${authorId}> — ${safeReviewer} approved your PR.\n\n` +
+                `${prText}\n` +
+                `Other reviews, change requests and merge checks may still apply.`,
+                [authorId]
+              );
+              record.status = 'sent';
+              record.messageId = messageId;
+              await saveState();
+              console.log(`Notified PR author of approval on ${headSha}`);
+            }
+
+            // ============================================
             // Event handling
             // ============================================
 
@@ -601,6 +737,11 @@ jobs:
               await updateMergedMessages();
             } else if (action === 'opened') {
               await doInitialBatch();
+            } else if (context.eventName === 'pull_request_review') {
+              if (action === 'submitted') {
+                await notifyChangesRequested();
+                await notifyApprovalReceived();
+              }
             } else if (action === 'review_requested') {
               if (!state.initial) {
                 await doInitialBatch();

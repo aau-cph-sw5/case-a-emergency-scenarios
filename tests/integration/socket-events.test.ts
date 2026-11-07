@@ -1,24 +1,33 @@
-import test, { after, before } from "node:test";
+import test, { after, before, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 import { io as connect, type Socket } from "socket.io-client";
 import { app } from "../../src/app.js";
 import { getDatabase } from "../../src/db/client.js";
-import { attachSocketHandlers } from "../../src/realtime/socket-server.js";
+import { authSessionRepository } from "../../src/repositories/auth-session-repository.js";
+import {
+  attachSocketHandlers,
+  userRoom,
+} from "../../src/realtime/socket-server.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
+import { seedTestScenarios } from "./helpers.js";
 
 let server: HttpServer;
 let baseUrl: string;
 let operatorUsername: string;
 let stewardUsername: string;
+let stewardId: number;
 const sockets: Socket[] = [];
 
 before(async () => {
   const users = await seedTestUsers("socket-");
+  await seedTestScenarios();
   operatorUsername = users.find((user) => user.role === "OPERATOR")!.username;
   stewardUsername = users.find((user) => user.role === "STEWARD")!.username;
+  stewardId = users.find((user) => user.role === "STEWARD")!.id;
 
   server = createServer(app);
   const io = new Server(server);
@@ -42,12 +51,12 @@ after(async () => {
 async function login(
   username: string,
   password: string,
-  expectedRole: "OPERATOR" | "STEWARD",
+  client: "web" | "mobile",
 ) {
   const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password, expectedRole }),
+    body: JSON.stringify({ username, password, client }),
   });
   return ((await response.json()) as { token: string }).token;
 }
@@ -61,7 +70,7 @@ function open(token?: string) {
   });
   sockets.push(socket);
   return new Promise<Socket>((resolve, reject) => {
-    socket.once("connect", () => resolve(socket));
+    socket.once("welcome", () => resolve(socket));
     socket.once("connect_error", reject);
   });
 }
@@ -71,23 +80,105 @@ test("a socket without a valid token is refused with E0001", async () => {
   await assert.rejects(open("not-a-token"), { message: "E0001" });
 });
 
-test("an activation reaches stewards only", async () => {
-  const operatorToken = await login(
-    operatorUsername,
-    "operator123",
-    "OPERATOR",
+test("a user room targets only that user and a new login disconnects the old session", async () => {
+  const oldToken = await login(stewardUsername, "steward123", "mobile");
+  const steward = await open(oldToken);
+  const operator = await open(
+    await login(operatorUsername, "operator123", "web"),
   );
+  let operatorReceived = false;
+  operator.on("welcome", () => {
+    operatorReceived = true;
+  });
+  const targeted = new Promise<string>((resolve) =>
+    steward.once("welcome", resolve),
+  );
+  (app.locals.io as Server)
+    .to(userRoom(stewardId))
+    .emit("welcome", "private test");
+  assert.equal(await targeted, "private test");
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(operatorReceived, false);
+
+  const disconnected = new Promise<string>((resolve) =>
+    steward.once("disconnect", resolve),
+  );
+  const newToken = await login(stewardUsername, "steward123", "mobile");
+  assert.equal(await disconnected, "io server disconnect");
+  assert.equal(operator.connected, true);
+  await assert.rejects(open(oldToken), { message: "E0001" });
+  const newSocket = await open(newToken);
+  assert.equal(newSocket.connected, true);
+});
+
+test("logout disconnects sockets for its session without affecting another user", async () => {
+  const token = await login(stewardUsername, "steward123", "mobile");
+  const steward = await open(token);
+  const operator = await open(
+    await login(operatorUsername, "operator123", "web"),
+  );
+  const disconnected = new Promise<string>((resolve) =>
+    steward.once("disconnect", resolve),
+  );
+  const response = await fetch(`${baseUrl}/api/v1/auth/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  assert.equal(response.status, 204);
+  assert.equal(await disconnected, "io server disconnect");
+  assert.equal(operator.connected, true);
+  await assert.rejects(open(token), { message: "E0001" });
+});
+
+test("a replaced socket is disconnected if its session cannot be checked", async () => {
+  const oldToken = await login(stewardUsername, "steward123", "mobile");
+  const oldSocket = await open(oldToken);
+  const decoded = jwt.decode(oldToken);
+  assert.ok(
+    decoded && typeof decoded !== "string" && typeof decoded.jti === "string",
+  );
+  const original = authSessionRepository.findActiveSession;
+  const check = mock.method(
+    authSessionRepository,
+    "findActiveSession",
+    async (userId, jti) => {
+      if (jti === decoded.jti) throw new Error("database unavailable");
+      return original(userId, jti);
+    },
+  );
+  try {
+    const disconnected = new Promise<string>((resolve) =>
+      oldSocket.once("disconnect", resolve),
+    );
+    const newToken = await login(stewardUsername, "steward123", "mobile");
+    assert.equal(await disconnected, "io server disconnect");
+    assert.equal((await open(newToken)).connected, true);
+  } finally {
+    check.mock.restore();
+  }
+});
+
+test("an activation reaches stewards in full and operators as a signal", async () => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
   const operator = await open(operatorToken);
   const steward = await open(
-    await login(stewardUsername, "steward123", "STEWARD"),
+    await login(stewardUsername, "steward123", "mobile"),
   );
 
-  let operatorGotActivation = false;
+  let operatorGotScenario = false;
   operator.on("scenario-activated", () => {
-    operatorGotActivation = true;
+    operatorGotScenario = true;
   });
-  const received = new Promise<{ scenario: { scenarioId: string } }>(
-    (resolve) => steward.once("scenario-activated", resolve),
+  let stewardGotSignal = false;
+  steward.on("activations-changed", () => {
+    stewardGotSignal = true;
+  });
+  const stewardGot = new Promise<{
+    scenario: { scenarioId: string };
+    sequence: number;
+  }>((resolve) => steward.once("scenario-activated", resolve));
+  const operatorGot = new Promise<unknown[]>((resolve) =>
+    operator.once("activations-changed", (...args) => resolve(args)),
   );
 
   const response = await fetch(
@@ -95,18 +186,21 @@ test("an activation reaches stewards only", async () => {
     { method: "POST", headers: { Authorization: `Bearer ${operatorToken}` } },
   );
   assert.equal(response.status, 201);
-  assert.equal((await received).scenario.scenarioId, "DEMO-002");
+  const event = await stewardGot;
+  assert.equal(event.scenario.scenarioId, "DEMO-002");
+  assert.equal(event.sequence, (await response.json()).sequence);
+  assert.deepEqual(await operatorGot, []);
 
   // Give a wrongly sent event time to arrive before checking it did not.
   await new Promise((resolve) => setTimeout(resolve, 100));
-  assert.equal(operatorGotActivation, false);
+  assert.equal(operatorGotScenario, false);
+  assert.equal(stewardGotSignal, false);
 });
 
 test("a position report reaches operators only, with the server's time", async () => {
-  const stewardToken = await login(stewardUsername, "steward123", "STEWARD");
-  const operator = await open(
-    await login(operatorUsername, "operator123", "OPERATOR"),
-  );
+  const stewardToken = await login(stewardUsername, "steward123", "mobile");
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const operator = await open(operatorToken);
   const steward = await open(stewardToken);
 
   let stewardGotReport = false;
@@ -117,7 +211,19 @@ test("a position report reaches operators only, with the server's time", async (
     operator.once("position-report", resolve),
   );
 
-  // Station B is in the fixture's active scenario. The phone's clock is wrong.
+  // DEMO-002 was activated by the previous test.
+  // Station G belongs to that active scenario.
+  const activeResponse = await fetch(`${baseUrl}/api/v1/scenario-state`, {
+    headers: { Authorization: `Bearer ${operatorToken}` },
+  });
+
+  assert.equal(activeResponse.status, 200);
+
+  const active = await activeResponse.json();
+  assert.equal(active?.scenarioId, "DEMO-002");
+
+  // The phone's clock is wrong.
+  // Station G is in DEMO-002, activated by the test above. The phone's clock is wrong.
   const before = Date.now();
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",
@@ -127,14 +233,14 @@ test("a position report reaches operators only, with the server's time", async (
     },
     body: JSON.stringify({
       staff: "",
-      station: "Station B",
+      station: "Station G",
       reportedAt: "2099-01-01T00:00:00Z",
     }),
   });
   assert.equal(response.status, 202);
 
   const report = await received;
-  assert.equal(report.station, "Station B");
+  assert.equal(report.station, "Station G");
   assert.notEqual(report.staff, "");
   assert.ok(Date.parse(report.reportedAt) >= before);
   assert.ok(Date.parse(report.reportedAt) <= Date.now());
@@ -142,4 +248,43 @@ test("a position report reaches operators only, with the server's time", async (
   // Give a wrongly sent event time to arrive before checking it did not.
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.equal(stewardGotReport, false);
+});
+
+test("a stand-down reaches stewards and operators as signals", async () => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const operator = await open(operatorToken);
+  const steward = await open(
+    await login(stewardUsername, "steward123", "mobile"),
+  );
+
+  let operatorGotStandDown = false;
+  operator.on("scenario-stood-down", () => {
+    operatorGotStandDown = true;
+  });
+  const stewardGot = new Promise<unknown[]>((resolve) =>
+    steward.once("scenario-stood-down", (...args) => resolve(args)),
+  );
+  const operatorGot = new Promise<unknown[]>((resolve) =>
+    operator.once("activations-changed", (...args) => resolve(args)),
+  );
+
+  // DEMO-002 is still active from the tests above.
+  const active = await (
+    await fetch(`${baseUrl}/api/v1/scenario-state`, {
+      headers: { Authorization: `Bearer ${operatorToken}` },
+    })
+  ).json();
+  assert.equal(active?.scenarioId, "DEMO-002");
+
+  const response = await fetch(
+    `${baseUrl}/api/v1/activations/${active.activationId}/stand-down`,
+    { method: "POST", headers: { Authorization: `Bearer ${operatorToken}` } },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await stewardGot, []);
+  assert.deepEqual(await operatorGot, []);
+
+  // Give a wrongly sent event time to arrive before checking it did not.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(operatorGotStandDown, false);
 });

@@ -1,5 +1,90 @@
 # Scenario State Contract Changelog
 
+## 7.1.0 - 2026-11-05
+
+Additive. The steward can arrive, cancel and check out (MET-A-015, #263). Agreed with the integration team.
+
+- A position report can carry `event`: `EN_ROUTE`, `ARRIVED`, `CANCELLED` or `CHECKED_OUT`. Left out, it is `EN_ROUTE`, so a report without it means on the way, as before.
+- `ARRIVED` and `CANCELLED` are only allowed after `EN_ROUTE`, and `CHECKED_OUT` only after `ARRIVED` or `taskDone`, all at the station of the steward's latest report in the activation. Anything else gets 409 `E1006`. Sending the same event again is a harmless repeat.
+- `CANCELLED` frees the station: its deployment goes back to `UNMANNED` with `staff` null.
+- `EN_ROUTE` at the station of the steward's latest report, while on the way or arrived there, is a harmless repeat and does not change the status. A report without `event`, for example a tap in the station list or a report sent late from an offline queue, therefore never moves an arrived steward back to on the way.
+- While on the way, the steward can change their mind in two ways: `CANCELLED` (no station at all) or `EN_ROUTE` to another station, which frees the old one as with `CANCELLED`.
+- After arriving or task done, the steward checks out first (`CHECKED_OUT`) and then reports the new station, as the flow in the PBI describes. `EN_ROUTE` to another station before checking out is rejected with 409 `E1006`.
+- `event` and `taskDone` cannot be sent together (400 `E0006`).
+- `deployments[].status` can be `CHECKED_OUT`. Clients must handle the new value. The server does not act on `event` yet.
+- `info.version` in `openapi.yaml` is now 7.1.0.
+
+## 7.0.0 - 2026-11-04
+
+- Active and closed activations are stored in the database and survive server restarts. Activation, stand-down, and switch events commit with their activation changes.
+- Breaking: `activationId` and the switch request's `replaces` field are now positive integers corresponding to `incident_activations.id`. Clients must use numbers rather than strings.
+- Existing in-memory activations are not migrated during deployment.
+- `GET /api/v1/scenarios/{scenarioId}?activationId=...` returns the version captured by the active activation. It returns 404 if the activation is no longer active or belongs to another scenario; without the parameter it returns the scenario's current version.
+- `info.version` in `openapi.yaml` is now 7.0.0.
+
+## 6.5.0 - 2026-11-04
+
+Additive. Stewards are told when a scenario is stood down (MET-A-009, #278).
+
+- New `scenario-stood-down` socket event to stewards, sent after `POST /api/v1/activations/{activationId}/stand-down`. It has no payload; the steward app refetches `GET /api/v1/scenario-state`, which is `null` afterwards.
+- `info.version` in `openapi.yaml` is now 6.5.0.
+
+## 6.4.0 - 2026-11-03
+
+Additive. Task done for stewards (MET-A-015).
+
+- A position report can carry `taskDone: true`: the steward has finished the task at the station. Without it, a report means on the way or arrived, as before.
+- Task done is only allowed at the station of the steward's latest position report in the activation. Anything else gets 409 `E1006`. Sending it again is a harmless repeat.
+- `deployments[].status` can be `TASK_DONE`. Clients must handle the new value. The server does not set it on deployments yet.
+- `info.version` in `openapi.yaml` is now 6.4.0.
+
+## 6.3.0 - 2026-11-03
+
+- Scenario list and detail responses include `lineGroup`, either `M1_M2` or `M3_M4`. Scenario seed files use the same field.
+- `info.version` in `openapi.yaml` is now 6.3.0.
+
+## 6.2.0 - 2026-11-02
+
+Additive. Standing down and switching scenarios (MET-A-009).
+
+- New `POST /api/v1/activations/{activationId}/stand-down`, for the OPERATOR role. It sets the activation to `CLOSED` with `endedAt`, writes a `SCENARIO_STOOD_DOWN` event with the actor and time, and answers 200 with the closed activation. Afterwards no scenario is active. An activation that is already `CLOSED` answers 409 `E1003`, an unknown id 404 `E0004`.
+- `POST /api/v1/scenarios/{scenarioId}/activate` takes an optional body, `activate-request.schema.json`, with `replaces`: the `activationId` of the active activation. The server then stands it down and activates the new scenario together, so a failed switch never leaves no scenario active. If `replaces` is not the active activation, nothing changes and it answers 409 `E0007`.
+- Without `replaces`, activating while a scenario is active is still refused with 409 `E0007`, as in 5.1.0, so nothing is replaced by accident. The 5.1.0 rule that an activation never stands down the active one now holds only for requests without `replaces`.
+- `info.version` in `openapi.yaml` is now 6.2.0
+
+## 6.1.1 - 2026-10-30
+
+Documents what `deployments[].staff` holds (no change to the shape).
+
+- `staff` is the `userId` of the steward who reported to the station, the same id `GET /api/v1/me` and the login token return, written as text (for example `"7"`), as the server already does for position reports. The steward app matches it against the logged-in user to highlight the steward's own assignment (MET-A-010, issue #158).
+- `info.version` in `openapi.yaml` is now 6.1.1
+
+## 6.1.0 - 2026-10-28
+
+Additive. Activations carry the incident log `sequence` of their `SCENARIO_ACTIVATED` event (MET-A-004).
+
+- `scenario-state.schema.json` has a required integer `sequence`. `POST /api/v1/scenarios/{scenarioId}/activate`, `GET /api/v1/scenario-state` and `GET /api/v1/activations` return it. A higher sequence is a newer activation. Clients only gain a field, so this is not breaking.
+- The `scenario-activated` socket event carries the same `sequence`.
+- `info.version` in `openapi.yaml` is now 6.1.0
+
+## 6.0.0 - 2026-10-27
+
+Breaking.
+
+- Login requests now require `client` (`web` or `mobile`) instead of `expectedRole`.
+  The server checks the account's role against the roles allowed for that client.
+- `info.version` in `openapi.yaml` is now 6.0.0.
+
+## 5.1.0 - 2026-10-28
+
+Only one scenario can be active at a time. Behaviour change to `POST /api/v1/scenarios/{scenarioId}/activate`: it now answers 409 (`E0007`) while any scenario is active, not only when the same scenario is active. `GET /api/v1/activations` therefore holds at most one `ACTIVE` entry. The server and stub start with no active scenario. Standing a scenario down is a separate action (MET-A-009).
+
+`GET /api/v1/scenario-state` now returns the active activation from the same store as `GET /api/v1/activations`, and answers 200 with `null` while no scenario is active, instead of always returning the fixture.
+
+Includes:
+
+- `info.version` in `openapi.yaml` is now 5.1.0
+
 ## 5.0.0 - 2026-10-24
 
 Breaking.

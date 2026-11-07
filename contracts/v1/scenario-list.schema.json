@@ -4,13 +4,24 @@
   "type": "array",
   "items": {
     "type": "object",
-    "required": ["scenarioId", "name", "currentVersion", "covers", "versions"],
+    "required": [
+      "scenarioId",
+      "name",
+      "lineGroup",
+      "currentVersion",
+      "covers",
+      "versions"
+    ],
     "properties": {
       "scenarioId": {
         "type": "string"
       },
       "name": {
         "type": "string"
+      },
+      "lineGroup": {
+        "type": "string",
+        "enum": ["M1_M2", "M3_M4"]
       },
       "currentVersion": {
         "type": "string"

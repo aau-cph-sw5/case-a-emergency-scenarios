@@ -1,10 +1,11 @@
 {
-  "activationId": "ACT-DEMO-001",
+  "activationId": 1,
   "scenarioId": "DEMO-001",
   "startedAt": "2026-09-23T08:00:00Z",
   "endedAt": null,
   "status": "ACTIVE",
   "actor": "operator-001",
+  "sequence": 1,
   "deployments": [
     {
       "status": "MANNED",
@@ -17,7 +18,7 @@
       "status": "PENDING",
       "reportedAt": "2026-09-23T08:04:00Z",
       "arrivedAt": null,
-      "staff": "Example Steward 2",
+      "staff": "7",
       "fulfills": "Station B"
     },
     {

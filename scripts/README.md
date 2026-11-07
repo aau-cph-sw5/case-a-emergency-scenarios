@@ -5,8 +5,8 @@ the seed loader has been developed in TypeScript, it is responsible for gatherin
 ## Pre-requisites
 
     - .env file, this is necessary due to it carrying the postgres port and password
-    - SeedDataScenario_(n).json and stations.json, this is the data the actual seed loader makes us of so you will need to fetch it from the project one drive, these should be placed in docs/scenario-state.
-        - these files should be added to gitignore like this: "docs/scenario-state/"
+    - SeedDataScenario_(n).json, this is the data the actual seed loader makes use of so you will need to fetch it from the project one drive. Each scenario needs a `lineGroup` of `M1_M2` or `M3_M4`. Put the files in a folder OUTSIDE the repository and set SEED_SCENARIOS_DIR in .env to that folder, e.g. SEED_SCENARIOS_DIR=C:/Users/you/Documents/metro-seed-data. `npm run seed` stops if it is not set.
+        - stations.json and shafts.json are part of the repository, in docs/scenario-state.
     - Docker set up and running, download and set up docker as explained in db/README.md
 
 ## Running the seedloader
@@ -16,29 +16,30 @@ the seed loader has been developed in TypeScript, it is responsible for gatherin
 **bash**
 
     npm run seed
-        - this command in itself acutally loads the data, the expected output with one seed data file should be "Seeded 1 scenario", one per file. Running it twice is safe and will not create duplicates
+
+Reseeding updates the scenarios and versions in the supplied files, including versions referenced by activation history. Other scenarios and versions are left in place. The `currentVersion` in each file becomes that scenario's current version. Changing a scenario's line group can fail if an activation references it.
 
 ## checking the result
 
 command to show rows
-    **bash**
-    docker compose exec db psql -U metro -c "SELECT
-        (SELECT count(*) FROM scenarios) AS scenarios,
-        (SELECT count(*) FROM scenario_versions) AS versions,
-        (SELECT count(*) FROM operating_patterns) AS patterns,
-        (SELECT count(*) FROM line_stops) AS stops,
-        (SELECT count(*) FROM stations) AS stations,
-        (SELECT count(*) FROM station_requirements) AS reqs,
-        (SELECT count(*) FROM passenger_information) AS pax;"
+**bash**
+docker compose exec db psql -U metro -c "SELECT
+(SELECT count(_) FROM scenarios) AS scenarios,
+(SELECT count(_) FROM scenario_versions) AS versions,
+(SELECT count(_) FROM operating_patterns) AS patterns,
+(SELECT count(_) FROM line_stops) AS stops,
+(SELECT count(_) FROM stations) AS stations,
+(SELECT count(_) FROM station_requirements) AS reqs,
+(SELECT count(*) FROM passenger_information) AS pax;"
 
 command to show version
-    **bash**   
-        docker compose exec db psql -U metro -c "SELECT s.scenario_id, v.version FROM scenarios s JOIN scenario_versions v ON v.id = s.current_version_id;"
+**bash**  
+docker compose exec db psql -U metro -c "SELECT s.scenario_id, v.version FROM scenarios s JOIN scenario_versions v ON v.id = s.current_version_id;"
 
 command to list all tables
-    **bash**
-    docker compose exec db psql -U metro -c "\dt"
+**bash**
+docker compose exec db psql -U metro -c "\dt"
 
 command to stop database
-    **base**
-    npm run db:down
+**base**
+npm run db:down

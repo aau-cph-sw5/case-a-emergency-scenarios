@@ -28,7 +28,7 @@ test("returns the token, role, and expiry from a valid response", async () => {
     expiresAt: "2026-11-20T12:00:00.000Z",
   });
 
-  const session = await login(API, "steward-test", "pw", "STEWARD", fetchImpl);
+  const session = await login(API, "steward-test", "pw", "mobile", fetchImpl);
 
   assert.deepEqual(session, {
     token: "abc",
@@ -40,7 +40,7 @@ test("returns the token, role, and expiry from a valid response", async () => {
   assert.deepEqual(JSON.parse(calls[0].init.body), {
     username: "steward-test",
     password: "pw",
-    expectedRole: "STEWARD",
+    client: "mobile",
   });
 });
 
@@ -50,7 +50,7 @@ test("throws InvalidCredentialsError on 401", async () => {
   });
 
   await assert.rejects(
-    login(API, "steward-test", "wrong", "STEWARD", fetchImpl),
+    login(API, "steward-test", "wrong", "mobile", fetchImpl),
     InvalidCredentialsError,
   );
 });
@@ -58,7 +58,7 @@ test("throws InvalidCredentialsError on 401", async () => {
 test("throws an error with the status on other failures", async () => {
   const { fetchImpl } = mockFetch(500, {});
 
-  await assert.rejects(login(API, "u", "p", "STEWARD", fetchImpl), /500/);
+  await assert.rejects(login(API, "u", "p", "mobile", fetchImpl), /500/);
 });
 
 test("rejects a response with an unknown role or no token", async () => {
@@ -69,7 +69,7 @@ test("rejects a response with an unknown role or no token", async () => {
   ]) {
     const { fetchImpl } = mockFetch(200, body);
     await assert.rejects(
-      login(API, "u", "p", "STEWARD", fetchImpl),
+      login(API, "u", "p", "mobile", fetchImpl),
       /unexpected format/,
     );
   }

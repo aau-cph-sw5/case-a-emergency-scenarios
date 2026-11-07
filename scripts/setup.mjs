@@ -12,6 +12,7 @@ import {
   migrateDatabase,
   seedDatabase,
   startDatabase,
+  seedUsers,
 } from "./lib/local-env.mjs";
 
 await main(
@@ -23,6 +24,7 @@ await main(
     ["Checking Docker", checkDocker],
     ["Starting the database", startDatabase],
     ["Applying migrations", migrateDatabase],
+    ["Seeding test users", seedUsers],
     ["Seeding scenario data", seedDatabase],
   ],
   "Setup complete. Start the API and web client with `npm run dev:web`.",

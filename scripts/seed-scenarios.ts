@@ -1,16 +1,21 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { fail, warn, succeed } from "./lib/output.mjs";
 import pg from "pg";
 import {
   FETCH_HINT,
   SEED_DATA_DIR,
+  SEED_SCENARIOS_DIR,
+  SHAFTS_FILE,
   STATIONS_FILE,
   findSeedData,
 } from "./lib/seed-data.mjs";
 
-interface Scenario {
+export interface Scenario {
   scenarioId: string;
   name: string;
+  lineGroup: "M1_M2" | "M3_M4";
   currentVersion: string;
   covers: Cover[];
   versions: Version[];
@@ -43,7 +48,11 @@ interface Pattern {
 }
 interface Route {
   sequence: number;
-  station: string;
+  station?: string;
+  shafts?: string;
+}
+function stopCode(stop: Route): string | undefined {
+  return stop.station ?? stop.shafts;
 }
 interface StationRequirement {
   station: string;
@@ -68,10 +77,11 @@ interface PassengerInformation {
   message: string;
 }
 
-function validate(
+export function validate(
   scenario: Scenario,
   fileName: string,
   allowedStations: Set<string>,
+  shaftCodes: Set<string>,
 ): string[] {
   const errors: string[] = [];
   const checkStation = (code: string, where: string) => {
@@ -101,6 +111,13 @@ function validate(
     checkStation(cover.stationA, `${fileName}: covers[${index}].stationA`);
     checkStation(cover.stationB, `${fileName}: covers[${index}].stationB`);
   });
+
+  const lineGroup = scenario.lineGroup;
+  if (lineGroup !== "M1_M2" && lineGroup !== "M3_M4") {
+    errors.push(
+      `${fileName}: lineGroup "${lineGroup}" but must be either "M1_M2" or "M3_M4".`,
+    );
+  }
 
   scenario.versions.forEach((version) => {
     version.operatingPlan.patterns.forEach((pattern, index) => {
@@ -134,7 +151,19 @@ function validate(
         }
       }
       pattern.route.forEach((stop, stopIndex) => {
-        checkStation(stop.station, `${where}.route[${stopIndex}]`);
+        const stopWhere = `${where}.route[${stopIndex}]`;
+        if ((stop.station === undefined) === (stop.shafts === undefined)) {
+          errors.push(
+            `${stopWhere}: must have either a station or a shaft, but not both. Got ${JSON.stringify(stop)}`,
+          );
+          return;
+        }
+        const code = stopCode(stop)!;
+        if (stop.shafts !== undefined && !shaftCodes.has(code)) {
+          errors.push(`${stopWhere}: unknown shaft code "${code}".`);
+        } else {
+          checkStation(code, stopWhere);
+        }
       });
     });
   });
@@ -168,44 +197,66 @@ function validate(
   return errors;
 }
 
-const {
-  scenarioFiles: seedFiles,
-  problem,
-  fatal,
-} = findSeedData(SEED_DATA_DIR);
-if (problem) {
-  console.error(`${problem}\n${FETCH_HINT}`);
-  if (fatal) process.exit(1);
+let stationNames = new Map<string, string>();
+export function parseSeedJson<T>(text: string): T {
+  return JSON.parse(text, (_key, value) =>
+    typeof value === "string" ? value.normalize("NFC") : value,
+  ) as T;
 }
-const stationList: { code: string; name: string }[] = JSON.parse(
-  readFileSync(join(SEED_DATA_DIR, STATIONS_FILE), "utf8"),
-);
-const stationNames = new Map(stationList.map((s) => [s.code, s.name]));
-const allowedStations = new Set(stationNames.keys());
-const allErrors: string[] = [];
-const seenIds = new Map<string, string>();
-const scenarios: Scenario[] = [];
 
-for (const fileName of seedFiles) {
-  const scenario: Scenario = JSON.parse(
-    readFileSync(join(SEED_DATA_DIR, fileName), "utf8"),
-  );
-  allErrors.push(...validate(scenario, fileName, allowedStations));
-  scenarios.push(scenario);
-
-  const firstFile = seenIds.get(scenario.scenarioId);
-  if (firstFile !== undefined) {
-    allErrors.push(
-      `${fileName}: scenarioId "${scenario.scenarioId}" is already used in ${firstFile}.`,
-    );
-  } else {
-    seenIds.set(scenario.scenarioId, fileName);
+function readSeedData() {
+  const {
+    scenarioFiles: seedFiles,
+    problem,
+    fatal,
+  } = findSeedData(SEED_DATA_DIR, SEED_SCENARIOS_DIR);
+  if (problem) {
+    if (fatal) {
+      fail(problem);
+      console.error(FETCH_HINT);
+      process.exit(1);
+    }
+    warn(problem);
+    console.warn(FETCH_HINT);
   }
-}
+  if (!SEED_SCENARIOS_DIR) process.exit(1);
+  const stations = parseSeedJson<{ code: string; name: string }[]>(
+    readFileSync(join(SEED_DATA_DIR, STATIONS_FILE), "utf8"),
+  );
+  const shafts = parseSeedJson<{ code: string; name: string }[]>(
+    readFileSync(join(SEED_DATA_DIR, SHAFTS_FILE), "utf8"),
+  );
+  const stationList = [...stations, ...shafts];
+  const allowedStations = new Set(stationList.map((s) => s.code));
+  const shaftCodes = new Set(shafts.map((s) => s.code));
+  const allErrors: string[] = [];
+  const seenIds = new Map<string, string>();
+  const scenarios: Scenario[] = [];
 
-if (allErrors.length > 0) {
-  console.error(allErrors.join("\n"));
-  process.exit(1);
+  for (const fileName of seedFiles) {
+    const scenario = parseSeedJson<Scenario>(
+      readFileSync(join(SEED_SCENARIOS_DIR, fileName), "utf8"),
+    );
+    allErrors.push(
+      ...validate(scenario, fileName, allowedStations, shaftCodes),
+    );
+    scenarios.push(scenario);
+
+    const firstFile = seenIds.get(scenario.scenarioId);
+    if (firstFile !== undefined) {
+      allErrors.push(
+        `${fileName}: scenarioId "${scenario.scenarioId}" is already used in ${firstFile}.`,
+      );
+    } else {
+      seenIds.set(scenario.scenarioId, fileName);
+    }
+  }
+
+  if (allErrors.length > 0) {
+    fail(allErrors.join("\n"));
+    process.exit(1);
+  }
+  return { scenarios, stationList };
 }
 async function getStationId(client: pg.Client, code: string): Promise<number> {
   const name = stationNames.get(code);
@@ -252,13 +303,16 @@ async function loadScenario(
   client: pg.Client,
   scenario: Scenario,
 ): Promise<void> {
-  await client.query("DELETE FROM scenarios WHERE scenario_id = $1", [
+  await client.query(
+    `INSERT INTO scenarios (scenario_id, name, line_group) VALUES ($1, $2, $3)
+     ON CONFLICT (scenario_id) DO UPDATE
+     SET name = EXCLUDED.name, line_group = EXCLUDED.line_group`,
+    [scenario.scenarioId, scenario.name, scenario.lineGroup],
+  );
+
+  await client.query("DELETE FROM scenario_covers WHERE scenario_id = $1", [
     scenario.scenarioId,
   ]);
-  await client.query(
-    "INSERT INTO scenarios (scenario_id, name) VALUES ($1, $2)",
-    [scenario.scenarioId, scenario.name],
-  );
 
   for (const cover of scenario.covers) {
     const segmentId = await getTrackSegmentId(
@@ -277,11 +331,28 @@ async function loadScenario(
 
   for (const version of scenario.versions) {
     const versionResult = await client.query(
-      `INSERT INTO scenario_versions (scenario_id, version, revision) VALUES ($1, $2, $3) RETURNING id`,
+      `INSERT INTO scenario_versions (scenario_id, version, revision) VALUES ($1, $2, $3)
+       ON CONFLICT (scenario_id, version) DO UPDATE SET revision = EXCLUDED.revision
+       RETURNING id`,
       [scenario.scenarioId, version.version, version.revision],
     );
     const versionId: number = versionResult.rows[0].id;
     versionIds.set(version.version, versionId);
+
+    // Replace the seed-controlled content while keeping the version ID, which
+    // may already be referenced by an incident activation.
+    await client.query(
+      "DELETE FROM operating_plans WHERE scenario_version_id = $1",
+      [versionId],
+    );
+    await client.query(
+      "DELETE FROM station_requirements WHERE scenario_version_id = $1",
+      [versionId],
+    );
+    await client.query(
+      "DELETE FROM passenger_information WHERE scenario_version_id = $1",
+      [versionId],
+    );
 
     const planResult = await client.query(
       `INSERT INTO operating_plans (scenario_version_id, name)
@@ -309,7 +380,11 @@ async function loadScenario(
       for (const stop of pattern.route) {
         await client.query(
           `INSERT INTO line_stops (operating_pattern_id, station_id, sequence) VALUES ($1, $2, $3)`,
-          [patternId, await getStationId(client, stop.station), stop.sequence],
+          [
+            patternId,
+            await getStationId(client, stopCode(stop)!),
+            stop.sequence,
+          ],
         );
       }
     }
@@ -359,6 +434,24 @@ async function loadScenario(
   );
 }
 
+export async function seedScenarios(
+  client: pg.Client,
+  scenarios: Scenario[],
+  stations: { code: string; name: string }[],
+): Promise<void> {
+  stationNames = new Map(stations.map((s) => [s.code, s.name]));
+  await client.query("BEGIN");
+  try {
+    for (const scenario of scenarios) {
+      await loadScenario(client, scenario);
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  }
+}
+
 async function main() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("Refusing to seed");
@@ -375,27 +468,23 @@ async function main() {
     user: "metro",
     password: process.env.POSTGRES_PASSWORD,
     database: "metro",
+    connectionTimeoutMillis: 10_000,
+    lock_timeout: 10_000,
   });
+  const { scenarios, stationList } = readSeedData();
   await client.connect();
 
   try {
-    await client.query("BEGIN");
-
-    for (const scenario of scenarios) {
-      await loadScenario(client, scenario);
-    }
-
-    await client.query("COMMIT");
-    console.log(`Seeded ${scenarios.length} scenario(s).`);
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
+    await seedScenarios(client, scenarios, stationList);
+    succeed(`Seeded ${scenarios.length} scenario(s).`);
   } finally {
     await client.end();
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

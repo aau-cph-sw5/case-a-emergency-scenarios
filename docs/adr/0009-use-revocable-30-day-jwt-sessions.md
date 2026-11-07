@@ -25,8 +25,10 @@ validates the JWT and the active database session. Logout and a later login
 replace or revoke that session, invalidating the old token.
 
 The web client stores its session in session storage. The mobile app stores it
-in platform secure storage. Login is restricted to the expected client role:
-operators use web and stewards use mobile.
+in platform secure storage. Login checks the account role against the allowed
+roles for the requested client: operators use web and stewards use mobile.
+The requested client is not proof of device type; the server enforces role
+permissions on protected operations.
 
 While an unexpired session is online with seven days or less remaining, the
 client renews its token. It checks when the app opens, returns to the foreground

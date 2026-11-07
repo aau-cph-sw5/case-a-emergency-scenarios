@@ -1,7 +1,12 @@
-import { FlatList, Text, View } from "react-native";
-import { box, text } from "../Theme";
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import { badge, colors, text } from "../Theme";
 import type { Scenario } from "../types/v1/scenario";
-import { countManned, type ActiveDeployments } from "./stationState";
+import {
+  countManned,
+  countStewards,
+  coverageShare,
+  type ActiveDeployments,
+} from "./stationState";
 import StationRow from "./stationRow";
 import metroLineM1 from "../../fixtures/v1/metro-lines/M1.json";
 import metroLineM2 from "../../fixtures/v1/metro-lines/M2.json";
@@ -15,41 +20,164 @@ const STATION_RANK = new Map(
   STATION_ORDER.map((station, index) => [station, index]),
 );
 
-type Props = {
-  scenario: Scenario;
-  activeDeployments: ActiveDeployments;
-};
+type Props =
+  | { scenario: Scenario; mode: "needed-only"; compact?: boolean }
+  | {
+      scenario: Scenario;
+      mode?: "live-coverage";
+      activeDeployments: ActiveDeployments;
+      operatorLayout?: boolean;
+    };
 
-export default function ScenarioStationList({
-  scenario,
-  activeDeployments,
-}: Props) {
+export default function ScenarioStationList(props: Props) {
+  const { scenario } = props;
   const version = scenario.versions.find(
     (item) => item.version === scenario.currentVersion,
   );
+  const requirements = version?.stationRequirements ?? [];
 
-  const stations = [...(version?.stationRequirements ?? [])].sort(
-    (a, b) =>
-      (STATION_RANK.get(a.station) ?? Number.MAX_SAFE_INTEGER) -
-      (STATION_RANK.get(b.station) ?? Number.MAX_SAFE_INTEGER),
-  );
+  // Worst covered first, so the stations that need help are at the top.
+  // Stations covered equally keep the Metro line order. Each share is
+  // computed once, not on every comparison the sort makes.
+  const rank = (station: string) =>
+    STATION_RANK.get(station) ?? Number.MAX_SAFE_INTEGER;
+  const stations = requirements
+    .map((r) => ({
+      r,
+      share:
+        props.mode === "needed-only"
+          ? 0
+          : coverageShare(props.activeDeployments, r),
+    }))
+    .sort((a, b) => a.share - b.share || rank(a.r.station) - rank(b.r.station))
+    .map(({ r }) => r);
 
-  const coveredCount = countManned(activeDeployments, stations);
+  const coveredCount =
+    props.mode === "needed-only"
+      ? null
+      : countManned(props.activeDeployments, stations);
+  const stewards =
+    props.mode === "needed-only"
+      ? null
+      : countStewards(props.activeDeployments, stations);
+  const needed = requirements.reduce((sum, r) => sum + r.minimumStaffing, 0);
+  const operatorLayout =
+    props.mode === "needed-only" ? props.compact : props.operatorLayout;
+
+  if (stations.length === 0 && props.mode !== "needed-only") {
+    return <Text style={styles.small}>Scenariet kræver ingen stationer.</Text>;
+  }
 
   return (
-    <FlatList // we dont currently have a station order.
+    <FlatList
       data={stations}
       keyExtractor={(item) => item.station}
       ListHeaderComponent={
-        <View style={[box, { margin: 8 }]}>
-          <Text style={text.title}>
-            {coveredCount}/{stations.length} stations covered
-          </Text>
-        </View>
+        operatorLayout && props.mode !== "needed-only" ? undefined : (
+          <View style={styles.header}>
+            {operatorLayout ? (
+              <View testID="staffing-plan-summary" style={styles.planSummary}>
+                <View style={styles.planSummaryRow}>
+                  <Text style={styles.planSummaryText}>
+                    Påvirkede stationer:{" "}
+                  </Text>
+                  <Text style={styles.planSummaryText}>{stations.length}</Text>
+                </View>
+                <View
+                  style={[styles.planSummaryRow, styles.planSummaryDivider]}
+                >
+                  <Text style={styles.planSummaryText}>
+                    Nødvendige stewards:{" "}
+                  </Text>
+                  <Text style={styles.planSummaryText}>{needed}</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.titleLine}>
+                <Text style={styles.title}>
+                  {props.mode === "needed-only" && !props.compact
+                    ? "Bemandingsbehov"
+                    : "Påvirkede stationer"}
+                </Text>
+                <Text style={styles.badge}>{stations.length}</Text>
+              </View>
+            )}
+            {props.mode === "needed-only" ? (
+              operatorLayout ? null : (
+                <Text style={styles.small}>
+                  {stations.length} stationer · {needed} stewards kræves
+                </Text>
+              )
+            ) : (
+              stewards !== null && (
+                <>
+                  <Text style={styles.small}>
+                    {coveredCount}/{stations.length} stationer dækket
+                  </Text>
+                  <Text style={styles.small}>
+                    {stewards.arrived}/{stewards.needed} stewards ·{" "}
+                    {stewards.enRoute} på vej
+                  </Text>
+                </>
+              )
+            )}
+          </View>
+        )
       }
-      renderItem={({ item }) => (
-        <StationRow requirement={item} deployments={activeDeployments} />
-      )}
+      ListEmptyComponent={
+        <Text style={styles.small}>Scenariet kræver ingen stationer.</Text>
+      }
+      renderItem={({ item }) =>
+        props.mode === "needed-only" ? (
+          <StationRow
+            requirement={item}
+            mode="needed-only"
+            compact={props.compact}
+          />
+        ) : (
+          <StationRow
+            requirement={item}
+            deployments={props.activeDeployments}
+            operatorLayout={props.operatorLayout}
+          />
+        )
+      }
     />
   );
 }
+
+const styles = StyleSheet.create({
+  header: { marginBottom: 8, gap: 2 },
+  titleLine: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  title: { fontSize: 16, fontWeight: "700", color: colors.text, flexShrink: 1 },
+  badge,
+  small: text.small,
+  planSummary: {
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 9,
+    backgroundColor: colors.blockedTrack,
+    overflow: "hidden",
+    marginBottom: 22,
+  },
+  planSummaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+  },
+  planSummaryDivider: { borderTopWidth: 1, borderTopColor: colors.textInverse },
+  planSummaryText: {
+    color: colors.textInverse,
+    fontSize: 13,
+    fontWeight: "700",
+    flexShrink: 1,
+  },
+});

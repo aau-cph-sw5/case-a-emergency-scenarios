@@ -37,11 +37,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Runs under c8 only to collect raw coverage for the Backend coverage job.
-      # The minimum applies to unit and integration tests together, so it is
-      # checked once, in that job, not here.
+      # Runs under c8 only to collect raw coverage for the Coverage job.
+      # Coverage from unit and integration tests is combined in that job.
       - name: Run unit tests
-        run: npx c8 --reporter=none --check-coverage=false npm run test:unit
+        run: |
+          mkdir -p test-results
+          npx c8 --reporter=none --check-coverage=false node --import tsx --test \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=./scripts/node-test-summary.mjs --test-reporter-destination=test-results/unit.json \
+            "tests/unit/**/*.test.{js,mjs,ts}"
+
+      - name: Save unit test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-unit
+          path: test-results/unit.json
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Save raw coverage
         if: ${{ !cancelled() }}
@@ -113,7 +126,21 @@ jobs:
 
       # See the comment on the unit test step.
       - name: Run integration tests
-        run: npx c8 --reporter=none --check-coverage=false npm run test:integration:run
+        run: |
+          mkdir -p test-results
+          npx c8 --reporter=none --check-coverage=false node --env-file-if-exists=.env --import tsx --import ./tests/integration/setup-env.ts --test --test-concurrency=1 \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=./scripts/node-test-summary.mjs --test-reporter-destination=test-results/integration.json \
+            "tests/integration/**/*.test.{js,mjs,ts}"
+
+      - name: Save integration test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-integration
+          path: test-results/integration.json
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Save raw coverage
         if: ${{ !cancelled() }}
@@ -143,25 +170,45 @@ jobs:
         run: npm ci
 
       - name: Run Jest tests
-        run: npm run test:jest
+        run: |
+          mkdir -p test-results
+          npm run test:jest -- --coverage --json --outputFile=test-results/jest.json
+
+      - name: Save Jest test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-jest
+          path: test-results/jest.json
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Save Jest coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-jest
+          path: coverage/jest/coverage-final.json
+          retention-days: 1
+          if-no-files-found: ignore
 
   coverage:
     name: Backend coverage
-    needs: [unit, integration]
+    needs: [unit, integration, jest]
     # Runs even when a test fails, so the PR comment always shows coverage. The
-    # minimum is only checked when every test passed, so a failing test and
-    # too-low coverage show as separate checks.
+    # threshold is only checked when all three test jobs passed.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: write
-      actions: read
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -172,74 +219,84 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download raw coverage
+      - name: Download unit coverage
+        id: unit_coverage
         uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
-          pattern: coverage-raw-*
+          name: coverage-raw-unit
           path: coverage/tmp
-          merge-multiple: true
 
-      # Merges the raw coverage of both test jobs and writes the reports,
-      # including coverage/coverage-summary.json. Always runs, so the PR comment
-      # shows numbers even when a test failed.
-      - name: Report coverage
-        if: ${{ hashFiles('coverage/tmp/*.json') != '' }}
+      - name: Download integration coverage
+        id: integration_coverage
+        if: ${{ !cancelled() }}
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: coverage-raw-integration
+          path: coverage/tmp
+
+      - name: Report Node coverage
+        id: node_coverage
+        if: ${{ !cancelled() && hashFiles('coverage/tmp/*.json') != '' }}
+        continue-on-error: true
         run: npx c8 report --check-coverage=false
 
-      # Checks the minimum in .c8rc.json, but only when every test passed. Coverage
-      # from a run with a failing test is incomplete, and the failing test check
-      # already says what is wrong.
-      - name: Check minimum coverage
-        if: ${{ needs.unit.result == 'success' && needs.integration.result == 'success' }}
-        run: npx c8 check-coverage
+      - name: Download Jest coverage
+        id: jest_coverage
+        if: ${{ !cancelled() }}
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: coverage-jest
+          path: coverage/jest
 
-      # Gets coverage-summary.json from the latest successful Tests run on dev,
-      # for the "vs dev" column. If there is none, the column shows "–".
-      - name: Download coverage from dev
-        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+      - name: Determine coverage completeness
+        id: coverage_inputs
+        if: ${{ !cancelled() }}
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          latest_dev_run=$(gh run list \
-            --workflow tests.yml \
-            --branch dev \
-            --event push \
-            --status success \
-            --limit 1 \
-            --json databaseId \
-            --jq '.[].databaseId')
+          INPUTS_COMPLETE: ${{ needs.unit.result == 'success' && needs.integration.result == 'success' && needs.jest.result == 'success' && steps.unit_coverage.outcome == 'success' && steps.integration_coverage.outcome == 'success' && steps.node_coverage.outcome == 'success' && steps.jest_coverage.outcome == 'success' }}
+        run: echo "complete=$INPUTS_COMPLETE" >> "$GITHUB_OUTPUT"
 
-          if [ -z "$latest_dev_run" ]; then
-            echo "No successful Tests run on dev yet."
-            exit 0
-          fi
-
-          gh run download "$latest_dev_run" \
-            --name coverage-baseline \
-            --dir coverage/baseline \
-            || echo "Run $latest_dev_run has no coverage-baseline artifact."
-
-      # Checks that no metric dropped more than "max-decrease" in .c8rc.json
-      # compared with dev. Like the minimum, only when every test passed. Passes
-      # when there is no coverage from dev yet.
-      - name: Check coverage decrease
-        if: ${{ github.event_name == 'pull_request' && needs.unit.result == 'success' && needs.integration.result == 'success' }}
-        run: node scripts/check-coverage-decrease.mjs coverage/baseline/coverage-summary.json
-
+      # For PRs, HEAD is the tested merge commit: its first parent is the exact
+      # base used for that merge, even if the event's base SHA is stale.
+      # Always refresh the comment, including when a test or coverage artifact is missing.
       - name: Write coverage summary
-        if: ${{ !cancelled() && hashFiles('coverage/coverage-summary.json') != '' }}
+        if: ${{ !cancelled() }}
+        env:
+          COVERAGE_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.merge_group.base_sha }}
+          COVERAGE_INPUTS_COMPLETE: ${{ steps.coverage_inputs.outputs.complete }}
         run: |
-          node scripts/coverage-report.mjs coverage/baseline/coverage-summary.json > coverage/report.md
+          mkdir -p coverage
+          node scripts/coverage-report.mjs > coverage/report.md
           cat coverage/report.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Save coverage as dev baseline
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
+      - name: Check changed-file and overall coverage
+        if: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.unit.result == 'success' && needs.integration.result == 'success' && needs.jest.result == 'success' }}
+        env:
+          COVERAGE_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.merge_group.base_sha }}
+          COVERAGE_INPUTS_COMPLETE: ${{ steps.coverage_inputs.outputs.complete }}
+        run: node scripts/coverage-report.mjs --check
+
+      - name: Check backend branch coverage
+        if: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.unit.result == 'success' && needs.integration.result == 'success' && needs.jest.result == 'success' }}
+        run: node scripts/check-backend-branches.mjs
+
+      - name: Create combined coverage for SonarQube
+        id: export_coverage
+        if: ${{ !cancelled() && steps.coverage_inputs.outputs.complete == 'true' }}
+        env:
+          COVERAGE_INPUTS_COMPLETE: ${{ steps.coverage_inputs.outputs.complete }}
+        run: node scripts/coverage-report.mjs --write-lcov
+
+      - name: Save coverage for SonarQube
+        if: ${{ !cancelled() && steps.export_coverage.outcome == 'success' && hashFiles('coverage/lcov.info') != '' }}
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-baseline
-          path: coverage/coverage-summary.json
-          retention-days: 90
+          name: coverage-lcov
+          path: coverage/lcov.info
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Comment on pull request
         if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('coverage/report.md') != '' }}
@@ -268,3 +325,130 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
+
+      - name: Require all test jobs
+        if: ${{ !cancelled() && (needs.unit.result != 'success' || needs.integration.result != 'success' || needs.jest.result != 'success') }}
+        run: |
+          echo '::error::Unit, integration and Jest tests must all pass.'
+          exit 1
+
+  test-results:
+    name: Test results
+    needs: [unit, integration, jest]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Download test results
+        uses: actions/download-artifact@v8
+        with:
+          pattern: test-results-*
+          path: test-results
+          merge-multiple: true
+
+      - name: Write test summary
+        env:
+          UNIT_RESULT: ${{ needs.unit.result }}
+          INTEGRATION_RESULT: ${{ needs.integration.result }}
+          JEST_RESULT: ${{ needs.jest.result }}
+        run: |
+          mkdir -p test-results
+          node scripts/test-results-report.mjs > test-results/report.md
+          cat test-results/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on pull request
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require("node:fs");
+            const marker = "<!-- test-results-report -->";
+            const body = fs.readFileSync("test-results/report.md", "utf8");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find(comment =>
+              comment.user.login === "github-actions[bot]" && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+  sonarqube:
+    name: SonarQube
+    needs: [coverage]
+    # Runs even when a test fails, so the analysis still reports on the code.
+    # SONAR_TOKEN is not given to workflows from forks or Dependabot, and a
+    # merge queue branch is not one SonarQube should track.
+    if: >-
+      !cancelled() &&
+      github.event_name != 'merge_group' &&
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          # Full history, so SonarQube can tell new code from old and blame lines.
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # The analyser resolves each tsconfig.json, and mobile extends one from expo.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download coverage
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-lcov
+          path: coverage
+        continue-on-error: true
+
+      - name: Match coverage to the pull request head
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          if ! git cat-file -e "$GITHUB_SHA^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$GITHUB_SHA"
+          fi
+          node scripts/filter-sonar-coverage.mjs
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Link to SonarQube results
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          url="https://sonarcloud.io/project/overview?id=aau-cph-sw5_case-a-code-analysis"
+          if [ -n "$PR_NUMBER" ]; then url="$url&pullRequest=$PR_NUMBER"; fi
+          echo "[View SonarQube analysis]($url)" >> "$GITHUB_STEP_SUMMARY"
+
+      # Settings are in sonar-project.properties. Inline annotations are
+      # published by the SonarQube GitHub integration when enabled there.
+      - name: SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

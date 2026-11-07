@@ -8,6 +8,6 @@
 export interface LoginRequest {
   username: string;
   password: string;
-  expectedRole: "STEWARD" | "OPERATOR";
+  client: "web" | "mobile";
   [k: string]: unknown;
 }

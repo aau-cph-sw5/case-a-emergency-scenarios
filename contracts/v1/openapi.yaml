@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 5.0.0
+  version: 7.1.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -14,15 +14,20 @@ paths:
   /api/v1/scenario-state:
     get:
       summary: Get current scenario state
+      description: >
+        Returns the active activation, the same one GET /api/v1/activations
+        lists as ACTIVE. Answers 200 with null while no scenario is active.
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: Current scenario state
+          description: Current scenario state, or null while no scenario is active
           content:
             application/json:
               schema:
-                $ref: "./scenario-state.schema.json"
+                oneOf:
+                  - $ref: "./scenario-state.schema.json"
+                  - type: "null"
         "401":
           description: Missing, invalid or expired bearer token
           content:
@@ -68,6 +73,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: activationId
+          in: query
+          required: false
+          description: Return the version captured by this active activation; answers 404 if it is not active or belongs to another scenario.
+          schema:
+            type: integer
+            minimum: 1
       security:
         - bearerAuth: []
       responses:
@@ -131,6 +143,23 @@ paths:
         server: staff by the userId from the token, reportedAt by the time
         the server accepted the report. An accepted report is forwarded to
         connected operators as the position-report Socket.IO event.
+        With taskDone true the steward reports the task at the station as
+        done (MET-A-015). That is only allowed at the station of the
+        steward's latest report (E1006 otherwise), and sending it again is
+        a harmless repeat.
+        The optional event says what the report means (MET-A-015):
+        EN_ROUTE (the default) is on the way, ARRIVED is arrived,
+        CANCELLED withdraws being on the way and frees the station, and
+        CHECKED_OUT is leaving the station after arriving. ARRIVED and
+        CANCELLED are only allowed after EN_ROUTE, and CHECKED_OUT only
+        after ARRIVED or taskDone, all at the station of the steward's
+        latest report (E1006 otherwise). event and taskDone cannot be sent
+        together (E0006). EN_ROUTE at the station of the latest report, while
+        on the way or arrived there, is a harmless repeat, so a report
+        without event never moves an arrived steward back to on the way.
+        EN_ROUTE to another station while on the way frees the old station,
+        as with CANCELLED. After arriving or task done it is rejected with
+        E1006: the steward checks out first.
       security:
         - bearerAuth: []
       requestBody:
@@ -143,6 +172,7 @@ paths:
               staff: "steward-002"
               station: "Station B"
               reportedAt: "2026-09-23T08:10:00Z"
+              event: "EN_ROUTE"
 
       responses:
         "202":
@@ -190,8 +220,11 @@ paths:
                   message: "The authenticated user's role does not permit this action"
         "409":
           description: >
-            No scenario is active (E1001), or the station does not require
-            manning in an active scenario (E1004).
+            No scenario is active (E1001), the station does not require
+            manning in an active scenario (E1004), or task done or the event
+            is not allowed from the steward's current status (E1006), for
+            example EN_ROUTE to another station after arriving, before
+            checking out.
           content:
             application/json:
               schema:
@@ -207,6 +240,11 @@ paths:
                     error:
                       code: "E1004"
                       message: "The station is not part of the active scenario"
+                taskDoneElsewhere:
+                  value:
+                    error:
+                      code: "E1006"
+                      message: "The status change is not permitted from the steward's current status"
 
   /api/v1/auth/login:
     post:
@@ -220,7 +258,7 @@ paths:
             example:
               username: "steward-test"
               password: "steward-test-pw"
-              expectedRole: "STEWARD"
+              client: "mobile"
       responses:
         "200":
           description: Login successful
@@ -320,9 +358,9 @@ paths:
     get:
       summary: List activations
       description: >
-        Returns the activations in the store. Several scenarios may be
-        active at once, also on the same line, so the list can hold more
-        than one ACTIVE entry. Any signed-in role may read it.
+        Returns the activations in the store. Only one scenario can be
+        active at a time, so the list holds at most one ACTIVE entry. Any
+        signed-in role may read it.
       security:
         - bearerAuth: []
       parameters:
@@ -353,7 +391,6 @@ paths:
                 error:
                   code: "E0005"
                   message: "status must be one of ACTIVE, CLOSED"
-                  message: "Invalid or expired token"
 
   /api/v1/scenarios/{scenarioId}/activate:
     post:
@@ -362,6 +399,10 @@ paths:
         Requires a bearer token with the OPERATOR role ("All in CCR can
         activate a scenario", Metro on MET-A-026). The actor is taken from
         the token, never from the request.
+
+        To switch scenarios, send replaces with the active activationId:
+        the old one is stood down and the new one activated together
+        (MET-A-009).
       security:
         - bearerAuth: []
       parameters:
@@ -370,6 +411,14 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "./activate-request.schema.json"
+            example:
+              replaces: 1
       responses:
         "201":
           description: Activation successful
@@ -409,18 +458,87 @@ paths:
                   message: "No scenario with id 'S1' exists"
         "409":
           description: >
-            Activation refused because this same scenario is already
-            active. Other active scenarios, including scenarios on the
-            same line, never block an activation and are never stood
-            down by it.
+            A scenario is active and replaces was not given, or replaces
+            is not the active activation. Nothing is changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                alreadyActive:
+                  value:
+                    error:
+                      code: "E0007"
+                      message: "A scenario is already active, so 'S1' cannot be activated"
+                replacesNotActive:
+                  value:
+                    error:
+                      code: "E0007"
+                      message: "'1' is not the active activation"
+
+  /api/v1/activations/{activationId}/stand-down:
+    post:
+      summary: Stands down the active scenario
+      description: >
+        Requires the OPERATOR role. Sets the activation to CLOSED with
+        endedAt and writes a SCENARIO_STOOD_DOWN event (MET-A-009).
+        Afterwards no scenario is active.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: activationId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Stood down. The closed activation.
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-state.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
               example:
                 error:
-                  code: "E0007"
-                  message: "Scenario 'S1' is already active"
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not stand down a scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "Role STEWARD may not stand down a scenario"
+        "404":
+          description: No activation with this id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0004"
+                  message: "No activation with id '1' exists"
+        "409":
+          description: The activation is already stood down.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E1003"
+                  message: "'1' is already stood down"
 
 components:
   securitySchemes:
