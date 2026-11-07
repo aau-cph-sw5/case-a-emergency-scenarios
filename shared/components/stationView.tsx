@@ -73,9 +73,9 @@ export default function ScenarioStationList(props: Props) {
       data={stations}
       keyExtractor={(item) => item.station}
       ListHeaderComponent={
-        operatorLayout && props.mode !== "needed-only" ? undefined : (
+        operatorLayout ? (
           <View style={styles.header}>
-            {operatorLayout ? (
+            {coveredCount === null || stewards === null ? (
               // One line, numbers first, so it reads at a glance.
               <Text
                 testID="staffing-plan-summary"
@@ -88,21 +88,35 @@ export default function ScenarioStationList(props: Props) {
                 {needed === 1 ? " steward" : " stewards"}
               </Text>
             ) : (
-              <View style={styles.titleLine}>
-                <Text style={styles.title}>
-                  {props.mode === "needed-only" && !props.compact
-                    ? "Bemandingsbehov"
-                    : "Påvirkede stationer"}
-                </Text>
-                <Text style={styles.badge}>{stations.length}</Text>
-              </View>
+              // While live the same line counts up: covered and arrived first.
+              <Text
+                testID="staffing-plan-summary"
+                accessibilityLabel={`${coveredCount} af ${stations.length} stationer dækket, ${stewards.arrived} af ${stewards.needed} stewards ankommet`}
+                style={styles.planSummary}
+              >
+                <Text style={styles.planSummaryNumber}>{coveredCount}</Text>/
+                {stations.length}
+                {stations.length === 1 ? " station" : " stationer"} ·{" "}
+                <Text style={styles.planSummaryNumber}>{stewards.arrived}</Text>
+                /{stewards.needed}
+                {stewards.needed === 1 ? " steward" : " stewards"}
+              </Text>
             )}
+          </View>
+        ) : (
+          <View style={styles.header}>
+            <View style={styles.titleLine}>
+              <Text style={styles.title}>
+                {props.mode === "needed-only"
+                  ? "Bemandingsbehov"
+                  : "Påvirkede stationer"}
+              </Text>
+              <Text style={styles.badge}>{stations.length}</Text>
+            </View>
             {props.mode === "needed-only" ? (
-              operatorLayout ? null : (
-                <Text style={styles.small}>
-                  {stations.length} stationer · {needed} stewards kræves
-                </Text>
-              )
+              <Text style={styles.small}>
+                {stations.length} stationer · {needed} stewards kræves
+              </Text>
             ) : (
               stewards !== null && (
                 <>

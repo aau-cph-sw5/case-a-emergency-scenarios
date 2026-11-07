@@ -38,7 +38,7 @@ function textContent(value: unknown): string {
 }
 
 describe("ScenarioStationList", () => {
-  it("shows planning totals only before activation", () => {
+  it("shows planning totals before activation and progress against them while live", () => {
     const scenario = createScenario(["Station A", "Station C"]);
     scenario.versions[0].stationRequirements[1].minimumStaffing = 3;
     const view = render(
@@ -60,7 +60,11 @@ describe("ScenarioStationList", () => {
         operatorLayout
       />,
     );
-    expect(screen.queryByTestId("staffing-plan-summary")).toBeNull();
+    expect(
+      screen.getByLabelText(
+        "0 af 2 stationer dækket, 0 af 4 stewards ankommet",
+      ),
+    ).toBeTruthy();
     expect(screen.queryByText(/stationer dækket/)).toBeNull();
     expect(screen.queryByText(/stewards ·/)).toBeNull();
     expect(screen.queryByText(/Mangler/)).toBeNull();
