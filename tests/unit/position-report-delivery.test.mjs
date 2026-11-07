@@ -1,15 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-
 import { createPositionReportQueueStore } from "../../shared/offline/position-report-queue.ts";
-
 import { createPositionReportDelivery } from "../../mobile/src/offline/position-report-delivery.ts";
 
-// Temporary storage with the same methods as AsyncStorage.
-// Each test creates its own storage so tests remain independent.
 function memoryStorage() {
   const items = new Map();
-
   return {
     getItem: async (key) => items.get(key) ?? null,
     setItem: async (key, value) => {
@@ -21,11 +16,10 @@ function memoryStorage() {
   };
 }
 
-// Creates a sample queued report with a predictable ID.
-function aReport(id = "report-1") {
+function aReport(id = "report-1", userId = "steward-1") {
   return {
     id,
-    userId: "steward-1",
+    userId,
     station: "Station B",
     reportedAt: "2026-11-03T10:00:00Z",
     scenarioId: "DEMO-001",
@@ -33,237 +27,182 @@ function aReport(id = "report-1") {
   };
 }
 
-// An accepted report must be removed from the queue.
+async function queued(reports, storage = memoryStorage()) {
+  const queue = createPositionReportQueueStore(storage);
+  for (const report of reports) await queue.enqueue(report);
+  return queue;
+}
+
+const accepted = { status: "accepted" };
+
 test("acknowledges a report only after successful delivery", async () => {
-  const queue = createPositionReportQueueStore(memoryStorage());
   const report = aReport();
-
-  await queue.enqueue(report);
-
+  const queue = await queued([report]);
   const sent = [];
-
   const delivery = createPositionReportDelivery(queue, async (token, item) => {
     sent.push({ token, report: item });
-    return { status: "accepted" };
+    return accepted;
   });
-
   const result = await delivery.flush("steward-1", "test-token");
-
   assert.deepEqual(sent, [{ token: "test-token", report }]);
-
   assert.equal(result.acknowledged, 1);
+  assert.equal(result.rejected, 0);
   assert.equal(result.pending, 0);
   assert.deepEqual(await queue.getPending("steward-1"), []);
 });
 
-// A failed connection must not lose the report.
 test("keeps a report queued when delivery needs retry", async () => {
-  const queue = createPositionReportQueueStore(memoryStorage());
   const report = aReport();
-
-  await queue.enqueue(report);
-
+  const queue = await queued([report]);
   const delivery = createPositionReportDelivery(queue, async () => ({
     status: "retry",
   }));
-
   const result = await delivery.flush("steward-1", "test-token");
-
   assert.equal(result.acknowledged, 0);
+  assert.equal(result.rejected, 0);
   assert.equal(result.pending, 1);
   assert.deepEqual(result.blockedBy, { status: "retry" });
-
   assert.deepEqual(await queue.getPending("steward-1"), [report]);
 });
 
-// A rejected report must not be acknowledged as delivered.
-test("keeps a report queued when the server rejects it", async () => {
-  const queue = createPositionReportQueueStore(memoryStorage());
-  const report = aReport();
-
-  await queue.enqueue(report);
-
-  const delivery = createPositionReportDelivery(queue, async () => ({
-    status: "rejected",
-    httpStatus: 409,
-  }));
-
-  const result = await delivery.flush("steward-1", "test-token");
-
-  assert.equal(result.acknowledged, 0);
-  assert.equal(result.pending, 1);
-
-  assert.deepEqual(result.blockedBy, {
-    status: "rejected",
-    httpStatus: 409,
-  });
-
-  assert.deepEqual(await queue.getPending("steward-1"), [report]);
-});
-
-// Flushing a second time must not resend an acknowledged report.
-test("replaying the queue twice does not resend acknowledged reports", async () => {
-  const queue = createPositionReportQueueStore(memoryStorage());
-  const report = aReport();
-
-  await queue.enqueue(report);
-
-  let sendCount = 0;
-
-  const delivery = createPositionReportDelivery(queue, async () => {
-    sendCount++;
-    return { status: "accepted" };
-  });
-
-  const first = await delivery.flush("steward-1", "test-token");
-  const second = await delivery.flush("steward-1", "test-token");
-
-  assert.equal(first.acknowledged, 1);
-  assert.equal(second.acknowledged, 0);
-
-  assert.equal(sendCount, 1);
-  assert.equal(second.pending, 0);
-  assert.deepEqual(await queue.getPending("steward-1"), []);
-});
-
-// Reports must be processed in order.
-// A failed report stops delivery of later reports.
-test("stops at the first failed report and keeps remaining reports", async () => {
-  const queue = createPositionReportQueueStore(memoryStorage());
-
-  const firstReport = aReport("report-1");
-  const secondReport = aReport("report-2");
-  const thirdReport = aReport("report-3");
-
-  await queue.enqueue(firstReport);
-  await queue.enqueue(secondReport);
-  await queue.enqueue(thirdReport);
-
-  const sentIds = [];
-
+test("permanently rejected report is retained for review but does not block later reports", async () => {
+  const first = aReport("report-a");
+  const second = aReport("report-b");
+  const storage = memoryStorage();
+  const queue = await queued([first, second], storage);
+  const sent = [];
   const delivery = createPositionReportDelivery(
     queue,
     async (_token, report) => {
-      sentIds.push(report.id);
-
-      if (report.id === "report-2") {
-        return { status: "retry" };
-      }
-
-      return { status: "accepted" };
+      sent.push(report.id);
+      return report.id === first.id
+        ? { status: "rejected", httpStatus: 409, code: "E1006" }
+        : accepted;
     },
   );
-
   const result = await delivery.flush("steward-1", "test-token");
+  assert.deepEqual(sent, [first.id, second.id]);
+  assert.equal(result.acknowledged, 1);
+  assert.equal(result.rejected, 1);
+  assert.equal(result.pending, 0);
+  assert.equal(result.blockedBy, undefined);
+  assert.deepEqual(await queue.getPending("steward-1"), []);
+  const restored = createPositionReportQueueStore(storage);
+  assert.deepEqual(await restored.getRejected("steward-1"), [
+    { ...first, rejection: { httpStatus: 409, code: "E1006" } },
+  ]);
+  await delivery.flush("steward-1", "test-token");
+  assert.deepEqual(sent, [first.id, second.id]);
+});
 
-  // Report 3 must not be attempted after report 2 fails.
-  assert.deepEqual(sentIds, ["report-1", "report-2"]);
+test("authentication and rate-limit rejections remain pending", async () => {
+  for (const httpStatus of [401, 403, 408, 429, 500]) {
+    const report = aReport();
+    const queue = await queued([report]);
+    const delivery = createPositionReportDelivery(queue, async () => ({
+      status: "rejected",
+      httpStatus,
+    }));
+    const result = await delivery.flush("steward-1", "test-token");
+    assert.equal(result.rejected, 0);
+    assert.equal(result.pending, 1);
+    assert.equal(result.blockedBy.httpStatus, httpStatus);
+    assert.deepEqual(await queue.getPending("steward-1"), [report]);
+    assert.deepEqual(await queue.getRejected("steward-1"), []);
+  }
+});
 
+test("replaying the queue twice does not resend acknowledged reports", async () => {
+  const queue = await queued([aReport()]);
+  let sendCount = 0;
+  const delivery = createPositionReportDelivery(queue, async () => {
+    sendCount++;
+    return accepted;
+  });
+  const first = await delivery.flush("steward-1", "test-token");
+  const second = await delivery.flush("steward-1", "test-token");
+  assert.equal(first.acknowledged, 1);
+  assert.equal(second.acknowledged, 0);
+  assert.equal(sendCount, 1);
+  assert.equal(second.pending, 0);
+});
+
+test("stops at the first retryable failure and keeps later reports", async () => {
+  const reports = [
+    aReport("report-1"),
+    aReport("report-2"),
+    aReport("report-3"),
+  ];
+  const queue = await queued(reports);
+  const sent = [];
+  const delivery = createPositionReportDelivery(
+    queue,
+    async (_token, report) => {
+      sent.push(report.id);
+      return report.id === "report-2" ? { status: "retry" } : accepted;
+    },
+  );
+  const result = await delivery.flush("steward-1", "test-token");
+  assert.deepEqual(sent, ["report-1", "report-2"]);
   assert.equal(result.acknowledged, 1);
   assert.equal(result.pending, 2);
-
-  assert.deepEqual(await queue.getPending("steward-1"), [
-    secondReport,
-    thirdReport,
-  ]);
+  assert.deepEqual(await queue.getPending("steward-1"), reports.slice(1));
 });
 
 test("concurrent flushes do not send the same report twice", async () => {
-  const queue = createPositionReportQueueStore(memoryStorage());
-  const report = aReport();
-
-  await queue.enqueue(report);
-
+  const queue = await queued([aReport()]);
   let sendCount = 0;
   let finishDelivery;
-
-  // This promise lets the test control when delivery finishes.
   const deliveryGate = new Promise((resolve) => {
     finishDelivery = resolve;
   });
-
   const delivery = createPositionReportDelivery(queue, async () => {
     sendCount++;
-
-    // Keep the first delivery in progress.
     await deliveryGate;
-
-    return { status: "accepted" };
+    return accepted;
   });
-
-  // Start two flushes without waiting for the first to finish.
   const firstFlush = delivery.flush("steward-1", "test-token");
   const secondFlush = delivery.flush("steward-1", "test-token");
-
-  // Allow the simulated HTTP delivery to finish.
   finishDelivery();
-
   const [first, second] = await Promise.all([firstFlush, secondFlush]);
-
-  // Both callers share one delivery operation.
   assert.equal(sendCount, 1);
-
   assert.equal(first.acknowledged, 1);
   assert.equal(second.acknowledged, 1);
-
   assert.deepEqual(await queue.getPending("steward-1"), []);
 });
 
-test("different users can flush their own queues independently", async () => {
-  const queue = createPositionReportQueueStore(memoryStorage());
-
-  const reportA = aReport("report-a");
-  const reportB = {
-    ...aReport("report-b"),
-    userId: "steward-2",
-  };
-
-  await queue.enqueue(reportA);
-  await queue.enqueue(reportB);
-
+test("different users flush and retain rejections independently", async () => {
+  const queue = await queued([
+    aReport("report-a"),
+    aReport("report-b", "steward-2"),
+  ]);
   const sent = [];
-
   const delivery = createPositionReportDelivery(
     queue,
     async (token, report) => {
-      sent.push({
-        token,
-        userId: report.userId,
-        id: report.id,
-      });
-
-      return { status: "accepted" };
+      sent.push({ token, userId: report.userId, id: report.id });
+      return report.userId === "steward-1"
+        ? { status: "rejected", httpStatus: 409, code: "E1006" }
+        : accepted;
     },
   );
-
-  // Start both flushes without awaiting either one first.
-  const [resultA, resultB] = await Promise.all([
+  const [a, b] = await Promise.all([
     delivery.flush("steward-1", "token-1"),
     delivery.flush("steward-2", "token-2"),
   ]);
-
   assert.deepEqual(sent, [
-    {
-      token: "token-1",
-      userId: "steward-1",
-      id: "report-a",
-    },
-    {
-      token: "token-2",
-      userId: "steward-2",
-      id: "report-b",
-    },
+    { token: "token-1", userId: "steward-1", id: "report-a" },
+    { token: "token-2", userId: "steward-2", id: "report-b" },
   ]);
-
-  assert.equal(resultA.acknowledged, 1);
-  assert.equal(resultB.acknowledged, 1);
-
+  assert.equal(a.rejected, 1);
+  assert.equal(b.acknowledged, 1);
+  assert.equal((await queue.getRejected("steward-1")).length, 1);
+  assert.deepEqual(await queue.getRejected("steward-2"), []);
   assert.deepEqual(await queue.getPending("steward-1"), []);
   assert.deepEqual(await queue.getPending("steward-2"), []);
 });
-test("replays offline steward events in order with original timestamps", async () => {
-  const storage = memoryStorage();
 
+test("replays offline steward events in order with original timestamps", async () => {
   const reports = [
     {
       ...aReport("assign"),
@@ -281,27 +220,18 @@ test("replays offline steward events in order with original timestamps", async (
       reportedAt: "2026-11-05T12:15:00Z",
     },
   ];
-
-  const offlineQueue = createPositionReportQueueStore(storage);
-
-  for (const report of reports) {
-    await offlineQueue.enqueue(report);
-  }
-
-  // Simulate an application restart using the same persistent storage.
+  const storage = memoryStorage();
+  await queued(reports, storage);
   const restoredQueue = createPositionReportQueueStore(storage);
   const delivered = [];
-
   const delivery = createPositionReportDelivery(
     restoredQueue,
     async (_token, report) => {
       delivered.push(report);
-      return { status: "accepted" };
+      return accepted;
     },
   );
-
   const result = await delivery.flush("steward-1", "test-token");
-
   assert.deepEqual(delivered, reports);
   assert.equal(result.acknowledged, 3);
   assert.equal(result.pending, 0);
