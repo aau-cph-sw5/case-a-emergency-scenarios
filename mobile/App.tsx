@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { LoginScreen } from "../shared/LoginScreen";
-import { page } from "../shared/Theme";
+import { colors, page } from "../shared/Theme";
 import { useSession } from "../shared/auth/use-session";
 import { useAuthenticatedSocket } from "../shared/socket/useAuthenticatedSocket";
 import { apiBaseUrl } from "./src/api-base-url";
@@ -72,9 +72,11 @@ export default function App() {
     }
   }, [state.status]);
 
+  const showLogin = state.status === "signed-out" && !logoutStorageError;
+
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, showLogin && styles.login]}>
         {state.status === "restoring" && (
           <View style={styles.status}>
             <ActivityIndicator />
@@ -98,7 +100,7 @@ export default function App() {
           </View>
         )}
 
-        {state.status === "signed-out" && !logoutStorageError && (
+        {showLogin && (
           <LoginScreen
             apiBaseUrl={apiBaseUrl}
             client="mobile"
@@ -119,7 +121,8 @@ export default function App() {
             }
           />
         )}
-        <StatusBar style="auto" />
+        {/* The login's page is dark, so the clock and battery are light. */}
+        <StatusBar style={showLogin ? "light" : "auto"} />
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -128,6 +131,10 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     ...page,
+  },
+  // The area around the notch matches the login's dark page.
+  login: {
+    backgroundColor: colors.controlRoomPage,
   },
   status: {
     flex: 1,

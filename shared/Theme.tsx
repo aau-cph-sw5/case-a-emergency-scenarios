@@ -22,6 +22,7 @@ export const palette = {
   darkYellow: "#8A6A00", // yellow dark enough to read as text on white
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
+  mutedGrey: "#686868", // secondary text on white in the control room
 };
 
 export const colors = {
@@ -32,6 +33,12 @@ export const colors = {
   border: palette.metroBlack,
   active: palette.metroBlack, // selected / hovered state (inverted)
   action: palette.actionBlue, // confirm button
+  // The control-room dashboard: white panels on a dark page, a red brand mark
+  // and M4-blue buttons. The login uses them too.
+  controlRoomPage: palette.metroBlack,
+  controlRoomAction: palette.metroLineFour,
+  brand: palette.metroLineThree,
+  textMuted: palette.mutedGrey,
   statusGreen: palette.metroLineOne,
   statusYellow: palette.metroLineTwo,
   statusRed: palette.metroLineThree,
@@ -76,6 +83,10 @@ export const radius = 0;
 // Cards in the operator view follow the wireframe's rounded corners, without
 // rounding every other element.
 export const cardRadius = 6;
+// The control-room panels (scenario picker, map, staffing plan) and the login.
+export const controlRoomPanelRadius = 15;
+// Inputs and buttons inside those panels.
+export const controlRoomControlRadius = 8;
 // The steward app's status and task panels follow the design group's sketch,
 // which is rounder than the operator cards.
 export const panelRadius = 12;
