@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 7.1.0
+  version: 7.2.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -160,6 +160,13 @@ paths:
         EN_ROUTE to another station while on the way frees the old station,
         as with CANCELLED. After arriving or task done it is rejected with
         E1006: the steward checks out first.
+        An optional client-generated id (UUID) identifies the original action
+        across offline retries (MET-A-006). Repeating an accepted request with
+        the same id and original action data returns 202 without creating
+        another report, incident-log event or operator notification.
+        Reusing an id for different action data returns 409 E0007.
+        A previously accepted report can be acknowledged after stand-down.
+        Reports without an id remain supported for older clients.
       security:
         - bearerAuth: []
       requestBody:
@@ -169,6 +176,7 @@ paths:
             schema:
               $ref: "./position-report.schema.json"
             example:
+              id: "8e20fa9a-8456-42f4-869c-14cc06a8770a"
               staff: "steward-002"
               station: "Station B"
               reportedAt: "2026-09-23T08:10:00Z"
@@ -176,7 +184,7 @@ paths:
 
       responses:
         "202":
-          description: Position report accepted
+          description: Position report accepted including an identical previously accepted retry
           content:
             application/json:
               schema:
@@ -224,7 +232,8 @@ paths:
             manning in an active scenario (E1004), or task done or the event
             is not allowed from the steward's current status (E1006), for
             example EN_ROUTE to another station after arriving, before
-            checking out.
+            checking out. A client report ID reused for different action
+            data is rejected with E0007.
           content:
             application/json:
               schema:
@@ -245,7 +254,11 @@ paths:
                     error:
                       code: "E1006"
                       message: "The status change is not permitted from the steward's current status"
-
+                conflictingClientReportId:
+                  value:
+                    error:
+                      code: "E0007"
+                      message: "A conflict prevents this action"
   /api/v1/auth/login:
     post:
       summary: Sign in and receive a role-bound token
