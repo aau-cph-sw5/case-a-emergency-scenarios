@@ -45,8 +45,9 @@ describe("ScenarioStationList", () => {
       <ScenarioStationList scenario={scenario} mode="needed-only" compact />,
     );
     expect(screen.getByTestId("staffing-plan-summary")).toBeTruthy();
-    expect(screen.getByText(/Påvirkede stationer:/)).toBeTruthy();
-    expect(screen.getByText(/Nødvendige stewards:/)).toBeTruthy();
+    expect(
+      screen.getByLabelText("2 påvirkede stationer, 4 stewards kræves"),
+    ).toBeTruthy();
     expect(screen.getByText("2")).toBeTruthy();
     expect(screen.getByText("4")).toBeTruthy();
     // Before activation every slot is red: nobody is on the way yet.

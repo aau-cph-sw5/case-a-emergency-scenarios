@@ -320,7 +320,7 @@ describe("scenario preview and activation", () => {
     expect(columns[0].getAttribute("aria-label")).toBe("Map");
     expect(columns[0].contains(button("Aktivér valgt scenarie"))).toBe(true);
     expect(columns[1].textContent).toContain("Station A");
-    expect(columns[1].textContent).toContain("Nødvendige stewards: 2");
+    expect(columns[1].textContent).toContain("1 station · 2 stewards");
     expect(columns[1].textContent).not.toContain("Placering:");
     expect(columns[1].textContent).not.toMatch(
       /\d+\/\d+|på stationen|på vej|Mangler|Fuldt bemandet/,

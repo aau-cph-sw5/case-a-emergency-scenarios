@@ -76,22 +76,17 @@ export default function ScenarioStationList(props: Props) {
         operatorLayout && props.mode !== "needed-only" ? undefined : (
           <View style={styles.header}>
             {operatorLayout ? (
-              <View testID="staffing-plan-summary" style={styles.planSummary}>
-                <View style={styles.planSummaryRow}>
-                  <Text style={styles.planSummaryText}>
-                    Påvirkede stationer:{" "}
-                  </Text>
-                  <Text style={styles.planSummaryText}>{stations.length}</Text>
-                </View>
-                <View
-                  style={[styles.planSummaryRow, styles.planSummaryDivider]}
-                >
-                  <Text style={styles.planSummaryText}>
-                    Nødvendige stewards:{" "}
-                  </Text>
-                  <Text style={styles.planSummaryText}>{needed}</Text>
-                </View>
-              </View>
+              // One line, numbers first, so it reads at a glance.
+              <Text
+                testID="staffing-plan-summary"
+                accessibilityLabel={`${stations.length} påvirkede stationer, ${needed} stewards kræves`}
+                style={styles.planSummary}
+              >
+                <Text style={styles.planSummaryNumber}>{stations.length}</Text>
+                {stations.length === 1 ? " station" : " stationer"} ·{" "}
+                <Text style={styles.planSummaryNumber}>{needed}</Text>
+                {needed === 1 ? " steward" : " stewards"}
+              </Text>
             ) : (
               <View style={styles.titleLine}>
                 <Text style={styles.title}>
@@ -158,26 +153,10 @@ const styles = StyleSheet.create({
   badge,
   small: text.small,
   planSummary: {
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 9,
-    backgroundColor: colors.blockedTrack,
-    overflow: "hidden",
-    marginBottom: 22,
-  },
-  planSummaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-  },
-  planSummaryDivider: { borderTopWidth: 1, borderTopColor: colors.textInverse },
-  planSummaryText: {
-    color: colors.textInverse,
-    fontSize: 13,
+    color: colors.blockedTrack,
+    fontSize: 15,
     fontWeight: "700",
-    flexShrink: 1,
+    marginBottom: 14,
   },
+  planSummaryNumber: { fontSize: 24 },
 });
