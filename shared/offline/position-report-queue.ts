@@ -63,16 +63,17 @@ export function createPositionReportQueueStore(storage: SnapshotStorage) {
 
   async function readQueue(): Promise<QueuedPositionReport[]> {
     const raw = await storage.getItem(POSITION_REPORT_QUEUE_KEY);
+    if (raw === null) return [];
 
-    if (raw === null) return []; //if there is no data in storage, return an empty array
-
-    const parsed: unknown = JSON.parse(raw); //parse the raw data from storage into a JavaScript object
-
-    if (!Array.isArray(parsed) || !parsed.every(isQueuedReport)) {
-      throw new Error("Invalid stored position report queue");
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return []; // unreadable text: start over instead of blocking new reports
     }
 
-    return parsed;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isQueuedReport); // keep valid reports, skip broken ones
   }
 
   async function saveQueue(reports: QueuedPositionReport[]): Promise<void> {
