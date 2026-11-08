@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { card, colors, text } from "../Theme";
 import type { Scenario } from "../types/v1/scenario";
 import { getStationState, type ActiveDeployments } from "./stationState";
@@ -95,13 +96,20 @@ function PreviewStationRow({
 
 type SlotStatus = "MANNED" | "PENDING" | "UNMANNED";
 
-const SLOT_COLOR: Record<SlotStatus, string> = {
-  MANNED: colors.statusGreen,
-  PENDING: colors.statusYellow,
-  UNMANNED: colors.statusRed,
+// A symbol per status, so the slots also read without the colours: a cross for
+// missing, an arrow for on the way, a tick for arrived. They sit on white, which
+// holds 4.5:1 against all three, and yellow uses its darker shade for the same
+// reason.
+const SLOT_SYMBOL: Record<SlotStatus, { color: string; path: string }> = {
+  MANNED: { color: colors.statusGreen, path: "M3 8.5 6.5 12 13 4.5" },
+  PENDING: {
+    color: colors.statusYellowText,
+    path: "M2.5 8h11M9 3.5 13.5 8 9 12.5",
+  },
+  UNMANNED: { color: colors.statusRed, path: "M4 4l8 8M12 4l-8 8" },
 };
 
-// One slot per required steward, so the colours read without the numbers.
+// One slot per required steward, so the coverage reads without the numbers.
 function Slots({
   statuses,
   label,
@@ -117,11 +125,18 @@ function Slots({
       style={styles.slots}
     >
       {statuses.map((status, index) => (
-        <View
-          key={index}
-          testID={`station-slot-${status}`}
-          style={[styles.slot, { backgroundColor: SLOT_COLOR[status] }]}
-        />
+        <View key={index} testID={`station-slot-${status}`} style={styles.slot}>
+          <Svg width={16} height={16} viewBox="0 0 16 16">
+            <Path
+              d={SLOT_SYMBOL[status].path}
+              fill="none"
+              stroke={SLOT_SYMBOL[status].color}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </View>
       ))}
     </View>
   );
@@ -304,5 +319,8 @@ const styles = StyleSheet.create({
     width: 30,
     height: 22,
     borderRadius: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.background,
   },
 });

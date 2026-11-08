@@ -175,7 +175,7 @@ describe("API-backed scenario preview", () => {
     expect(detailRequests()[0][1]?.headers).toEqual({
       Authorization: "Bearer operator-token",
     });
-    expect(container.querySelector("svg")).toBeNull();
+    expect(container.querySelector(".operator-map-frame svg")).toBeNull();
     expect(container.textContent).not.toContain("ID-123");
 
     await searchAndSelect(239);

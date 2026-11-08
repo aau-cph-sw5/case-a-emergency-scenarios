@@ -22,6 +22,12 @@ module.exports = {
     {
       preset: "jest-expo/web",
       testMatch: ["<rootDir>/tests/jest/**/*.web.test.[jt]s?(x)"],
+      // Same alias as web/vite.config.ts: react-native-web keeps the image
+      // registry react-native-svg looks up under its own name.
+      moduleNameMapper: {
+        "^@react-native/assets-registry/registry$":
+          "<rootDir>/node_modules/react-native-web/dist/modules/AssetRegistry",
+      },
       clearMocks: true,
     },
   ],

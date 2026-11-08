@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { describe, expect, it } from "@jest/globals";
 import { StyleSheet } from "react-native";
+import { Path } from "react-native-svg";
 import { colors } from "../../shared/Theme";
 import StationRow, {
   type StationRequirement,
@@ -50,7 +51,10 @@ describe("StationRow", () => {
     ]);
     expect(
       slots.map((slot) => StyleSheet.flatten(slot.props.style).backgroundColor),
-    ).toEqual([colors.statusGreen, colors.statusYellow, colors.statusRed]);
+    ).toEqual([colors.background, colors.background, colors.background]);
+    expect(
+      screen.UNSAFE_getAllByType(Path).map((symbol) => symbol.props.stroke),
+    ).toEqual([colors.statusGreen, colors.statusYellowText, colors.statusRed]);
     view.rerender(row("MANNED", "MANNED", "MANNED", "PENDING"));
     expect(screen.getAllByTestId(/^station-slot-/)).toHaveLength(3);
     expect(screen.getAllByTestId("station-slot-MANNED")).toHaveLength(3);
