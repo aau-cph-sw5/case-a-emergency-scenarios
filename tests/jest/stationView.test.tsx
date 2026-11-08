@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react-native";
 import { describe, expect, it } from "@jest/globals";
+import { StyleSheet } from "react-native";
+import { colors } from "../../shared/Theme";
 import ScenarioStationList from "../../shared/components/stationView";
 import type { ActiveDeployments } from "../../shared/components/stationState";
 import type { Scenario } from "../../shared/types/v1/scenario";
@@ -149,6 +151,59 @@ describe("ScenarioStationList", () => {
     ]);
     expect(screen.getByText("6")).toBeTruthy();
     expect(screen.getByText("2/6 stationer dækket")).toBeTruthy();
+  });
+
+  it("sorts the control room by colour: red, orange, yellow, green", () => {
+    const scenario = createScenario([
+      "Green",
+      "Yellow",
+      "Yellow with arrival",
+      "Orange with arrival",
+      "Orange on the way",
+      "Red",
+    ]);
+    for (const requirement of scenario.versions[0].stationRequirements) {
+      requirement.minimumStaffing = 2;
+    }
+    render(
+      <ScenarioStationList
+        scenario={scenario}
+        operatorLayout
+        activeDeployments={{
+          deployments: [
+            { fulfills: "Green", status: "MANNED" },
+            { fulfills: "Green", status: "MANNED" },
+            { fulfills: "Yellow", status: "PENDING" },
+            { fulfills: "Yellow", status: "PENDING" },
+            { fulfills: "Yellow with arrival", status: "MANNED" },
+            { fulfills: "Yellow with arrival", status: "PENDING" },
+            { fulfills: "Orange with arrival", status: "MANNED" },
+            { fulfills: "Orange on the way", status: "PENDING" },
+          ],
+        }}
+      />,
+    );
+
+    const rows = screen.getAllByTestId("operator-station-row");
+    expect(rows.map((row) => row.props.accessibilityLabel)).toEqual([
+      "Red: 0 af 2 ankommet",
+      // Within a colour the fewest arrived come first.
+      "Orange on the way: 0 af 2 ankommet",
+      "Orange with arrival: 1 af 2 ankommet",
+      "Yellow: 0 af 2 ankommet",
+      "Yellow with arrival: 1 af 2 ankommet",
+      "Green: 2 af 2 ankommet",
+    ]);
+    expect(
+      rows.map((row) => StyleSheet.flatten(row.props.style).backgroundColor),
+    ).toEqual([
+      colors.coverageNone,
+      colors.coveragePartial,
+      colors.coveragePartial,
+      colors.coverageEnRoute,
+      colors.coverageEnRoute,
+      colors.coverageFull,
+    ]);
   });
 
   it("shows the empty state when the current scenario version is missing", () => {

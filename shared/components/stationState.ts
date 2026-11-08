@@ -47,6 +47,27 @@ export function coverageShare(
   return Math.min(current, needed) / needed;
 }
 
+// The station's colour in the control room, read from its slots: red when all
+// are red, orange when only some are, yellow when none are red but some are
+// yellow, green when all are green. Listed most urgent first.
+export const COVERAGE_TONES = ["NONE", "PARTIAL", "EN_ROUTE", "FULL"] as const;
+export type CoverageTone = (typeof COVERAGE_TONES)[number];
+
+export function coverageTone(
+  scenario: ActiveDeployments,
+  requirement: Pick<StationRequirement, "station" | "minimumStaffing">,
+): CoverageTone {
+  const needed = requirement.minimumStaffing;
+  const { current, enRoute } = getStationState(
+    scenario,
+    requirement.station,
+    needed,
+  );
+  if (current >= needed) return "FULL";
+  if (current + enRoute >= needed) return "EN_ROUTE";
+  return current + enRoute === 0 ? "NONE" : "PARTIAL";
+}
+
 // Stewards across every required station, for the totals in the header.
 // A station counts at most as many arrived stewards as it needs, so an extra
 // steward at one station does not hide a missing one at another.

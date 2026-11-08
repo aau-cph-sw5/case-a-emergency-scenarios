@@ -2,9 +2,11 @@ import { FlatList, StyleSheet, Text, View } from "react-native";
 import { badge, colors, text } from "../Theme";
 import type { Scenario } from "../types/v1/scenario";
 import {
+  COVERAGE_TONES,
   countManned,
   countStewards,
   coverageShare,
+  coverageTone,
   type ActiveDeployments,
 } from "./stationState";
 import StationRow from "./stationRow";
@@ -36,20 +38,30 @@ export default function ScenarioStationList(props: Props) {
   );
   const requirements = version?.stationRequirements ?? [];
 
-  // Worst covered first, so the stations that need help are at the top.
-  // Stations covered equally keep the Metro line order. Each share is
-  // computed once, not on every comparison the sort makes.
+  // Worst covered first, so the stations that need help are at the top. The
+  // control room sorts by colour first: red, orange, yellow, green. Stations
+  // covered equally keep the Metro line order. Each value is computed once, not
+  // on every comparison the sort makes.
   const rank = (station: string) =>
     STATION_RANK.get(station) ?? Number.MAX_SAFE_INTEGER;
   const stations = requirements
     .map((r) => ({
       r,
+      tone:
+        props.mode !== "needed-only" && props.operatorLayout
+          ? COVERAGE_TONES.indexOf(coverageTone(props.activeDeployments, r))
+          : 0,
       share:
         props.mode === "needed-only"
           ? 0
           : coverageShare(props.activeDeployments, r),
     }))
-    .sort((a, b) => a.share - b.share || rank(a.r.station) - rank(b.r.station))
+    .sort(
+      (a, b) =>
+        a.tone - b.tone ||
+        a.share - b.share ||
+        rank(a.r.station) - rank(b.r.station),
+    )
     .map(({ r }) => r);
 
   const coveredCount =

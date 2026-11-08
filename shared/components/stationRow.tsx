@@ -3,7 +3,12 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { card, colors, text } from "../Theme";
 import type { Scenario } from "../types/v1/scenario";
-import { getStationState, type ActiveDeployments } from "./stationState";
+import {
+  coverageTone,
+  getStationState,
+  type ActiveDeployments,
+  type CoverageTone,
+} from "./stationState";
 
 export type StationRequirement =
   Scenario["versions"][number]["stationRequirements"][number];
@@ -142,14 +147,13 @@ function Slots({
   );
 }
 
-// The row's background in the control room: red with nobody coming, orange
-// while some are missing, yellow when the rest are on the way, green when
-// everyone has arrived.
-function coverageTint(arrived: number, enRoute: number, needed: number) {
-  if (arrived >= needed) return colors.coverageFull;
-  if (arrived + enRoute >= needed) return colors.coverageEnRoute;
-  return arrived + enRoute === 0 ? colors.coverageNone : colors.coveragePartial;
-}
+// The row's background in the control room.
+const COVERAGE_TINT: Record<CoverageTone, string> = {
+  NONE: colors.coverageNone,
+  PARTIAL: colors.coveragePartial,
+  EN_ROUTE: colors.coverageEnRoute,
+  FULL: colors.coverageFull,
+};
 
 // The control room's row: the station and its slots on a tinted background,
 // with the counts, placement and actions behind a press.
@@ -186,7 +190,10 @@ function OperatorStationRow({
       onPress={() => setOpen(!open)}
       style={[
         styles.tinted,
-        { backgroundColor: coverageTint(current, enRoute, needed) },
+        {
+          backgroundColor:
+            COVERAGE_TINT[coverageTone(deployments, requirement)],
+        },
       ]}
     >
       <View style={styles.line}>
