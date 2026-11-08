@@ -291,4 +291,42 @@ describe("useScenario", () => {
     );
     expect(scenarioMock).toHaveBeenCalledTimes(2);
   });
+
+  // The dashboard was offline when the scenario was chosen, so the map showed
+  // the whole network and stayed that way after reconnecting (#310).
+  it("loads a scenario again that failed while disconnected, once reconnected", async () => {
+    scenarioMock
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(scenario("DEMO-001"));
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    activationsMock.mockResolvedValue([]);
+    const { socket, fire } = fakeSocket();
+
+    const { result } = renderHook(() => useScenario("DEMO-001"), {
+      wrapper: wrapperFor(socket),
+    });
+    await fire("disconnect");
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+
+    await fire("connect");
+    await waitFor(() =>
+      expect(result.current.scenario?.scenarioId).toBe("DEMO-001"),
+    );
+    expect(scenarioMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not ask again for a scenario that failed while connected", async () => {
+    scenarioMock.mockRejectedValue(new Error("not found"));
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    activationsMock.mockResolvedValue([]);
+    const { socket } = fakeSocket();
+
+    const { result } = renderHook(() => useScenario("DEMO-404"), {
+      wrapper: wrapperFor(socket),
+    });
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    await act(async () => {});
+
+    expect(scenarioMock).toHaveBeenCalledTimes(1);
+  });
 });
