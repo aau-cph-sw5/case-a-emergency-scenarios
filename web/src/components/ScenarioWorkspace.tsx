@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactElement, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ScenarioList } from "../ScenarioList";
 import { useLiveData } from "../data/liveData";
 import { useScenario } from "../data/useScenario";
@@ -23,6 +24,10 @@ export function ScenarioWorkspace({
   const { activations } = useLiveData();
   const [lineControlsTarget, setLineControlsTarget] =
     useState<HTMLDivElement | null>(null);
+  const [coverageSummaryTarget, setCoverageSummaryTarget] =
+    useState<HTMLDivElement | null>(null);
+  const inCoverageHeader = (summary: ReactElement) =>
+    coverageSummaryTarget && createPortal(summary, coverageSummaryTarget);
   const isActive =
     selectedId !== null && activations.some((a) => a.scenarioId === selectedId);
   const previewId = isActive ? null : selectedId;
@@ -59,11 +64,19 @@ export function ScenarioWorkspace({
           scenario={isActive ? undefined : scenario}
         />
       }
+      coverageSummary={<div ref={setCoverageSummaryTarget} />}
       coverage={
         <>
-          {hasActiveScenario && <LiveCoverage />}
+          {hasActiveScenario && (
+            <LiveCoverage renderSummary={inCoverageHeader} />
+          )}
+          {/* While switching, the live scenario keeps the header. */}
           {(!hasActiveScenario || previewId !== null) && (
-            <ScenarioPreview scenarioId={previewId} preview={preview} />
+            <ScenarioPreview
+              scenarioId={previewId}
+              preview={preview}
+              renderSummary={hasActiveScenario ? undefined : inCoverageHeader}
+            />
           )}
         </>
       }

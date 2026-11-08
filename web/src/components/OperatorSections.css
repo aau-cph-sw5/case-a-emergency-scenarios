@@ -179,7 +179,7 @@ body {
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: -0.5px;
-  margin: 0 0 16px;
+  margin: 0;
 }
 .scenario-picker label {
   font-size: 11px;
@@ -544,9 +544,42 @@ body {
   gap: 16px;
 }
 .operator-coverage-content {
-  padding: 20px 18px;
-  min-height: 0;
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+/* The heading and summary stay put; the rows fade out as they scroll under. */
+.coverage-header {
+  position: relative;
+  z-index: 1; /* above the rows, which are positioned too */
+  flex: none;
+  display: grid;
+  gap: 8px;
+  padding: 20px 18px 12px;
+  border-bottom: 1px solid #ddd;
+  border-radius: 15px 15px 0 0;
+  background: white;
+}
+.coverage-header::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 20px;
+  margin-top: 1px;
+  background: linear-gradient(white, transparent);
+  pointer-events: none;
+}
+.coverage-header > div:empty {
+  display: none;
+}
+.coverage-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 20px 18px;
   overflow: auto;
   scrollbar-width: thin;
 }
@@ -601,7 +634,7 @@ body {
   line-height: 1.7;
   color: var(--operator-muted);
 }
-.operator-coverage-content > div + .scenario-preview {
+.coverage-scroll > div + .scenario-preview {
   margin-top: 22px;
   border-top: 1px solid #ddd;
   padding-top: 18px;
@@ -790,6 +823,14 @@ body {
   }
   .operator-coverage-content {
     flex: none;
+    overflow: visible;
+  }
+  /* The page scrolls here, so the header sticks to the window instead. */
+  .coverage-header {
+    position: sticky;
+    top: 0;
+  }
+  .coverage-scroll {
     overflow: visible;
   }
   .operator-status-log {

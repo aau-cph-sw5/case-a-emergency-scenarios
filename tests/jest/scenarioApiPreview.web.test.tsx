@@ -165,7 +165,9 @@ describe("API-backed scenario preview", () => {
     const preview = container.querySelector(".scenario-preview")!;
     expect(preview.textContent).toContain("API-STATION-221");
     expect(preview.textContent).not.toContain("Placering:");
-    expect(preview.textContent).toContain("1 station · 7 stewards");
+    expect(container.querySelector(".coverage-header")!.textContent).toContain(
+      "1 station · 7 stewards",
+    );
     expect(preview.textContent).not.toContain("Old placement");
     expect(jest.mocked(MetroMap).mock.lastCall?.[0].scenario).toEqual(
       detail(221),

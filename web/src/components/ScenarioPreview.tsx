@@ -1,12 +1,15 @@
+import type { ReactElement, ReactNode } from "react";
 import ScenarioStationList from "../../../shared/components/stationView";
 import type { useScenario } from "../data/useScenario";
 
 export function ScenarioPreview({
   scenarioId,
   preview,
+  renderSummary,
 }: {
   scenarioId: string | null;
   preview: ReturnType<typeof useScenario>;
+  renderSummary?: (summary: ReactElement) => ReactNode;
 }) {
   // The shared loader also serves live coverage and the future map (#183).
   // useScenario ignores answers for a selection the operator has left.
@@ -27,7 +30,12 @@ export function ScenarioPreview({
         </>
       )}
       {scenario !== null && (
-        <ScenarioStationList scenario={scenario} mode="needed-only" compact />
+        <ScenarioStationList
+          scenario={scenario}
+          mode="needed-only"
+          compact
+          renderSummary={renderSummary}
+        />
       )}
     </section>
   );

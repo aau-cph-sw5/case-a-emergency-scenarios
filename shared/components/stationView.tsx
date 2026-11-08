@@ -1,3 +1,4 @@
+import type { ReactElement, ReactNode } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { badge, colors, text } from "../Theme";
 import type { Scenario } from "../types/v1/scenario";
@@ -22,13 +23,23 @@ const STATION_RANK = new Map(
   STATION_ORDER.map((station, index) => [station, index]),
 );
 
+// Lets the control room show the summary line somewhere else than above the
+// rows, so it stays put while they scroll.
+type RenderSummary = (summary: ReactElement) => ReactNode;
+
 type Props =
-  | { scenario: Scenario; mode: "needed-only"; compact?: boolean }
+  | {
+      scenario: Scenario;
+      mode: "needed-only";
+      compact?: boolean;
+      renderSummary?: RenderSummary;
+    }
   | {
       scenario: Scenario;
       mode?: "live-coverage";
       activeDeployments: ActiveDeployments;
       operatorLayout?: boolean;
+      renderSummary?: RenderSummary;
     };
 
 export default function ScenarioStationList(props: Props) {
@@ -80,41 +91,47 @@ export default function ScenarioStationList(props: Props) {
     return <Text style={styles.small}>Scenariet kræver ingen stationer.</Text>;
   }
 
+  const summary =
+    coveredCount === null || stewards === null ? (
+      // One line, numbers first, so it reads at a glance.
+      <Text
+        testID="staffing-plan-summary"
+        accessibilityLabel={`${stations.length} påvirkede stationer, ${needed} stewards kræves`}
+        style={styles.planSummary}
+      >
+        <Text style={styles.planSummaryNumber}>{stations.length}</Text>
+        {stations.length === 1 ? " station" : " stationer"} ·{" "}
+        <Text style={styles.planSummaryNumber}>{needed}</Text>
+        {needed === 1 ? " steward" : " stewards"}
+      </Text>
+    ) : (
+      // While live the same line counts up: covered and arrived first.
+      <Text
+        testID="staffing-plan-summary"
+        accessibilityLabel={`${coveredCount} af ${stations.length} stationer dækket, ${stewards.arrived} af ${stewards.needed} stewards ankommet`}
+        style={styles.planSummary}
+      >
+        <Text style={styles.planSummaryNumber}>{coveredCount}</Text>/
+        {stations.length}
+        {stations.length === 1 ? " station" : " stationer"} ·{" "}
+        <Text style={styles.planSummaryNumber}>{stewards.arrived}</Text>/
+        {stewards.needed}
+        {stewards.needed === 1 ? " steward" : " stewards"}
+      </Text>
+    );
+
   return (
     <FlatList
       data={stations}
       keyExtractor={(item) => item.station}
       ListHeaderComponent={
         operatorLayout ? (
-          <View style={styles.header}>
-            {coveredCount === null || stewards === null ? (
-              // One line, numbers first, so it reads at a glance.
-              <Text
-                testID="staffing-plan-summary"
-                accessibilityLabel={`${stations.length} påvirkede stationer, ${needed} stewards kræves`}
-                style={styles.planSummary}
-              >
-                <Text style={styles.planSummaryNumber}>{stations.length}</Text>
-                {stations.length === 1 ? " station" : " stationer"} ·{" "}
-                <Text style={styles.planSummaryNumber}>{needed}</Text>
-                {needed === 1 ? " steward" : " stewards"}
-              </Text>
-            ) : (
-              // While live the same line counts up: covered and arrived first.
-              <Text
-                testID="staffing-plan-summary"
-                accessibilityLabel={`${coveredCount} af ${stations.length} stationer dækket, ${stewards.arrived} af ${stewards.needed} stewards ankommet`}
-                style={styles.planSummary}
-              >
-                <Text style={styles.planSummaryNumber}>{coveredCount}</Text>/
-                {stations.length}
-                {stations.length === 1 ? " station" : " stationer"} ·{" "}
-                <Text style={styles.planSummaryNumber}>{stewards.arrived}</Text>
-                /{stewards.needed}
-                {stewards.needed === 1 ? " steward" : " stewards"}
-              </Text>
-            )}
-          </View>
+          props.renderSummary ? (
+            // In a fragment, because FlatList only takes an element here.
+            <>{props.renderSummary(summary)}</>
+          ) : (
+            <View style={styles.summaryHeader}>{summary}</View>
+          )
         ) : (
           <View style={styles.header}>
             <View style={styles.titleLine}>
@@ -169,6 +186,7 @@ export default function ScenarioStationList(props: Props) {
 
 const styles = StyleSheet.create({
   header: { marginBottom: 8, gap: 2 },
+  summaryHeader: { marginBottom: 22 },
   titleLine: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -182,7 +200,6 @@ const styles = StyleSheet.create({
     color: colors.blockedTrack,
     fontSize: 15,
     fontWeight: "700",
-    marginBottom: 14,
   },
   planSummaryNumber: { fontSize: 24 },
 });

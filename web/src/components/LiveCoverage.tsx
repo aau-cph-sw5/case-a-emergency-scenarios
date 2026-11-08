@@ -1,3 +1,4 @@
+import type { ReactElement, ReactNode } from "react";
 import { Text, View } from "react-native";
 import { text } from "../../../shared/Theme";
 import ScenarioStationList from "../../../shared/components/stationView";
@@ -7,7 +8,11 @@ import { useScenario } from "../data/useScenario";
 // The station coverage of the active scenario (MET-A-011, #184). It reads
 // only from the data layer, which loads again on "activations-changed" and on
 // reconnect, so a new position report updates the list without a refresh.
-export function LiveCoverage() {
+export function LiveCoverage({
+  renderSummary,
+}: {
+  renderSummary?: (summary: ReactElement) => ReactNode;
+}) {
   const {
     activations,
     isConnected,
@@ -54,6 +59,7 @@ export function LiveCoverage() {
         scenario={scenario}
         activeDeployments={active}
         operatorLayout
+        renderSummary={renderSummary}
       />
     </View>
   );

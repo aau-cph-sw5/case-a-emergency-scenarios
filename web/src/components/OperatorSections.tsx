@@ -7,12 +7,14 @@ export function OperatorSections({
   scenarioSelection,
   map,
   coverage,
+  coverageSummary,
   mapControls,
   statusLog,
 }: {
   scenarioSelection: ReactNode;
   map: ReactNode;
   coverage: ReactNode;
+  coverageSummary?: ReactNode;
   mapControls?: ReactNode;
   statusLog?: ReactNode;
 }) {
@@ -39,8 +41,11 @@ export function OperatorSections({
         aria-label="Steward coverage"
       >
         <div className="operator-coverage-content">
-          <h2 className="coverage-heading">Bemandingsplan</h2>
-          {coverage}
+          <div className="coverage-header">
+            <h2 className="coverage-heading">Bemandingsplan</h2>
+            {coverageSummary}
+          </div>
+          <div className="coverage-scroll">{coverage}</div>
         </div>
         {statusLog && <div className="operator-status-log">{statusLog}</div>}
       </section>
