@@ -19,16 +19,23 @@ const CONFIRM_SHARE = 0.85;
 // A slider the steward pushes to the right to confirm. Used where a single
 // tap would be too easy to make by mistake, such as confirming arrival.
 // Screen readers get the same action as a plain "activate".
+//
+// The slider keeps the gesture once it has started: a thumb that drifts up or
+// down while sliding would otherwise hand it to the surrounding ScrollView, so
+// the page scrolled and the knob sprang back. onSlidingChange tells the
+// screen when a slide starts and ends, so it can stop scrolling meanwhile.
 export function SlideToConfirm({
   label,
   color,
   disabled = false,
   onConfirm,
+  onSlidingChange,
 }: {
   label: string;
   color: string;
   disabled?: boolean;
   onConfirm: () => void;
+  onSlidingChange?: (sliding: boolean) => void;
 }) {
   const [trackWidth, setTrackWidth] = useState(0);
   const [offset] = useState(() => new Animated.Value(0));
@@ -37,11 +44,17 @@ export function SlideToConfirm({
   // Rebuilt when the width, the disabled state or the action changes, so the
   // gesture always uses the current values.
   const responder = useMemo(() => {
-    const reset = () =>
+    const reset = () => {
+      onSlidingChange?.(false);
       Animated.spring(offset, { toValue: 0, useNativeDriver: false }).start();
+    };
     return PanResponder.create({
       onStartShouldSetPanResponder: () => !disabled,
       onMoveShouldSetPanResponder: () => !disabled,
+      onPanResponderGrant: () => onSlidingChange?.(true),
+      // A ScrollView asks for the gesture when the thumb moves vertically.
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
       onPanResponderMove: (_event, gesture) => {
         offset.setValue(Math.min(Math.max(gesture.dx, 0), maxOffset));
       },
@@ -54,7 +67,7 @@ export function SlideToConfirm({
       },
       onPanResponderTerminate: reset,
     });
-  }, [disabled, maxOffset, offset, onConfirm]);
+  }, [disabled, maxOffset, offset, onConfirm, onSlidingChange]);
 
   return (
     <View

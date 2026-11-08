@@ -31,6 +31,7 @@ export function StewardStatusControl({
   onArrive,
   onCancel,
   onCheckOut,
+  onSlidingChange,
 }: {
   own: OwnStatus | null;
   coverage: StationCoverage | null;
@@ -41,6 +42,8 @@ export function StewardStatusControl({
   onArrive: () => void;
   onCancel: () => void;
   onCheckOut: () => void;
+  // Whether the arrival slide is being slid, so the screen can stop scrolling.
+  onSlidingChange?: (sliding: boolean) => void;
 }) {
   const pending = stewardStatus.PENDING;
   const manned = stewardStatus.MANNED;
@@ -173,6 +176,7 @@ export function StewardStatusControl({
             color={colors.statusGreen}
             disabled={disabled}
             onConfirm={onArrive}
+            onSlidingChange={onSlidingChange}
           />
           <Pressable
             accessibilityRole="button"
