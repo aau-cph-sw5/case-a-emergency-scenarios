@@ -23,7 +23,10 @@ import {
   affectedStretchAsMapLine,
   networkWithoutStretch,
 } from "../../../shared/scenario/affected-stations";
-import { getStationState } from "../../../shared/components/stationState";
+import {
+  getStationState,
+  stationCoverage,
+} from "../../../shared/components/stationState";
 import { zoomedViewBox } from "./map-zoom";
 import { findOwnAssignment } from "./own-assignment";
 
@@ -106,6 +109,13 @@ export function ScenarioOverview({
           showLineButtons={false}
           highlightStation={ownStation}
           highlightColor={OWN_COLOR}
+          // Every station the scenario needs staff at, coloured by how far it
+          // is covered right now, like the dashboard (MET-A-011, #310).
+          markedStations={rows.map((row) => row.station)}
+          requiredStaffing={Object.fromEntries(
+            rows.map((row) => [row.station, row.minimumStaffing]),
+          )}
+          stationCoverage={stationCoverage(rows, state)}
         />
       </View>
 
@@ -117,6 +127,13 @@ export function ScenarioOverview({
         <View style={styles.legend}>
           <View style={styles.legendDot} />
           <Text style={styles.body}>Din station</Text>
+        </View>
+      )}
+      {rows.length > 0 && (
+        <View style={styles.legend}>
+          <Text style={styles.body}>
+            Stationer: grøn er bemandet, gul delvist, rød mangler
+          </Text>
         </View>
       )}
 

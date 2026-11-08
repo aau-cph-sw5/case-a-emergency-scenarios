@@ -4,6 +4,7 @@ import {
   countStewards,
   coverageShare,
   getStationState,
+  stationCoverage,
 } from "../../shared/components/stationState";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
@@ -117,5 +118,36 @@ describe("coverageShare", () => {
         { station: "Station C", minimumStaffing: 0 },
       ),
     ).toBe(1);
+  });
+});
+
+// The map colours each required station like its coverage card (#310).
+describe("stationCoverage", () => {
+  const requirements = [
+    { station: "VAN", placement: "Platform", minimumStaffing: 1 },
+    { station: "FL", placement: "Platform", minimumStaffing: 2 },
+    { station: "LIT", placement: "Platform", minimumStaffing: 2 },
+  ];
+
+  it("is covered, partial or a gap by the stewards who have arrived", () => {
+    const deployments = [
+      createDeployment("VAN", "MANNED"),
+      createDeployment("FL", "MANNED"),
+      createDeployment("FL", "PENDING"),
+      createDeployment("LIT", "PENDING"),
+    ];
+    expect(stationCoverage(requirements, { deployments })).toEqual({
+      VAN: "covered",
+      FL: "partial",
+      LIT: "gap",
+    });
+  });
+
+  it("is a gap everywhere before anyone reports", () => {
+    expect(stationCoverage(requirements, { deployments: [] })).toEqual({
+      VAN: "gap",
+      FL: "gap",
+      LIT: "gap",
+    });
   });
 });

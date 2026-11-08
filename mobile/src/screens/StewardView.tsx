@@ -74,11 +74,14 @@ export function StewardView({
     const onChanged = () => void refresh();
     socket.on("scenario-activated", onChanged);
     socket.on("scenario-stood-down", onChanged);
+    // Another steward's report changed the coverage (#310).
+    socket.on("activations-changed", onChanged);
     socket.on("connect", onChanged);
     return () => {
       subscription.remove();
       socket.off("scenario-activated", onChanged);
       socket.off("scenario-stood-down", onChanged);
+      socket.off("activations-changed", onChanged);
       socket.off("connect", onChanged);
     };
   }, [refresh]);

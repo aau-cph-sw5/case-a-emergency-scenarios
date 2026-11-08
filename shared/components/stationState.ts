@@ -81,3 +81,30 @@ export function currentStations(
   );
   return version?.stationRequirements.map((r) => r.station) ?? [];
 }
+
+// How far each required station is covered right now (MET-A-011): every
+// steward arrived, some arrived or on the way, or nobody. The same rule as the
+// coverage cards, so the map and the cards always agree (#310).
+export type CoverageLevel = "covered" | "partial" | "gap";
+
+export function stationCoverage(
+  requirements: readonly StationRequirement[],
+  active: ActiveDeployments,
+): Record<string, CoverageLevel> {
+  return Object.fromEntries(
+    requirements.map((requirement) => {
+      const { current } = getStationState(
+        active,
+        requirement.station,
+        requirement.minimumStaffing,
+      );
+      const level: CoverageLevel =
+        current >= requirement.minimumStaffing
+          ? "covered"
+          : current === 0
+            ? "gap"
+            : "partial";
+      return [requirement.station, level];
+    }),
+  );
+}

@@ -16,6 +16,10 @@ import {
   linesThrough,
   requiredStations,
 } from "../../../shared/scenario/affected-stations";
+import {
+  stationCoverage,
+  type ActiveDeployments,
+} from "../../../shared/components/stationState";
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import { useScenario } from "../data/useScenario";
 
@@ -35,7 +39,10 @@ const lineColor = Object.fromEntries(
 // network when none of them is on the map. The stations its current version
 // needs staff at are marked. The view zooms to the covered stretch and every
 // marked station, so a marked station on another line stays in the frame.
-export function mapView(scenario: Scenario | null) {
+export function mapView(
+  scenario: Scenario | null,
+  deployments: ActiveDeployments | null = null,
+) {
   const stretch =
     scenario === null ? [] : affectedStretchAsMapLine(scenario).connections;
   const covered = linesThrough(network, stretch);
@@ -63,6 +70,10 @@ export function mapView(scenario: Scenario | null) {
         minimumStaffing,
       ]),
     ),
+    // Only for the active scenario: green, yellow or red per station, the
+    // same as its coverage card (MET-A-011, #310).
+    stationCoverage:
+      deployments === null ? {} : stationCoverage(requirements, deployments),
     // Undefined for the whole network, which keeps the map's own view.
     viewBox:
       covered.length > 0
@@ -75,10 +86,13 @@ export function MetroMap({
   scenarioId,
   scenario: previewScenario,
   lineControlsTarget,
+  deployments = null,
 }: {
   scenarioId: string | null;
   scenario?: Scenario | null;
   lineControlsTarget?: HTMLElement | null;
+  // The active activation's deployments, so the map follows the coverage.
+  deployments?: ActiveDeployments | null;
 }) {
   // While the scenario loads, or if it cannot be loaded, scenario is null and
   // the whole network is shown. The preview next to the map shows the error.
@@ -91,7 +105,7 @@ export function MetroMap({
     previewScenario === undefined ? loadedScenario : previewScenario;
   // Holds the scenario zoomed out from, so the next scenario zooms in again.
   const [zoomedOutOf, setZoomedOutOf] = useState<string | null>(null);
-  const view = mapView(scenario);
+  const view = mapView(scenario, deployments);
   const canZoom = view.viewBox !== undefined;
   const zoomedOut = canZoom && zoomedOutOf === scenarioId;
   return (
@@ -108,6 +122,9 @@ export function MetroMap({
           ]}
         >
           {scenario.name} · Tal på stationerne viser krævede stewards
+          {deployments !== null
+            ? " · Grøn: bemandet, gul: delvist, rød: mangler"
+            : ""}
         </Text>
       )}
       {canZoom && (
@@ -153,6 +170,7 @@ export function MetroMap({
           viewBox={zoomedOut ? undefined : view.viewBox}
           markedStations={view.markedStations}
           requiredStaffing={view.requiredStaffing}
+          stationCoverage={view.stationCoverage}
           highlightColor={theme.requiredStation}
           blockedTracks={scenario?.covers ?? []}
         />

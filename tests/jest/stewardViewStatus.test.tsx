@@ -11,6 +11,7 @@ import { sendPositionReport } from "../../mobile/src/api/position-report";
 import { ERROR_CODES } from "../../shared/error-codes";
 import { resetRememberedStatuses } from "../../mobile/src/data/steward-status";
 import { StewardView } from "../../mobile/src/screens/StewardView";
+import { socket } from "../../mobile/src/socket";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
 import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
@@ -264,5 +265,21 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
 
     expect(screen.queryByText("Rapportér position")).toBeNull();
     expect(screen.queryByText(/Vælg station/)).toBeNull();
+  });
+
+  // Another steward's report changes the coverage; the phone fetches the
+  // scenario again so its numbers and map follow (#310).
+  it("fetches the scenario again when the coverage changes", async () => {
+    showView({ status: "live", snapshot });
+    await renderView();
+
+    const on = socket.on as jest.Mock;
+    const handler = on.mock.calls.find(
+      ([name]) => name === "activations-changed",
+    )?.[1] as (() => void) | undefined;
+    expect(handler).toBeDefined();
+    refresh.mockClear();
+    await act(async () => handler?.());
+    expect(refresh).toHaveBeenCalled();
   });
 });
