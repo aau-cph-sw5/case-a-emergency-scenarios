@@ -76,7 +76,7 @@ test("permanently rejected report is retained for review but does not block late
     async (_token, report) => {
       sent.push(report.id);
       return report.id === first.id
-        ? { status: "rejected", httpStatus: 409, code: "E1006" }
+        ? { status: "rejected", httpStatus: 413 }
         : accepted;
     },
   );
@@ -88,9 +88,11 @@ test("permanently rejected report is retained for review but does not block late
   assert.equal(result.blockedBy, undefined);
   assert.deepEqual(await queue.getPending("steward-1"), []);
   const restored = createPositionReportQueueStore(storage);
-  assert.deepEqual(await restored.getRejected("steward-1"), [
-    { ...first, rejection: { httpStatus: 409, code: "E1006" } },
-  ]);
+  const expectedRejected = [{ ...first, rejection: { httpStatus: 413 } }];
+  assert.deepEqual(await restored.getRejected("steward-1"), expectedRejected);
+  await restored.enqueue(first);
+  assert.deepEqual(await restored.getRejected("steward-1"), expectedRejected);
+  assert.deepEqual(await restored.getPending("steward-1"), []);
   await delivery.flush("steward-1", "test-token");
   assert.deepEqual(sent, [first.id, second.id]);
 });

@@ -18,7 +18,7 @@ export type FlushResult = {
 
 // Only domain/validation 4xx failures are terminal. Authentication and rate
 // limiting failures must leave the queue intact for another attempt.
-const TERMINAL_HTTP_STATUSES = new Set([400, 404, 409, 422]);
+const RETRYABLE_HTTP_STATUSES = new Set([401, 403, 408, 429]);
 
 export function createPositionReportDelivery(
   queue: PositionReportQueueStore,
@@ -40,7 +40,9 @@ export function createPositionReportDelivery(
         acknowledged++;
       } else if (
         result.status === "rejected" &&
-        TERMINAL_HTTP_STATUSES.has(result.httpStatus)
+        result.httpStatus >= 400 &&
+        result.httpStatus < 500 &&
+        !RETRYABLE_HTTP_STATUSES.has(result.httpStatus)
       ) {
         const code =
           "code" in result && typeof result.code === "string"

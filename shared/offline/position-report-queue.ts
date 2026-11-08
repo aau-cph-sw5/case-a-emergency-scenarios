@@ -116,7 +116,9 @@ export function createPositionReportQueueStore(storage: SnapshotStorage) {
 
         if (existing) {
           //if a report with the same id already exists in the queue, check if it is the same as the new report
-          if (JSON.stringify(existing) !== JSON.stringify(report)) {
+          const existingReport = { ...existing };
+          delete existingReport.rejection;
+          if (JSON.stringify(existingReport) !== JSON.stringify(report)) {
             throw new Error("Report ID already used for different data");
           }
           return;
