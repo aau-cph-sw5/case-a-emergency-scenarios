@@ -58,4 +58,72 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
     render(<ScenarioOverview snapshot={snapshot} />);
     expect(screen.getByText("0 / 1")).toBeTruthy();
   });
+
+  // After checking out the steward has left the station; the row says so
+  // instead of "Din station" (#310).
+  describe("after checking out", () => {
+    // The server keeps the steward as staff on a checked-out deployment.
+    const checkedOut = buildSnapshot(
+      {
+        active: true,
+        state: {
+          ...(activeState as ScenarioState),
+          deployments: [
+            {
+              status: "CHECKED_OUT",
+              staff: "9",
+              fulfills: "Station B",
+              reportedAt: "2026-11-08T10:00:00Z",
+              arrivedAt: "2026-11-08T09:00:00Z",
+            },
+          ],
+        },
+        scenario: scenario as Scenario,
+      },
+      "9",
+      new Date(),
+    );
+
+    it("says the steward checked out instead of Din station", () => {
+      render(<ScenarioOverview snapshot={checkedOut} onAssign={jest.fn()} />);
+      expect(screen.queryByText("Din station")).toBeNull();
+      expect(screen.getByText("Tjekket ud herfra")).toBeTruthy();
+      expect(screen.getByText("Ingen opgave endnu")).toBeTruthy();
+      expect(
+        screen.getByLabelText("Meld dig på vej til Station B"),
+      ).toBeTruthy();
+    });
+
+    it("follows the app's check-out while the deployments still say arrived", () => {
+      const stillArrived = buildSnapshot(
+        {
+          active: true,
+          state: {
+            ...(activeState as ScenarioState),
+            deployments: [
+              {
+                status: "MANNED",
+                staff: "9",
+                fulfills: "Station B",
+                reportedAt: "2026-11-08T09:00:00Z",
+                arrivedAt: "2026-11-08T09:00:00Z",
+              },
+            ],
+          },
+          scenario: scenario as Scenario,
+        },
+        "9",
+        new Date(),
+      );
+      render(
+        <ScenarioOverview
+          snapshot={stillArrived}
+          onAssign={jest.fn()}
+          checkedOutStation="Station B"
+        />,
+      );
+      expect(screen.queryByText("Din station")).toBeNull();
+      expect(screen.getByText("Tjekket ud herfra")).toBeTruthy();
+    });
+  });
 });

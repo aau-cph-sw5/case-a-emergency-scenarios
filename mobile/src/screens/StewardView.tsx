@@ -255,6 +255,11 @@ export function StewardView({
             <ScenarioOverview
               snapshot={shown}
               assignedStation={ownStation}
+              checkedOutStation={
+                ownStatus?.status === "CHECKED_OUT"
+                  ? ownStatus.station
+                  : undefined
+              }
               onAssign={
                 canAssign
                   ? (station) => void changeStatus({ type: "assign", station })
