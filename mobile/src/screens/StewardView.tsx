@@ -6,18 +6,13 @@ import {
   StyleSheet,
   Text,
 } from "react-native";
-import {
-  currentStations,
-  getStationState,
-} from "../../../shared/components/stationState";
+import { getStationState } from "../../../shared/components/stationState";
 import { ERROR_CODES } from "../../../shared/error-codes";
 import { NO_COPY_MESSAGES } from "../../../shared/offline/copy-reason";
 import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import { colors, palette, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
-import { sendPositionReport } from "../api/position-report";
-import { StationPicker } from "../components/StationPicker";
 import { StewardStatusControl } from "../components/StewardStatusControl";
 import {
   stewardStatus,
@@ -61,8 +56,6 @@ export function StewardView({
     store: snapshotStore,
     onUnauthorized,
   });
-  const [station, setStation] = useState<string>("");
-  const [reportStatus, setReportStatus] = useState<string | null>(null);
   // The steward's own status in the active scenario (MET-A-015, #263).
   const [ownStatus, setOwnStatus] = useState<OwnStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -87,17 +80,6 @@ export function StewardView({
       socket.off("connect", onChanged);
     };
   }, [refresh]);
-
-  const live = view.status === "live" ? view.snapshot.scenario : null;
-
-  // A new scenario arriving with a new scenarioid clears the old station choice.
-  const scenarioId = live?.scenarioId;
-  const [shownScenarioId, setShownScenarioId] = useState(scenarioId);
-  if (scenarioId !== shownScenarioId) {
-    setShownScenarioId(scenarioId);
-    setStation("");
-    setReportStatus(null);
-  }
 
   // The status belongs to one steward in one activation. When either
   // changes, the old status is cleared and the current one is fetched, so a
@@ -138,16 +120,6 @@ export function StewardView({
       cancelled = true;
     };
   }, [token, activationId, userId, deployments]);
-
-  // The stations of the active scenario's current version, for the picker.
-  // Positions can only be reported while live.
-  const stations = live ? currentStations(live) : [];
-
-  // Reports the chosen station and shows the answer.
-  async function reportPosition() {
-    if (station === "") return;
-    setReportStatus((await sendPositionReport(token, station)).message);
-  }
 
   // Sends a status change and shows the answer. Going on the way is a
   // position report to the server (#268). Only while live: the saved copy
@@ -285,26 +257,6 @@ export function StewardView({
 
         {online && (
           <>
-            {stations.length > 0 && (
-              <>
-                <StationPicker
-                  stations={stations}
-                  selected={station}
-                  onSelect={setStation}
-                />
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={reportPosition}
-                  disabled={station === ""}
-                  style={styles.button}
-                >
-                  <Text style={styles.buttonText}>Rapportér position</Text>
-                </Pressable>
-                {reportStatus && <Text>{reportStatus}</Text>}
-              </>
-            )}
-
             <Text style={isConnected ? styles.ok : styles.offline}>
               Socket: {isConnected ? "connected" : "disconnected"}
             </Text>

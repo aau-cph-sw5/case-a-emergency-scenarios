@@ -255,4 +255,14 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(screen.queryByText("Positionen blev ikke modtaget.")).toBeNull();
     expect(refresh).toHaveBeenCalled();
   });
+
+  // + and the slide report the position, so the old picker and its button,
+  // which sent a report the status did not know about, are gone (#310).
+  it("has no separate station picker or Rapportér position button", async () => {
+    showView({ status: "live", snapshot });
+    await renderView();
+
+    expect(screen.queryByText("Rapportér position")).toBeNull();
+    expect(screen.queryByText(/Vælg station/)).toBeNull();
+  });
 });
