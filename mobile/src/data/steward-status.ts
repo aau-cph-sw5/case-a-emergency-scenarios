@@ -1,7 +1,9 @@
 import { ERROR_CODES } from "../../../shared/error-codes";
 import type { PositionReport } from "../../../shared/types/v1/position-report";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
+import type { Deployment } from "../../../shared/scenario/active-scenario";
 import { sendPositionReport } from "../api/position-report";
+import { findOwnAssignment } from "../screens/own-assignment";
 
 // A steward's status, as the contract names it (scenario-state.schema.json).
 // The app declares no status type of its own (MET-A-015).
@@ -39,7 +41,25 @@ export type StatusResult =
 // sent. There is no endpoint for the steward's latest report yet (#253), so
 // the last status is remembered in memory per steward per activation, which
 // survives logging out and in again.
-const remembered = new Map<string, OwnStatus>();
+//
+// The memory is lost on a reload, a restart or another phone, while the
+// server still knows the status (#310). Then the steward's own deployment
+// from the server, which #289 builds from the stored reports, is the status.
+// When the server refuses a change as not permitted (E1006), the memory is
+// out of date: it is forgotten, so the server's status is used again. No
+// status after cancelling is remembered as null, so an older copy of the
+// deployments does not bring the cancelled station back.
+const remembered = new Map<string, OwnStatus | null>();
+
+// The steward's status as the server has it, from their own deployment.
+export function serverStatus(
+  deployments: Deployment[] | undefined,
+  userId: string,
+): OwnStatus | null {
+  const own = findOwnAssignment(deployments ?? [], userId);
+  if (!own || own.status === "UNMANNED") return null;
+  return { station: own.fulfills, status: own.status };
+}
 
 const NOT_ALLOWED: Record<Exclude<StatusRequest["type"], "current">, string> = {
   assign: "Tjek ud fra din station, før du melder dig til en ny.",
@@ -55,9 +75,15 @@ export async function stewardStatus(
   activationId: ScenarioState["activationId"],
   userId: string,
   request: StatusRequest,
+  // The active scenario's deployments from the server, used when the app has
+  // not remembered a status (#310).
+  deployments?: Deployment[],
 ): Promise<StatusResult> {
   const key = `${activationId}/${userId}`;
-  const current = remembered.get(key);
+  const current =
+    (remembered.has(key)
+      ? remembered.get(key)
+      : serverStatus(deployments, userId)) ?? undefined;
 
   if (request.type === "current") {
     return { ok: true, own: current ?? null };
@@ -73,10 +99,18 @@ export async function stewardStatus(
   }
 
   const report = await sendPositionReport(token, change.station, change.event);
-  if (!report.ok) return { ok: false, message: report.message };
+  if (!report.ok) {
+    if (report.code === ERROR_CODES.INVALID_STATUS_TRANSITION) {
+      remembered.delete(key);
+    }
+    return {
+      ok: false,
+      message: report.message,
+      ...(report.code ? { code: report.code } : {}),
+    };
+  }
 
-  if (change.own === null) remembered.delete(key);
-  else remembered.set(key, change.own);
+  remembered.set(key, change.own);
   return { ok: true, own: change.own };
 }
 

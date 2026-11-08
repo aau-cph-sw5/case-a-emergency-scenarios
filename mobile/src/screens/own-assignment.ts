@@ -7,6 +7,10 @@ import type { Deployment } from "../../../shared/scenario/active-scenario";
 // userId is a numeric database id, so both sides are compared as text: 1 and
 // "1" are the same steward. The id comes from the offline copy, so this also
 // works without network.
+//
+// A checked-out deployment keeps its staff so the control room can see who was
+// there (#289). When the steward has gone on to another station, that newer
+// deployment is the one that counts, so one that is not checked out wins.
 export function findOwnAssignment(
   deployments: Deployment[],
   userId: string | number | null | undefined,
@@ -15,10 +19,13 @@ export function findOwnAssignment(
     return undefined;
   }
   const id = String(userId);
-  return deployments.find(
+  const own = deployments.filter(
     (deployment) =>
       deployment.staff !== null &&
       deployment.staff !== undefined &&
       String(deployment.staff) === id,
+  );
+  return (
+    own.find((deployment) => deployment.status !== "CHECKED_OUT") ?? own[0]
   );
 }

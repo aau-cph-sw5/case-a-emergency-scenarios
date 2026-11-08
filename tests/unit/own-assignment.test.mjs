@@ -49,3 +49,16 @@ test("does not match 0 against a deployment without staff", () => {
   const unmanned = [{ status: "UNMANNED", staff: null, fulfills: "KGN" }];
   assert.equal(findOwnAssignment(unmanned, 0), undefined);
 });
+
+// A checked-out deployment keeps its staff (#289); the newer one wins (#310).
+test("prefers a deployment that is not checked out", () => {
+  const movedOn = [
+    { status: "CHECKED_OUT", staff: "1", fulfills: "KN" },
+    { status: "PENDING", staff: "1", fulfills: "KGN" },
+  ];
+  assert.equal(findOwnAssignment(movedOn, 1)?.fulfills, "KGN");
+  const onlyCheckedOut = [
+    { status: "CHECKED_OUT", staff: "1", fulfills: "KN" },
+  ];
+  assert.equal(findOwnAssignment(onlyCheckedOut, 1)?.status, "CHECKED_OUT");
+});

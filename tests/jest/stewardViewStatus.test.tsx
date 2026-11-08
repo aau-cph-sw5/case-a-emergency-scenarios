@@ -8,6 +8,7 @@ import {
 } from "@jest/globals";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { sendPositionReport } from "../../mobile/src/api/position-report";
+import { ERROR_CODES } from "../../shared/error-codes";
 import { resetRememberedStatuses } from "../../mobile/src/data/steward-status";
 import { StewardView } from "../../mobile/src/screens/StewardView";
 import activeState from "../../fixtures/v1/scenario-state.json";
@@ -53,13 +54,38 @@ const snapshot = buildSnapshot(
   new Date(),
 );
 
+const refresh = jest.fn(async () => {});
+
 function showView(view: ReturnType<typeof useActiveScenario>["view"]) {
   activeScenario.mockReturnValue({
     view,
-    refresh: jest.fn(async () => {}),
+    refresh,
     dismissNotice: jest.fn(),
   } as unknown as ReturnType<typeof useActiveScenario>);
 }
+
+// The same scenario as the server sends it after steward 9 arrived at
+// Station B, while the app has nothing in memory (#310).
+const arrivedOnServer = buildSnapshot(
+  {
+    active: true,
+    state: {
+      ...(activeState as ScenarioState),
+      deployments: [
+        {
+          status: "MANNED",
+          staff: "9",
+          fulfills: "Station B",
+          reportedAt: "2026-11-08T10:00:00Z",
+          arrivedAt: "2026-11-08T10:00:00Z",
+        },
+      ],
+    },
+    scenario: scenario as Scenario,
+  },
+  "9",
+  new Date(),
+);
 
 async function renderView(online = true) {
   render(
@@ -78,7 +104,10 @@ beforeEach(() => {
   report.mockResolvedValue({ ok: true, message: "Position sendt: Station B" });
 });
 
-afterEach(() => resetRememberedStatuses());
+afterEach(() => {
+  resetRememberedStatuses();
+  refresh.mockClear();
+});
 
 describe("StewardView status (MET-A-015, #263, #305)", () => {
   it("goes from no status, via on the way and arrived, to checked out", async () => {
@@ -161,5 +190,69 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     ).toBeTruthy();
     expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
     expect(report).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's status after a reload instead of no status (#310)", async () => {
+    showView({ status: "live", snapshot: arrivedOnServer });
+    await renderView();
+
+    expect(screen.queryByText("Ingen status")).toBeNull();
+    expect(screen.getByText(/DU ER ANKOMMET/)).toBeTruthy();
+    expect(screen.getByText("TJEK UD")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("TJEK UD"));
+    });
+    expect(report).toHaveBeenLastCalledWith(
+      "token",
+      "Station B",
+      "CHECKED_OUT",
+    );
+  });
+
+  it("shows the slide for a steward the server has on the way (#310)", async () => {
+    // User 7 is on the way to Station B in the fixture.
+    const onTheWay = buildSnapshot(
+      {
+        active: true,
+        state: activeState as ScenarioState,
+        scenario: scenario as Scenario,
+      },
+      "7",
+      new Date(),
+    );
+    showView({ status: "live", snapshot: onTheWay });
+    await renderView();
+
+    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    expect(screen.getByTestId("slide-to-confirm")).toBeTruthy();
+  });
+
+  it("explains an E1006 refusal and fetches the scenario again (#310)", async () => {
+    showView({ status: "live", snapshot });
+    await renderView();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
+    });
+    report.mockResolvedValue({
+      ok: false,
+      message:
+        "Din status er ændret et andet sted. Vi henter din aktuelle status.",
+      code: ERROR_CODES.INVALID_STATUS_TRANSITION,
+    });
+
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+
+    expect(
+      screen.getByText(
+        "Din status er ændret et andet sted. Vi henter din aktuelle status.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("Positionen blev ikke modtaget.")).toBeNull();
+    expect(refresh).toHaveBeenCalled();
   });
 });

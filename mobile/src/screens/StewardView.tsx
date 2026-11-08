@@ -10,6 +10,7 @@ import {
   currentStations,
   getStationState,
 } from "../../../shared/components/stationState";
+import { ERROR_CODES } from "../../../shared/error-codes";
 import { NO_COPY_MESSAGES } from "../../../shared/offline/copy-reason";
 import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
@@ -117,18 +118,26 @@ export function StewardView({
     setOwnStatus(null);
     setStatusError(null);
   }
+  // The server's deployments are the status when the app has none in memory,
+  // e.g. after a reload or on another phone (#310), so a new fetch of the
+  // scenario asks again.
+  const deployments = shown?.state.deployments;
   useEffect(() => {
     if (activationId === undefined || userId === undefined) return;
     let cancelled = false;
-    void stewardStatus(token, activationId, userId, { type: "current" }).then(
-      (result) => {
-        if (!cancelled && result.ok) setOwnStatus(result.own);
-      },
-    );
+    void stewardStatus(
+      token,
+      activationId,
+      userId,
+      { type: "current" },
+      deployments,
+    ).then((result) => {
+      if (!cancelled && result.ok) setOwnStatus(result.own);
+    });
     return () => {
       cancelled = true;
     };
-  }, [token, activationId, userId]);
+  }, [token, activationId, userId, deployments]);
 
   // The stations of the active scenario's current version, for the picker.
   // Positions can only be reported while live.
@@ -155,9 +164,20 @@ export function StewardView({
     setSendingStatus(true);
     setStatusError(null);
     try {
-      const result = await stewardStatus(token, activationId, userId, change);
+      const result = await stewardStatus(
+        token,
+        activationId,
+        userId,
+        change,
+        deployments,
+      );
       if (result.ok) setOwnStatus(result.own);
       else setStatusError(result.message);
+      // The server has another status than the app (#310): fetch the
+      // scenario again, so the status above follows the server's.
+      if (!result.ok && result.code === ERROR_CODES.INVALID_STATUS_TRANSITION) {
+        void refresh();
+      }
     } finally {
       setSendingStatus(false);
     }

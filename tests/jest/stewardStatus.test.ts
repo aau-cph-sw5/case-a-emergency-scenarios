@@ -149,4 +149,67 @@ describe("stewardStatus (MET-A-015, #263, #305)", () => {
     expect(await current("8")).toEqual({ ok: true, own: null });
     expect(await current("7", 2)).toEqual({ ok: true, own: null });
   });
+
+  describe("the server's status when the app has none (#310)", () => {
+    const deployments = [
+      {
+        status: "MANNED" as const,
+        staff: "7",
+        fulfills: "Station B",
+        reportedAt: "2026-11-08T10:00:00Z",
+        arrivedAt: "2026-11-08T10:00:00Z",
+      },
+    ];
+    const withServer = (request: Parameters<typeof stewardStatus>[3]) =>
+      stewardStatus("token", 1, "7", request, deployments);
+
+    it("uses the steward's own deployment after a reload", async () => {
+      expect(await withServer({ type: "current" })).toEqual({
+        ok: true,
+        own: { station: "Station B", status: "MANNED" },
+      });
+    });
+
+    it("checks a change against the server's status", async () => {
+      expect(
+        await withServer({ type: "assign", station: "Station C" }),
+      ).toMatchObject({
+        ok: false,
+        code: ERROR_CODES.INVALID_STATUS_TRANSITION,
+      });
+      expect(report).not.toHaveBeenCalled();
+      await withServer({ type: "checkOut" });
+      expect(report).toHaveBeenLastCalledWith(
+        "token",
+        "Station B",
+        "CHECKED_OUT",
+      );
+    });
+
+    it("prefers what the app remembers over an older copy", async () => {
+      await assign("Station C");
+      await ask("cancel");
+      expect(await withServer({ type: "current" })).toEqual({
+        ok: true,
+        own: null,
+      });
+    });
+
+    it("forgets its memory when the server refuses with E1006", async () => {
+      await assign("Station C");
+      report.mockResolvedValue({
+        ok: false,
+        message: "Din status er ændret et andet sted.",
+        code: ERROR_CODES.INVALID_STATUS_TRANSITION,
+      });
+      expect(await ask("arrive")).toMatchObject({
+        ok: false,
+        code: ERROR_CODES.INVALID_STATUS_TRANSITION,
+      });
+      expect(await withServer({ type: "current" })).toEqual({
+        ok: true,
+        own: { station: "Station B", status: "MANNED" },
+      });
+    });
+  });
 });
