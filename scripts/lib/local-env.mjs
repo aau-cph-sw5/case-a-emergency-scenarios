@@ -261,10 +261,12 @@ export function seedDatabase() {
   // SEED_SCENARIOS_DIR from the same .env that `npm run seed` reads.
   const envFile = path.join(root, ".env");
   const env = existsSync(envFile) ? readFileSync(envFile, "utf8") : "";
-  const configured = /^SEED_SCENARIOS_DIR\s*=\s*(.*)$/m.exec(env)?.[1].trim();
+  const configured = /^SEED_SCENARIOS_DIR[ \t]*=[ \t]*(.*)$/m
+    .exec(env)?.[1]
+    .trim();
   const scenariosDir = configured ? path.resolve(root, configured) : undefined;
   // Setup only prepares the local database, so it never seeds another one.
-  if (/^SEED_DATABASE_URL\s*=\s*\S/m.test(env)) {
+  if (/^SEED_DATABASE_URL[ \t]*=[ \t]*\S/m.test(env)) {
     warn(
       "Skipped: SEED_DATABASE_URL is set in .env, so seeding would not go to the local database.",
     );
