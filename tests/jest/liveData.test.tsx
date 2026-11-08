@@ -41,10 +41,10 @@ function scenario(scenarioId: string): Scenario {
 }
 
 // Enough of a socket to register handlers and fire events by hand.
-function fakeSocket() {
+function fakeSocket(connected = true) {
   const handlers = new Map<string, Set<() => void>>();
   const socket = {
-    connected: true,
+    connected,
     on(event: string, handler: () => void) {
       if (!handlers.has(event)) handlers.set(event, new Set());
       handlers.get(event)!.add(handler);
@@ -324,6 +324,23 @@ describe("useScenario", () => {
     const { result } = renderHook(() => useScenario("DEMO-404"), {
       wrapper: wrapperFor(socket),
     });
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    await act(async () => {});
+
+    expect(scenarioMock).toHaveBeenCalledTimes(1);
+  });
+
+  // The socket is not connected yet when the page opens; that is no drop.
+  it("does not count opening the page as a drop", async () => {
+    scenarioMock.mockRejectedValue(new Error("not found"));
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    activationsMock.mockResolvedValue([]);
+    const { socket, fire } = fakeSocket(false);
+
+    const { result } = renderHook(() => useScenario("DEMO-404"), {
+      wrapper: wrapperFor(socket),
+    });
+    await fire("connect");
     await waitFor(() => expect(result.current.error).not.toBeNull());
     await act(async () => {});
 

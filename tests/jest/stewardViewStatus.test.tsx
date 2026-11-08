@@ -282,4 +282,57 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     await act(async () => handler?.());
     expect(refresh).toHaveBeenCalled();
   });
+
+  // The same login checked out on another phone. The next copy of the
+  // scenario must win over what this phone remembers (#310).
+  it("follows a change made on another phone with the same login", async () => {
+    showView({ status: "live", snapshot });
+    // A new element each time, so React renders again with the new copy.
+    const element = () => (
+      <StewardView
+        token="token"
+        online
+        onLogout={jest.fn()}
+        onUnauthorized={jest.fn()}
+      />
+    );
+    const view = render(element());
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
+    });
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+    expect(screen.getByText(/DU ER ANKOMMET/)).toBeTruthy();
+
+    const checkedOutElsewhere = buildSnapshot(
+      {
+        active: true,
+        state: {
+          ...(activeState as ScenarioState),
+          deployments: [
+            {
+              status: "CHECKED_OUT",
+              staff: "9",
+              fulfills: "Station B",
+              reportedAt: "2026-11-08T11:00:00Z",
+              arrivedAt: "2026-11-08T10:00:00Z",
+            },
+          ],
+        },
+        scenario: scenario as Scenario,
+      },
+      "9",
+      new Date(),
+    );
+    showView({ status: "live", snapshot: checkedOutElsewhere });
+    view.rerender(element());
+    await act(async () => {});
+
+    expect(screen.queryByText(/DU ER ANKOMMET/)).toBeNull();
+    expect(screen.getByText("Du er tjekket ud fra Station B.")).toBeTruthy();
+  });
 });

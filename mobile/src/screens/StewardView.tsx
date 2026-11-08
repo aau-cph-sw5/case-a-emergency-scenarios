@@ -105,9 +105,9 @@ export function StewardView({
     setOwnStatus(null);
     setStatusError(null);
   }
-  // The server's deployments are the status when the app has none in memory,
-  // e.g. after a reload or on another phone (#310), so a new fetch of the
-  // scenario asks again.
+  // Each new copy of the scenario carries the server's status, which replaces
+  // what the app remembers, e.g. after a reload or a change from another
+  // phone (#310).
   const deployments = shown?.state.deployments;
   useEffect(() => {
     if (activationId === undefined || userId === undefined) return;
@@ -150,8 +150,8 @@ export function StewardView({
       );
       if (result.ok) setOwnStatus(result.own);
       else setStatusError(result.message);
-      // The server has another status than the app (#310): fetch the
-      // scenario again, so the status above follows the server's.
+      // The server or the app's own check refused the change, so the app's
+      // status is out of date (#310): a new copy brings the server's.
       if (!result.ok && result.code === ERROR_CODES.INVALID_STATUS_TRANSITION) {
         void refresh();
       }

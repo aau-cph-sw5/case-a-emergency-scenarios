@@ -186,16 +186,22 @@ describe("stewardStatus (MET-A-015, #263, #305)", () => {
       );
     });
 
-    it("prefers what the app remembers over an older copy", async () => {
+    it("uses its own change until the next copy arrives", async () => {
       await assign("Station C");
-      await ask("cancel");
+      await withServer({ type: "arrive" });
+      expect(report).toHaveBeenLastCalledWith("token", "Station C", "ARRIVED");
+    });
+
+    // The same account changed status on another phone (#310).
+    it("takes a new copy from the server over what it remembers", async () => {
+      await assign("Station C");
       expect(await withServer({ type: "current" })).toEqual({
         ok: true,
-        own: null,
+        own: { station: "Station B", status: "MANNED" },
       });
     });
 
-    it("forgets its memory when the server refuses with E1006", async () => {
+    it("passes the server's refusal on, and the next copy corrects it", async () => {
       await assign("Station C");
       report.mockResolvedValue({
         ok: false,

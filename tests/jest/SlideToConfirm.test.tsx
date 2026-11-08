@@ -18,7 +18,7 @@ function renderSlider(disabled = false, onSlidingChange?: jest.Mock) {
     return create(config);
   });
   const onConfirm = jest.fn();
-  render(
+  const view = render(
     <SlideToConfirm
       label="GODKEND ANKOMST"
       color="green"
@@ -36,6 +36,7 @@ function renderSlider(disabled = false, onSlidingChange?: jest.Mock) {
   const gesture = (dx: number) => ({ dx }) as PanResponderGestureState;
   return {
     onConfirm,
+    unmount: () => view.unmount(),
     starts: () => latest().onStartShouldSetPanResponder?.(event, gesture(0)),
     moves: () => latest().onMoveShouldSetPanResponder?.(event, gesture(0)),
     keepsGesture: () =>
@@ -116,5 +117,16 @@ describe("SlideToConfirm (MET-A-015, #263)", () => {
     slider.drag(230);
     expect(sliding).toHaveBeenLastCalledWith(false);
     expect(slider.onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  // E.g. the scenario is stood down mid-swipe: no release arrives (#310).
+  it("lets the screen scroll again when it goes away mid-swipe", () => {
+    const sliding = jest.fn();
+    const slider = renderSlider(false, sliding);
+
+    slider.grant();
+    expect(sliding).toHaveBeenLastCalledWith(true);
+    slider.unmount();
+    expect(sliding).toHaveBeenLastCalledWith(false);
   });
 });

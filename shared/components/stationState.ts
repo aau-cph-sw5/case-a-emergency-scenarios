@@ -66,45 +66,28 @@ export function countStewards(
   return { arrived, enRoute, needed };
 }
 
-// The stations that require manning in the scenario's current version. Takes
-// only what it reads, so the steward's offline copy fits too.
-export function currentStations(
-  scenario: Pick<Scenario, "currentVersion"> & {
-    versions: Pick<
-      Scenario["versions"][number],
-      "version" | "stationRequirements"
-    >[];
-  },
-): string[] {
-  const version = scenario.versions.find(
-    (v) => v.version === scenario.currentVersion,
-  );
-  return version?.stationRequirements.map((r) => r.station) ?? [];
-}
-
-// How far each required station is covered right now (MET-A-011): every
-// steward arrived, some arrived or on the way, or nobody. The same rule as the
-// coverage cards, so the map and the cards always agree (#310).
+// How far a required station is covered right now (MET-A-011): every
+// steward needed has arrived, some have, or none has. Stewards on the way do
+// not count yet. The coverage cards and the maps both use this rule, so they
+// always agree (#310).
 export type CoverageLevel = "covered" | "partial" | "gap";
+
+export function coverageLevel(arrived: number, needed: number): CoverageLevel {
+  if (arrived >= needed) return "covered";
+  return arrived === 0 ? "gap" : "partial";
+}
 
 export function stationCoverage(
   requirements: readonly StationRequirement[],
   active: ActiveDeployments,
 ): Record<string, CoverageLevel> {
   return Object.fromEntries(
-    requirements.map((requirement) => {
-      const { current } = getStationState(
-        active,
-        requirement.station,
-        requirement.minimumStaffing,
-      );
-      const level: CoverageLevel =
-        current >= requirement.minimumStaffing
-          ? "covered"
-          : current === 0
-            ? "gap"
-            : "partial";
-      return [requirement.station, level];
-    }),
+    requirements.map(({ station, minimumStaffing }) => [
+      station,
+      coverageLevel(
+        getStationState(active, station, minimumStaffing).current,
+        minimumStaffing,
+      ),
+    ]),
   );
 }

@@ -50,6 +50,10 @@ export function StewardStatusControl({
   // After checking out the steward is free again, like with no status.
   const active = own !== null && own.status !== "CHECKED_OUT" ? own : null;
   const disabled = blockedReason !== null || sending;
+  // Arrived and task done are both at the station: the steward checks out
+  // from either (#310).
+  const atStation =
+    active?.status === "MANNED" || active?.status === "TASK_DONE";
 
   return (
     <View style={styles.container}>
@@ -114,14 +118,10 @@ export function StewardStatusControl({
               style={[
                 styles.chip,
                 {
-                  backgroundColor:
-                    active.status === "MANNED"
-                      ? colors.statusGreen
-                      : colors.statusYellow,
-                  color:
-                    active.status === "MANNED"
-                      ? colors.textInverse
-                      : colors.text,
+                  backgroundColor: atStation
+                    ? colors.statusGreen
+                    : colors.statusYellow,
+                  color: atStation ? colors.textInverse : colors.text,
                 },
               ]}
             >
@@ -163,7 +163,7 @@ export function StewardStatusControl({
           Forkert station? Tryk + ved den rigtige, eller fortryd.
         </Text>
       )}
-      {active?.status === "MANNED" && blockedReason === null && (
+      {atStation && blockedReason === null && (
         <Text style={styles.hint}>
           Tjek ud, når du forlader stationen. Så kan du melde dig til en ny.
         </Text>
@@ -190,7 +190,7 @@ export function StewardStatusControl({
         </>
       )}
 
-      {active?.status === "MANNED" && (
+      {atStation && (
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ disabled }}

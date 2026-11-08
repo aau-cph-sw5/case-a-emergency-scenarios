@@ -4,6 +4,7 @@ import {
   countStewards,
   coverageShare,
   getStationState,
+  coverageLevel,
   stationCoverage,
 } from "../../shared/components/stationState";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
@@ -149,5 +150,15 @@ describe("stationCoverage", () => {
       FL: "gap",
       LIT: "gap",
     });
+  });
+});
+
+// One rule for the cards and the maps (#310).
+describe("coverageLevel", () => {
+  it("is covered, partial or a gap by the stewards who have arrived", () => {
+    expect(coverageLevel(2, 2)).toBe("covered");
+    expect(coverageLevel(3, 2)).toBe("covered");
+    expect(coverageLevel(1, 2)).toBe("partial");
+    expect(coverageLevel(0, 2)).toBe("gap");
   });
 });

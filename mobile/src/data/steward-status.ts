@@ -42,13 +42,11 @@ export type StatusResult =
 // the last status is remembered in memory per steward per activation, which
 // survives logging out and in again.
 //
-// The memory is lost on a reload, a restart or another phone, while the
-// server still knows the status (#310). Then the steward's own deployment
-// from the server, which #289 builds from the stored reports, is the status.
-// When the server refuses a change as not permitted (E1006), the memory is
-// out of date: it is forgotten, so the server's status is used again. No
-// status after cancelling is remembered as null, so an older copy of the
-// deployments does not bring the cancelled station back.
+// The server's status wins whenever a new copy of the scenario arrives: the
+// steward's own deployment, which #289 builds from the stored reports. So a
+// reload, a restart or a change from another phone shows what the server has
+// (#310). The memory only bridges the time between the steward's own change
+// and the next copy, which the server announces with activations-changed.
 const remembered = new Map<string, OwnStatus | null>();
 
 // The steward's status as the server has it, from their own deployment.
@@ -75,11 +73,14 @@ export async function stewardStatus(
   activationId: ScenarioState["activationId"],
   userId: string,
   request: StatusRequest,
-  // The active scenario's deployments from the server, used when the app has
-  // not remembered a status (#310).
+  // The active scenario's deployments from the server. With "current" they
+  // are a new copy and replace what the app remembers (#310).
   deployments?: Deployment[],
 ): Promise<StatusResult> {
   const key = `${activationId}/${userId}`;
+  if (request.type === "current" && deployments !== undefined) {
+    remembered.set(key, serverStatus(deployments, userId));
+  }
   const current =
     (remembered.has(key)
       ? remembered.get(key)
@@ -100,9 +101,6 @@ export async function stewardStatus(
 
   const report = await sendPositionReport(token, change.station, change.event);
   if (!report.ok) {
-    if (report.code === ERROR_CODES.INVALID_STATUS_TRANSITION) {
-      remembered.delete(key);
-    }
     return {
       ok: false,
       message: report.message,

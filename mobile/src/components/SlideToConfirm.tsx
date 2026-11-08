@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Animated,
   PanResponder,
@@ -68,6 +68,10 @@ export function SlideToConfirm({
       onPanResponderTerminate: reset,
     });
   }, [disabled, maxOffset, offset, onConfirm, onSlidingChange]);
+
+  // A slider that goes away mid-swipe, e.g. when the scenario is stood down,
+  // gets no release, so it lets the screen scroll again here (#310).
+  useEffect(() => () => onSlidingChange?.(false), [onSlidingChange]);
 
   return (
     <View

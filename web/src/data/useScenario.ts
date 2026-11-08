@@ -52,12 +52,15 @@ export function useScenario(scenarioId: string | null): {
   // back counts too, since the drop is remembered until the next attempt.
   const failed =
     result !== null && "error" in result && result.scenarioId === scenarioId;
+  // The socket is not connected yet when the page opens; that is not a drop.
+  const connectedOnceRef = useRef(false);
   const droppedSinceAttemptRef = useRef(false);
   useEffect(() => {
     if (!live.isConnected) {
-      droppedSinceAttemptRef.current = true;
+      if (connectedOnceRef.current) droppedSinceAttemptRef.current = true;
       return;
     }
+    connectedOnceRef.current = true;
     if (failed && droppedSinceAttemptRef.current) {
       droppedSinceAttemptRef.current = false;
       retry();
