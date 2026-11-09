@@ -10,6 +10,7 @@ import {
   currentStations,
   getStationState,
 } from "../../../shared/components/stationState";
+import { userIdFromToken } from "../../../shared/auth/login";
 import { NO_COPY_MESSAGES } from "../../../shared/offline/copy-reason";
 import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
@@ -147,14 +148,15 @@ export function StewardView({
   }, [token, activationId, userId]);
 
   // Sends the queued reports and says what happened, null when nothing changed.
-  // blocked is true when reports are left on the phone because a send failed.
   const deliver = useCallback(async (): Promise<{
     message: string | null;
     blocked: boolean;
   }> => {
-    if (userId === undefined) return { message: null, blocked: false };
+    // From the token, since a stopped scenario leaves no snapshot.
+    const owner = userIdFromToken(token);
+    if (owner === null) return { message: null, blocked: false };
     try {
-      const result = await positionReportDelivery.flush(userId, token);
+      const result = await positionReportDelivery.flush(owner, token);
       const sent =
         result.pending > 0
           ? "Position gemt. Afventer levering."
@@ -180,11 +182,16 @@ export function StewardView({
         blocked: true,
       };
     }
-  }, [userId, token]);
+  }, [token]);
 
-  // Failed sends in a row while live; 0 means no retry is waiting.
+  // Failed sends in a row while online; 0 means no retry is waiting.
   const [retries, setRetries] = useState(0);
-  const canSend = online && view.status === "live";
+  // Also sends after a stop while offline, so the steward learns why reports were rejected.
+  const canSend =
+    online &&
+    (view.status === "live" ||
+      view.status === "stood-down" ||
+      view.status === "none");
   // Coming back online sends at once, not after the last retry delay.
   const [shownCanSend, setShownCanSend] = useState(canSend);
   if (canSend !== shownCanSend) {
@@ -203,7 +210,7 @@ export function StewardView({
     [deliver],
   );
 
-  // Delivers reports queued while offline as soon as the view is live again.
+  // Delivers reports queued while offline as soon as the phone is back online.
   useEffect(() => {
     if (!canSend) return;
     let cancelled = false;

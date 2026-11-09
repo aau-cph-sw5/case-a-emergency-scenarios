@@ -94,9 +94,7 @@ export function createPositionReportDelivery(
       const active = activeFlushes.get(userId);
       if (active === undefined) return start(userId, token);
 
-      // The running flush may have read the queue before this caller's report
-      // was added, so one more flush follows it. Callers that arrive in the
-      // meantime share that one.
+      // The running flush may have missed this caller's report, so one more follows it.
       const queued = nextFlushes.get(userId);
       if (queued !== undefined) return queued;
       const next = active

@@ -151,6 +151,29 @@ describe("StewardView superseded reports", () => {
     expect(flush).toHaveBeenCalledWith("7", token);
   });
 
+  it("tells the steward why a queued report was rejected when the scenario was stopped while offline", async () => {
+    flush.mockResolvedValue({
+      acknowledged: 0,
+      rejected: 1,
+      pending: 0,
+      superseded: [queued],
+    });
+    showView({ status: "copy", reason: "offline", snapshot });
+    const { rerender } = render(stewardView(false));
+    expect(flush).not.toHaveBeenCalled();
+
+    // Back online, no scenario is active any more.
+    showView({ status: "stood-down", scenarioName: "Demo" });
+    rerender(stewardView(true));
+
+    expect(
+      await screen.findByText(
+        "Din position ved Station B blev afvist, fordi scenariet blev stoppet eller skiftet, efter du sendte den.",
+      ),
+    ).toBeTruthy();
+    expect(flush).toHaveBeenCalledWith("7", token);
+  });
+
   it("queues the chosen station with its activation and sends it", async () => {
     queue.mockResolvedValue(queued);
     flush.mockResolvedValueOnce(nothingSent);
