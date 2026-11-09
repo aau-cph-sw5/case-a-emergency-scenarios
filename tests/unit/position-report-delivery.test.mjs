@@ -169,7 +169,43 @@ test("concurrent flushes do not send the same report twice", async () => {
   const [first, second] = await Promise.all([firstFlush, secondFlush]);
   assert.equal(sendCount, 1);
   assert.equal(first.acknowledged, 1);
+  // The second caller gets the follow-up flush, which finds nothing left to send.
+  assert.equal(second.acknowledged, 0);
+  assert.equal(second.pending, 0);
+  assert.deepEqual(await queue.getPending("steward-1"), []);
+});
+
+test("a report queued during a running flush is sent by the follow-up flush", async () => {
+  const queue = await queued([aReport("report-old")]);
+  const sent = [];
+  let finishDelivery;
+  const deliveryGate = new Promise((resolve) => {
+    finishDelivery = resolve;
+  });
+  const delivery = createPositionReportDelivery(queue, async (_token, item) => {
+    sent.push(item.id);
+    await deliveryGate;
+    return accepted;
+  });
+
+  const running = delivery.flush("steward-1", "test-token");
+  // The steward reports while the first flush is still sending.
+  await queue.enqueue(aReport("report-new"));
+  const following = delivery.flush("steward-1", "test-token");
+  const another = delivery.flush("steward-1", "test-token");
+  finishDelivery();
+
+  const [first, second, third] = await Promise.all([
+    running,
+    following,
+    another,
+  ]);
+  assert.deepEqual(sent, ["report-old", "report-new"]);
+  assert.equal(first.acknowledged, 1);
   assert.equal(second.acknowledged, 1);
+  assert.equal(second.pending, 0);
+  // Callers waiting for the follow-up share it instead of starting a third.
+  assert.equal(third, second);
   assert.deepEqual(await queue.getPending("steward-1"), []);
 });
 

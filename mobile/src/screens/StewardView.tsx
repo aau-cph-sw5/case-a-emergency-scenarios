@@ -37,6 +37,9 @@ import { ScenarioOverview } from "./ScenarioOverview";
 const STATUS_BLOCKED_OFFLINE =
   "Uden forbindelse kan din status ikke ændres. Du ser den gemte kopi.";
 
+// Waits before each new try after a send failed while live
+export const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
+
 // Tells the steward which queued reports were rejected because the scenario changed.
 export function supersededMessage(
   reports: FlushResult["superseded"],
@@ -144,8 +147,12 @@ export function StewardView({
   }, [token, activationId, userId]);
 
   // Sends the queued reports and says what happened, null when nothing changed.
-  const deliver = useCallback(async (): Promise<string | null> => {
-    if (userId === undefined) return null;
+  // blocked is true when reports are left on the phone because a send failed.
+  const deliver = useCallback(async (): Promise<{
+    message: string | null;
+    blocked: boolean;
+  }> => {
+    if (userId === undefined) return { message: null, blocked: false };
     try {
       const result = await positionReportDelivery.flush(userId, token);
       const sent =
@@ -163,24 +170,62 @@ export function StewardView({
         refused,
         sent,
       ].filter((line) => line !== null);
-      return lines.length > 0 ? lines.join("\n") : null;
+      return {
+        message: lines.length > 0 ? lines.join("\n") : null,
+        blocked: result.blockedBy !== undefined,
+      };
     } catch {
-      return "Position gemt på telefonen, men kunne ikke sendes endnu.";
+      return {
+        message: "Position gemt på telefonen, men kunne ikke sendes endnu.",
+        blocked: true,
+      };
     }
   }, [userId, token]);
 
-  // Delivers reports queued while offline as soon as the view is live again.
+  // Failed sends in a row while live; 0 means no retry is waiting.
+  const [retries, setRetries] = useState(0);
   const canSend = online && view.status === "live";
+  // Coming back online sends at once, not after the last retry delay.
+  const [shownCanSend, setShownCanSend] = useState(canSend);
+  if (canSend !== shownCanSend) {
+    setShownCanSend(canSend);
+    setRetries(0);
+  }
+
+  // Sends the queue and shows the answer; a failed send waits for another try.
+  const sendQueued = useCallback(
+    (isCancelled: () => boolean) =>
+      void deliver().then(({ message, blocked }) => {
+        if (isCancelled()) return;
+        if (message !== null) setReportStatus(message);
+        setRetries((count) => (blocked ? count + 1 : 0));
+      }),
+    [deliver],
+  );
+
+  // Delivers reports queued while offline as soon as the view is live again.
   useEffect(() => {
     if (!canSend) return;
     let cancelled = false;
-    void deliver().then((message) => {
-      if (!cancelled && message !== null) setReportStatus(message);
-    });
+    sendQueued(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [canSend, deliver]);
+  }, [canSend, sendQueued]);
+
+  // While a send keeps failing, tries again after a growing delay.
+  useEffect(() => {
+    if (!canSend || retries === 0) return;
+    let cancelled = false;
+    const timer = setTimeout(
+      () => sendQueued(() => cancelled),
+      RETRY_DELAYS_MS[Math.min(retries, RETRY_DELAYS_MS.length) - 1],
+    );
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [canSend, retries, sendQueued]);
 
   // The stations of the active scenario's current version, for the picker.
   // Positions can only be reported while live.
@@ -202,7 +247,10 @@ export function StewardView({
       setReportStatus("Positionen kunne ikke gemmes på telefonen.");
       return;
     }
-    setReportStatus((await deliver()) ?? "Position gemt. Afventer levering.");
+    const { message, blocked } = await deliver();
+    setReportStatus(message ?? "Position gemt. Afventer levering.");
+    // A report that could not be sent now is tried again after a delay.
+    if (blocked) setRetries((count) => count + 1);
   }
 
   // Sends a status change and shows the answer. Going on the way is a

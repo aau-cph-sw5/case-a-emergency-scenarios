@@ -28,6 +28,7 @@ export function createPositionReportDelivery(
   sender: ReportSender,
 ) {
   const activeFlushes = new Map<string, Promise<FlushResult>>();
+  const nextFlushes = new Map<string, Promise<FlushResult>>();
 
   async function flush(userId: string, token: string): Promise<FlushResult> {
     const reports = await queue.getPending(userId);
@@ -73,24 +74,39 @@ export function createPositionReportDelivery(
     };
   }
 
+  // Runs one flush for the user and forgets it once it has finished.
+  function start(userId: string, token: string): Promise<FlushResult> {
+    const running = flush(userId, token);
+    activeFlushes.set(userId, running);
+    void running.then(
+      () => {
+        if (activeFlushes.get(userId) === running) activeFlushes.delete(userId);
+      },
+      () => {
+        if (activeFlushes.get(userId) === running) activeFlushes.delete(userId);
+      },
+    );
+    return running;
+  }
+
   return {
     flush(userId: string, token: string): Promise<FlushResult> {
       const active = activeFlushes.get(userId);
-      if (active !== undefined) return active;
+      if (active === undefined) return start(userId, token);
 
-      const running = flush(userId, token);
-      activeFlushes.set(userId, running);
-      void running.then(
-        () => {
-          if (activeFlushes.get(userId) === running)
-            activeFlushes.delete(userId);
-        },
-        () => {
-          if (activeFlushes.get(userId) === running)
-            activeFlushes.delete(userId);
-        },
-      );
-      return running;
+      // The running flush may have read the queue before this caller's report
+      // was added, so one more flush follows it. Callers that arrive in the
+      // meantime share that one.
+      const queued = nextFlushes.get(userId);
+      if (queued !== undefined) return queued;
+      const next = active
+        .catch(() => undefined)
+        .then(() => {
+          nextFlushes.delete(userId);
+          return start(userId, token);
+        });
+      nextFlushes.set(userId, next);
+      return next;
     },
   };
 }

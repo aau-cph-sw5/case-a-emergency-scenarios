@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
 import {
+  RETRY_DELAYS_MS,
   StewardView,
   supersededMessage,
 } from "../../mobile/src/screens/StewardView";
@@ -215,5 +216,62 @@ describe("StewardView superseded reports", () => {
     ).toBe(
       "2 positioner (Station B, Station C) blev afvist, fordi scenariet blev stoppet eller skiftet, efter du sendte dem.",
     );
+  });
+
+  it("tries again while live when a send fails, without user action", async () => {
+    jest.useFakeTimers();
+    try {
+      const blocked = {
+        ...nothingSent,
+        pending: 1,
+        blockedBy: { status: "retry" as const },
+      };
+      flush.mockResolvedValueOnce(blocked);
+      flush.mockResolvedValueOnce(blocked);
+      flush.mockResolvedValueOnce({ ...nothingSent, acknowledged: 1 });
+      showView({ status: "live", snapshot });
+      render(stewardView(true));
+      await act(async () => {});
+      expect(flush).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        jest.advanceTimersByTime(RETRY_DELAYS_MS[0]);
+      });
+      expect(flush).toHaveBeenCalledTimes(2);
+
+      // The second try waits longer than the first.
+      await act(async () => {
+        jest.advanceTimersByTime(RETRY_DELAYS_MS[0]);
+      });
+      expect(flush).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        jest.advanceTimersByTime(RETRY_DELAYS_MS[1] - RETRY_DELAYS_MS[0]);
+      });
+      expect(flush).toHaveBeenCalledTimes(3);
+      expect(screen.getByText("Position sendt.")).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("tries a report again later when it could not be sent at once", async () => {
+    jest.useFakeTimers();
+    try {
+      queue.mockResolvedValue(queued);
+      flush.mockResolvedValueOnce(nothingSent);
+      flush.mockRejectedValueOnce(new Error("offline"));
+      flush.mockResolvedValueOnce({ ...nothingSent, acknowledged: 1 });
+
+      await reportStationB();
+      expect(flush).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        jest.advanceTimersByTime(RETRY_DELAYS_MS[0]);
+      });
+      expect(flush).toHaveBeenCalledTimes(3);
+      expect(screen.getByText("Position sendt.")).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
