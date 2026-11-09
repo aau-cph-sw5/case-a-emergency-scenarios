@@ -97,8 +97,8 @@ test("task done before reporting at the station is refused with E1006", async ()
 
 test("a task done from an earlier activation does not count", async () => {
   await owner`
-    INSERT INTO position_reports (staff, station, reported_at, task_done, received_at)
-    VALUES (${stewardId}, 'Station G', '2000-01-01T00:00:00Z', true, '2000-01-01T00:00:00Z')
+    INSERT INTO position_reports (staff, station, reported_at, task_done, received_at, activation_id)
+    VALUES (${stewardId}, 'Station G', '2000-01-01T00:00:00Z', true, '2000-01-01T00:00:00Z', ${activationId})
   `;
   const res = await report(true);
   assert.equal(res.status, 409);
@@ -126,8 +126,8 @@ test("sending task done again is a harmless repeat", async () => {
 test("task done when the latest report is at another station is refused with E1006", async () => {
   // DEMO-002 has only Station G, so the other report is written directly.
   await owner`
-    INSERT INTO position_reports (staff, station, reported_at)
-    VALUES (${stewardId}, 'Station H', now())
+    INSERT INTO position_reports (staff, station, reported_at, activation_id)
+    VALUES (${stewardId}, 'Station H', now(), ${activationId})
   `;
   const res = await report(true);
   assert.equal(res.status, 409);

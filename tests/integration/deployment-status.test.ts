@@ -149,8 +149,8 @@ test("cancelling frees the station", async () => {
 test("a new station after arriving is refused with E1006", async () => {
   // DEMO-002 has only Station G, so the arrival elsewhere is written directly.
   await owner`
-    INSERT INTO position_reports (staff, station, reported_at, event)
-    VALUES (${stewardId}, 'Station H', now(), 'ARRIVED')
+    INSERT INTO position_reports (staff, station, reported_at, event, activation_id)
+    VALUES (${stewardId}, 'Station H', now(), 'ARRIVED', ${activationId})
   `;
   await expectRefused({});
 });

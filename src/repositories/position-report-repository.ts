@@ -11,8 +11,8 @@ export type StoredPositionReport = {
   station: string;
   reportedAt: Date;
   receivedAt: Date;
-  // The activation the report was made against; null for older reports.
-  activationId: number | null;
+  // The activation the report was made against.
+  activationId: number;
   taskDone: boolean;
   event: ReportEvent;
   clientReportId: string | null;
