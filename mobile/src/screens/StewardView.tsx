@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AppState,
   Pressable,
@@ -15,7 +15,6 @@ import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import { colors, palette, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
-import { sendPositionReport } from "../api/position-report";
 import { StationPicker } from "../components/StationPicker";
 import { StewardStatusControl } from "../components/StewardStatusControl";
 import {
@@ -23,6 +22,9 @@ import {
   type OwnStatus,
   type StatusRequest,
 } from "../data/steward-status";
+import type { FlushResult } from "../offline/position-report-delivery";
+import { positionReportDelivery } from "../offline/position-report-delivery-instance";
+import { queuePositionReport } from "../offline/queue-position-report";
 import { snapshotStore } from "../offline/snapshot-store";
 import { socket } from "../socket";
 import { ScenarioNotice } from "./Notice";
@@ -34,6 +36,17 @@ import { ScenarioOverview } from "./ScenarioOverview";
 // (MET-A-015, #263 criterion 4). Nothing is sent then.
 const STATUS_BLOCKED_OFFLINE =
   "Uden forbindelse kan din status ikke ændres. Du ser den gemte kopi.";
+
+// Tells the steward which queued reports were rejected because the scenario changed.
+export function supersededMessage(
+  reports: FlushResult["superseded"],
+): string | null {
+  if (reports.length === 0) return null;
+  const stations = reports.map((report) => report.station).join(", ");
+  return reports.length === 1
+    ? `Din position ved ${stations} blev afvist, fordi scenariet blev stoppet eller skiftet, efter du sendte den.`
+    : `${reports.length} positioner (${stations}) blev afvist, fordi scenariet blev stoppet eller skiftet, efter du sendte dem.`;
+}
 
 // online is false when the phone has no connection or the session could not
 // be confirmed; the saved copy is shown then, and nothing is sent.
@@ -130,16 +143,66 @@ export function StewardView({
     };
   }, [token, activationId, userId]);
 
+  // Sends the queued reports and says what happened, null when nothing changed.
+  const deliver = useCallback(async (): Promise<string | null> => {
+    if (userId === undefined) return null;
+    try {
+      const result = await positionReportDelivery.flush(userId, token);
+      const sent =
+        result.pending > 0
+          ? "Position gemt. Afventer levering."
+          : result.acknowledged > 0
+            ? "Position sendt."
+            : null;
+      const refused =
+        result.rejected > result.superseded.length
+          ? "Positionen blev ikke modtaget."
+          : null;
+      const lines = [
+        supersededMessage(result.superseded),
+        refused,
+        sent,
+      ].filter((line) => line !== null);
+      return lines.length > 0 ? lines.join("\n") : null;
+    } catch {
+      return "Position gemt på telefonen, men kunne ikke sendes endnu.";
+    }
+  }, [userId, token]);
+
+  // Delivers reports queued while offline as soon as the view is live again.
+  const canSend = online && view.status === "live";
+  useEffect(() => {
+    if (!canSend) return;
+    let cancelled = false;
+    void deliver().then((message) => {
+      if (!cancelled && message !== null) setReportStatus(message);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [canSend, deliver]);
+
   // The stations of the active scenario's current version, for the picker.
   // Positions can only be reported while live.
   const stations = live ? currentStations(live) : [];
 
-  // Reports the chosen station and shows the answer.
+  // Queues the chosen station first, so a report that cannot be sent now is delivered later.
   async function reportPosition() {
-    if (station === "" || activationId === undefined) return;
-    setReportStatus(
-      (await sendPositionReport(token, station, activationId)).message,
-    );
+    if (station === "" || view.status !== "live" || userId === undefined) {
+      return;
+    }
+    try {
+      await queuePositionReport({
+        userId,
+        station,
+        scenarioId: view.snapshot.state.scenarioId,
+        activationId: view.snapshot.state.activationId,
+      });
+    } catch {
+      setReportStatus("Positionen kunne ikke gemmes på telefonen.");
+      return;
+    }
+    setReportStatus((await deliver()) ?? "Position gemt. Afventer levering.");
   }
 
   // Sends a status change and shows the answer. Going on the way is a
@@ -265,6 +328,8 @@ export function StewardView({
           </>
         )}
 
+        {reportStatus && <Text>{reportStatus}</Text>}
+
         {online && (
           <>
             {stations.length > 0 && (
@@ -283,7 +348,6 @@ export function StewardView({
                 >
                   <Text style={styles.buttonText}>Rapportér position</Text>
                 </Pressable>
-                {reportStatus && <Text>{reportStatus}</Text>}
               </>
             )}
 

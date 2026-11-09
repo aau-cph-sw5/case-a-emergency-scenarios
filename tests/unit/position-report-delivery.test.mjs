@@ -239,3 +239,30 @@ test("replays offline steward events in order with original timestamps", async (
   assert.equal(result.pending, 0);
   assert.deepEqual(await restoredQueue.getPending("steward-1"), []);
 });
+
+test("rejects a report for a superseded scenario without blocking the next", async () => {
+  const queue = createPositionReportQueueStore(memoryStorage());
+  const old = aReport("report-old");
+  const current = { ...aReport("report-current"), activationId: 2 };
+
+  await queue.enqueue(old);
+  await queue.enqueue(current);
+
+  const sent = [];
+  const delivery = createPositionReportDelivery(queue, async (token, item) => {
+    sent.push(item.id);
+    return item.activationId === 1
+      ? { status: "rejected", httpStatus: 409, code: "E1003" }
+      : { status: "accepted" };
+  });
+
+  const result = await delivery.flush("steward-1", "test-token");
+
+  assert.deepEqual(sent, ["report-old", "report-current"]);
+  assert.equal(result.acknowledged, 1);
+  assert.equal(result.pending, 0);
+  assert.equal(result.blockedBy, undefined);
+  assert.equal(result.rejected, 1);
+  assert.deepEqual(result.superseded, [old]);
+  assert.deepEqual(await queue.getPending("steward-1"), []);
+});

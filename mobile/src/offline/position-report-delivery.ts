@@ -1,3 +1,4 @@
+import { ERROR_CODES } from "../../../shared/error-codes";
 import type {
   PositionReportQueueStore,
   QueuedPositionReport,
@@ -14,6 +15,8 @@ export type FlushResult = {
   rejected: number;
   pending: number;
   blockedBy?: ReportDeliveryResult;
+  // Rejected in this flush with E1003: the scenario changed after the report was made.
+  superseded: QueuedPositionReport[];
 };
 
 // Only domain/validation 4xx failures are terminal. Authentication and rate
@@ -31,6 +34,7 @@ export function createPositionReportDelivery(
     let acknowledged = 0;
     let rejected = 0;
     let blockedBy: ReportDeliveryResult | undefined;
+    const superseded: QueuedPositionReport[] = [];
 
     for (const report of reports) {
       const result = await sender(token, report);
@@ -53,6 +57,7 @@ export function createPositionReportDelivery(
           ...(code === undefined ? {} : { code }),
         });
         rejected++;
+        if (code === ERROR_CODES.SCENARIO_STOOD_DOWN) superseded.push(report);
       } else {
         blockedBy = result;
         break;
@@ -63,6 +68,7 @@ export function createPositionReportDelivery(
       acknowledged,
       rejected,
       pending: (await queue.getPending(userId)).length,
+      superseded,
       ...(blockedBy ? { blockedBy } : {}),
     };
   }
