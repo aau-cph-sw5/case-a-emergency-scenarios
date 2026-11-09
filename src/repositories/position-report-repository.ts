@@ -13,6 +13,8 @@ export type StoredPositionReport = {
   receivedAt: Date;
   taskDone: boolean;
   event: ReportEvent;
+  clientReportId: string | null;
+  clientRequestHash: string | null;
 };
 
 export type ReportEvent = NonNullable<NewPositionReport["event"]>;
@@ -20,11 +22,14 @@ export type ReportEvent = NonNullable<NewPositionReport["event"]>;
 export async function insertPositionReport(
   db: Db,
   report: NewPositionReport,
+  requestHash: string | null = null,
 ): Promise<StoredPositionReport> {
   const [inserted] = await db<StoredPositionReport[]>`
-    INSERT INTO position_reports (staff, station, reported_at, task_done, event)
+    INSERT INTO position_reports
+      (staff, station, reported_at, task_done, event, client_report_id, client_request_hash)
     VALUES (${report.staff}, ${report.station}, ${report.reportedAt},
-            ${report.taskDone ?? false}, ${report.event ?? "EN_ROUTE"})
+            ${report.taskDone ?? false}, ${report.event ?? "EN_ROUTE"},
+            ${report.id ?? null}, ${requestHash})
     RETURNING *
   `;
   return inserted;
@@ -44,4 +49,18 @@ export async function findLatestReport(
     LIMIT 1
   `;
   return latest ?? null;
+}
+
+// Find a report by the client-generated ID, to detect duplicates.
+export async function findByClientReportId(
+  db: Db,
+  id: string,
+): Promise<StoredPositionReport | null> {
+  const [report] = await db<StoredPositionReport[]>`
+    SELECT *
+    FROM position_reports
+    WHERE client_report_id = ${id}
+  `;
+
+  return report ?? null;
 }
