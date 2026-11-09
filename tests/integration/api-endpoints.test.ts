@@ -89,6 +89,7 @@ async function loginAs(
   return (await response.json()) as {
     token: string;
     role: string;
+    lineGroup: string;
     expiresAt: string;
   };
 }
@@ -104,13 +105,24 @@ test("POST /api/v1/auth/login returns a token and role", async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(validate(body, "login-response.schema.json"), []);
   assert.equal(body.role, "OPERATOR");
+  assert.equal(body.lineGroup, "M1_M2");
 
   const payload = jwt.decode(body.token);
   assert.ok(payload && typeof payload !== "string");
   assert.equal(payload.userId, operatorId);
   assert.equal(payload.role, "OPERATOR");
+  assert.equal(payload.lineGroup, "M1_M2");
   assert.equal(typeof payload.jti, "string");
   assert.equal(payload.exp! - payload.iat!, 30 * 24 * 60 * 60);
+});
+
+test("POST /api/v1/auth/login puts an M3/M4 user's line group in the token", async () => {
+  const body = await loginAs("api-operator-m3m4", "operator123", "web");
+  const payload = jwt.decode(body.token);
+
+  assert.equal(body.lineGroup, "M3_M4");
+  assert.ok(payload && typeof payload !== "string");
+  assert.equal(payload.lineGroup, "M3_M4");
 });
 
 test("POST /api/v1/auth/login matches usernames without regard to casing", async () => {
@@ -213,7 +225,25 @@ test("GET /api/v1/me returns the signed-in user", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(validate(body, "me.schema.json"), []);
-  assert.deepEqual(body, { userId: stewardId, role: "STEWARD" });
+  assert.deepEqual(body, {
+    userId: stewardId,
+    role: "STEWARD",
+    lineGroup: "M1_M2",
+  });
+});
+
+test("GET /api/v1/me rejects a signed token without a line group", async () => {
+  const token = jwt.sign(
+    { userId: operatorId, role: "OPERATOR", jti: "test-jti" },
+    process.env.JWT_SECRET!,
+  );
+
+  const response = await fetch(`${baseUrl}/api/v1/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error.code, "E0001");
 });
 
 test("GET /api/v1/me rejects a signed token with an invalid payload", async () => {
@@ -248,6 +278,7 @@ test("protected requests use the user's current database role", async () => {
     assert.deepEqual(await me.json(), {
       userId: operatorId,
       role: "STEWARD",
+      lineGroup: "M1_M2",
     });
     assert.equal(activation.status, 403);
   } finally {
@@ -381,6 +412,7 @@ test("postRenew returns not due when another request wins the renewal race", asy
       user: {
         userId: operatorId,
         role: "OPERATOR" as const,
+        lineGroup: "M1_M2" as const,
         jti: "unused-jti",
       },
     },
@@ -454,6 +486,7 @@ test("renew returns the current session when another request renewed it", async 
     const result = await renew({
       userId: operatorId,
       role: "OPERATOR",
+      lineGroup: "M1_M2",
       jti: dueSession.jti,
     });
 
@@ -497,6 +530,7 @@ test("renew rejects a session that disappears during renewal", async () => {
       await renew({
         userId: operatorId,
         role: "OPERATOR",
+        lineGroup: "M1_M2",
         jti: dueSession.jti,
       }),
       { kind: "invalid" },

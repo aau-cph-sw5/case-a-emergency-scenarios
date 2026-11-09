@@ -2,10 +2,11 @@
   "$id": "login-response.schema.json",
   "title": "Login Response",
   "type": "object",
-  "required": ["token", "role", "expiresAt"],
+  "required": ["token", "role", "lineGroup", "expiresAt"],
   "properties": {
     "token": { "type": "string" },
     "role": { "type": "string", "enum": ["STEWARD", "OPERATOR"] },
+    "lineGroup": { "type": "string", "enum": ["M1_M2", "M3_M4"] },
     "expiresAt": { "type": "string", "format": "date-time" }
   }
 }
