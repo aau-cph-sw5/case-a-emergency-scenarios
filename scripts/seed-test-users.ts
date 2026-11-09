@@ -5,7 +5,7 @@ import type { LineGroup } from "../shared/auth/line-groups.js";
 
 const SALT_ROUNDS = 10;
 
-const users = [
+const m1m2Users = [
   {
     username: "steward",
     password: "steward123",
@@ -18,19 +18,18 @@ const users = [
     role: "OPERATOR",
     lineGroup: "M1_M2",
   },
-  {
-    username: "steward-m3m4",
-    password: "steward123",
-    role: "STEWARD",
-    lineGroup: "M3_M4",
-  },
-  {
-    username: "operator-m3m4",
-    password: "operator123",
-    role: "OPERATOR",
-    lineGroup: "M3_M4",
-  },
 ] as const;
+
+// The same accounts for M3/M4, so tests can log in to either line group.
+const users = [
+  ...m1m2Users,
+  ...m1m2Users.map((user) => ({
+    ...user,
+    username: `${user.username}-m3m4`,
+    lineGroup: "M3_M4" as const,
+  })),
+];
+
 
 export type SeededTestUser = {
   id: number;
