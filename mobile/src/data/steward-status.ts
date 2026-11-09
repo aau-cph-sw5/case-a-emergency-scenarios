@@ -72,7 +72,12 @@ export async function stewardStatus(
     };
   }
 
-  const report = await sendPositionReport(token, change.station, change.event);
+  const report = await sendPositionReport(
+    token,
+    change.station,
+    activationId,
+    change.event,
+  );
   if (!report.ok) return { ok: false, message: report.message };
 
   if (change.own === null) remembered.delete(key);

@@ -19,7 +19,7 @@ describe("sendPositionReport (MET-A-013)", () => {
   it("posts the station with the token and confirms an accepted report", async () => {
     const fetchMock = respond(201, {});
 
-    const result = await sendPositionReport("token-1", "Station B");
+    const result = await sendPositionReport("token-1", "Station B", 1);
 
     expect(result).toEqual({ ok: true, message: "Position sendt: Station B" });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -27,6 +27,7 @@ describe("sendPositionReport (MET-A-013)", () => {
     expect(init.method).toBe("POST");
     expect(init.headers).toMatchObject({ Authorization: "Bearer token-1" });
     expect(JSON.parse(init.body as string)).toMatchObject({
+      activationId: 1,
       station: "Station B",
     });
   });
@@ -34,8 +35,8 @@ describe("sendPositionReport (MET-A-013)", () => {
   it("sends the event when one is given, and leaves it out otherwise", async () => {
     const fetchMock = respond(202, {});
 
-    await sendPositionReport("token", "Station B", "ARRIVED");
-    await sendPositionReport("token", "Station B");
+    await sendPositionReport("token", "Station B", 1, "ARRIVED");
+    await sendPositionReport("token", "Station B", 1);
 
     const bodies = fetchMock.mock.calls.map(([, init]) =>
       JSON.parse((init as RequestInit).body as string),
@@ -47,16 +48,26 @@ describe("sendPositionReport (MET-A-013)", () => {
   it("shows a refusal in Danish from the error code", async () => {
     respond(422, { error: { code: ERROR_CODES.STATION_NOT_IN_SCENARIO } });
 
-    expect(await sendPositionReport("token", "Station X")).toEqual({
+    expect(await sendPositionReport("token", "Station X", 1)).toEqual({
       ok: false,
       message: "Stationen er ikke en del af det aktive scenarie.",
+    });
+  });
+
+  it("tells the steward why a report against a superseded scenario was refused", async () => {
+    respond(409, { error: { code: ERROR_CODES.SCENARIO_STOOD_DOWN } });
+
+    expect(await sendPositionReport("token", "Station B", 1)).toEqual({
+      ok: false,
+      message:
+        "Scenariet er blevet stoppet eller skiftet. Positionen blev ikke modtaget.",
     });
   });
 
   it("falls back to a general message for an unknown code or no body", async () => {
     respond(500);
 
-    expect(await sendPositionReport("token", "Station B")).toEqual({
+    expect(await sendPositionReport("token", "Station B", 1)).toEqual({
       ok: false,
       message: "Positionen blev ikke modtaget.",
     });
@@ -65,7 +76,7 @@ describe("sendPositionReport (MET-A-013)", () => {
   it("says there is no connection when the request fails", async () => {
     jest.spyOn(global, "fetch").mockRejectedValue(new TypeError("offline"));
 
-    expect(await sendPositionReport("token", "Station B")).toEqual({
+    expect(await sendPositionReport("token", "Station B", 1)).toEqual({
       ok: false,
       message: "Ingen forbindelse til serveren.",
     });

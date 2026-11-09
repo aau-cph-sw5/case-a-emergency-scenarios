@@ -11,6 +11,8 @@ export type StoredPositionReport = {
   station: string;
   reportedAt: Date;
   receivedAt: Date;
+  // The activation the report was made against; null for older reports.
+  activationId: number | null;
   taskDone: boolean;
   event: ReportEvent;
   clientReportId: string | null;
@@ -26,8 +28,8 @@ export async function insertPositionReport(
 ): Promise<StoredPositionReport> {
   const [inserted] = await db<StoredPositionReport[]>`
     INSERT INTO position_reports
-      (staff, station, reported_at, task_done, event, client_report_id, client_request_hash)
-    VALUES (${report.staff}, ${report.station}, ${report.reportedAt},
+      (staff, station, reported_at, activation_id, task_done, event, client_report_id, client_request_hash)
+    VALUES (${report.staff}, ${report.station}, ${report.reportedAt}, ${report.activationId},
             ${report.taskDone ?? false}, ${report.event ?? "EN_ROUTE"},
             ${report.id ?? null}, ${requestHash})
     RETURNING *

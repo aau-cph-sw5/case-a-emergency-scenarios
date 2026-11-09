@@ -21,6 +21,7 @@ let baseUrl: string;
 let stewardId: string;
 let stewardToken: string;
 let operatorToken: string;
+let activationId: number;
 
 async function login(username: string, password: string, client: string) {
   const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
@@ -53,6 +54,7 @@ before(async () => {
     },
   );
   assert.equal(activated.status, 201);
+  ({ activationId } = (await activated.json()) as { activationId: number });
   await owner`DELETE FROM position_reports WHERE staff = ${stewardId}`;
 });
 
@@ -71,6 +73,7 @@ async function report(extra: { event?: string; taskDone?: boolean } = {}) {
       Authorization: `Bearer ${stewardToken}`,
     },
     body: JSON.stringify({
+      activationId,
       staff: "",
       station: "Station G",
       reportedAt: "2026-11-06T08:00:00Z",

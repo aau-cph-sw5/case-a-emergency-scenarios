@@ -44,7 +44,7 @@ describe("stewardStatus (MET-A-015, #263, #305)", () => {
       ok: true,
       own: { station: "Station B", status: "PENDING" },
     });
-    expect(report).toHaveBeenCalledWith("token", "Station B", "EN_ROUTE");
+    expect(report).toHaveBeenCalledWith("token", "Station B", 1, "EN_ROUTE");
   });
 
   it("shows the server's refusal and keeps the status as it was", async () => {
@@ -74,7 +74,7 @@ describe("stewardStatus (MET-A-015, #263, #305)", () => {
       ok: true,
       own: { station: "Station B", status: "MANNED" },
     });
-    expect(report).toHaveBeenCalledWith("token", "Station B", "ARRIVED");
+    expect(report).toHaveBeenCalledWith("token", "Station B", 1, "ARRIVED");
   });
 
   it("stays on the way when arrival is refused", async () => {
@@ -94,7 +94,7 @@ describe("stewardStatus (MET-A-015, #263, #305)", () => {
     await assign("Station B");
     report.mockClear();
     expect(await ask("cancel")).toEqual({ ok: true, own: null });
-    expect(report).toHaveBeenCalledWith("token", "Station B", "CANCELLED");
+    expect(report).toHaveBeenCalledWith("token", "Station B", 1, "CANCELLED");
     expect(await current()).toEqual({ ok: true, own: null });
   });
 
@@ -106,7 +106,7 @@ describe("stewardStatus (MET-A-015, #263, #305)", () => {
       ok: true,
       own: { station: "Station A", status: "CHECKED_OUT" },
     });
-    expect(report).toHaveBeenCalledWith("token", "Station A", "CHECKED_OUT");
+    expect(report).toHaveBeenCalledWith("token", "Station A", 1, "CHECKED_OUT");
     expect(await assign("Station B")).toMatchObject({ ok: true });
   });
 

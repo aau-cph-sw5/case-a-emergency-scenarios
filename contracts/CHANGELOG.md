@@ -1,4 +1,15 @@
 # Scenario State Contract Changelog
+
+## 8.0.0 - 2026-11-09
+
+Breaking. Reports against a superseded scenario are rejected (MET-A-006, #267).
+
+- `position-report.schema.json` has a required integer `activationId`: the activation the steward saw when making the report. Clients must send it.
+- `POST /api/v1/position-reports` answers 409 `E1003` when `activationId` is not an active activation, for example because the scenario was stood down or switched while the steward was offline. Nothing is stored and operators are not told. E1001 is answered only when the id is unknown and no scenario is active.
+- The station is checked against the report's own activation (E1004).
+- A replay of an accepted report (same `id`) still answers 202, also after the scenario has changed.
+- `info.version` in `openapi.yaml` is now 8.0.0.
+
 ## 7.2.0 - 2026-11-05
 
 Additive. Client-generated position report identity for offline retries (MET-A-006, #266).

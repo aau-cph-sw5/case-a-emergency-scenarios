@@ -14,6 +14,8 @@ const REPORT_ERRORS: Record<string, string> = {
   [ERROR_CODES.AUTH_TOKEN_INVALID]: "Din session er udløbet. Log ind igen.",
   [ERROR_CODES.ROLE_NOT_PERMITTED]: "Kun stewards kan rapportere en position.",
   [ERROR_CODES.NO_ACTIVE_SCENARIO]: "Der er ikke noget aktivt scenarie.",
+  [ERROR_CODES.SCENARIO_STOOD_DOWN]:
+    "Scenariet er blevet stoppet eller skiftet. Positionen blev ikke modtaget.",
   [ERROR_CODES.STATION_NOT_IN_SCENARIO]:
     "Stationen er ikke en del af det aktive scenarie.",
 };
@@ -33,6 +35,7 @@ export async function deliverPositionReport(
       },
       body: JSON.stringify({
         id: report.id,
+        activationId: report.activationId,
         staff: "",
         station: report.station,
         reportedAt: report.reportedAt,
@@ -69,6 +72,7 @@ export async function deliverPositionReport(
 export async function sendPositionReport(
   token: string,
   station: string,
+  activationId: PositionReport["activationId"],
   event?: PositionReport["event"],
 ): Promise<PositionReportResult> {
   try {
@@ -79,6 +83,7 @@ export async function sendPositionReport(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        activationId,
         staff: "",
         station,
         reportedAt: new Date().toISOString(),

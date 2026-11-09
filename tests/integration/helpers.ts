@@ -61,6 +61,10 @@ export async function seedTestScenarios() {
   try {
     // Each test file starts with the same empty activation state as the server.
     // This is the dedicated test database and the test runner is serial.
+    // Reports point at their activation, so they go first.
+    await client.query(
+      "DELETE FROM position_reports WHERE activation_id IS NOT NULL",
+    );
     await client.query("DELETE FROM incident_activations");
     await seedScenarios(client, scenarios, TEST_STATIONS);
   } finally {

@@ -90,6 +90,7 @@ test("offline report retries are idempotent", async () => {
 
   const report = {
     id,
+    activationId,
     staff: "untrusted-staff",
     station: "Station C",
     reportedAt: "2026-11-05T12:04:00Z",
@@ -165,6 +166,11 @@ test("offline report retries are idempotent", async () => {
   });
 
   assert.equal(newReport.status, 409);
+  // The report was made against the stood-down activation, so it is superseded.
+  assert.equal(
+    ((await newReport.json()) as { error: { code: string } }).error.code,
+    "E1003",
+  );
 
   // No duplicate database rows should have appeared.
   const finalReports = await sql<{ id: string }[]>`

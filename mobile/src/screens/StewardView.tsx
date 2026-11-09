@@ -136,8 +136,10 @@ export function StewardView({
 
   // Reports the chosen station and shows the answer.
   async function reportPosition() {
-    if (station === "") return;
-    setReportStatus((await sendPositionReport(token, station)).message);
+    if (station === "" || activationId === undefined) return;
+    setReportStatus(
+      (await sendPositionReport(token, station, activationId)).message,
+    );
   }
 
   // Sends a status change and shows the answer. Going on the way is a
