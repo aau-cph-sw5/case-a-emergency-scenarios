@@ -1,8 +1,12 @@
-import { describe, expect, it, jest } from "@jest/globals";
-import { render, screen } from "@testing-library/react-native";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
-import { StewardView } from "../../mobile/src/screens/StewardView";
+import {
+  StewardView,
+  supersededMessage,
+} from "../../mobile/src/screens/StewardView";
+import { queuePositionReport } from "../../mobile/src/offline/queue-position-report";
 import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
 import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
 import type { Scenario } from "../../shared/types/v1/scenario";
@@ -24,6 +28,31 @@ jest.mock("../../shared/socket/useSocketState", () => ({
 jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
   positionReportDelivery: { flush: jest.fn() },
 }));
+jest.mock("../../mobile/src/offline/queue-position-report", () => ({
+  queuePositionReport: jest.fn(),
+}));
+// One button per station instead of the native picker.
+jest.mock("../../mobile/src/components/StationPicker", () => {
+  const { createElement } = jest.requireActual<typeof import("react")>("react");
+  const { Pressable, Text } =
+    jest.requireActual<typeof import("react-native")>("react-native");
+  return {
+    StationPicker: ({
+      stations,
+      onSelect,
+    }: {
+      stations: string[];
+      onSelect: (station: string) => void;
+    }) =>
+      stations.map((station) =>
+        createElement(
+          Pressable,
+          { key: station, onPress: () => onSelect(station) },
+          createElement(Text, null, `Vælg ${station}`),
+        ),
+      ),
+  };
+});
 jest.mock("../../shared/offline/use-active-scenario", () => ({
   useActiveScenario: jest.fn(),
 }));
@@ -32,6 +61,38 @@ const { useActiveScenario } = jest.requireMock(
   "../../shared/offline/use-active-scenario",
 ) as { useActiveScenario: jest.Mock };
 const flush = jest.mocked(positionReportDelivery.flush);
+const queue = jest.mocked(queuePositionReport);
+const nothingSent = {
+  acknowledged: 0,
+  rejected: 0,
+  pending: 0,
+  superseded: [],
+};
+
+const queued = {
+  id: "report-1",
+  userId: "7",
+  station: "Station B",
+  reportedAt: "2026-11-06T08:00:00Z",
+  scenarioId: "DEMO-001",
+  activationId: 1,
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  flush.mockResolvedValue(nothingSent);
+});
+
+// Shows the live view and reports Station B.
+async function reportStationB() {
+  showView({ status: "live", snapshot });
+  render(stewardView(true));
+  await act(async () => {});
+  fireEvent.press(screen.getByText("Vælg Station B"));
+  await act(async () => {
+    fireEvent.press(screen.getByText("Rapportér position"));
+  });
+}
 
 const snapshot = buildSnapshot(
   {
@@ -72,16 +133,7 @@ describe("StewardView superseded reports", () => {
       acknowledged: 0,
       rejected: 1,
       pending: 0,
-      superseded: [
-        {
-          id: "report-1",
-          userId: "7",
-          station: "Station B",
-          reportedAt: "2026-11-06T08:00:00Z",
-          scenarioId: "DEMO-001",
-          activationId: 1,
-        },
-      ],
+      superseded: [queued],
     });
     showView({ status: "copy", reason: "offline", snapshot });
     const { rerender } = render(stewardView(false));
@@ -96,5 +148,72 @@ describe("StewardView superseded reports", () => {
       ),
     ).toBeTruthy();
     expect(flush).toHaveBeenCalledWith("7", token);
+  });
+
+  it("queues the chosen station with its activation and sends it", async () => {
+    queue.mockResolvedValue(queued);
+    flush.mockResolvedValueOnce(nothingSent);
+    flush.mockResolvedValueOnce({ ...nothingSent, acknowledged: 1 });
+
+    await reportStationB();
+
+    expect(queue).toHaveBeenCalledWith({
+      userId: "7",
+      station: "Station B",
+      scenarioId: snapshot.state.scenarioId,
+      activationId: snapshot.state.activationId,
+    });
+    expect(screen.getByText("Position sendt.")).toBeTruthy();
+  });
+
+  it("says a refused report was not received and others are waiting", async () => {
+    queue.mockResolvedValue(queued);
+    flush.mockResolvedValueOnce(nothingSent);
+    flush.mockResolvedValueOnce({ ...nothingSent, rejected: 1, pending: 1 });
+
+    await reportStationB();
+
+    expect(
+      screen.getByText(
+        "Positionen blev ikke modtaget.\nPosition gemt. Afventer levering.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("keeps the report on the phone when it cannot be sent", async () => {
+    queue.mockResolvedValue(queued);
+    flush.mockResolvedValueOnce(nothingSent);
+    flush.mockRejectedValueOnce(new Error("offline"));
+
+    await reportStationB();
+
+    expect(
+      screen.getByText(
+        "Position gemt på telefonen, men kunne ikke sendes endnu.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("says so when the report cannot be saved on the phone", async () => {
+    queue.mockRejectedValue(new Error("storage full"));
+
+    await reportStationB();
+
+    expect(
+      screen.getByText("Positionen kunne ikke gemmes på telefonen."),
+    ).toBeTruthy();
+    expect(flush).toHaveBeenCalledTimes(1);
+  });
+
+  it("names every station when several reports were rejected", () => {
+    expect(supersededMessage([])).toBeNull();
+    expect(
+      supersededMessage([
+        queued,
+        { ...queued, id: "report-2", station: "Station C" },
+      ]),
+    ).toBe(
+      "2 positioner (Station B, Station C) blev afvist, fordi scenariet blev stoppet eller skiftet, efter du sendte dem.",
+    );
   });
 });
