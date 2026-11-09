@@ -30,7 +30,6 @@ const users = [
   })),
 ];
 
-
 export type SeededTestUser = {
   id: number;
   username: string;
