@@ -8,6 +8,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { colors, lineColors } from "../../shared/Theme";
 import type { Scenario } from "../../shared/types/v1/scenario";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
 import { MetroMap } from "../../web/src/components/MetroMap";
 import { LiveDataContext } from "../../web/src/data/liveData";
@@ -37,6 +38,7 @@ function withScenario(
   loadScenario: () => Promise<Scenario>,
   preview?: Scenario | null,
   lineGroup?: "M1/M2" | "M3/M4",
+  deployments: ScenarioState["deployments"] | null = null,
 ) {
   const value = {
     live: {
@@ -57,6 +59,7 @@ function withScenario(
         scenarioId={scenarioId}
         scenario={preview}
         lineGroup={lineGroup}
+        deployments={deployments === null ? null : { deployments }}
       />
     </LiveDataContext>
   );
@@ -168,5 +171,55 @@ describe("MetroMap", () => {
     expect(shownLines()).toEqual(["M1", "M2"]);
     expect(markedDots()).toHaveLength(0);
     logged.mockRestore();
+  });
+
+  // The map follows the live coverage of the active scenario, like the
+  // coverage cards beside it (MET-A-011, #310).
+  it("colours a required station by its live coverage", async () => {
+    const uniDot = () =>
+      screen
+        .UNSAFE_queryAllByType(Circle)
+        .filter((dot) =>
+          [
+            colors.statusRed,
+            colors.statusYellow,
+            colors.statusGreen,
+            colors.requiredStation,
+          ].includes(dot.props.fill),
+        )
+        .at(-1)?.props.fill;
+    const manned = (count: number) =>
+      Array.from({ length: count }, () => ({
+        status: "MANNED" as const,
+        staff: "1",
+        fulfills: "UNI",
+      }));
+
+    const view = render(
+      withScenario("TEST-MAP", async () => scenario, undefined, undefined, []),
+    );
+    await waitFor(() => expect(uniDot()).toBe(colors.statusRed));
+
+    view.rerender(
+      withScenario(
+        "TEST-MAP",
+        async () => scenario,
+        undefined,
+        undefined,
+        manned(1),
+      ),
+    );
+    expect(uniDot()).toBe(colors.statusYellow);
+
+    view.rerender(
+      withScenario(
+        "TEST-MAP",
+        async () => scenario,
+        undefined,
+        undefined,
+        manned(2),
+      ),
+    );
+    expect(uniDot()).toBe(colors.statusGreen);
   });
 });

@@ -15,6 +15,10 @@ import {
   linesThrough,
   requiredStations,
 } from "../../../shared/scenario/affected-stations";
+import {
+  stationCoverage,
+  type ActiveDeployments,
+} from "../../../shared/components/stationState";
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import { useScenario } from "../data/useScenario";
 
@@ -31,7 +35,10 @@ const lineColor = Object.fromEntries(
 
 // Scenario data determines staffing markers and the optional close-up view.
 // The operator chooses the visible line group separately in the header.
-export function mapView(scenario: Scenario | null) {
+export function mapView(
+  scenario: Scenario | null,
+  deployments: ActiveDeployments | null = null,
+) {
   const stretch =
     scenario === null ? [] : affectedStretchAsMapLine(scenario).connections;
   const covered = linesThrough(network, stretch);
@@ -59,6 +66,10 @@ export function mapView(scenario: Scenario | null) {
         minimumStaffing,
       ]),
     ),
+    // Only for the active scenario: green, yellow or red per station, the
+    // same as its coverage card (MET-A-011, #310).
+    stationCoverage:
+      deployments === null ? {} : stationCoverage(requirements, deployments),
     // Undefined for the whole network, which keeps the map's own view.
     viewBox:
       covered.length > 0
@@ -71,10 +82,12 @@ export function MetroMap({
   scenarioId,
   scenario: previewScenario,
   lineGroup = "M1/M2",
+  deployments = null,
 }: {
   scenarioId: string | null;
   scenario?: Scenario | null;
   lineGroup?: "M1/M2" | "M3/M4";
+  deployments?: ActiveDeployments | null;
 }) {
   // While the scenario loads, or if it cannot be loaded, scenario is null and
   // the whole network is shown. The preview next to the map shows the error.
@@ -87,7 +100,7 @@ export function MetroMap({
     previewScenario === undefined ? loadedScenario : previewScenario;
   // Each scenario starts with its whole line group in view.
   const [zoomedInto, setZoomedInto] = useState<string | null>(null);
-  const view = mapView(scenario);
+  const view = mapView(scenario, deployments);
   const groupLines = network.filter((line) =>
     lineGroup.split("/").includes(line.name),
   );
@@ -115,6 +128,9 @@ export function MetroMap({
           ]}
         >
           {scenario.name} · Tal på stationerne viser krævede stewards
+          {deployments !== null
+            ? " · Grøn: bemandet, gul: delvist, rød: mangler"
+            : ""}
         </Text>
       )}
       {canZoom && (
@@ -155,6 +171,7 @@ export function MetroMap({
             groupStations.has(station),
           )}
           requiredStaffing={view.requiredStaffing}
+          stationCoverage={view.stationCoverage}
           highlightColor={theme.requiredStation}
           blockedTracks={scenario?.covers ?? []}
         />

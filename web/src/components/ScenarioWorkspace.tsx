@@ -51,6 +51,10 @@ export function ScenarioWorkspace({
           lineGroup={lineGroup}
           scenarioId={mapScenarioId}
           scenario={selectedId === null || isActive ? undefined : scenario}
+          deployments={
+            activations.filter((a) => a.scenarioId === mapScenarioId).at(-1) ??
+            null
+          }
         />
       }
       coverage={

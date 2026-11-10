@@ -16,8 +16,19 @@ import { postJson } from "../../web/src/get-json";
 
 jest.mock("../../web/src/components/OperatorSections.css", () => ({}));
 jest.mock("../../web/src/components/MetroMap", () => ({
-  MetroMap: ({ scenarioId }: { scenarioId: string | null }) => (
-    <div data-testid="map-scenario">{scenarioId ?? "none"}</div>
+  MetroMap: ({
+    scenarioId,
+    deployments,
+  }: {
+    scenarioId: string | null;
+    deployments: unknown;
+  }) => (
+    <div
+      data-testid="map-scenario"
+      data-live-coverage={deployments ? "active" : "none"}
+    >
+      {scenarioId ?? "none"}
+    </div>
   ),
 }));
 
@@ -162,6 +173,11 @@ describe("scenario preview and activation", () => {
     expect(
       container.querySelector('[data-testid="map-scenario"]')?.textContent,
     ).toBe(first.scenarioId);
+    expect(
+      container
+        .querySelector('[data-testid="map-scenario"]')
+        ?.getAttribute("data-live-coverage"),
+    ).toBe("active");
     await renderList(null, { activations: [] });
     expect(
       container.querySelector('[data-testid="map-scenario"]')?.textContent,
@@ -441,6 +457,11 @@ describe("scenario preview and activation", () => {
     expect(container.querySelector(".scenario-preview")).toBeNull();
     expect(container.textContent).toContain("0/2");
     await click(second.name);
+    expect(
+      container
+        .querySelector('[data-testid="map-scenario"]')
+        ?.getAttribute("data-live-coverage"),
+    ).toBe("none");
     expect(container.textContent).toContain("0/2");
     expect(container.querySelector(".scenario-preview")?.textContent).toContain(
       "Station B",

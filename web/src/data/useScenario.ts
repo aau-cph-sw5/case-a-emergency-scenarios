@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import { userMessage } from "../get-json";
 import { useLiveContext } from "./liveData";
@@ -16,7 +16,7 @@ export function useScenario(scenarioId: string | null): {
   error: string | null;
   retry: () => void;
 } {
-  const { loadScenario } = useLiveContext();
+  const { live, loadScenario } = useLiveContext();
   const [result, setResult] = useState<Result | null>(null);
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => {
@@ -43,6 +43,29 @@ export function useScenario(scenarioId: string | null): {
       wanted = false;
     };
   }, [scenarioId, loadScenario, attempt]);
+
+  // A scenario that failed to load while the connection was down is loaded
+  // again once it is back, so the map zooms in and the preview fills in
+  // without the operator choosing the scenario again (#310). Only after the
+  // connection has been down, so a scenario the server refuses is not asked
+  // for over and over. A request that times out only after the connection is
+  // back counts too, since the drop is remembered until the next attempt.
+  const failed =
+    result !== null && "error" in result && result.scenarioId === scenarioId;
+  // The socket is not connected yet when the page opens; that is not a drop.
+  const connectedOnceRef = useRef(false);
+  const droppedSinceAttemptRef = useRef(false);
+  useEffect(() => {
+    if (!live.isConnected) {
+      if (connectedOnceRef.current) droppedSinceAttemptRef.current = true;
+      return;
+    }
+    connectedOnceRef.current = true;
+    if (failed && droppedSinceAttemptRef.current) {
+      droppedSinceAttemptRef.current = false;
+      retry();
+    }
+  }, [live.isConnected, failed, retry]);
 
   if (scenarioId === null) {
     return { scenario: null, isLoading: false, error: null, retry };
