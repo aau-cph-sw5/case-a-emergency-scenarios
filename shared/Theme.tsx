@@ -145,3 +145,12 @@ export const page = {
   backgroundColor: colors.page,
   flex: 1,
 };
+
+// A required station on the map by its live coverage (MET-A-011, #310): the
+// same green, yellow and red as the coverage cards. text is the colour of the
+// staffing number drawn on it.
+export const coverageColors = {
+  covered: { fill: colors.statusGreen, text: colors.textInverse },
+  partial: { fill: colors.statusYellow, text: colors.text },
+  gap: { fill: colors.statusRed, text: colors.textInverse },
+} as const;

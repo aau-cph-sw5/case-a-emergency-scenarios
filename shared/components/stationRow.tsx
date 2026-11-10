@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { card, colors, text } from "../Theme";
+import { card, colors, coverageColors, text } from "../Theme";
 import type { Scenario } from "../types/v1/scenario";
-import { getStationState, type ActiveDeployments } from "./stationState";
+import {
+  coverageLevel,
+  getStationState,
+  type ActiveDeployments,
+} from "./stationState";
 
 export type StationRequirement =
   Scenario["versions"][number]["stationRequirements"][number];
@@ -15,12 +19,6 @@ type Props =
       deployments: ActiveDeployments;
       operatorLayout?: boolean;
     };
-
-// Red with nobody arrived, yellow while some are missing, green when covered.
-function coverageColor(arrived: number, needed: number) {
-  if (arrived >= needed) return colors.statusGreen;
-  return arrived === 0 ? colors.statusRed : colors.statusYellow;
-}
 
 // One card per station, as in the wireframe: arrived against needed, how many
 // are on the station and on the way, and how many are still missing. Pressing
@@ -107,7 +105,7 @@ function LiveStationRow({
   );
   const needed = requirement.minimumStaffing;
   const missing = Math.max(0, needed - current);
-  const color = coverageColor(current, needed);
+  const color = coverageColors[coverageLevel(current, needed)].fill;
   // Yellow text is unreadable on white, so the number uses a darker shade.
   const numberColor =
     color === colors.statusYellow ? colors.statusYellowText : color;
