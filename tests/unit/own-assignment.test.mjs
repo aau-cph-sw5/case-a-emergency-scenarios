@@ -62,3 +62,27 @@ test("prefers a deployment that is not checked out", () => {
   ];
   assert.equal(findOwnAssignment(onlyCheckedOut, 1)?.status, "CHECKED_OUT");
 });
+
+test("picks the latest checkout when the steward has checked out of several stations", () => {
+  const checkedOut = [
+    {
+      status: "CHECKED_OUT",
+      staff: "1",
+      fulfills: "FB",
+      reportedAt: "2026-11-09T08:00:00Z",
+    },
+    {
+      status: "CHECKED_OUT",
+      staff: "1",
+      fulfills: "KN",
+      reportedAt: "2026-11-09T09:00:00Z",
+    },
+    {
+      status: "CHECKED_OUT",
+      staff: "1",
+      fulfills: "FOR",
+      reportedAt: "2026-11-09T08:30:00Z",
+    },
+  ];
+  assert.equal(findOwnAssignment(checkedOut, 1)?.fulfills, "KN");
+});

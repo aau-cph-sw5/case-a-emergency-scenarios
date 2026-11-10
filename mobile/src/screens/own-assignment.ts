@@ -25,7 +25,17 @@ export function findOwnAssignment(
       deployment.staff !== undefined &&
       String(deployment.staff) === id,
   );
+  // The server keeps only the latest checkout, but an older offline copy can
+  // still hold several, so the one checked out last (latest reportedAt) wins.
   return (
-    own.find((deployment) => deployment.status !== "CHECKED_OUT") ?? own[0]
+    own.find((deployment) => deployment.status !== "CHECKED_OUT") ??
+    own.reduce<Deployment | undefined>(
+      (latest, deployment) =>
+        latest === undefined ||
+        (deployment.reportedAt ?? "") > (latest.reportedAt ?? "")
+          ? deployment
+          : latest,
+      undefined,
+    )
   );
 }
