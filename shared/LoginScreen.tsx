@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import tunnelImage from "../mobile/assets/login-tunnel.jpg";
 import { box, colors, palette, radius, surface, text } from "./Theme";
 import { InvalidCredentialsError, login } from "./auth/login";
 import type { Client } from "./auth/client-access";
@@ -62,7 +63,11 @@ export function LoginScreen({
       {client !== "web" && (
         <View style={styles.mobileBackground} pointerEvents="none">
           <Image
-            source={require("../mobile/assets/login-tunnel.jpg")}
+            source={
+              typeof tunnelImage === "string"
+                ? { uri: tunnelImage }
+                : tunnelImage
+            }
             style={styles.mobileImage}
             resizeMode="cover"
           />
