@@ -1,5 +1,15 @@
 # Scenario State Contract Changelog
 
+## 7.4.0 - 2026-11-10
+
+Additive. One active scenario per line group (#317).
+
+- Each line group (M1/M2, M3/M4) can have one active scenario at the same time.
+- `GET /api/v1/activations` and `GET /api/v1/scenario-state` only return the user's own line group, and each activation has `lineGroup`.
+- Activating or switching to a scenario, or standing down an activation, in another line group answers 404 `E0004`.
+- Position reports are matched against the steward's own line group's activation.
+- `info.version` in `openapi.yaml` is now 7.4.0.
+
 ## 7.3.0 - 2026-11-09
 
 Additive. Users belong to a line group, M1/M2 or M3/M4 (#316).

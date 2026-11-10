@@ -5,7 +5,7 @@ import {
   errorBody,
   type ErrorCode,
 } from "../../shared/error-codes.js";
-import { listActivations } from "../repositories/activation-repository.js";
+import { findActiveActivation } from "../repositories/activation-repository.js";
 import type { AuthUser } from "../services/auth-service.js";
 import {
   checkPositionReportReplay,
@@ -26,7 +26,7 @@ function refuse(
 /* Refuse emit to the operators if request was not sent by a steward and if the station
 Reported in the postionreport is not part of the active scenario */
 export async function postPositionReport(request: Request, response: Response) {
-  const { userId, role } = response.locals.user as AuthUser;
+  const { userId, role, lineGroup } = response.locals.user as AuthUser;
   const { station } = request.body;
 
   if (role !== "STEWARD") {
@@ -56,7 +56,8 @@ export async function postPositionReport(request: Request, response: Response) {
       "Client report ID reused for a different action",
     );
   }
-  const [activation] = await listActivations("ACTIVE");
+  // Only the steward's own line group's activation counts.
+  const activation = await findActiveActivation(lineGroup);
   const stations = new Set(
     activation?.deployments.map((item) => item.fulfills),
   );

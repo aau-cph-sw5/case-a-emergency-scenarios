@@ -4,6 +4,7 @@ import {
   type Deployment,
   type DeploymentReport,
 } from "./deployment-status.js";
+import type { LineGroup } from "../../shared/auth/line-groups.js";
 
 export const ACTIVATION_STATUSES = ["ACTIVE", "CLOSED"] as const;
 export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
@@ -11,6 +12,7 @@ export type ActivationStatus = (typeof ACTIVATION_STATUSES)[number];
 export type StoredActivation = {
   activationId: number;
   scenarioId: string;
+  lineGroup: LineGroup;
   startedAt: string;
   endedAt: string | null;
   status: ActivationStatus;
@@ -32,6 +34,7 @@ export async function listActivations(
     {
       id: number;
       scenarioId: string;
+      lineGroup: LineGroup;
       activatedAt: Date;
       deactivatedAt: Date | null;
       actor: string;
@@ -39,7 +42,7 @@ export async function listActivations(
       deployments: Deployment[];
     }[]
   >`
-    SELECT a.id, a.scenario_id, a.activated_at, a.deactivated_at,
+    SELECT a.id, a.scenario_id, a.line_group, a.activated_at, a.deactivated_at,
       u.username AS actor, e.sequence,
       COALESCE((SELECT json_agg(json_build_object(
         'status', 'UNMANNED', 'staff', NULL, 'fulfills', st.code
@@ -63,6 +66,7 @@ export async function listActivations(
   return rows.map((row) => ({
     activationId: row.id,
     scenarioId: row.scenarioId,
+    lineGroup: row.lineGroup,
     startedAt: row.activatedAt.toISOString(),
     endedAt: row.deactivatedAt?.toISOString() ?? null,
     status: row.deactivatedAt ? "CLOSED" : "ACTIVE",
@@ -161,4 +165,13 @@ export async function closeActivation(db: Db, id: number): Promise<void> {
     UPDATE incident_activations SET deactivated_at = clock_timestamp()
     WHERE id = ${id} AND deactivated_at IS NULL
   `;
+}
+
+export async function findActiveActivation(
+  lineGroup: LineGroup,
+  db: Db = getDatabase(),
+): Promise<StoredActivation | undefined> {
+  return (await listActivations("ACTIVE", db)).find(
+    (activation) => activation.lineGroup === lineGroup,
+  );
 }

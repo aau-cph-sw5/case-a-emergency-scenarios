@@ -6,7 +6,9 @@ import {
   ACTIVATION_STATUSES,
   findActiveScenarioVersion,
   type ActivationStatus,
+  findActiveActivation,
   listActivations,
+  type StoredActivation,
 } from "../repositories/activation-repository.js";
 import {
   findScenario,
@@ -70,14 +72,19 @@ export async function getCurrentScenarioState(
   _request: Request,
   response: Response,
 ) {
-  const [active] = await listActivations("ACTIVE");
+  const active = await findActiveActivation(response.locals.user.lineGroup);
   response.json(active ?? null);
 }
 
 export async function getActivations(request: Request, response: Response) {
   const { status } = request.query;
+  // Users only see their own line group's activations.
+  const inOwnLineGroup = (activations: StoredActivation[]) =>
+    activations.filter(
+      (activation) => activation.lineGroup === response.locals.user.lineGroup,
+    );
   if (status === undefined) {
-    response.json(await listActivations());
+    response.json(inOwnLineGroup(await listActivations()));
     return;
   }
   // A repeated or unknown status is refused, not silently treated as no filter.
@@ -95,7 +102,7 @@ export async function getActivations(request: Request, response: Response) {
       );
     return;
   }
-  response.json(await listActivations(status as ActivationStatus));
+  response.json(inOwnLineGroup(await listActivations(status as ActivationStatus)));
 }
 
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
@@ -132,7 +139,10 @@ export async function activate(
   }
 
   const scenario = await findScenario(scenarioId);
-  if (scenario === undefined) {
+  if (
+    scenario === undefined ||
+    scenario.lineGroup !== response.locals.user.lineGroup
+  ) {
     response
       .status(404)
       .json(
@@ -168,7 +178,7 @@ export async function activate(
       .json(
         errorBody(
           ERROR_CODES.CONFLICT,
-          `A scenario is already active, so '${scenarioId}' cannot be activated`,
+          `A scenario is already active in this line group, so '${scenarioId}' cannot be activated`,
         ),
       );
   } else {

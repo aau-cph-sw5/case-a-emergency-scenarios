@@ -76,6 +76,15 @@ function stewardHeaders() {
   return bearer(STEWARD_USERNAME, "steward123", "mobile");
 }
 
+// DEMO-002 belongs to M3/M4, so only the M3/M4 users can work with it.
+function m3m4OperatorHeaders() {
+  return bearer(`${OPERATOR_USERNAME}-m3m4`, "operator123", "web");
+}
+
+function m3m4StewardHeaders() {
+  return bearer(`${STEWARD_USERNAME}-m3m4`, "steward123", "mobile");
+}
+
 async function loginAs(
   username: string,
   password: string,
@@ -685,7 +694,7 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   const before = await postJson(
     "/api/v1/position-reports",
     stationGReport,
-    await stewardHeaders(),
+    await m3m4StewardHeaders(),
   );
   assert.equal(before.status, 409);
   assert.equal((await before.json()).error.code, "E1001");
@@ -693,14 +702,14 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   const activation = await postJson(
     "/api/v1/scenarios/DEMO-002/activate",
     {},
-    await operatorHeaders(),
+    await m3m4OperatorHeaders(),
   );
   assert.equal(activation.status, 201);
 
   const after = await postJson(
     "/api/v1/position-reports",
     stationGReport,
-    await stewardHeaders(),
+    await m3m4StewardHeaders(),
   );
   assert.equal(after.status, 202);
   assert.deepEqual(await after.json(), { accepted: true });
@@ -709,7 +718,7 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   const other = await postJson(
     "/api/v1/position-reports",
     { ...stationGReport, station: "Station B" },
-    await stewardHeaders(),
+    await m3m4StewardHeaders(),
   );
   assert.equal(other.status, 409);
   assert.equal((await other.json()).error.code, "E1004");
