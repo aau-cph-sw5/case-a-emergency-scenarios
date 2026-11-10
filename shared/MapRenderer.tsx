@@ -253,13 +253,17 @@ function LineButtons({
       {Object.keys(colors).map((n) => (
         <Pressable
           key={n}
+          testID={`metro-destination-${n}`}
           accessibilityRole="button"
           accessibilityLabel={n}
           accessibilityState={{ selected: !hidden.includes(n) }}
           style={{
             backgroundColor: colors[n],
             opacity: hidden.includes(n) ? 0.3 : 1,
-            padding: 8,
+            minWidth: 42,
+            alignItems: "center",
+            paddingHorizontal: 8,
+            paddingVertical: 6,
             margin: 4,
             borderRadius: radius,
           }}
@@ -347,6 +351,13 @@ export default function MapRender({
       groups={lineGroups}
     />
   ) : null;
+  const connections = [
+    ...new Map(
+      visible
+        .flatMap(({ connections }) => connections)
+        .map((connection) => [[...connection].sort().join("\0"), connection]),
+    ).values(),
+  ];
   return (
     <View style={{ flex: 1 }}>
       {renderLineButtons ? renderLineButtons(lineButtons) : lineButtons}
@@ -356,64 +367,62 @@ export default function MapRender({
         viewBox={viewBox}
         preserveAspectRatio="xMidYMid meet"
       >
-        {visible.flatMap(({ name, connections }) =>
-          connections
-            // A station the map has no position for is skipped, not drawn at 0,0.
-            .filter(
-              ([stationA, stationB]) =>
-                getStation(stationA) !== undefined &&
-                getStation(stationB) !== undefined,
-            )
-            .map(([stationA, stationB]) => {
-              const [x1, y1] = getStation(stationA);
-              const [x2, y2] = getStation(stationB);
-              const rails = [1, 2].map((t) =>
-                GetColors(visible, colors, stationA, stationB, t),
-              );
+        {connections
+          // A station the map has no position for is skipped, not drawn at 0,0.
+          .filter(
+            ([stationA, stationB]) =>
+              getStation(stationA) !== undefined &&
+              getStation(stationB) !== undefined,
+          )
+          .map(([stationA, stationB]) => {
+            const [x1, y1] = getStation(stationA);
+            const [x2, y2] = getStation(stationB);
+            const rails = [1, 2].map((t) =>
+              GetColors(visible, colors, stationA, stationB, t),
+            );
 
-              return (
-                <Fragment key={`${name}-${stationA}-${stationB}`}>
-                  {rails.map(
-                    ([colorA, colorB], i) =>
-                      colorA && (
-                        <TrackSegment
-                          key={i}
-                          {...{
-                            stationA,
-                            stationB,
-                            x1,
-                            y1,
-                            x2,
-                            y2,
-                            colorA,
-                            colorB,
-                          }}
-                          track={i + 1}
-                          blocked={blockedTracks.some(
-                            (blocked) =>
-                              blocked.trackNumber === i + 1 &&
-                              [stationA, stationB].includes(blocked.stationA) &&
-                              [stationA, stationB].includes(blocked.stationB),
-                          )}
-                        />
-                      ),
-                  )}
-                  <Station
-                    name={stationB}
-                    x={x2}
-                    y={y2}
-                    highlightColor={highlightFor(stationB)}
-                  />
-                  <Station
-                    name={stationA}
-                    x={x1}
-                    y={y1}
-                    highlightColor={highlightFor(stationA)}
-                  />
-                </Fragment>
-              );
-            }),
-        )}
+            return (
+              <Fragment key={`${stationA}-${stationB}`}>
+                {rails.map(
+                  ([colorA, colorB], i) =>
+                    colorA && (
+                      <TrackSegment
+                        key={i}
+                        {...{
+                          stationA,
+                          stationB,
+                          x1,
+                          y1,
+                          x2,
+                          y2,
+                          colorA,
+                          colorB,
+                        }}
+                        track={i + 1}
+                        blocked={blockedTracks.some(
+                          (blocked) =>
+                            blocked.trackNumber === i + 1 &&
+                            [stationA, stationB].includes(blocked.stationA) &&
+                            [stationA, stationB].includes(blocked.stationB),
+                        )}
+                      />
+                    ),
+                )}
+                <Station
+                  name={stationB}
+                  x={x2}
+                  y={y2}
+                  highlightColor={highlightFor(stationB)}
+                />
+                <Station
+                  name={stationA}
+                  x={x1}
+                  y={y1}
+                  highlightColor={highlightFor(stationA)}
+                />
+              </Fragment>
+            );
+          })}
         {/* Drawn last so no track segment covers a highlighted station. */}
         {highlighted
           .filter((station) => getStation(station) !== undefined)
