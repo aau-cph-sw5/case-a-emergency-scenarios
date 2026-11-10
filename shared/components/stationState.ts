@@ -30,9 +30,13 @@ export function getStationState(
     { length: Math.max(required, deployments.length) },
     (_, i) => deployments[i]?.status ?? "UNMANNED",
   );
-  const current = statuses.filter((s) => s === "MANNED").length;
+  // A steward who has finished the task is still there, so they count as arrived.
+  const current = statuses.filter(
+    (s) => s === "MANNED" || s === "TASK_DONE",
+  ).length;
   const enRoute = statuses.filter((s) => s === "PENDING").length;
-  return { statuses, current, enRoute };
+  const checkedOut = statuses.filter((s) => s === "CHECKED_OUT").length;
+  return { statuses, current, enRoute, checkedOut };
 }
 
 // How much of a station is covered, from 0 (nobody arrived) to 1 (fully

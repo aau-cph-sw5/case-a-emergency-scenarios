@@ -27,6 +27,27 @@ describe("getStationState", () => {
       statuses: ["UNMANNED", "UNMANNED"],
       current: 0,
       enRoute: 0,
+      checkedOut: 0,
+    });
+  });
+
+  it("counts task done as arrived and keeps checked out apart", () => {
+    const state = getStationState(
+      {
+        deployments: [
+          createDeployment("Station A", "TASK_DONE", "2026-10-18T08:30:00Z"),
+          createDeployment("Station A", "CHECKED_OUT", "2026-10-18T09:15:00Z"),
+        ],
+      },
+      "Station A",
+      3,
+    );
+
+    expect(state).toEqual({
+      statuses: ["TASK_DONE", "CHECKED_OUT", "UNMANNED"],
+      current: 1,
+      enRoute: 0,
+      checkedOut: 1,
     });
   });
 
@@ -48,6 +69,7 @@ describe("getStationState", () => {
       statuses: ["PENDING", "MANNED", "UNMANNED"],
       current: 1,
       enRoute: 1,
+      checkedOut: 0,
     });
   });
 });

@@ -99,10 +99,11 @@ function PreviewStationRow({
   );
 }
 
-type SlotStatus = "MANNED" | "PENDING" | "UNMANNED";
+type SlotStatus = "MANNED" | "PENDING" | "CHECKED_OUT" | "UNMANNED";
 
 // A symbol per status, so the slots also read without the colours: a cross for
-// missing, an arrow for on the way, a tick for arrived. They sit on white, which
+// missing, an arrow for on the way, a tick for arrived, a door for someone who
+// has left, which still leaves the slot missing. They sit on white, which
 // holds 4.5:1 against all three, and yellow uses its darker shade for the same
 // reason.
 const SLOT_SYMBOL: Record<SlotStatus, { color: string; path: string }> = {
@@ -110,6 +111,10 @@ const SLOT_SYMBOL: Record<SlotStatus, { color: string; path: string }> = {
   PENDING: {
     color: colors.statusYellowText,
     path: "M2.5 8h11M9 3.5 13.5 8 9 12.5",
+  },
+  CHECKED_OUT: {
+    color: colors.text,
+    path: "M6.5 2.5H3v11h3.5M7 8h6.5M10.5 5l3 3-3 3",
   },
   UNMANNED: { color: colors.statusRed, path: "M4 4l8 8M12 4l-8 8" },
 };
@@ -164,21 +169,23 @@ function OperatorStationRow({
   requirement: StationRequirement;
   deployments: ActiveDeployments;
 }) {
-  const { current, enRoute } = getStationState(
+  const { current, enRoute, checkedOut } = getStationState(
     deployments,
     requirement.station,
     requirement.minimumStaffing,
   );
   const needed = requirement.minimumStaffing;
-  const waiting = Math.max(0, needed - current - enRoute);
+  const waiting = Math.max(0, needed - current - enRoute - checkedOut);
   const [open, setOpen] = useState(false);
-  // Exactly one slot per required steward, ordered green/yellow/red.
+  // Exactly one slot per required steward, ordered green/yellow/left/red.
   const statuses = Array.from({ length: needed }, (_, index) =>
     index < current
       ? "MANNED"
       : index < current + enRoute
         ? "PENDING"
-        : "UNMANNED",
+        : index < current + enRoute + checkedOut
+          ? "CHECKED_OUT"
+          : "UNMANNED",
   );
 
   return (
@@ -202,13 +209,14 @@ function OperatorStationRow({
         </Text>
         <Slots
           statuses={statuses}
-          label={`${current} ankommet, ${enRoute} på vej, ${waiting} afventer`}
+          label={`${current} ankommet, ${enRoute} på vej, ${checkedOut > 0 ? `${checkedOut} tjekket ud, ` : ""}${waiting} afventer`}
         />
       </View>
       {open && (
         <View style={styles.details}>
           <Text style={[styles.small, styles.bold]}>
             {current}/{needed} ankommet · {enRoute} på vej
+            {checkedOut > 0 && ` · ${checkedOut} tjekket ud`}
           </Text>
           <Text style={[styles.small, styles.bold]}>
             {requirement.placement}

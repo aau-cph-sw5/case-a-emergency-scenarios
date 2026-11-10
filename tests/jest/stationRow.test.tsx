@@ -60,6 +60,45 @@ describe("StationRow", () => {
     expect(screen.getAllByTestId("station-slot-MANNED")).toHaveLength(3);
   });
 
+  it("shows a steward who left as checked out, with the row still red, and task done as arrived", () => {
+    const row = (
+      ...statuses: ActiveDeployments["deployments"][number]["status"][]
+    ) => (
+      <StationRow
+        requirement={requirement}
+        deployments={{
+          deployments: statuses.map((status) => ({
+            fulfills: requirement.station,
+            status,
+          })),
+        }}
+        operatorLayout
+      />
+    );
+    const tint = () =>
+      StyleSheet.flatten(screen.getByTestId("operator-station-row").props.style)
+        .backgroundColor;
+
+    const view = render(row("CHECKED_OUT"));
+    expect(screen.getAllByTestId("station-slot-CHECKED_OUT")).toHaveLength(1);
+    expect(screen.getAllByTestId("station-slot-UNMANNED")).toHaveLength(1);
+    expect(tint()).toBe(colors.coverageNone);
+    expect(
+      screen.getByLabelText("0 ankommet, 0 på vej, 1 tjekket ud, 1 afventer"),
+    ).toBeTruthy();
+    fireEvent.press(screen.getByTestId("operator-station-row"));
+    expect(screen.getByText(/1 tjekket ud/)).toBeTruthy();
+
+    view.rerender(row("TASK_DONE", "CHECKED_OUT"));
+    expect(screen.getAllByTestId("station-slot-MANNED")).toHaveLength(1);
+    expect(screen.getAllByTestId("station-slot-CHECKED_OUT")).toHaveLength(1);
+    expect(tint()).toBe(colors.coveragePartial);
+
+    view.rerender(row("TASK_DONE", "TASK_DONE"));
+    expect(screen.getAllByTestId("station-slot-MANNED")).toHaveLength(2);
+    expect(tint()).toBe(colors.coverageFull);
+  });
+
   it("shows only the required number in a compact preview and keeps placement expandable", () => {
     render(<StationRow requirement={requirement} mode="needed-only" compact />);
     expect(
