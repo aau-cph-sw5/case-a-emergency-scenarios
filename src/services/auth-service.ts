@@ -6,6 +6,7 @@ import {
   type Client,
 } from "../../shared/auth/client-access.js";
 import { isRole, type Role } from "../../shared/auth/roles.js";
+import { isLineGroup, type LineGroup } from "../../shared/auth/line-groups.js";
 import { RENEWAL_WINDOW_MS } from "../../shared/auth/renewal.js";
 import { authSessionRepository } from "../repositories/auth-session-repository.js";
 import { userRepository } from "../repositories/user-repository.js";
@@ -29,6 +30,7 @@ const TOKEN_TTL_MS = TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
 export type AuthSessionResponse = {
   token: string;
   role: Role;
+  lineGroup: LineGroup;
   expiresAt: string;
 };
 
@@ -41,12 +43,19 @@ type IssuedSession = {
 function createToken(
   userId: number,
   role: Role,
+  lineGroup: LineGroup,
   jti: string,
   expiresAt?: Date,
 ): string {
   const payload = expiresAt
-    ? { userId, role, jti, exp: Math.floor(expiresAt.getTime() / 1000) }
-    : { userId, role, jti };
+    ? {
+        userId,
+        role,
+        lineGroup,
+        jti,
+        exp: Math.floor(expiresAt.getTime() / 1000),
+      }
+    : { userId, role, lineGroup, jti };
 
   return jwt.sign(
     payload,
@@ -72,8 +81,9 @@ function getTokenExpiry(token: string): Date {
 async function issueSession(
   userId: number,
   role: Role,
+  lineGroup: LineGroup,
 ): Promise<AuthSessionResponse> {
-  const session = createSession(userId, role);
+  const session = createSession(userId, role, lineGroup);
   await authSessionRepository.startSession(
     userId,
     session.jti,
@@ -82,15 +92,20 @@ async function issueSession(
   return session.response;
 }
 
-function createSession(userId: number, role: Role): IssuedSession {
+function createSession(
+  userId: number,
+  role: Role,
+  lineGroup: LineGroup,
+): IssuedSession {
   const jti = randomUUID();
-  const token = createToken(userId, role, jti);
+  const token = createToken(userId, role, lineGroup, jti);
   const expiresAt = getTokenExpiry(token);
 
   return {
     response: {
       token,
       role,
+      lineGroup,
       expiresAt: expiresAt.toISOString(),
     },
     jti,
@@ -101,12 +116,14 @@ function createSession(userId: number, role: Role): IssuedSession {
 function createRenewedSession(
   userId: number,
   role: Role,
+  lineGroup: LineGroup,
   jti: string,
   expiresAt: Date,
 ): AuthSessionResponse {
   return {
-    token: createToken(userId, role, jti, expiresAt),
+    token: createToken(userId, role, lineGroup, jti, expiresAt),
     role,
+    lineGroup,
     expiresAt: expiresAt.toISOString(),
   };
 }
@@ -118,31 +135,36 @@ export async function login(
 ): Promise<(AuthSessionResponse & { userId: number }) | null> {
   const user = await userRepository.getUserByUsername(username);
 
-  if (!user || !isRole(user.role)) return null;
+  if (!user || !isRole(user.role) || !isLineGroup(user.lineGroup)) return null;
 
   const passwordMatches = await bcrypt.compare(password, user.passwordHash);
   if (!passwordMatches) return null;
   if (!isRoleAllowedForClient(client, user.role)) return null;
 
-  return { ...(await issueSession(user.id, user.role)), userId: user.id };
+  return {
+    ...(await issueSession(user.id, user.role, user.lineGroup)),
+    userId: user.id,
+  };
 }
 
 export type AuthUser = {
   userId: number;
   role: Role;
+  lineGroup: LineGroup;
   jti: string;
 };
 
 function isAuthPayload(payload: unknown): payload is AuthUser {
   if (typeof payload !== "object" || payload === null) return false;
 
-  const { userId, role, jti } = payload as Record<string, unknown>;
+  const { userId, role, lineGroup, jti } = payload as Record<string, unknown>;
 
   return (
     typeof userId === "number" &&
     typeof jti === "string" &&
     jti !== "" &&
-    isRole(role)
+    isRole(role) &&
+    isLineGroup(lineGroup)
   );
 }
 
@@ -168,11 +190,12 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
 
   const user = await userRepository.getUserById(payload.userId);
 
-  if (!user || !isRole(user.role)) return null;
+  if (!user || !isRole(user.role) || !isLineGroup(user.lineGroup)) return null;
 
   return {
     userId: user.id,
     role: user.role,
+    lineGroup: user.lineGroup,
     jti: payload.jti,
   };
 }
@@ -192,7 +215,8 @@ export async function renew(user: AuthUser): Promise<RenewalResult> {
 
   const account = await userRepository.getUserById(user.userId);
 
-  if (!account || !isRole(account.role)) return { kind: "invalid" };
+  if (!account || !isRole(account.role) || !isLineGroup(account.lineGroup))
+    return { kind: "invalid" };
 
   const remainingMs = session.expiresAt.getTime() - Date.now();
 
@@ -211,6 +235,7 @@ export async function renew(user: AuthUser): Promise<RenewalResult> {
       session: createRenewedSession(
         user.userId,
         account.role,
+        account.lineGroup,
         user.jti,
         extended.expiresAt,
       ),
@@ -230,6 +255,7 @@ export async function renew(user: AuthUser): Promise<RenewalResult> {
       session: createRenewedSession(
         user.userId,
         account.role,
+        account.lineGroup,
         user.jti,
         currentSession.expiresAt,
       ),
