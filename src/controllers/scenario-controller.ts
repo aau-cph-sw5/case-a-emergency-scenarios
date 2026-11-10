@@ -102,7 +102,9 @@ export async function getActivations(request: Request, response: Response) {
       );
     return;
   }
-  response.json(inOwnLineGroup(await listActivations(status as ActivationStatus)));
+  response.json(
+    inOwnLineGroup(await listActivations(status as ActivationStatus)),
+  );
 }
 
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
