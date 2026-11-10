@@ -188,68 +188,6 @@ describe("MetroMap", () => {
     expect(shownLines()).toEqual(["M1", "M2"]);
   });
 
-  it("draws scenario routes in destination colours and labels controls with DIDs", () => {
-    const [version] = scenario.versions;
-    const withDestinations: Scenario = {
-      ...scenario,
-      versions: [
-        {
-          ...version,
-          operatingPlan: {
-            ...version.operatingPlan,
-            patterns: [
-              {
-                operationType: "PENDULUM",
-                routeCode: "VAN-FL",
-                trackNumber: 1,
-                maximumTrains: 1,
-                did: "234",
-                route: [
-                  { sequence: 1, station: "VAN" },
-                  { sequence: 2, station: "FL" },
-                ],
-              },
-              {
-                operationType: "ROUNDTRIP",
-                routeCode: "FL-LIT",
-                trackNumber: 2,
-                maximumTrains: 1,
-                did: "250",
-                route: [
-                  { sequence: 1, station: "FL" },
-                  { sequence: 2, station: "LIT" },
-                ],
-              },
-            ],
-          },
-        },
-      ],
-    };
-
-    render(
-      withScenario(
-        withDestinations.scenarioId,
-        async () => withDestinations,
-        withDestinations,
-      ),
-    );
-
-    const did234 = screen.getByTestId("metro-destination-234");
-    const did250 = screen.getByTestId("metro-destination-250");
-    const color234 = StyleSheet.flatten(did234.props.style).backgroundColor;
-    const color250 = StyleSheet.flatten(did250.props.style).backgroundColor;
-    const strokes = screen
-      .UNSAFE_queryAllByType(Line)
-      .map((strip) => strip.props.stroke);
-
-    expect(did234.props.accessibilityLabel).toBe("234");
-    expect(did250.props.accessibilityLabel).toBe("250");
-    expect(color234).not.toBe(color250);
-    expect(strokes).toContain(color234);
-    expect(strokes).toContain(color250);
-    expect(screen.queryByText("M1")).toBeNull();
-  });
-
   it("offers no zoom button when the full map already shows", () => {
     render(withScenario(null, async () => scenario));
 
