@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { box, colors, palette, radius, surface, text } from "./Theme";
 import { InvalidCredentialsError, login } from "./auth/login";
 import type { Client } from "./auth/client-access";
@@ -51,13 +58,30 @@ export function LoginScreen({
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Emergency Scenarios</Text>
+    <View style={[styles.container, client === "web" && styles.webContainer]}>
+      {client !== "web" && (
+        <View style={styles.mobileBackground} pointerEvents="none">
+          <Image
+            source={require("../mobile/assets/login-tunnel.jpg")}
+            style={styles.mobileImage}
+            resizeMode="cover"
+          />
+          <View style={styles.mobileOverlay} />
+        </View>
+      )}
+      <View style={[styles.card, styles.webCard]}>
+        <View style={styles.brand}>
+          <View style={styles.brandMark}>
+            <Text style={styles.brandLetter}>M</Text>
+          </View>
+          <Text style={styles.brandName}>Metro Service</Text>
+        </View>
+        <Text style={[styles.title, styles.webTitle]}>Log ind</Text>
 
-        <Text style={styles.label}>Brugernavn</Text>
+        <Text style={[styles.label, styles.webLabel]}>Brugernavn</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, styles.webInput]}
+          accessibilityLabel="Brugernavn"
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
@@ -66,9 +90,10 @@ export function LoginScreen({
           editable={!submitting}
         />
 
-        <Text style={styles.label}>Adgangskode</Text>
+        <Text style={[styles.label, styles.webLabel]}>Adgangskode</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, styles.webInput]}
+          accessibilityLabel="Adgangskode"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -78,7 +103,11 @@ export function LoginScreen({
         />
 
         <Pressable
-          style={[styles.button, !canSubmit && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            styles.webButton,
+            !canSubmit && styles.buttonDisabled,
+          ]}
           onPress={() => void handleSubmit()}
           disabled={!canSubmit}
           accessibilityRole="button"
@@ -102,6 +131,65 @@ export function LoginScreen({
 // Styling comes from shared/Theme so the login matches the control-room
 // dashboard.
 const styles = StyleSheet.create({
+  mobileBackground: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  mobileImage: { width: "100%", height: "100%" },
+  mobileOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: "rgba(15, 20, 22, 0.72)",
+  },
+  webContainer: {
+    minHeight: "100%",
+    justifyContent: "center",
+    paddingVertical: 32,
+  },
+  webCard: { borderWidth: 0, borderRadius: 12, padding: 32, maxWidth: 440 },
+  brand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 18,
+  },
+  brandMark: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#e81919",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brandLetter: { color: "#fff", fontSize: 23, fontWeight: "700" },
+  brandName: { color: "#182127", fontSize: 17, fontWeight: "700" },
+  webTitle: {
+    fontSize: 26,
+    fontWeight: "700",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  webLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#34484e",
+    marginBottom: 7,
+  },
+  webInput: {
+    borderColor: "#cbd5d8",
+    borderRadius: 8,
+    backgroundColor: "#f7f9f9",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 18,
+  },
+  webButton: { backgroundColor: "#b42420", borderRadius: 8, marginTop: 4 },
   container: {
     flex: 1,
     justifyContent: "center",
