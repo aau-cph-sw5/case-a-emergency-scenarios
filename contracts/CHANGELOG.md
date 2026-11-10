@@ -10,6 +10,15 @@ Breaking. Reports against a superseded scenario are rejected (MET-A-006, #267).
 - A replay of an accepted report (same `id`) still answers 202, also after the scenario has changed.
 - `info.version` in `openapi.yaml` is now 8.0.0.
 
+## 7.3.0 - 2026-11-09
+
+Additive. Users belong to a line group, M1/M2 or M3/M4 (#316).
+
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/renew` and `GET /api/v1/me` return `lineGroup` (`M1_M2` or `M3_M4`).
+- The token carries the user's line group. A token without one is refused with 401 `E0001`.
+- `users` stores the line group in a new `line_group` column.
+- `info.version` in `openapi.yaml` is now 7.3.0.
+
 ## 7.2.0 - 2026-11-05
 
 Additive. Client-generated position report identity for offline retries (MET-A-006, #266).

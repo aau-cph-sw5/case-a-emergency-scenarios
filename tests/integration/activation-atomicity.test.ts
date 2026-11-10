@@ -26,6 +26,7 @@ after(() => getDatabase().end());
 const operator: AuthUser = {
   userId: 1,
   role: "OPERATOR",
+  lineGroup: "M1_M2",
   jti: "test-only-jti",
 };
 

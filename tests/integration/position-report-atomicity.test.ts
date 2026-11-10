@@ -37,6 +37,7 @@ before(async () => {
   steward = {
     userId: stewardAccount.id,
     role: stewardAccount.role,
+    lineGroup: stewardAccount.lineGroup,
     jti: "test-only-jti",
   };
 
