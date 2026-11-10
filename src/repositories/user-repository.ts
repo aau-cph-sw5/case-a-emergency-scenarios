@@ -5,6 +5,7 @@ export type UserAccount = {
   username: string;
   passwordHash: string;
   role: string;
+  lineGroup: string;
 };
 
 async function getUserByUsername(
@@ -12,7 +13,7 @@ async function getUserByUsername(
 ): Promise<UserAccount | null> {
   const sql = getDatabase();
   const result = await sql<UserAccount[]>`
-        SELECT id, username, password_hash AS "passwordHash", role
+        SELECT id, username, password_hash AS "passwordHash", role, line_group AS "lineGroup"
         FROM users
         WHERE lower(username) = lower(${username})
     `;
@@ -22,7 +23,7 @@ async function getUserByUsername(
 async function getUserById(id: number): Promise<UserAccount | null> {
   const sql = getDatabase();
   const result = await sql<UserAccount[]>`
-        SELECT id, username, password_hash AS "passwordHash", role
+        SELECT id, username, password_hash AS "passwordHash", role, line_group AS "lineGroup"
         FROM users
         WHERE id = ${id}
     `;

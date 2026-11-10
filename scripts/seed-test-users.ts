@@ -1,26 +1,40 @@
 import bcrypt from "bcryptjs";
 import postgres from "postgres";
 import { fileURLToPath } from "node:url";
+import type { LineGroup } from "../shared/auth/line-groups.js";
 
 const SALT_ROUNDS = 10;
 
-const users = [
+const m1m2Users = [
   {
     username: "steward",
     password: "steward123",
     role: "STEWARD",
+    lineGroup: "M1_M2",
   },
   {
     username: "operator",
     password: "operator123",
     role: "OPERATOR",
+    lineGroup: "M1_M2",
   },
 ] as const;
+
+// The same accounts for M3/M4, so tests can log in to either line group.
+const users = [
+  ...m1m2Users,
+  ...m1m2Users.map((user) => ({
+    ...user,
+    username: `${user.username}-m3m4`,
+    lineGroup: "M3_M4" as const,
+  })),
+];
 
 export type SeededTestUser = {
   id: number;
   username: string;
   role: "STEWARD" | "OPERATOR";
+  lineGroup: LineGroup;
 };
 
 // Connects as the owner, like seed-scenarios.ts: the application's role
@@ -55,12 +69,13 @@ export async function seedTestUsers(
       const passwordHash = await bcrypt.hash(user.password, SALT_ROUNDS);
 
       const [seededUser] = await sql<{ id: number }[]>`
-          INSERT INTO users (username, password_hash, role)
-          VALUES (${username}, ${passwordHash}, ${user.role})
+          INSERT INTO users (username, password_hash, role, line_group)
+          VALUES (${username}, ${passwordHash}, ${user.role}, ${user.lineGroup})
           ON CONFLICT (lower(username)) DO UPDATE
           SET
               password_hash = EXCLUDED.password_hash,
-              role = EXCLUDED.role
+              role = EXCLUDED.role,
+              line_group = EXCLUDED.line_group
           RETURNING id
         `;
 
@@ -68,6 +83,7 @@ export async function seedTestUsers(
         id: seededUser.id,
         username,
         role: user.role,
+        lineGroup: user.lineGroup,
       });
     }
   } finally {
