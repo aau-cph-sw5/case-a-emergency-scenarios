@@ -16,7 +16,9 @@ import { postJson } from "../../web/src/get-json";
 
 jest.mock("../../web/src/components/OperatorSections.css", () => ({}));
 jest.mock("../../web/src/components/MetroMap", () => ({
-  MetroMap: () => null,
+  MetroMap: ({ scenarioId }: { scenarioId: string | null }) => (
+    <div data-testid="map-scenario">{scenarioId ?? "none"}</div>
+  ),
 }));
 
 jest.mock("../../web/src/get-json", () => ({
@@ -81,6 +83,7 @@ function Harness({ initialId = null }: { initialId?: string | null }) {
   return (
     <ScenarioWorkspace
       token="operator-token"
+      lineGroup="M1/M2"
       selectedId={selectedId}
       onSelect={onSelect}
     />
@@ -154,6 +157,17 @@ afterEach(async () => {
 });
 
 describe("scenario preview and activation", () => {
+  it("shows the active scenario on the map when none is selected, then clears it on stand-down", async () => {
+    await renderList(null, { activations: [activated] });
+    expect(
+      container.querySelector('[data-testid="map-scenario"]')?.textContent,
+    ).toBe(first.scenarioId);
+    await renderList(null, { activations: [] });
+    expect(
+      container.querySelector('[data-testid="map-scenario"]')?.textContent,
+    ).toBe("none");
+  });
+
   it("opens switching and cancels back to the current scenario without an API call", async () => {
     await renderList(null, { activations: [activated] });
     await click("Skift scenarie");

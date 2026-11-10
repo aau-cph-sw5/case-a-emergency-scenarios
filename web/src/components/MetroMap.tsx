@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { Pressable, Text, View } from "react-native";
 import MapRender from "../../../shared/MapRenderer";
 import {
@@ -30,11 +29,8 @@ const lineColor = Object.fromEntries(
   network.map((line, index) => [line.name, lineColors[index]]),
 );
 
-// What the map shows for the selected scenario (#183). Every line has a button,
-// but only the lines through its covered pieces start switched on, or the whole
-// network when none of them is on the map. The stations its current version
-// needs staff at are marked. The view zooms to the covered stretch and every
-// marked station, so a marked station on another line stays in the frame.
+// Scenario data determines staffing markers and the optional close-up view.
+// The operator chooses the visible line group separately in the header.
 export function mapView(scenario: Scenario | null) {
   const stretch =
     scenario === null ? [] : affectedStretchAsMapLine(scenario).connections;
@@ -74,11 +70,11 @@ export function mapView(scenario: Scenario | null) {
 export function MetroMap({
   scenarioId,
   scenario: previewScenario,
-  lineControlsTarget,
+  lineGroup = "M1/M2",
 }: {
   scenarioId: string | null;
   scenario?: Scenario | null;
-  lineControlsTarget?: HTMLElement | null;
+  lineGroup?: "M1/M2" | "M3/M4";
 }) {
   // While the scenario loads, or if it cannot be loaded, scenario is null and
   // the whole network is shown. The preview next to the map shows the error.
@@ -89,11 +85,22 @@ export function MetroMap({
   );
   const scenario =
     previewScenario === undefined ? loadedScenario : previewScenario;
-  // Holds the scenario zoomed out from, so the next scenario zooms in again.
-  const [zoomedOutOf, setZoomedOutOf] = useState<string | null>(null);
+  // Each scenario starts with its whole line group in view.
+  const [zoomedInto, setZoomedInto] = useState<string | null>(null);
   const view = mapView(scenario);
-  const canZoom = view.viewBox !== undefined;
-  const zoomedOut = canZoom && zoomedOutOf === scenarioId;
+  const groupLines = network.filter((line) =>
+    lineGroup.split("/").includes(line.name),
+  );
+  const groupStations = new Set(
+    groupLines.flatMap((line) => line.connections.flat()),
+  );
+  const groupViewBox = areaAroundStations([...groupStations], 90);
+  const groupHasScenario = groupLines.some(
+    (line) => !view.initiallyHidden.includes(line.name),
+  );
+  const canZoom = view.viewBox !== undefined && groupHasScenario;
+  const zoomKey = `${scenarioId}-${lineGroup}`;
+  const zoomedIn = canZoom && zoomedInto === zoomKey;
   return (
     <View style={{ flex: 1 }}>
       {scenario !== null && (
@@ -114,7 +121,7 @@ export function MetroMap({
         <Pressable
           testID="map-zoom-toggle"
           accessibilityRole="button"
-          accessibilityLabel={zoomedOut ? "Zoom ind" : "Zoom ud"}
+          accessibilityLabel={zoomedIn ? "Zoom ud" : "Zoom ind"}
           style={{
             position: "absolute",
             top: 12,
@@ -127,31 +134,26 @@ export function MetroMap({
             padding: 8,
             margin: 4,
           }}
-          onPress={() => setZoomedOutOf(zoomedOut ? null : scenarioId)}
+          onPress={() => setZoomedInto(zoomedIn ? null : zoomKey)}
         >
           <Text
             style={[text.body, { color: theme.textInverse, fontWeight: "700" }]}
           >
-            {zoomedOut ? "Zoom ind" : "Zoom ud"}
+            {zoomedIn ? "Zoom ud" : "Zoom ind"}
           </Text>
         </Pressable>
       )}
-      {/* A new key once each scenario has loaded resets which lines are on,
-          so the choices made for one scenario do not carry into the next. */}
+      {/* Reset map interaction when the scenario or line group changes. */}
       <div className="operator-map-renderer">
         <MapRender
-          key={scenario?.scenarioId ?? "none"}
-          lines={network}
+          key={`${scenario?.scenarioId ?? "none"}-${lineGroup}`}
+          lines={groupLines}
           colors={lineColor}
-          lineGroups={lineGroups}
-          initiallyHidden={view.initiallyHidden}
-          renderLineButtons={
-            lineControlsTarget
-              ? (buttons) => createPortal(buttons, lineControlsTarget)
-              : undefined
-          }
-          viewBox={zoomedOut ? undefined : view.viewBox}
-          markedStations={view.markedStations}
+          showLineButtons={false}
+          viewBox={zoomedIn ? view.viewBox : groupViewBox}
+          markedStations={view.markedStations.filter((station) =>
+            groupStations.has(station),
+          )}
           requiredStaffing={view.requiredStaffing}
           highlightColor={theme.requiredStation}
           blockedTracks={scenario?.covers ?? []}

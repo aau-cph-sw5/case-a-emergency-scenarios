@@ -1,7 +1,7 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { View, Pressable, Text as RNText } from "react-native";
-import Svg, { Text, Line, Circle } from "react-native-svg";
-import { getStation } from "../mockData/data";
+import Svg, { Text, Line, Circle, Path } from "react-native-svg";
+import { getLines, getStation } from "../mockData/data";
 import { text, radius, colors as theme } from "./Theme";
 
 type MapLine = {
@@ -32,18 +32,40 @@ function GetOffset(
   return { ox: (-dy / length) * offset, oy: (dx / length) * offset };
 }
 
-const LABEL_ABOVE_LEFT = [
-  "NEL",
-  "MOP",
-  "SLU",
-  "EBR",
-  "HOL",
-  "NHT",
-  "ORK",
-  "AMH",
-  "NUK",
-  "NØR",
-];
+// Keep the two track directions separate while smoothing the Cityringen.
+// The shared M3/M4 sections use the same geometry in either line view.
+const ringStations = getLines()
+  .find((line) => line.name === "M3")!
+  .connections.map(([station]) => station);
+
+function ringPath(stationA: string, stationB: string, offset: number) {
+  const count = ringStations.length;
+  const start = ringStations.indexOf(stationA);
+  if (start < 0 || ringStations[(start + 1) % count] !== stationB) return null;
+
+  const shifted = (index: number) => {
+    const point = getStation(ringStations[(index + count) % count]);
+    const previous = getStation(ringStations[(index - 1 + count) % count]);
+    const next = getStation(ringStations[(index + 1) % count]);
+    const { ox, oy } = GetOffset(...previous, ...next, offset);
+    return [point[0] + ox, point[1] + oy] as const;
+  };
+  const p0 = shifted(start - 1);
+  const p1 = shifted(start);
+  const p2 = shifted(start + 1);
+  const p3 = shifted(start + 2);
+  const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+  const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+  return `M ${p1[0]} ${p1[1]} C ${c1[0]} ${c1[1]}, ${c2[0]} ${c2[1]}, ${p2[0]} ${p2[1]}`;
+}
+
+const LABEL_ABOVE_LEFT = ["NHT", "ORK", "AMH", "NUK", "NØR", "NØ", "SKP"];
+// These shared M3/M4 stations sit beside a diagonal route; their labels fit
+// inside the ring instead of following the tracks.
+const LABEL_INSIDE_RING = ["KK"];
+const LABEL_BELOW_RIGHT = ["GLS", "HOL", "EBR", "SLU", "MOP", "NEL"];
+const LABEL_BELOW_LEFT = ["FBA", "EHP"];
+const LABEL_HORIZONTAL_RIGHT = ["ISB", "UNI", "KHS", "BC", "ØRE", "VEA"];
 
 function Station({
   name,
@@ -51,6 +73,7 @@ function Station({
   y,
   highlightColor,
   requiredStaffing,
+  ringOnly = false,
 }: {
   name: string;
   x: number;
@@ -58,15 +81,30 @@ function Station({
   // Set only for the station to highlight, e.g. the steward's own (MET-A-010).
   highlightColor?: string;
   requiredStaffing?: number;
+  ringOnly?: boolean;
 }) {
   const [hover, setHover] = useState(false);
-  // The same size for every station; a highlighted one differs only by colour.
   const baseRadius = 10;
   // Tilted and placed beside the dot, clear of the tracks. A track rising to
   // the right would lie along the usual label, so those stations mirror it.
-  const mirrored = LABEL_ABOVE_LEFT.includes(name);
-  const labelX = mirrored ? x - baseRadius - 6 : x + baseRadius + 6;
-  const labelY = y - baseRadius - 2;
+  const mirrored =
+    LABEL_ABOVE_LEFT.includes(name) || (ringOnly && name === "FB");
+  const insideRing = LABEL_INSIDE_RING.includes(name);
+  const outsideRight = ringOnly && name === "KGN";
+  const horizontalRight = LABEL_HORIZONTAL_RIGHT.includes(name);
+  const belowRight =
+    LABEL_BELOW_RIGHT.includes(name) || (ringOnly && name === "RHP");
+  const belowLeft = LABEL_BELOW_LEFT.includes(name);
+  const labelX =
+    mirrored || insideRing || belowLeft
+      ? x - baseRadius - 6 - (ringOnly && name === "FB" ? 7 : 0)
+      : x + baseRadius + 6;
+  const labelY =
+    insideRing || outsideRight || horizontalRight
+      ? y + 5
+      : belowRight || belowLeft
+        ? y + 20
+        : y - baseRadius - 2 - (name === "NØ" ? 5 : 0);
   return (
     <>
       <Circle
@@ -96,10 +134,12 @@ function Station({
       )}
       <Text
         {...text.mapLabel}
+        fontSize={16}
+        fontWeight="600"
         x={labelX}
         y={labelY}
-        textAnchor={mirrored ? "end" : "start"}
-        transform={`rotate(${mirrored ? 45 : -45} ${labelX} ${labelY})`}
+        textAnchor={mirrored || insideRing || belowLeft ? "end" : "start"}
+        transform={`rotate(${insideRing || outsideRight || horizontalRight ? 0 : mirrored || belowRight ? 45 : -45} ${labelX} ${labelY})`}
         {...(highlightColor ? { fill: highlightColor } : {})}
       >
         {name}
@@ -143,6 +183,24 @@ function TrackSegment({
     <>
       {strips.map(([d, color, sw]) => {
         const { ox, oy } = GetOffset(x1, y1, x2, y2, side * d);
+        const curve = ringPath(stationA, stationB, side * d);
+        if (curve) {
+          return (
+            <Path
+              key={d}
+              d={curve}
+              fill="none"
+              stroke={color}
+              strokeWidth={sw}
+              strokeDasharray={blocked ? "10 6" : undefined}
+              onPress={press}
+              {...({
+                onMouseEnter: () => setHover(true),
+                onMouseLeave: () => setHover(false),
+              } as any)}
+            />
+          );
+        }
         return (
           <Line
             key={d}
@@ -339,6 +397,18 @@ export default function MapRender({
     highlighted.includes(station) ? highlightColor : undefined;
   const [hidden, setHidden] = useState<string[]>(initiallyHidden);
   const visible = lines.filter((l) => !hidden.includes(l.name));
+  const ringOnly =
+    visible.some((line) => line.name === "M3" || line.name === "M4") &&
+    !visible.some((line) => line.name === "M1" || line.name === "M2");
+  const visibleStations = [
+    ...new Set(
+      visible.flatMap((line) =>
+        line.connections
+          .filter(([a, b]) => getStation(a) && getStation(b))
+          .flat(),
+      ),
+    ),
+  ];
   const lineButtons = showLineButtons ? (
     <LineButtons
       colors={colors}
@@ -398,23 +468,23 @@ export default function MapRender({
                         />
                       ),
                   )}
-                  <Station
-                    name={stationB}
-                    x={x2}
-                    y={y2}
-                    highlightColor={highlightFor(stationB)}
-                  />
-                  <Station
-                    name={stationA}
-                    x={x1}
-                    y={y1}
-                    highlightColor={highlightFor(stationA)}
-                  />
                 </Fragment>
               );
             }),
         )}
-        {/* Drawn last so no track segment covers a highlighted station. */}
+        {/* Stations and labels sit above every track, including shared lines. */}
+        {visibleStations
+          .filter((station) => !highlighted.includes(station))
+          .map((station) => (
+            <Station
+              key={station}
+              name={station}
+              x={getStation(station)[0]}
+              y={getStation(station)[1]}
+              highlightColor={highlightFor(station)}
+              ringOnly={ringOnly}
+            />
+          ))}
         {highlighted
           .filter((station) => getStation(station) !== undefined)
           .map((station) => (
@@ -425,6 +495,7 @@ export default function MapRender({
               y={getStation(station)[1]}
               highlightColor={highlightColor}
               requiredStaffing={requiredStaffing[station]}
+              ringOnly={ringOnly}
             />
           ))}
       </Svg>

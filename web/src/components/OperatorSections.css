@@ -100,6 +100,29 @@ body {
   font-size: 24px;
   font-weight: 900;
 }
+.operator-line-switcher {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #566167;
+  border-radius: 8px;
+  background: #252a2c;
+}
+.operator-line-switcher button {
+  border: 0;
+  border-radius: 5px;
+  padding: 8px 10px;
+  background: transparent;
+  color: #d5dee0;
+  font-weight: 700;
+}
+.operator-line-switcher button[aria-pressed="true"] {
+  background: #fff;
+  color: #1e1e1e;
+}
+.operator-line-switcher button:hover:not([aria-pressed="true"]) {
+  background: #465155;
+}
 .operator-avatar {
   display: grid;
   place-items: center;
