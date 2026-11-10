@@ -18,15 +18,14 @@ export const palette = {
   actionBlue: "#2563eb",
   linePurple: "#9b59b6",
   lineOrange: "#e67e22",
-  signalOrange: "#FF6A00",
   darkYellow: "#8A6A00", // yellow dark enough to read as text on white
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
-  // Light tints behind the control room's station rows, one per coverage tone.
-  tintRed: "#FBD3D1",
-  tintOrange: "#FFDDB3",
+  // Tints behind the control room's station rows. Each is darker than the one
+  // before, so urgency reads from lightness too, not only from hue.
+  tintRed: "#F49C97",
+  tintOrange: "#FFC98A",
   tintYellow: "#FFF3BF",
-  tintGreen: "#CFE9DC",
   tintBlue: "#E5F5F8", // behind the selected tab, a light M4 blue
 };
 
@@ -43,13 +42,13 @@ export const colors = {
   statusRed: palette.metroLineThree,
   statusYellowText: palette.darkYellow,
   subtleBorder: palette.lightGrey, // card outlines that should not compete with the status colour
-  requiredStation: palette.signalOrange, // a station the scenario needs staff at; no line on the map uses it
   blockedTrack: palette.metroDeepRed, // darker than M3's red, and drawn dashed to tell them apart
-  // Station row backgrounds: nobody coming, some coming, all coming, all arrived.
+  // Station row backgrounds: nobody coming, some coming, all coming, all
+  // arrived. A covered station needs no attention, so it gets no colour.
   coverageNone: palette.tintRed,
   coveragePartial: palette.tintOrange,
   coverageEnRoute: palette.tintYellow,
-  coverageFull: palette.tintGreen,
+  coverageFull: palette.metroWhite,
 };
 
 // How a steward's status looks, in the control room and the steward app. The

@@ -105,7 +105,8 @@ describe("StationRow", () => {
       StyleSheet.flatten(
         screen.getByTestId("preview-station-card").props.style,
       ),
-    ).toMatchObject({ backgroundColor: colors.coverageNone });
+    ).toMatchObject({ backgroundColor: colors.background });
+    expect(screen.queryByTestId("station-row-alert")).toBeNull();
     expect(screen.getByText("Station A")).toBeTruthy();
     expect(screen.getAllByTestId("station-slot-UNMANNED")).toHaveLength(2);
     expect(

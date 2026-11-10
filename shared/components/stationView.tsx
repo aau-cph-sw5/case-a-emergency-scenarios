@@ -109,7 +109,11 @@ export default function ScenarioStationList(props: Props) {
       <Text
         testID="staffing-plan-summary"
         accessibilityLabel={`${coveredCount} af ${stations.length} stationer dækket, ${stewards.arrived} af ${stewards.needed} stewards ankommet`}
-        style={styles.planSummary}
+        // Red only while something is missing.
+        style={[
+          styles.planSummary,
+          coveredCount < stations.length && styles.planSummaryMissing,
+        ]}
       >
         <Text style={styles.planSummaryNumber}>{coveredCount}</Text>/
         {stations.length}
@@ -197,9 +201,11 @@ const styles = StyleSheet.create({
   badge,
   small: text.small,
   planSummary: {
-    color: colors.blockedTrack,
+    color: colors.text,
     fontSize: 15,
     fontWeight: "700",
+    fontVariant: ["tabular-nums"],
   },
+  planSummaryMissing: { color: colors.blockedTrack },
   planSummaryNumber: { fontSize: 24 },
 });

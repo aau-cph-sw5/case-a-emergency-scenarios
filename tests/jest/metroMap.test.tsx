@@ -71,7 +71,7 @@ const viewBox = () => screen.UNSAFE_getByType(Svg).props.viewBox;
 const markedDots = () =>
   screen
     .UNSAFE_queryAllByType(Circle)
-    .filter((dot) => dot.props.fill === colors.requiredStation);
+    .filter((dot) => dot.props.fill === colors.text);
 
 describe("MetroMap", () => {
   it("shows every line and marks nothing when no scenario is selected", () => {

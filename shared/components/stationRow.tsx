@@ -72,7 +72,8 @@ function PreviewStationRow({
       accessibilityLabel={`${requirement.station}: ${requirement.minimumStaffing} stewards kræves`}
       accessibilityState={{ expanded: open }}
       onPress={() => setOpen(!open)}
-      style={[styles.tinted, { backgroundColor: colors.coverageNone }]}
+      // Nothing is missing before activation, so the preview is not coloured.
+      style={[styles.tinted, styles.plain]}
     >
       <View style={styles.line}>
         <Text style={styles.tintedName} numberOfLines={1}>
@@ -177,6 +178,7 @@ function OperatorStationRow({
   const needed = requirement.minimumStaffing;
   const waiting = Math.max(0, needed - current - enRoute - checkedOut);
   const [open, setOpen] = useState(false);
+  const tone = coverageTone(deployments, requirement);
   // Exactly one slot per required steward, ordered green/yellow/left/red.
   const statuses = Array.from({ length: needed }, (_, index) =>
     index < current
@@ -197,12 +199,19 @@ function OperatorStationRow({
       onPress={() => setOpen(!open)}
       style={[
         styles.tinted,
-        {
-          backgroundColor:
-            COVERAGE_TINT[coverageTone(deployments, requirement)],
-        },
+        tone === "FULL"
+          ? styles.plain
+          : {
+              backgroundColor: COVERAGE_TINT[tone],
+              borderColor: COVERAGE_TINT[tone],
+            },
       ]}
     >
+      {/* Nobody coming is the one state that also gets a red edge, so it stands
+          out without relying on the tint's hue. */}
+      {tone === "NONE" && (
+        <View testID="station-row-alert" style={styles.alertEdge} />
+      )}
       <View style={styles.line}>
         <Text style={styles.tintedName} numberOfLines={1}>
           {requirement.station}
@@ -309,9 +318,23 @@ const styles = StyleSheet.create({
   count: { fontSize: 20, fontWeight: "700" },
   tinted: {
     borderRadius: 8,
+    borderWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginBottom: 8,
+    overflow: "hidden",
+  },
+  plain: {
+    backgroundColor: colors.background,
+    borderColor: colors.subtleBorder,
+  },
+  alertEdge: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 6,
+    backgroundColor: colors.statusRed,
   },
   tintedName: {
     ...text.body,

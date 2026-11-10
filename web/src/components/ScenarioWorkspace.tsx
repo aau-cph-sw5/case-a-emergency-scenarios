@@ -60,8 +60,11 @@ export function ScenarioWorkspace({
       map={
         <MetroMap
           lineControlsTarget={lineControlsTarget}
-          scenarioId={selectedId}
-          scenario={isActive ? undefined : scenario}
+          // With nothing chosen, the map shows the live scenario.
+          scenarioId={selectedId ?? activations.at(-1)?.scenarioId ?? null}
+          // Undefined lets the map load the live scenario itself.
+          scenario={previewId === null ? undefined : scenario}
+          muted={hasActiveScenario}
         />
       }
       coverageSummary={<div ref={setCoverageSummaryTarget} />}

@@ -63,10 +63,12 @@ describe("ScenarioStationList", () => {
       />,
     );
     expect(
-      screen.getByLabelText(
-        "0 af 2 stationer dækket, 0 af 4 stewards ankommet",
-      ),
-    ).toBeTruthy();
+      StyleSheet.flatten(
+        screen.getByLabelText(
+          "0 af 2 stationer dækket, 0 af 4 stewards ankommet",
+        ).props.style,
+      ).color,
+    ).toBe(colors.blockedTrack);
     expect(screen.queryByText(/stationer dækket/)).toBeNull();
     expect(screen.queryByText(/stewards ·/)).toBeNull();
     expect(screen.queryByText(/Mangler/)).toBeNull();
@@ -204,6 +206,8 @@ describe("ScenarioStationList", () => {
       colors.coverageEnRoute,
       colors.coverageFull,
     ]);
+    // Only the station nobody is coming to gets the red edge.
+    expect(screen.getAllByTestId("station-row-alert")).toHaveLength(1);
   });
 
   it("shows the empty state when the current scenario version is missing", () => {

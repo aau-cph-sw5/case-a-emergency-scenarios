@@ -89,7 +89,8 @@ function Station({
           textAnchor="middle"
           fontSize={14}
           fontWeight="bold"
-          fill={theme.text}
+          // Light on a filled station, so the count stays readable.
+          fill={highlightColor ? theme.background : theme.text}
         >
           {requiredStaffing}
         </Text>

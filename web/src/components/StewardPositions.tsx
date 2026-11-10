@@ -4,6 +4,7 @@ import { colors, palette, stewardStatus, text } from "../../../shared/Theme";
 import type { ActiveDeployments } from "../../../shared/components/stationState";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
 import { StewardStatus } from "./StewardStatus";
+import { formatTime } from "../../../shared/components/statusBar";
 import { useLiveData } from "../data/liveData";
 
 // How often the ages are recomputed, so "for 2 min siden" counts up without a
@@ -246,15 +247,14 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
                     testID="status-message-time"
                     style={{ alignItems: "flex-end", flexShrink: 0 }}
                   >
-                    <Text style={{ fontSize: 12 }}>
+                    <Text
+                      style={{ fontSize: 13, fontVariant: ["tabular-nums"] }}
+                    >
                       {p.time && !Number.isNaN(Date.parse(p.time))
-                        ? new Date(p.time).toLocaleTimeString("da-DK", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "—"}
+                        ? formatTime(p.time)
+                        : "-"}
                     </Text>
-                    <Text style={{ fontSize: 10 }}>
+                    <Text style={{ fontSize: 12 }}>
                       {formatAge(p.time, now)}
                     </Text>
                   </View>

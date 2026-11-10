@@ -30,6 +30,25 @@ const lineColor = Object.fromEntries(
   network.map((line, index) => [line.name, lineColors[index]]),
 );
 
+// A line colour moved most of the way to grey, so it is still told apart but
+// no longer competes with the status colours.
+function mute(hex: string) {
+  const channel = (value: string, index: number) =>
+    parseInt(value.slice(1 + index * 2, 3 + index * 2), 16);
+  return `#${[0, 1, 2]
+    .map((index) =>
+      Math.round(
+        channel(hex, index) * 0.3 + channel(palette.lightGrey, index) * 0.7,
+      )
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+const mutedLineColor = Object.fromEntries(
+  Object.entries(lineColor).map(([name, color]) => [name, mute(color)]),
+);
+
 // What the map shows for the selected scenario (#183). Every line has a button,
 // but only the lines through its covered pieces start switched on, or the whole
 // network when none of them is on the map. The stations its current version
@@ -75,10 +94,14 @@ export function MetroMap({
   scenarioId,
   scenario: previewScenario,
   lineControlsTarget,
+  muted = false,
 }: {
   scenarioId: string | null;
   scenario?: Scenario | null;
   lineControlsTarget?: HTMLElement | null;
+  // While a scenario is live the lines step back, so the blocked track and
+  // the required stations carry the colour.
+  muted?: boolean;
 }) {
   // While the scenario loads, or if it cannot be loaded, scenario is null and
   // the whole network is shown. The preview next to the map shows the error.
@@ -128,7 +151,7 @@ export function MetroMap({
         <MapRender
           key={scenario?.scenarioId ?? "none"}
           lines={network}
-          colors={lineColor}
+          colors={muted ? mutedLineColor : lineColor}
           lineGroups={lineGroups}
           initiallyHidden={view.initiallyHidden}
           renderLineButtons={
@@ -139,7 +162,6 @@ export function MetroMap({
           viewBox={zoomedOut ? undefined : view.viewBox}
           markedStations={view.markedStations}
           requiredStaffing={view.requiredStaffing}
-          highlightColor={theme.requiredStation}
           blockedTracks={scenario?.covers ?? []}
         />
       </div>
