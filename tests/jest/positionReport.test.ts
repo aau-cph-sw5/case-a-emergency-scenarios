@@ -51,6 +51,20 @@ describe("sendPositionReport (MET-A-013)", () => {
     expect(await sendPositionReport("token", "Station X", 1)).toEqual({
       ok: false,
       message: "Stationen er ikke en del af det aktive scenarie.",
+      code: ERROR_CODES.STATION_NOT_IN_SCENARIO,
+    });
+  });
+
+  it("explains a status change the server does not permit (#310)", async () => {
+    respond(409, { error: { code: ERROR_CODES.INVALID_STATUS_TRANSITION } });
+
+    expect(
+      await sendPositionReport("token", "Station C", 1, "EN_ROUTE"),
+    ).toEqual({
+      ok: false,
+      message:
+        "Din status er ændret et andet sted. Vi henter din aktuelle status.",
+      code: ERROR_CODES.INVALID_STATUS_TRANSITION,
     });
   });
 
@@ -61,6 +75,7 @@ describe("sendPositionReport (MET-A-013)", () => {
       ok: false,
       message:
         "Scenariet er blevet stoppet eller skiftet. Positionen blev ikke modtaget.",
+      code: ERROR_CODES.SCENARIO_STOOD_DOWN,
     });
   });
 

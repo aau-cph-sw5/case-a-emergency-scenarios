@@ -23,7 +23,10 @@ import {
   affectedStretchAsMapLine,
   networkWithoutStretch,
 } from "../../../shared/scenario/affected-stations";
-import { getStationState } from "../../../shared/components/stationState";
+import {
+  getStationState,
+  stationCoverage,
+} from "../../../shared/components/stationState";
 import { zoomedViewBox } from "./map-zoom";
 import { findOwnAssignment } from "./own-assignment";
 
@@ -40,6 +43,7 @@ export function ScenarioOverview({
   snapshot,
   onAssign,
   assignedStation,
+  checkedOutStation,
 }: {
   snapshot: ScenarioSnapshot;
   // Offers + on each station, to report on the way there (MET-A-015, #263).
@@ -48,6 +52,9 @@ export function ScenarioOverview({
   // The station the steward has reported on the way to with +. It is shown
   // as their own station, and gets no + of its own.
   assignedStation?: string;
+  // The station the steward has checked out from. It is no longer their own
+  // station, and its row says they left it (#310).
+  checkedOutStation?: string;
 }) {
   const { scenario, state, userId } = snapshot;
   const mapColors = {
@@ -73,8 +80,21 @@ export function ScenarioOverview({
   // interaction. userId comes from the offline copy, so this works offline.
   // The station chosen with + comes first, since the server does not record
   // it in the deployments yet (#263).
+  // A checked-out deployment keeps the steward as staff, so the control room
+  // sees who was there (#289). It is not the steward's own station any more.
+  // After checking out in the app, an older copy of the deployments may still
+  // show them at the station, so the app's own status decides (#310).
   const ownAssignment = findOwnAssignment(state.deployments, userId);
-  const ownStation = assignedStation ?? ownAssignment?.fulfills;
+  const leftStation =
+    checkedOutStation ??
+    (ownAssignment?.status === "CHECKED_OUT"
+      ? ownAssignment.fulfills
+      : undefined);
+  const ownStation =
+    assignedStation ??
+    (checkedOutStation === undefined && ownAssignment?.status !== "CHECKED_OUT"
+      ? ownAssignment?.fulfills
+      : undefined);
   const ownRow = rows.find((row) => row.station === ownStation);
   const ownActions = sortedActions(ownRow);
 
@@ -106,6 +126,13 @@ export function ScenarioOverview({
           showLineButtons={false}
           highlightStation={ownStation}
           highlightColor={OWN_COLOR}
+          // Every station the scenario needs staff at, coloured by how far it
+          // is covered right now, like the dashboard (MET-A-011, #310).
+          markedStations={rows.map((row) => row.station)}
+          requiredStaffing={Object.fromEntries(
+            rows.map((row) => [row.station, row.minimumStaffing]),
+          )}
+          stationCoverage={stationCoverage(rows, state)}
         />
       </View>
 
@@ -117,6 +144,13 @@ export function ScenarioOverview({
         <View style={styles.legend}>
           <View style={styles.legendDot} />
           <Text style={styles.body}>Din station</Text>
+        </View>
+      )}
+      {rows.length > 0 && (
+        <View style={styles.legend}>
+          <Text style={styles.body}>
+            Stationer: grøn er bemandet, gul delvist, rød mangler
+          </Text>
         </View>
       )}
 
@@ -164,6 +198,9 @@ export function ScenarioOverview({
               already in the "Opgaver på" card above. */}
           {row.station === ownStation && (
             <Text style={styles.ownLabel}>Din station</Text>
+          )}
+          {row.station === leftStation && row.station !== ownStation && (
+            <Text style={styles.leftLabel}>Tjekket ud herfra</Text>
           )}
           <View style={styles.stationHeader}>
             <Text style={[styles.stationName, styles.grow]}>
@@ -333,6 +370,11 @@ const styles = StyleSheet.create({
   ownLabel: {
     ...text.body,
     color: OWN_COLOR,
+    fontWeight: "700",
+  },
+  leftLabel: {
+    ...text.body,
+    color: colors.text,
     fontWeight: "700",
   },
   ownStationRow: {

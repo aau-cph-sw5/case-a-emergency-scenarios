@@ -8,6 +8,7 @@
 export interface LoginResponse {
   token: string;
   role: "STEWARD" | "OPERATOR";
+  lineGroup: "M1_M2" | "M3_M4";
   expiresAt: string;
   [k: string]: unknown;
 }

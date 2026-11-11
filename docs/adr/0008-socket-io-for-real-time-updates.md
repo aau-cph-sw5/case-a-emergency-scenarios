@@ -30,7 +30,10 @@ empty `activations-changed` to the connected operators, who refetch the active
 activations for their banner.
 
 A steward sends `POST /api/v1/position-reports`, and the server forwards the
-report to the connected operators as `position-report`.
+report to the connected operators as `position-report`. When the report
+changes the deployments, it also emits an empty `activations-changed` to the
+connected operators and stewards, who refetch, so the coverage on the
+dashboard and on every steward's phone follows the report (#310).
 
 An operator stands down a scenario with
 `POST /api/v1/activations/{activationId}/stand-down`, and the server emits an

@@ -112,7 +112,10 @@ export async function postPositionReport(request: Request, response: Response) {
 
   const io = request.app.locals.io as Server | undefined;
   io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
-  // The deployments changed, so the control room loads the activations again.
+  // The deployments changed, so the control room loads the activations again,
+  // and the stewards' phones the active scenario, so their coverage and map
+  // follow other stewards' reports too (#310).
   io?.to("OPERATOR").emit("activations-changed");
+  io?.to("STEWARD").emit("activations-changed");
   response.status(202).json({ accepted: true });
 }

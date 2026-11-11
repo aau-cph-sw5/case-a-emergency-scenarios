@@ -193,8 +193,8 @@ Seed local users for database-backed authentication after applying migrations:
 npm run seed:users
 ```
 
-This creates or updates the local-only accounts `steward-test` /
-`steward-test-pw` and `operator-test` / `operator-test-pw`. Do not use these
+This creates or updates the local-only accounts `steward` /
+`steward123` and `operator` / `operator123`. Do not use these
 credentials outside local development.
 
 ## Hosted staging and production migrations

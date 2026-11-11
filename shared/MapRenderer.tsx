@@ -2,7 +2,8 @@ import { Fragment, useState, type ReactNode } from "react";
 import { View, Pressable, Text as RNText } from "react-native";
 import Svg, { Text, Line, Circle } from "react-native-svg";
 import { getStation } from "../mockData/data";
-import { text, radius, colors as theme } from "./Theme";
+import { text, radius, colors as theme, coverageColors } from "./Theme";
+import type { CoverageLevel } from "./components/stationState";
 
 type MapLine = {
   name: string;
@@ -51,6 +52,7 @@ function Station({
   y,
   highlightColor,
   requiredStaffing,
+  coverage,
 }: {
   name: string;
   x: number;
@@ -58,6 +60,8 @@ function Station({
   // Set only for the station to highlight, e.g. the steward's own (MET-A-010).
   highlightColor?: string;
   requiredStaffing?: number;
+  // The live coverage fills the dot instead of the highlight (#310).
+  coverage?: { fill: string; text: string };
 }) {
   const [hover, setHover] = useState(false);
   // The same size for every station; a highlighted one differs only by colour.
@@ -73,7 +77,7 @@ function Station({
         cx={x}
         cy={y}
         r={hover ? baseRadius + 3 : baseRadius}
-        fill={highlightColor ?? theme.background}
+        fill={coverage?.fill ?? highlightColor ?? theme.background}
         stroke={theme.text}
         strokeWidth={5}
         onPress={() => console.log(`Clicked: ${name}`)}
@@ -89,7 +93,7 @@ function Station({
           textAnchor="middle"
           fontSize={14}
           fontWeight="bold"
-          fill={theme.text}
+          fill={coverage?.text ?? theme.text}
         >
           {requiredStaffing}
         </Text>
@@ -306,6 +310,7 @@ export default function MapRender({
   blockedTracks = [],
   initiallyHidden = [],
   requiredStaffing = {},
+  stationCoverage = {},
 }: {
   lines: MapLine[];
   colors: Record<string, string>;
@@ -325,8 +330,12 @@ export default function MapRender({
   blockedTracks?: readonly BlockedTrack[];
   // Optional: lines that start switched off until their button is pressed.
   initiallyHidden?: string[];
-  // Saved staffing requirements, never current coverage.
+  // Saved staffing requirements: the number drawn on each station.
   requiredStaffing?: Readonly<Record<string, number>>;
+  // Optional: the live coverage per station, which colours its dot green,
+  // yellow or red like the coverage cards (MET-A-011, #310). Leaving it out
+  // draws the map as before.
+  stationCoverage?: Readonly<Record<string, CoverageLevel>>;
 }) {
   // Each station once, so a station both marked and highlighted is drawn once.
   const highlighted = [
@@ -423,7 +432,11 @@ export default function MapRender({
               name={station}
               x={getStation(station)[0]}
               y={getStation(station)[1]}
-              highlightColor={highlightColor}
+              {...(station === highlightStation || !stationCoverage[station]
+                ? { highlightColor }
+                : // The coverage colour says it all; the steward's own
+                  // station keeps its own colour.
+                  { coverage: coverageColors[stationCoverage[station]] })}
               requiredStaffing={requiredStaffing[station]}
             />
           ))}
