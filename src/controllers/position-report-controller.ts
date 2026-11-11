@@ -6,11 +6,14 @@ import {
   type ErrorCode,
 } from "../../shared/error-codes.js";
 import {
-  activeStations,
+  findActivation,
   listActivations,
-} from "../repositories/fixture-repository.js";
+} from "../repositories/activation-repository.js";
 import type { AuthUser } from "../services/auth-service.js";
-import { recordPositionReport } from "../services/position-report-service.js";
+import {
+  checkPositionReportReplay,
+  recordPositionReport,
+} from "../services/position-report-service.js";
 
 // The response carries the code's fixed message; the details go to the log.
 function refuse(
@@ -27,9 +30,7 @@ function refuse(
 Reported in the postionreport is not part of the active scenario */
 export async function postPositionReport(request: Request, response: Response) {
   const { userId, role } = response.locals.user as AuthUser;
-  const { station } = request.body;
-  const stations = activeStations();
-  const activation = listActivations("ACTIVE")[0];
+  const { station, activationId } = request.body;
 
   if (role !== "STEWARD") {
     return refuse(
@@ -39,10 +40,41 @@ export async function postPositionReport(request: Request, response: Response) {
       `role ${role}`,
     );
   }
-  if (activation === undefined || stations.size === 0) {
-    return refuse(response, 409, ERROR_CODES.NO_ACTIVE_SCENARIO, station);
+  const clientTime = new Date(request.body.reportedAt);
+  const replay = await checkPositionReportReplay(
+    response.locals.user,
+    request.body,
+    clientTime,
+  );
+
+  if (replay === "repeat") {
+    return response.status(202).json({ accepted: true });
   }
-  if (!stations.has(station)) {
+
+  if (replay === "conflict") {
+    return refuse(
+      response,
+      409,
+      ERROR_CODES.CONFLICT,
+      "Client report ID reused for a different action",
+    );
+  }
+  const activation = await findActivation(activationId);
+  if (activation?.status !== "ACTIVE") {
+    if (
+      activation === undefined &&
+      (await listActivations("ACTIVE")).length === 0
+    ) {
+      return refuse(response, 409, ERROR_CODES.NO_ACTIVE_SCENARIO, station);
+    }
+    return refuse(
+      response,
+      409,
+      ERROR_CODES.SCENARIO_STOOD_DOWN,
+      `activation ${activationId}`,
+    );
+  }
+  if (!activation.deployments.some((item) => item.fulfills === station)) {
     return refuse(response, 409, ERROR_CODES.STATION_NOT_IN_SCENARIO, station);
   }
 
@@ -50,8 +82,6 @@ export async function postPositionReport(request: Request, response: Response) {
   // a phone with a wrong clock cannot reorder reports. Store the report and its
   // event first, so the operators are never told about a report that was lost.
   const now = new Date().toISOString();
-  // The phone's own time, for the event log, before reportedAt is replaced.
-  const clientTime = new Date(request.body.reportedAt);
   const report = { ...request.body, staff: userId, reportedAt: now };
   const result = await recordPositionReport(
     response.locals.user,
@@ -59,20 +89,33 @@ export async function postPositionReport(request: Request, response: Response) {
     clientTime,
     activation.startedAt,
   );
+  if (result.kind === "conflict") {
+    return refuse(
+      response,
+      409,
+      ERROR_CODES.CONFLICT,
+      "Client report ID reused for a different action",
+    );
+  }
   if (result.kind === "invalid") {
     return refuse(
       response,
       409,
       ERROR_CODES.INVALID_STATUS_TRANSITION,
-      `task done at ${station}, latest report at ${result.latestStation}`,
+      `${report.taskDone === true ? "task done" : (report.event ?? "EN_ROUTE")} at ${station}, latest report at ${result.latestStation}`,
     );
   }
-  // A repeated task done changes nothing, so the operators are not told again.
+  // A repeat changes nothing, so the operators are not told again.
   if (result.kind === "repeat") {
     return response.status(202).json({ accepted: true });
   }
 
   const io = request.app.locals.io as Server | undefined;
   io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
+  // The deployments changed, so the control room loads the activations again,
+  // and the stewards' phones the active scenario, so their coverage and map
+  // follow other stewards' reports too (#310).
+  io?.to("OPERATOR").emit("activations-changed");
+  io?.to("STEWARD").emit("activations-changed");
   response.status(202).json({ accepted: true });
 }

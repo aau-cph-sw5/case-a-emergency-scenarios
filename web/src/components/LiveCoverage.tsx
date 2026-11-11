@@ -50,7 +50,11 @@ export function LiveCoverage() {
             : "Forbindelsen er afbrudt. Informationen kan være forældet."}
         </Text>
       )}
-      <ScenarioStationList scenario={scenario} activeDeployments={active} />
+      <ScenarioStationList
+        scenario={scenario}
+        activeDeployments={active}
+        operatorLayout
+      />
     </View>
   );
 }

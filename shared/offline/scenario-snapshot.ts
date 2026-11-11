@@ -1,6 +1,6 @@
 // No react-native imports here, so the unit tests can import this file.
 // The steward's offline copy of the active scenario (MET-A-005). See
-// docs/adr/0010-offline-copy-of-the-active-scenario.md.
+// docs/adr/0011-offline-copy-of-the-active-scenario.md.
 import { FormatError } from "../api/http";
 import {
   isPassengerInformation,

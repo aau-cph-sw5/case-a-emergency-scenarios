@@ -7,7 +7,7 @@ const respondWith =
   (body, status = 200) =>
   async () => ({ ok: status < 400, status, json: async () => body });
 const active = {
-  activationId: "ACT-DEMO-001-1",
+  activationId: 1,
   scenarioId: "DEMO-001",
   status: "ACTIVE",
   actor: "u1",

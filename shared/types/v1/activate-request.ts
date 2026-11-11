@@ -9,6 +9,6 @@ export interface ActivateRequest {
   /**
    * The activationId of the active activation to stand down.
    */
-  replaces?: string;
+  replaces?: number;
   [k: string]: unknown;
 }

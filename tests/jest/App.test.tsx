@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { render, screen, waitFor } from "@testing-library/react-native";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import App from "../../mobile/App";
@@ -92,6 +97,26 @@ describe("App", () => {
     expect(screen.queryByText("Rapportér position")).toBeNull();
   });
 
+  it("keeps the copy while the session is being verified and removes it at sign-out", async () => {
+    await storeSession();
+    await storeCopy();
+    jest
+      .spyOn(global, "fetch")
+      .mockRejectedValue(new TypeError("Network request failed"));
+
+    render(<App />);
+
+    expect(await screen.findByText(scenario.name)).toBeTruthy();
+    expect(await AsyncStorage.getItem(STORAGE_KEY)).not.toBeNull();
+
+    fireEvent.press(screen.getByText("Log ud"));
+
+    expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull(),
+    );
+  });
+
   it("removes the copy when the server no longer accepts the session", async () => {
     await storeSession();
     await storeCopy();
@@ -99,7 +124,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Log ind")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull(),
     );

@@ -128,7 +128,7 @@ describe("API-backed scenario preview", () => {
       path === "/api/v1/activations?status=ACTIVE"
         ? response([
             {
-              activationId: "active-1",
+              activationId: 1,
               scenarioId: summaries[0].scenarioId,
               status: "ACTIVE",
               startedAt: "2026-11-01T12:00:00Z",
@@ -139,6 +139,11 @@ describe("API-backed scenario preview", () => {
         : normalFetch(path, options),
     );
     await mount();
+    const startedAt = container.querySelector(".active-start-time")!;
+    expect(startedAt.getAttribute("datetime")).toBe("2026-11-01T12:00:00Z");
+    expect(startedAt.children).toHaveLength(2);
+    expect(startedAt.children[0].textContent).toBe("01.11.2026");
+    expect(startedAt.children[1].textContent).toMatch(/\d{2}[.:]\d{2}/);
     await searchAndSelect(221);
     const columns = container.querySelectorAll(".operator-sections > section");
     expect(columns[0].textContent).toContain("Aktiveret af operator-test");
@@ -157,8 +162,8 @@ describe("API-backed scenario preview", () => {
     await searchAndSelect(221);
     const preview = container.querySelector(".scenario-preview")!;
     expect(preview.textContent).toContain("API-STATION-221");
-    expect(preview.textContent).toContain("Placering: Placering fra backend");
-    expect(preview.textContent).toContain("Minimum 7 stewards");
+    expect(preview.textContent).not.toContain("Placering:");
+    expect(preview.textContent).toContain("Nødvendige stewards: 7");
     expect(preview.textContent).not.toContain("Old placement");
     expect(jest.mocked(MetroMap).mock.lastCall?.[0].scenario).toEqual(
       detail(221),

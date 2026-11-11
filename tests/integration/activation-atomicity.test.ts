@@ -1,8 +1,11 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { getDatabase } from "../../src/db/client.js";
 import { findScenario } from "../../src/repositories/scenario-repository.js";
-import { listActivations } from "../../src/repositories/fixture-repository.js";
+import { listActivations } from "../../src/repositories/activation-repository.js";
+import { seedTestUsers } from "../../scripts/seed-test-users.js";
 import type { AuthUser } from "../../src/services/auth-service.js";
 import {
   activateAndLog,
@@ -12,13 +15,18 @@ import {
 import { appendEvent } from "../../src/services/incident-log-service.js";
 import { seedTestScenarios } from "./helpers.js";
 
-before(() => seedTestScenarios());
+before(async () => {
+  const users = await seedTestUsers("atomicity-");
+  operator.userId = users.find((user) => user.role === "OPERATOR")!.id;
+  await seedTestScenarios();
+});
 
 after(() => getDatabase().end());
 
 const operator: AuthUser = {
   userId: 1,
   role: "OPERATOR",
+  lineGroup: "M1_M2",
   jti: "test-only-jti",
 };
 
@@ -30,10 +38,10 @@ async function scenario(scenarioId: string) {
   return found;
 }
 
-function stoodDownEvents(activationId: string) {
+function stoodDownEvents(activationId: number) {
   return getDatabase()<{ type: string }[]>`
     SELECT type FROM incident_events
-    WHERE type = 'SCENARIO_STOOD_DOWN' AND activation_id = ${activationId}
+    WHERE type = 'SCENARIO_STOOD_DOWN' AND activation_id = ${String(activationId)}
   `;
 }
 
@@ -47,7 +55,7 @@ test("an activation whose event cannot be written is taken back", async () => {
     ),
     /event write failed/,
   );
-  assert.deepEqual(listActivations("ACTIVE"), []);
+  assert.deepEqual(await listActivations("ACTIVE"), []);
 });
 
 test("a stand-down whose event cannot be written is taken back", async () => {
@@ -57,14 +65,14 @@ test("a stand-down whose event cannot be written is taken back", async () => {
     "operator",
   );
   assert.equal(result.kind, "ok");
-  const { activationId } = listActivations("ACTIVE")[0];
+  const { activationId } = (await listActivations("ACTIVE"))[0];
 
   await assert.rejects(
     standDownAndLog(operator, activationId, failingWrite),
     /event write failed/,
   );
 
-  const [active] = listActivations("ACTIVE");
+  const [active] = await listActivations("ACTIVE");
   assert.equal(active?.activationId, activationId);
   assert.equal(active.endedAt, null);
   assert.equal((await stoodDownEvents(activationId)).length, 0);
@@ -72,7 +80,7 @@ test("a stand-down whose event cannot be written is taken back", async () => {
 
 test("a switch whose second event cannot be written changes nothing", async () => {
   // DEMO-001 is still active from the test above.
-  const [outgoing] = listActivations("ACTIVE");
+  const [outgoing] = await listActivations("ACTIVE");
   assert.equal(outgoing?.scenarioId, "DEMO-001");
 
   // The stand-down event is written; the activation event then fails, so the
@@ -96,12 +104,12 @@ test("a switch whose second event cannot be written changes nothing", async () =
 
   assert.equal(writes, 2);
   assert.deepEqual(
-    listActivations("ACTIVE").map((a) => a.activationId),
+    (await listActivations("ACTIVE")).map((a) => a.activationId),
     [outgoing.activationId],
   );
-  assert.equal(listActivations("ACTIVE")[0].endedAt, null);
+  assert.equal((await listActivations("ACTIVE"))[0].endedAt, null);
   assert.equal(
-    listActivations().some((a) => a.scenarioId === "DEMO-002"),
+    (await listActivations()).some((a) => a.scenarioId === "DEMO-002"),
     false,
   );
   assert.equal((await stoodDownEvents(outgoing.activationId)).length, 0);
@@ -109,7 +117,7 @@ test("a switch whose second event cannot be written changes nothing", async () =
 
 test("an activation made while a stand-down is writing its event waits for it", async () => {
   // DEMO-001 is still active from the tests above.
-  const [outgoing] = listActivations("ACTIVE");
+  const [outgoing] = await listActivations("ACTIVE");
   assert.equal(outgoing?.scenarioId, "DEMO-001");
 
   // The stand-down's event write fails, but only after the activation below
@@ -134,7 +142,59 @@ test("an activation made while a stand-down is writing its event waits for it", 
   // still the only active scenario and the activation is refused.
   assert.equal((await activation).kind, "already-active");
   assert.deepEqual(
-    listActivations("ACTIVE").map((a) => a.activationId),
+    (await listActivations("ACTIVE")).map((a) => a.activationId),
     [outgoing.activationId],
   );
+});
+
+test("the active activation can be read in a fresh server process", async () => {
+  const [expected] = await listActivations("ACTIVE");
+  const { stdout } = await promisify(execFile)(process.execPath, [
+    "--import",
+    "tsx",
+    "--input-type=module",
+    "-e",
+    `import { listActivations } from './src/repositories/activation-repository.ts';
+     import { getDatabase } from './src/db/client.ts';
+     console.log(JSON.stringify(await listActivations('ACTIVE')));
+     await getDatabase().end();`,
+  ]);
+  assert.deepEqual(JSON.parse(stdout), [expected]);
+});
+
+test("concurrent activations across line groups allow only one active scenario", async () => {
+  const [active] = await listActivations("ACTIVE");
+  await standDownAndLog(operator, active.activationId);
+  const [first, second] = await Promise.all([
+    activateAndLog(operator, await scenario("DEMO-001"), "operator"),
+    activateAndLog(operator, await scenario("DEMO-002"), "operator"),
+  ]);
+  assert.deepEqual([first.kind, second.kind].sort(), ["already-active", "ok"]);
+  assert.equal((await listActivations("ACTIVE")).length, 1);
+});
+
+test("an activation waiting for a stand-down starts after it closes", async () => {
+  const [current] = await listActivations("ACTIVE");
+  let signalStarted!: () => void;
+  const writeStarted = new Promise<void>((resolve) => {
+    signalStarted = resolve;
+  });
+  const slowWrite: typeof appendEvent = async (tx, user, event) => {
+    signalStarted();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    return appendEvent(tx, user, event);
+  };
+  const nextScenario = await scenario("DEMO-002");
+  const closing = standDownAndLog(operator, current.activationId, slowWrite);
+  await writeStarted;
+  const starting = activateAndLog(operator, nextScenario, "operator");
+  const [closed, started] = await Promise.all([closing, starting]);
+  assert.equal(closed.kind, "ok");
+  assert.equal(started.kind, "ok");
+  if (closed.kind === "ok" && started.kind === "ok") {
+    assert.ok(
+      Date.parse(started.activation.startedAt) >=
+        Date.parse(closed.activation.endedAt!),
+    );
+  }
 });

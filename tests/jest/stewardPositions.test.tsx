@@ -16,7 +16,7 @@ const minutesAgo = (minutes: number) =>
 type Deployment = ScenarioState["deployments"][number];
 
 function activation(
-  activationId: string,
+  activationId: number,
   deployments: Deployment[],
 ): ScenarioState {
   return {
@@ -99,11 +99,11 @@ describe("formatAge", () => {
 describe("stewardPositions", () => {
   it("lists staffed deployments across activations, oldest first, with the time that fits the status", () => {
     const positions = stewardPositions([
-      activation("ACT-1", [
+      activation(1, [
         arrived("steward-002", "Nørreport", minutesAgo(9), minutesAgo(3)),
         { status: "UNMANNED", staff: null, fulfills: "Kongens Nytorv" },
       ]),
-      activation("ACT-2", [onTheWay(7, "Flintholm", minutesAgo(5))]),
+      activation(2, [onTheWay(7, "Flintholm", minutesAgo(5))]),
     ]);
 
     expect(positions).toEqual([
@@ -124,12 +124,27 @@ describe("stewardPositions", () => {
 });
 
 describe("StewardPositions pop-up", () => {
+  it("keeps its launcher visible and toggles the popup on repeated clicks", () => {
+    renderWithLive(<StewardPositions />, {});
+    fireEvent.press(screen.getByTestId("status-launcher"));
+    expect(screen.getByTestId("status-window")).toBeTruthy();
+    expect(
+      screen.getByTestId("status-launcher").props.accessibilityState,
+    ).toEqual({
+      expanded: true,
+    });
+    fireEvent.press(screen.getByTestId("status-launcher"));
+    expect(screen.queryByTestId("status-window")).toBeNull();
+    expect(
+      screen.getByTestId("status-launcher").props.accessibilityState,
+    ).toEqual({
+      expanded: false,
+    });
+  });
   it("starts closed with the number of stewards on the button", () => {
     renderWithLive(<StewardPositions />, {
       activations: [
-        activation("ACT-1", [
-          onTheWay("steward-002", "Nørreport", minutesAgo(2)),
-        ]),
+        activation(1, [onTheWay("steward-002", "Nørreport", minutesAgo(2))]),
       ],
     });
 
@@ -141,7 +156,7 @@ describe("StewardPositions pop-up", () => {
     jest.useFakeTimers({ now: NOW });
     renderWithLive(<StewardPositions />, {
       activations: [
-        activation("ACT-1", [
+        activation(1, [
           onTheWay("steward-002", "Nørreport", minutesAgo(2)),
           arrived("steward-003", "Vanløse", minutesAgo(20), minutesAgo(10)),
         ]),
@@ -151,7 +166,7 @@ describe("StewardPositions pop-up", () => {
     fireEvent.press(screen.getByText("Status (2)"));
 
     expect(screen.getByText("steward-002 | På vej | Nørreport")).toBeTruthy();
-    expect(screen.getByText("steward-003 | Ankommet | Vanløse")).toBeTruthy();
+    expect(screen.getByText("steward-003 | ✓ Ankommet | Vanløse")).toBeTruthy();
     expect(screen.getByText("for 2 min siden")).toBeTruthy();
     expect(screen.getByText("for 10 min siden")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
@@ -160,13 +175,45 @@ describe("StewardPositions pop-up", () => {
     expect(screen.queryByText(/steward-002/)).toBeNull();
   });
 
+  it("shows a steward who has finished the task as Opgave udført", () => {
+    renderWithLive(<StewardPositions />, {
+      activations: [
+        activation(1, [
+          {
+            status: "TASK_DONE",
+            staff: "steward-005",
+            fulfills: "Forum",
+            reportedAt: minutesAgo(4),
+          } as Deployment,
+        ]),
+      ],
+    });
+    fireEvent.press(screen.getByText("Status (1)"));
+
+    expect(
+      screen.getByText("steward-005 | ✓✓ Opgave udført | Forum"),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Ingen status/)).toBeNull();
+  });
+
+  it("shows a steward without a status as having none", () => {
+    renderWithLive(<StewardPositions />, {
+      activations: [
+        activation(1, [
+          { status: "UNMANNED", staff: "steward-004", fulfills: "Forum" },
+        ]),
+      ],
+    });
+    fireEvent.press(screen.getByText("Status (1)"));
+
+    expect(screen.getByText("steward-004 | Ingen status | Forum")).toBeTruthy();
+  });
+
   it("counts the age up without a new report", () => {
     jest.useFakeTimers({ now: NOW });
     renderWithLive(<StewardPositions />, {
       activations: [
-        activation("ACT-1", [
-          onTheWay("steward-002", "Nørreport", minutesAgo(2)),
-        ]),
+        activation(1, [onTheWay("steward-002", "Nørreport", minutesAgo(2))]),
       ],
     });
     fireEvent.press(screen.getByText("Status (1)"));
@@ -182,9 +229,7 @@ describe("StewardPositions pop-up", () => {
   it("updates when a steward moves to another station", () => {
     const view = renderWithLive(<StewardPositions />, {
       activations: [
-        activation("ACT-1", [
-          onTheWay("steward-002", "Nørreport", minutesAgo(5)),
-        ]),
+        activation(1, [onTheWay("steward-002", "Nørreport", minutesAgo(5))]),
       ],
     });
     fireEvent.press(screen.getByText("Status (1)"));
@@ -194,9 +239,7 @@ describe("StewardPositions pop-up", () => {
       <LiveDataContext
         value={liveValue({
           activations: [
-            activation("ACT-1", [
-              onTheWay("steward-002", "Vanløse", minutesAgo(0)),
-            ]),
+            activation(1, [onTheWay("steward-002", "Vanløse", minutesAgo(0))]),
           ],
         })}
       >

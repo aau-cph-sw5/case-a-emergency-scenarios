@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 6.5.0
+  version: 8.0.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -73,6 +73,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: activationId
+          in: query
+          required: false
+          description: Return the version captured by this active activation; answers 404 if it is not active or belongs to another scenario.
+          schema:
+            type: integer
+            minimum: 1
       security:
         - bearerAuth: []
       responses:
@@ -140,6 +147,26 @@ paths:
         done (MET-A-015). That is only allowed at the station of the
         steward's latest report (E1006 otherwise), and sending it again is
         a harmless repeat.
+        The optional event says what the report means (MET-A-015):
+        EN_ROUTE (the default) is on the way, ARRIVED is arrived,
+        CANCELLED withdraws being on the way and frees the station, and
+        CHECKED_OUT is leaving the station after arriving. ARRIVED and
+        CANCELLED are only allowed after EN_ROUTE, and CHECKED_OUT only
+        after ARRIVED or taskDone, all at the station of the steward's
+        latest report (E1006 otherwise). event and taskDone cannot be sent
+        together (E0006). EN_ROUTE at the station of the latest report, while
+        on the way or arrived there, is a harmless repeat, so a report
+        without event never moves an arrived steward back to on the way.
+        EN_ROUTE to another station while on the way frees the old station,
+        as with CANCELLED. After arriving or task done it is rejected with
+        E1006: the steward checks out first.
+        An optional client-generated id (UUID) identifies the original action
+        across offline retries (MET-A-006). Repeating an accepted request with
+        the same id and original action data returns 202 without creating
+        another report, incident-log event or operator notification.
+        Reusing an id for different action data returns 409 E0007.
+        A previously accepted report can be acknowledged after stand-down.
+        Reports without an id remain supported for older clients.
       security:
         - bearerAuth: []
       requestBody:
@@ -149,13 +176,16 @@ paths:
             schema:
               $ref: "./position-report.schema.json"
             example:
+              id: "8e20fa9a-8456-42f4-869c-14cc06a8770a"
+              activationId: 1
               staff: "steward-002"
               station: "Station B"
               reportedAt: "2026-09-23T08:10:00Z"
+              event: "EN_ROUTE"
 
       responses:
         "202":
-          description: Position report accepted
+          description: Position report accepted including an identical previously accepted retry
           content:
             application/json:
               schema:
@@ -199,9 +229,14 @@ paths:
                   message: "The authenticated user's role does not permit this action"
         "409":
           description: >
-            No scenario is active (E1001), the station does not require
-            manning in an active scenario (E1004), or task done is reported
-            at another station than the steward's latest report (E1006).
+            No scenario is active (E1001), the report was made against an
+            activation that is no longer active, for example because the
+            scenario changed while the steward was offline (E1003), the
+            station does not require manning in that activation (E1004), or task done or the event
+            is not allowed from the steward's current status (E1006), for
+            example EN_ROUTE to another station after arriving, before
+            checking out. A client report ID reused for different action
+            data is rejected with E0007.
           content:
             application/json:
               schema:
@@ -212,6 +247,11 @@ paths:
                     error:
                       code: "E1001"
                       message: "No scenario is currently active"
+                supersededActivation:
+                  value:
+                    error:
+                      code: "E1003"
+                      message: "The scenario has been stood down"
                 stationNotInScenario:
                   value:
                     error:
@@ -222,7 +262,11 @@ paths:
                     error:
                       code: "E1006"
                       message: "The status change is not permitted from the steward's current status"
-
+                conflictingClientReportId:
+                  value:
+                    error:
+                      code: "E0007"
+                      message: "A conflict prevents this action"
   /api/v1/auth/login:
     post:
       summary: Sign in and receive a role-bound token
@@ -395,7 +439,7 @@ paths:
             schema:
               $ref: "./activate-request.schema.json"
             example:
-              replaces: "ACT-DEMO-001-1"
+              replaces: 1
       responses:
         "201":
           description: Activation successful
@@ -451,7 +495,7 @@ paths:
                   value:
                     error:
                       code: "E0007"
-                      message: "'ACT-DEMO-001-1' is not the active activation"
+                      message: "'1' is not the active activation"
 
   /api/v1/activations/{activationId}/stand-down:
     post:
@@ -467,7 +511,8 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
+            minimum: 1
       responses:
         "200":
           description: Stood down. The closed activation.
@@ -504,7 +549,7 @@ paths:
               example:
                 error:
                   code: "E0004"
-                  message: "No activation with id 'ACT-S1-1' exists"
+                  message: "No activation with id '1' exists"
         "409":
           description: The activation is already stood down.
           content:
@@ -514,7 +559,7 @@ paths:
               example:
                 error:
                   code: "E1003"
-                  message: "'ACT-S1-1' is already stood down"
+                  message: "'1' is already stood down"
 
 components:
   securitySchemes:

@@ -10,13 +10,17 @@ import { MetroMap } from "./MetroMap";
 export function ScenarioWorkspace({
   token,
   selectedId,
+  lineGroup,
   onSelect,
   statusBar,
+  statusPopup,
 }: {
   token: string;
   selectedId: string | null;
+  lineGroup: "M1/M2" | "M3/M4";
   onSelect: (id: string | null) => void;
   statusBar?: ReactNode;
+  statusPopup?: ReactNode;
 }) {
   const { activations } = useLiveData();
   const isActive =
@@ -25,25 +29,32 @@ export function ScenarioWorkspace({
   const preview = useScenario(previewId);
   const { scenario } = preview;
   const hasActiveScenario = activations.length > 0;
+  const mapScenarioId = selectedId ?? activations.at(-1)?.scenarioId ?? null;
 
   return (
     <OperatorSections
+      statusPopup={statusPopup}
       scenarioSelection={
         <>
-          {statusBar}
           <ScenarioList
             token={token}
             selectedId={selectedId}
             onSelect={onSelect}
             onActivated={() => {}}
             previewReady={scenario !== null}
+            summary={statusBar}
           />
         </>
       }
       map={
         <MetroMap
-          scenarioId={selectedId}
-          scenario={isActive ? undefined : scenario}
+          lineGroup={lineGroup}
+          scenarioId={mapScenarioId}
+          scenario={selectedId === null || isActive ? undefined : scenario}
+          deployments={
+            activations.filter((a) => a.scenarioId === mapScenarioId).at(-1) ??
+            null
+          }
         />
       }
       coverage={
