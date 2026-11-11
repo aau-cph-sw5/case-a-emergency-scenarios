@@ -23,8 +23,9 @@ import {
 } from "../services/activation-service.js";
 import type { ActivateRequest } from "../../shared/types/v1/activate-request.js";
 
+// Users only see their own line group's scenarios
 export async function getScenarios(_request: Request, response: Response) {
-  response.json(await getAllScenarios());
+  response.json(await getAllScenarios(response.locals.user.lineGroup));
 }
 
 export async function getScenario(
@@ -249,10 +250,13 @@ export async function standDown(
       );
     return;
   }
-
-  // Stewards refetch the scenario state, operators their activations.
+  
   const io = request.app.locals.io as Server | undefined;
-  io?.to("STEWARD").emit("scenario-stood-down");
-  io?.to("OPERATOR").emit("activations-changed");
+  // Stewards refetch the scenario state, operators their activations, in the
+  // stood-down activation's line group only.
+  const { lineGroup } = result.activation;
+  io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-stood-down");
+  io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
+
   response.json(result.activation);
 }

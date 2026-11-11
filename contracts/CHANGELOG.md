@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 7.5.0 - 2026-11-11
+
+Additive. Operators only see their own line group's scenarios (#318).
+
+- `GET /api/v1/scenarios` only returns scenarios in the user's own line group.
+- Socket events are sent to one room per role and line group, so they only reach users in the activation's line group. Event names and payloads are unchanged.
+- `info.version` in `openapi.yaml` is now 7.5.0.
+
 ## 7.4.0 - 2026-11-10
 
 Additive. One active scenario per line group (#317).

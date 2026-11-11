@@ -42,7 +42,10 @@ paths:
 
   /api/v1/scenarios:
     get:
-      summary: Get all scenarios
+      summary: Get all scenarios of the user's line group
+      description: >
+        Returns the scenarios in the signed-in user's own line group
+        (M1/M2 or M3/M4). Another line group's scenarios are not listed.
       security:
         - bearerAuth: []
       responses:

@@ -730,3 +730,21 @@ test("protected endpoints reject requests without a token", async () => {
   assert.equal(response.status, 401);
   assert.equal((await response.json()).error.code, "E0001");
 });
+
+test("GET /api/v1/scenarios only returns the user's own line group", async () => {
+  const listFor = async (headers: Record<string, string>) => {
+    const response = await fetch(`${baseUrl}/api/v1/scenarios`, { headers });
+    assert.equal(response.status, 200);
+    return (
+      (await response.json()) as { scenarioId: string; lineGroup: string }[]
+    ).map(({ scenarioId, lineGroup }) => [scenarioId, lineGroup]);
+  };
+
+  assert.deepEqual((await listFor(await operatorHeaders())).sort(), [
+    ["DEMO-001", "M1_M2"],
+    ["DEMO-003", "M1_M2"],
+  ]);
+  assert.deepEqual(await listFor(await m3m4OperatorHeaders()), [
+    ["DEMO-002", "M3_M4"],
+  ]);
+});
