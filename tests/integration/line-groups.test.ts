@@ -107,8 +107,9 @@ async function scenarioState(token: string) {
   return (await response.json()) as { scenarioId: string } | null;
 }
 
-function report(token: string, station: string) {
+function report(token: string, station: string, activationId: number) {
   return post("/api/v1/position-reports", token, {
+    activationId,
     staff: "",
     station,
     reportedAt: new Date().toISOString(),
@@ -175,8 +176,19 @@ test("an operator cannot activate, switch to or stand down the other line group'
 });
 
 test("a position report only matches its own line group's activation", async () => {
-  const own = await report(tokens.m3m4Steward, "Station G");
-  const other = await report(tokens.m1m2Steward, "Station G");
+  const [m3m4Activation] = await active(tokens.m3m4Operator);
+  const [m1m2Activation] = await active(tokens.m1m2Operator);
+  // Station G is only in DEMO-002, the M3/M4 scenario.
+  const own = await report(
+    tokens.m3m4Steward,
+    "Station G",
+    m3m4Activation.activationId,
+  );
+  const other = await report(
+    tokens.m1m2Steward,
+    "Station G",
+    m1m2Activation.activationId,
+  );
 
   assert.equal(own.status, 202);
   assert.equal(other.status, 409);
@@ -186,7 +198,8 @@ test("a position report only matches its own line group's activation", async () 
   );
 });
 
-test("a steward whose line group has nothing active cannot report", async () => {
+test("another line group's activation does not count for a steward", async () => {
+  const [m3m4Activation] = await active(tokens.m3m4Operator);
   const [m1m2Activation] = await active(tokens.m1m2Operator);
   const stoodDown = await post(
     `/api/v1/activations/${m1m2Activation.activationId}/stand-down`,
@@ -194,8 +207,12 @@ test("a steward whose line group has nothing active cannot report", async () => 
   );
   assert.equal(stoodDown.status, 200);
 
-  // M3/M4 is still active, but that does not count for an M1/M2 steward.
-  const response = await report(tokens.m1m2Steward, "Station G");
+  // M3/M4 is still active, but its activation is unknown to an M1/M2 steward.
+  const response = await report(
+    tokens.m1m2Steward,
+    "Station G",
+    m3m4Activation.activationId,
+  );
   assert.equal(response.status, 409);
   assert.equal(
     (await response.json()).error.code,
