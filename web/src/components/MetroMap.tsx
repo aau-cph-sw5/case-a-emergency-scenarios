@@ -10,6 +10,7 @@ import {
 } from "../../../shared/Theme";
 import { getLines } from "../../../mockData/data";
 import {
+  affectedStretchAsMapLine,
   areaAroundStations,
   linesThrough,
   requiredStations,
@@ -55,7 +56,7 @@ function scenarioSegments(scenario: Scenario): TrackSegment[] {
   const segments = routes.length > 0 ? routes : (scenario.covers ?? []);
   const unique = new Map<string, TrackSegment>();
   for (const segment of segments) {
-    const [first, second] = [segment.stationA, segment.stationB].sort();
+    const [first, second] = [segment.stationA, segment.stationB].sort((a, b) => a.localeCompare(b));
     unique.set(`${first}-${second}`, segment);
   }
   return [...unique.values()];
@@ -123,10 +124,8 @@ export function mapView(
   scenario: Scenario | null,
   deployments: ActiveDeployments | null = null,
 ) {
-  const segments = scenario === null ? [] : scenarioSegments(scenario);
-  const stretch = segments.map(
-    ({ stationA, stationB }) => [stationA, stationB] as [string, string],
-  );
+  const stretch =
+    scenario === null ? [] : affectedStretchAsMapLine(scenario).connections;
   const covered = linesThrough(network, stretch);
   const enabledLines: readonly string[] = lineGroups
     .filter((group) =>
@@ -157,19 +156,10 @@ export function mapView(
     // same as its coverage card (MET-A-011, #310).
     stationCoverage:
       deployments === null ? {} : stationCoverage(requirements, deployments),
-    // Undefined without a scenario route, which keeps the map's own view.
+    // Undefined without an affected stretch, which keeps the map's own view.
     viewBox:
       covered.length > 0
-        ? areaAroundStations(
-            [
-              ...segments.flatMap(({ stationA, stationB }) => [
-                stationA,
-                stationB,
-              ]),
-              ...markedStations,
-            ],
-            160,
-          )
+        ? areaAroundStations([...stretch.flat(), ...markedStations], 160)
         : undefined,
   };
 }

@@ -140,10 +140,10 @@ describe("MetroMap", () => {
     expect(screen.queryByText("M1")).toBeNull();
   });
 
-  it("draws the complete scenario route and can zoom to it", () => {
+  it("draws the complete scenario route and zooms to the affected stretch", () => {
     render(withScenario(scenario.scenarioId, async () => scenario, scenario));
     expect(shownLines()).toEqual(["M1", "M2"]);
-    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(80);
+    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(100);
     expect(screen.getByText("TEST")).toBeTruthy();
     expect(screen.getByText("TEST-2")).toBeTruthy();
     const strokes = screen
@@ -154,35 +154,7 @@ describe("MetroMap", () => {
     expect(markedDots().length).toBeGreaterThan(0);
     const fullView = viewBox();
     fireEvent.press(screen.getByText("Zoom ind"));
-    expect(viewBox()).toBe(
-      areaAroundStations(
-        [
-          "VAN",
-          "FL",
-          "LIT",
-          "SOT",
-          "FB",
-          "FOR",
-          "KN",
-          "KGN",
-          "KHC",
-          "AMB",
-          "LGP",
-          "ØSV",
-          "AMS",
-          "FEØ",
-          "KSA",
-          "CPH",
-          "ISB",
-          "UNI",
-          "KHS",
-          "BC",
-          "ØRE",
-          "VEA",
-        ],
-        160,
-      ),
-    );
+    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"], 160));
     fireEvent.press(screen.getByText("Zoom ud"));
     expect(viewBox()).toBe(fullView);
   });
