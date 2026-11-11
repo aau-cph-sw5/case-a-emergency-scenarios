@@ -92,7 +92,7 @@ export function attachSocketHandlers(io: Server) {
           socket.disconnect();
           return;
         }
-        socket.join(roleRoom(role, current.lineGroup));
+        await socket.join(roleRoom(role, current.lineGroup));
         console.log(
           "Socket connected:",
           socket.id,
