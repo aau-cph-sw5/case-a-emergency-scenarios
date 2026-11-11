@@ -139,8 +139,15 @@ describe("MetroMap", () => {
 
   it("draws the complete scenario route and can zoom to it", () => {
     render(withScenario(scenario.scenarioId, async () => scenario, scenario));
-    expect(shownLines()).toEqual(["M1"]);
-    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(84);
+    expect(shownLines()).toEqual(["M1", "M2"]);
+    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(100);
+    expect(screen.getByText("TEST")).toBeTruthy();
+    expect(screen.getByText("TEST-2")).toBeTruthy();
+    const strokes = screen
+      .UNSAFE_queryAllByType(Line)
+      .map((segment) => segment.props.stroke);
+    expect(strokes).toContain(lineColors[0]);
+    expect(strokes).toContain(lineColors[1]);
     expect(markedDots().length).toBeGreaterThan(0);
     const fullView = viewBox();
     fireEvent.press(screen.getByText("Zoom ind"));

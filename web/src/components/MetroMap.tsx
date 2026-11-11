@@ -63,17 +63,50 @@ function scenarioLines(scenario: Scenario, groupLines: typeof network) {
   if (!groupLines.some((line) => expectedLines.includes(line.name))) {
     return [];
   }
+  const current = scenario.versions.find(
+    (version) => version.version === scenario.currentVersion,
+  );
+  const routes =
+    current?.operatingPlan.patterns
+      .filter((pattern) => pattern.did.trim() !== "")
+      .sort((a, b) => a.did.localeCompare(b.did, undefined, { numeric: true }))
+      .map((pattern) => {
+        const stops = pattern.route
+          .slice()
+          .sort(
+            (a, b) =>
+              (typeof a.sequence === "number" ? a.sequence : 0) -
+              (typeof b.sequence === "number" ? b.sequence : 0),
+          );
+        return {
+          name: pattern.did,
+          tracks:
+            pattern.trackNumber === 12 ? [1, 2] : [pattern.trackNumber],
+          connections: stops
+            .slice(1)
+            .map(
+              (stop, index) =>
+                [stops[index].station, stop.station] as [string, string],
+            )
+            .filter(
+              ([stationA, stationB]) =>
+                typeof stationA === "string" && typeof stationB === "string",
+            ),
+        };
+      }) ?? [];
+  if (routes.length > 0) return routes;
   const segments = scenarioSegments(scenario);
-  if (segments.length === 0 || groupLines.length === 0) return [];
-  return [
-    {
-      name: groupLines[0].name,
-      tracks: [1, 2],
-      connections: segments.map(
-        ({ stationA, stationB }) => [stationA, stationB] as [string, string],
-      ),
-    },
-  ];
+  return segments.length === 0
+    ? []
+    : [
+        {
+          name: groupLines[0].name,
+          tracks: [1, 2],
+          connections: segments.map(
+            ({ stationA, stationB }) => [stationA, stationB] as [string, string],
+          ),
+        },
+      ];
 }
 
 // Scenario routes determine the drawn tracks. The operator chooses the line
@@ -155,6 +188,15 @@ export function MetroMap({
       : scenario === null
         ? []
         : scenarioLines(scenario, groupNetwork);
+  const routeColors =
+    scenarioId === null
+      ? lineColor
+      : Object.fromEntries(
+          groupLines.map((line, index) => [
+            line.name,
+            lineColors[index % lineColors.length],
+          ]),
+        );
   const groupStations = new Set([
     ...groupNetwork.flatMap((line) => line.connections.flat()),
     ...groupLines.flatMap((line) => line.connections.flat()),
@@ -213,7 +255,7 @@ export function MetroMap({
         <MapRender
           key={`${scenario?.scenarioId ?? "none"}-${lineGroup}`}
           lines={groupLines}
-          colors={lineColor}
+          colors={routeColors}
           showLineButtons={false}
           viewBox={zoomedIn ? view.viewBox : groupViewBox}
           markedStations={view.markedStations.filter((station) =>
@@ -224,6 +266,27 @@ export function MetroMap({
           blockedTracks={scenario?.covers ?? []}
         />
       </div>
+      {scenarioId !== null && groupLines.length > 0 && (
+        <div
+          className="map-legend"
+          aria-label="Destination IDs"
+          style={{ marginLeft: 8 }}
+        >
+          {groupLines.map((line) => (
+            <span key={line.name}>
+              <i
+                style={{
+                  width: 20,
+                  height: 5,
+                  borderRadius: 2,
+                  background: routeColors[line.name],
+                }}
+              />
+              {line.name}
+            </span>
+          ))}
+        </div>
+      )}
     </View>
   );
 }
