@@ -318,6 +318,7 @@ test("events for one line group never reach the other line group", async () => {
     { method: "POST", headers: { Authorization: `Bearer ${operatorToken}` } },
   );
   assert.equal(activated.status, 201);
+  const { activationId } = await activated.json();
   const reported = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",
     headers: {
@@ -325,13 +326,13 @@ test("events for one line group never reach the other line group", async () => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      activationId,
       staff: "",
       station: "Station G",
       reportedAt: new Date().toISOString(),
     }),
   });
   assert.equal(reported.status, 202);
-  const { activationId } = await activated.json();
   const stoodDown = await fetch(
     `${baseUrl}/api/v1/activations/${activationId}/stand-down`,
     { method: "POST", headers: { Authorization: `Bearer ${operatorToken}` } },
