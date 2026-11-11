@@ -37,13 +37,12 @@ dashboard and on every steward's phone follows the report (#310).
 
 An operator stands down a scenario with
 `POST /api/v1/activations/{activationId}/stand-down`, and the server emits an
-empty `scenario-stood-down` to the connected stewards, who refetch the scenario
-state, and `activations-changed` to the connected operators.
+empty `scenario-stood-down` to the connected stewards of that line group, who refetch the scenario
+state, and `activations-changed` to the connected operators of that line group.
 
 A client sends its bearer token when it opens the socket, and the server
 refuses the connection without a valid token (error code `E0001`). Each socket
-joins a room named after its role, `OPERATOR` or `STEWARD`, so every event is
-sent to the one role it is for.
+joins one room for its role and line group: `OPERATOR:M1_M2`, `STEWARD:M1_M2`, `OPERATOR:M3_M4` or `STEWARD:M3_M4`. Every event is sent to the role it is for, in the line group of the activation it is about, so M1/M2 and M3/M4 never receive each other's events.
 
 ## Consequences
 

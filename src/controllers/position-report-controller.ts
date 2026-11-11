@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import type { Server } from "socket.io";
+import { roleRoom } from "../realtime/socket-server.js";
 import {
   ERROR_CODES,
   errorBody,
@@ -113,11 +114,15 @@ export async function postPositionReport(request: Request, response: Response) {
   }
 
   const io = request.app.locals.io as Server | undefined;
-  io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
-  // The deployments changed, so the control room loads the activations again,
+  io?.to(roleRoom("OPERATOR", activation.lineGroup)).emit("position-report", {
+    ...report,
+    sentAt: now,
+  });
+  // The deployments changed, so the control room of the same linegroup loads the activations again,
   // and the stewards' phones the active scenario, so their coverage and map
-  // follow other stewards' reports too (#310).
-  io?.to("OPERATOR").emit("activations-changed");
-  io?.to("STEWARD").emit("activations-changed");
+  io?.to(roleRoom("OPERATOR", activation.lineGroup)).emit(
+    "activations-changed",
+  );
+  io?.to(roleRoom("STEWARD", activation.lineGroup)).emit("activations-changed");
   response.status(202).json({ accepted: true });
 }

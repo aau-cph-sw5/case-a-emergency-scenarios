@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.1.0
+  version: 8.2.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -42,7 +42,10 @@ paths:
 
   /api/v1/scenarios:
     get:
-      summary: Get all scenarios
+      summary: Get all scenarios of the user's line group
+      description: >
+        Returns the scenarios in the signed-in user's own line group
+        (M1/M2 or M3/M4). Another line group's scenarios are not listed.
       security:
         - bearerAuth: []
       responses:
