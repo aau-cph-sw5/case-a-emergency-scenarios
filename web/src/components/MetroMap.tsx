@@ -49,7 +49,9 @@ function scenarioSegments(scenario: Scenario): TrackSegment[] {
   const segments = routes.length > 0 ? routes : (scenario.covers ?? []);
   const unique = new Map<string, TrackSegment>();
   for (const segment of segments) {
-    const [first, second] = [segment.stationA, segment.stationB].sort((a, b) => a.localeCompare(b));
+    const [first, second] = [segment.stationA, segment.stationB].sort((a, b) =>
+      a.localeCompare(b),
+    );
     unique.set(`${first}-${second}`, segment);
   }
   return [...unique.values()];
@@ -133,9 +135,7 @@ export function mapView(
       deployments === null ? {} : stationCoverage(requirements, deployments),
     // Undefined without an affected stretch, which keeps the map's own view.
     viewBox:
-      covered.length > 0
-        ? areaAroundStations(stretch.flat(), 160)
-        : undefined,
+      covered.length > 0 ? areaAroundStations(stretch.flat(), 160) : undefined,
   };
 }
 
