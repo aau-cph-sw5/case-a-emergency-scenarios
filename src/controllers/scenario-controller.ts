@@ -1,6 +1,7 @@
 import type { Server } from "socket.io";
 import type { Request, Response } from "express";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
+import { roleRoom } from "../realtime/socket-server.js";
 
 import {
   ACTIVATION_STATUSES,
@@ -187,15 +188,16 @@ export async function activate(
     // Push the whole activated scenario to the connected stewards. Operators
     // get an empty signal, so their active-scenario banner refetches at once.
     const io = request.app.locals.io as Server | undefined;
+    const { lineGroup } = result.activation;
     if (!io) {
       console.warn("Socket.IO not attached; scenario-activated not sent");
     }
-    io?.to("STEWARD").emit("scenario-activated", {
+    io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-activated", {
       scenario,
       sentAt: new Date().toISOString(),
       sequence: result.sequence,
     });
-    io?.to("OPERATOR").emit("activations-changed");
+    io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
     console.log("Scenario activated:", result.activation);
     response.status(201).json(result.activation);
   }
