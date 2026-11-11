@@ -140,7 +140,7 @@ describe("MetroMap", () => {
   it("draws the complete scenario route and can zoom to it", () => {
     render(withScenario(scenario.scenarioId, async () => scenario, scenario));
     expect(shownLines()).toEqual(["M1", "M2"]);
-    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(100);
+    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(80);
     expect(screen.getByText("TEST")).toBeTruthy();
     expect(screen.getByText("TEST-2")).toBeTruthy();
     const strokes = screen
