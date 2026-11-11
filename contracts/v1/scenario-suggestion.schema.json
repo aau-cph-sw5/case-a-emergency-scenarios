@@ -1,0 +1,53 @@
+{
+  "$id": "scenario-suggestion.schema.json",
+  "title": "Scenario Suggestion Response",
+  "description": "Answer to POST /api/v1/scenario-suggestions. The request is a ScenarioSuggestionRequest. DRAFT: to be approved by the owners of MET-A-019 (#355, #356).",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["status", "candidates"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "const": "CONFIDENT" },
+        "candidates": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "description": "Best match first.",
+          "items": {
+            "type": "object",
+            "required": ["scenarioId", "score"],
+            "additionalProperties": false,
+            "properties": {
+              "scenarioId": { "type": "string" },
+              "score": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "const": "NO_CONFIDENT_CANDIDATE" }
+      }
+    }
+  ],
+  "definitions": {
+    "ScenarioSuggestionRequest": {
+      "type": "object",
+      "required": ["description"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "Free-text description of the incident."
+        }
+      }
+    }
+  }
+}

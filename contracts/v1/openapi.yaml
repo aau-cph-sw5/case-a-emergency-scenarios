@@ -497,6 +497,72 @@ paths:
                       code: "E0007"
                       message: "'1' is not the active activation"
 
+  /api/v1/scenario-suggestions:
+    post:
+      summary: Suggests scenarios for a free-text incident description
+      description: >
+        DRAFT (MET-A-019), to be approved by the owners of #355 and #356.
+        Requires a bearer token with the OPERATOR role. Returns up to 5
+        candidates, best first, when the match is confident, otherwise
+        NO_CONFIDENT_CANDIDATE. Only suggests: it never activates.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./scenario-suggestion.schema.json#/definitions/ScenarioSuggestionRequest"
+            example:
+              description: "Signalfejl på strækningen mellem Nørreport og Kongens Nytorv"
+      responses:
+        "200":
+          description: Suggestions, or no confident candidate
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-suggestion.schema.json"
+              examples:
+                confident:
+                  value:
+                    status: "CONFIDENT"
+                    candidates:
+                      - scenarioId: "S1"
+                        score: 0.87
+                noConfidentCandidate:
+                  value:
+                    status: "NO_CONFIDENT_CANDIDATE"
+        "400":
+          description: description is missing, empty or longer than 2000 characters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0005"
+                  message: "description must be 1 to 2000 characters"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not ask for suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "Role STEWARD may not ask for scenario suggestions"
+
   /api/v1/activations/{activationId}/stand-down:
     post:
       summary: Stands down the active scenario
