@@ -36,6 +36,19 @@ jest.mock("../../mobile/src/offline/snapshot-store", () => ({
 jest.mock("../../mobile/src/api/position-report", () => ({
   sendPositionReport: jest.fn(),
 }));
+jest.mock("../../mobile/src/offline/queue-position-report", () => ({
+  queuePositionReport: jest.fn(),
+}));
+jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
+  positionReportDelivery: {
+    flush: jest.fn(async () => ({
+      acknowledged: 0,
+      rejected: 0,
+      pending: 0,
+      superseded: [],
+    })),
+  },
+}));
 
 const report = sendPositionReport as jest.MockedFunction<
   typeof sendPositionReport
