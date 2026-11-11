@@ -159,7 +159,7 @@ export function mapView(
     // Undefined without an affected stretch, which keeps the map's own view.
     viewBox:
       covered.length > 0
-        ? areaAroundStations([...stretch.flat(), ...markedStations], 160)
+        ? areaAroundStations(stretch.flat(), 160)
         : undefined,
   };
 }

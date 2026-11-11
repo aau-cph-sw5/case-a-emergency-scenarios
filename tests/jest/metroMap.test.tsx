@@ -140,10 +140,26 @@ describe("MetroMap", () => {
     expect(screen.queryByText("M1")).toBeNull();
   });
 
-  it("draws the complete scenario route and zooms to the affected stretch", () => {
-    render(withScenario(scenario.scenarioId, async () => scenario, scenario));
+  it("zooms to the affected stretch, excluding distant staffing stations", () => {
+    const scenarioWithDistantStaffing = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        stationRequirements: [
+          ...(version.stationRequirements ?? []),
+          { station: "CPH", placement: "Platform", minimumStaffing: 1 },
+        ],
+      })),
+    };
+    render(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenarioWithDistantStaffing,
+        scenarioWithDistantStaffing,
+      ),
+    );
     expect(shownLines()).toEqual(["M1", "M2"]);
-    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(100);
+    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(80);
     expect(screen.getByText("TEST")).toBeTruthy();
     expect(screen.getByText("TEST-2")).toBeTruthy();
     const strokes = screen
