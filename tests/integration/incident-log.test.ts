@@ -32,6 +32,7 @@ before(async () => {
   operator = {
     userId: seededOperator.id,
     role: "OPERATOR",
+    lineGroup: "M1_M2",
     jti: randomUUID(),
   };
 });

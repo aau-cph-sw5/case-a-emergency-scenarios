@@ -61,9 +61,9 @@ export async function postRenew(
 }
 
 export function getMe(_request: Request, response: AuthenticatedResponse) {
-  const { userId, role } = response.locals.user;
+  const { userId, role, lineGroup } = response.locals.user;
 
-  response.json({ userId, role });
+  response.json({ userId, role, lineGroup });
 }
 
 export async function postLogout(
