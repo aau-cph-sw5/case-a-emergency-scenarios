@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import MapRender from "../../../shared/MapRenderer";
 import {
   colors as theme,
+  DIDLineColors,
   lineColors,
   palette,
   radius,
@@ -61,7 +62,7 @@ function scenarioLines(scenario: Scenario, groupLines: typeof network) {
   const expectedLines =
     scenario.lineGroup === "M1_M2" ? ["M1", "M2"] : ["M3", "M4"];
   if (!groupLines.some((line) => expectedLines.includes(line.name))) {
-    return [];
+    return { lines: [], missingRoutes: false };
   }
 
   const current = scenario.versions.find(
@@ -78,21 +79,9 @@ function scenarioLines(scenario: Scenario, groupLines: typeof network) {
         connections: routeConnections(pattern.route),
       })) ?? [];
 
-  if (routes.length > 0) return routes;
-
-  const segments = scenarioSegments(scenario);
-  return segments.length === 0
-    ? []
-    : [
-        {
-          name: groupLines[0].name,
-          tracks: [1, 2],
-          connections: segments.map(
-            ({ stationA, stationB }) =>
-              [stationA, stationB] as [string, string],
-          ),
-        },
-      ];
+  return routes.length > 0
+    ? { lines: routes, missingRoutes: false }
+    : { lines: [], missingRoutes: true };
 }
 
 // Scenario data determines staffing markers and the optional close-up view.
@@ -166,19 +155,24 @@ export function MetroMap({
   const groupNetwork = network.filter((line) =>
     lineGroup.split("/").includes(line.name),
   );
+  const scenarioLineResult =
+    scenarioId === null || scenario === null
+      ? null
+      : scenarioLines(scenario, groupNetwork);
   const groupLines =
     scenarioId === null
       ? groupNetwork
       : scenario === null
         ? []
-        : scenarioLines(scenario, groupNetwork);
+        : scenarioLineResult?.lines ?? [];
+  const missingScenarioRoutes = scenarioLineResult?.missingRoutes ?? false;
   const routeColors =
     scenarioId === null
       ? lineColor
       : Object.fromEntries(
           groupLines.map((line, index) => [
             line.name,
-            lineColors[index % lineColors.length],
+            DIDLineColors[index % DIDLineColors.length],
           ]),
         );
   const groupStations = new Set([
@@ -257,6 +251,13 @@ export function MetroMap({
           blockedTracks={scenario?.covers ?? []}
         />
       </div>
+
+      {missingScenarioRoutes && (
+        <Text role="alert" style={text.small}>
+          Kunne ikke vise destinations-ID&apos;er: scenariet mangler
+          destinationsruter.
+        </Text>
+      )}
 
       {scenarioId !== null && groupLines.length > 0 && (
         <View

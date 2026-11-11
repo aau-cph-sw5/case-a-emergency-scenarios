@@ -6,7 +6,7 @@ import {
 } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
-import { colors, lineColors } from "../../shared/Theme";
+import { colors, DIDLineColors, lineColors } from "../../shared/Theme";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
@@ -173,6 +173,61 @@ describe("MetroMap", () => {
     expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"], 160));
     fireEvent.press(screen.getByText("Zoom ud"));
     expect(viewBox()).toBe(fullView);
+  });
+
+  it("uses a separate palette for destination IDs", () => {
+    const patterns = Array.from({ length: DIDLineColors.length }, (_, i) => ({
+      ...scenario.versions[0].operatingPlan.patterns[0],
+      did: `DID-${i + 1}`,
+    }));
+    const scenarioWithManyDestinations = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        operatingPlan: { ...version.operatingPlan, patterns },
+      })),
+    };
+
+    render(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenarioWithManyDestinations,
+        scenarioWithManyDestinations,
+      ),
+    );
+
+    const strokes = [
+      ...screen.UNSAFE_queryAllByType(Line),
+      ...screen.UNSAFE_queryAllByType(Path),
+    ].map((strip) => strip.props.stroke);
+    expect(new Set(DIDLineColors).size).toBe(DIDLineColors.length);
+    expect(strokes).toEqual(expect.arrayContaining(DIDLineColors));
+    expect(DIDLineColors).not.toEqual(
+      expect.arrayContaining(lineColors.slice(0, 4)),
+    );
+  });
+
+  it("shows an error instead of inventing a destination ID without routes", () => {
+    const scenarioWithoutRoutes = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        operatingPlan: { ...version.operatingPlan, patterns: [] },
+      })),
+    };
+
+    render(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenarioWithoutRoutes,
+        scenarioWithoutRoutes,
+      ),
+    );
+
+    expect(screen.getByRole("alert").props.children).toContain(
+      "scenariet mangler destinationsruter.",
+    );
+    expect(screen.queryByText("M1")).toBeNull();
   });
 
   it("switches to the M3/M4 group with a centered view and separate tracks", () => {
