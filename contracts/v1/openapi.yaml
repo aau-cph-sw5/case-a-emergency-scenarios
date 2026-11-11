@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 7.4.0
+  version: 8.1.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -178,6 +178,7 @@ paths:
               $ref: "./position-report.schema.json"
             example:
               id: "8e20fa9a-8456-42f4-869c-14cc06a8770a"
+              activationId: 1
               staff: "steward-002"
               station: "Station B"
               reportedAt: "2026-09-23T08:10:00Z"
@@ -229,8 +230,10 @@ paths:
                   message: "The authenticated user's role does not permit this action"
         "409":
           description: >
-            No scenario is active (E1001), the station does not require
-            manning in an active scenario (E1004), or task done or the event
+            No scenario is active (E1001), the report was made against an
+            activation that is no longer active, for example because the
+            scenario changed while the steward was offline (E1003), the
+            station does not require manning in that activation (E1004), or task done or the event
             is not allowed from the steward's current status (E1006), for
             example EN_ROUTE to another station after arriving, before
             checking out. A client report ID reused for different action
@@ -245,6 +248,11 @@ paths:
                     error:
                       code: "E1001"
                       message: "No scenario is currently active"
+                supersededActivation:
+                  value:
+                    error:
+                      code: "E1003"
+                      message: "The scenario has been stood down"
                 stationNotInScenario:
                   value:
                     error:

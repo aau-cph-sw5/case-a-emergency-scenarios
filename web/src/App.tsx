@@ -67,7 +67,9 @@ export function App() {
       );
     }
     return (
-      <LoginScreen apiBaseUrl="" client="web" onLoggedIn={completeLogin} />
+      <div className="login-page">
+        <LoginScreen apiBaseUrl="" client="web" onLoggedIn={completeLogin} />
+      </div>
     );
   }
 

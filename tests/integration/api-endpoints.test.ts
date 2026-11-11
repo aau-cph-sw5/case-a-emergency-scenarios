@@ -658,12 +658,15 @@ test("GET /api/v1/metro-lines/:lineId returns the line or 404", async () => {
   assert.equal(unknown.status, 404);
 });
 
-// Station G is only in DEMO-002
-const stationGReport = {
-  staff: "",
-  station: "Station G",
-  reportedAt: "2026-09-23T08:10:00Z",
-};
+// Station G is only in DEMO-002; 999999 stands in for an activation that does not exist.
+function stationGReport(activationId = 999999) {
+  return {
+    activationId,
+    staff: "",
+    station: "Station G",
+    reportedAt: "2026-09-23T08:10:00Z",
+  };
+}
 
 test("POST /api/v1/position-reports rejects an invalid body with 400", async () => {
   const response = await postJson(
@@ -681,7 +684,7 @@ test("POST /api/v1/position-reports rejects an invalid body with 400", async () 
 test("POST /api/v1/position-reports refuses an operator with E0002", async () => {
   const response = await postJson(
     "/api/v1/position-reports",
-    stationGReport,
+    stationGReport(),
     await operatorHeaders(),
   );
 
@@ -693,7 +696,7 @@ test("POST /api/v1/position-reports refuses an operator with E0002", async () =>
 test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 is activated, then accepts it with 202 and refuses Station B with E1004", async () => {
   const before = await postJson(
     "/api/v1/position-reports",
-    stationGReport,
+    stationGReport(),
     await m3m4StewardHeaders(),
   );
   assert.equal(before.status, 409);
@@ -705,10 +708,11 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
     await m3m4OperatorHeaders(),
   );
   assert.equal(activation.status, 201);
+  const { activationId } = await activation.json();
 
   const after = await postJson(
     "/api/v1/position-reports",
-    stationGReport,
+    stationGReport(activationId),
     await m3m4StewardHeaders(),
   );
   assert.equal(after.status, 202);
@@ -717,7 +721,7 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   // Station B is in DEMO-001, but DEMO-002 is the active scenario.
   const other = await postJson(
     "/api/v1/position-reports",
-    { ...stationGReport, station: "Station B" },
+    { ...stationGReport(activationId), station: "Station B" },
     await m3m4StewardHeaders(),
   );
   assert.equal(other.status, 409);

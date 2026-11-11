@@ -236,6 +236,7 @@ test("a position report reaches operators only, with the server's time", async (
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      activationId: active.activationId,
       staff: "",
       station: "Station G",
       reportedAt: "2099-01-01T00:00:00Z",

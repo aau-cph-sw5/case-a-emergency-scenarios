@@ -22,6 +22,7 @@ let baseUrl: string;
 let stewardId: string;
 let stewardToken: string;
 let operatorToken: string;
+let activationId: number;
 
 async function login(username: string, password: string, client: string) {
   const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
@@ -54,6 +55,7 @@ before(async () => {
     },
   );
   assert.equal(activated.status, 201);
+  ({ activationId } = (await activated.json()) as { activationId: number });
   await owner`DELETE FROM position_reports WHERE staff = ${stewardId}`;
 });
 
@@ -72,6 +74,7 @@ async function report(extra: { event?: string; taskDone?: boolean } = {}) {
       Authorization: `Bearer ${stewardToken}`,
     },
     body: JSON.stringify({
+      activationId,
       staff: "",
       station: "Station G",
       reportedAt: "2026-11-06T08:00:00Z",
@@ -147,8 +150,8 @@ test("cancelling frees the station", async () => {
 test("a new station after arriving is refused with E1006", async () => {
   // DEMO-002 has only Station G, so the arrival elsewhere is written directly.
   await owner`
-    INSERT INTO position_reports (staff, station, reported_at, event)
-    VALUES (${stewardId}, 'Station H', now(), 'ARRIVED')
+    INSERT INTO position_reports (staff, station, reported_at, event, activation_id)
+    VALUES (${stewardId}, 'Station H', now(), 'ARRIVED', ${activationId})
   `;
   await expectRefused({});
 });

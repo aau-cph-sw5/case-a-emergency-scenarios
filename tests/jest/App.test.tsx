@@ -111,7 +111,7 @@ describe("App", () => {
 
     fireEvent.press(screen.getByText("Log ud"));
 
-    expect(await screen.findByText("Log ind")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull(),
     );
@@ -124,7 +124,7 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Log ind")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull(),
     );

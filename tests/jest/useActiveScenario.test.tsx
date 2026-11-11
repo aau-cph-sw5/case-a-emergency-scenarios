@@ -446,4 +446,72 @@ describe("useActiveScenario", () => {
       }),
     );
   });
+
+  it("reconciles to the current server scenario within 5 seconds of reconnecting, without user action", async () => {
+    let current: ScenarioState = {
+      ...state,
+      activationId: 1,
+      sequence: 1,
+    };
+    jest.spyOn(global, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/scenario-state")) {
+        return response(200, current);
+      }
+      if (
+        new URL(url).pathname === `/api/v1/scenarios/${definition.scenarioId}`
+      ) {
+        return response(200, definition);
+      }
+      return response(404);
+    });
+    const store = memoryStore();
+    const { result, rerender } = renderHook(
+      ({ online }: { online: boolean }) =>
+        useActiveScenario({
+          apiBaseUrl: API_URL,
+          token: tokenFor(7),
+          online,
+          store,
+          onUnauthorized: () => undefined,
+        }),
+      { initialProps: { online: true } },
+    );
+    await waitFor(() =>
+      expect(result.current.view).toMatchObject({
+        status: "live",
+        snapshot: { state: { activationId: 1 } },
+      }),
+    );
+    await waitFor(async () =>
+      expect((await store.load("7"))?.state.activationId).toBe(1),
+    );
+
+    rerender({ online: false });
+    await waitFor(() =>
+      expect(result.current.view).toMatchObject({
+        status: "copy",
+        reason: "offline",
+      }),
+    );
+
+    // While offline, the operator switched to another activation.
+    current = { ...state, activationId: 2, sequence: 2 };
+
+    const reconnectedAt = Date.now();
+    rerender({ online: true });
+
+    await waitFor(
+      () =>
+        expect(result.current.view).toMatchObject({
+          status: "live",
+          snapshot: { state: { activationId: 2 } },
+        }),
+      { timeout: 5000 },
+    );
+    expect(Date.now() - reconnectedAt).toBeLessThan(5000);
+    await waitFor(async () =>
+      expect((await store.load("7"))?.state.activationId).toBe(2),
+    );
+  }, 10_000);
 });
