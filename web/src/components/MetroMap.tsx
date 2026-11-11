@@ -267,25 +267,30 @@ export function MetroMap({
         />
       </div>
       {scenarioId !== null && groupLines.length > 0 && (
-        <div
-          className="map-legend"
-          aria-label="Destination IDs"
-          style={{ marginLeft: 8 }}
+        <View
+          accessibilityLabel="Destination IDs"
+          style={{ marginLeft: 8, flexDirection: "column", gap: 6 }}
         >
-          {groupLines.map((line) => (
-            <span key={line.name}>
-              <i
-                style={{
-                  width: 20,
-                  height: 5,
-                  borderRadius: 2,
-                  background: routeColors[line.name],
-                }}
-              />
-              {line.name}
-            </span>
-          ))}
-        </div>
+          <Text>Destination IDs:</Text>
+          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+            {groupLines.map((line) => (
+              <View
+                key={line.name}
+                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+              >
+                <View
+                  style={{
+                    width: 20,
+                    height: 5,
+                    borderRadius: 2,
+                    backgroundColor: routeColors[line.name],
+                  }}
+                />
+                <Text>{line.name}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
       )}
     </View>
   );
