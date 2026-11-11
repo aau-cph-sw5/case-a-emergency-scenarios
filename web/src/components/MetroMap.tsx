@@ -271,7 +271,7 @@ export function MetroMap({
           accessibilityLabel="Destination IDs"
           style={{ marginLeft: 8, flexDirection: "column", gap: 6 }}
         >
-          <Text>Destination IDs:</Text>
+          <Text style={text.small}>Destination IDs:</Text>
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
             {groupLines.map((line) => (
               <View
@@ -286,7 +286,7 @@ export function MetroMap({
                     backgroundColor: routeColors[line.name],
                   }}
                 />
-                <Text>{line.name}</Text>
+                <Text style={text.small}>{line.name}</Text>
               </View>
             ))}
           </View>
