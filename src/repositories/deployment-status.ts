@@ -37,8 +37,12 @@ export function applyReport(
   report: DeploymentReport,
 ): Deployment[] {
   const { staff, station, step, reportedAt } = report;
+  // Checking out at a station frees the steward's older checkouts too, so the
+  // control room only shows the station the steward left last.
   const next = deployments.map((d) =>
-    d.staff === staff && d.fulfills !== station && d.status !== "CHECKED_OUT"
+    d.staff === staff &&
+    d.fulfills !== station &&
+    (d.status !== "CHECKED_OUT" || step === "CHECKED_OUT")
       ? free(d.fulfills)
       : d,
   );

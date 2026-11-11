@@ -6,17 +6,13 @@ import {
   StyleSheet,
   Text,
 } from "react-native";
-import {
-  currentStations,
-  getStationState,
-} from "../../../shared/components/stationState";
+import { getStationState } from "../../../shared/components/stationState";
+import { ERROR_CODES } from "../../../shared/error-codes";
 import { NO_COPY_MESSAGES } from "../../../shared/offline/copy-reason";
 import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import { colors, palette, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
-import { sendPositionReport } from "../api/position-report";
-import { StationPicker } from "../components/StationPicker";
 import { StewardStatusControl } from "../components/StewardStatusControl";
 import {
   stewardStatus,
@@ -60,12 +56,12 @@ export function StewardView({
     store: snapshotStore,
     onUnauthorized,
   });
-  const [station, setStation] = useState<string>("");
-  const [reportStatus, setReportStatus] = useState<string | null>(null);
   // The steward's own status in the active scenario (MET-A-015, #263).
   const [ownStatus, setOwnStatus] = useState<OwnStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [sendingStatus, setSendingStatus] = useState(false);
+  // The page does not scroll while the arrival slide is being slid.
+  const [sliding, setSliding] = useState(false);
 
   // Fetches again when the app returns to the foreground, when the socket
   // announces an activation or a stand-down, and when the socket reconnects,
@@ -78,25 +74,17 @@ export function StewardView({
     const onChanged = () => void refresh();
     socket.on("scenario-activated", onChanged);
     socket.on("scenario-stood-down", onChanged);
+    // Another steward's report changed the coverage (#310).
+    socket.on("activations-changed", onChanged);
     socket.on("connect", onChanged);
     return () => {
       subscription.remove();
       socket.off("scenario-activated", onChanged);
       socket.off("scenario-stood-down", onChanged);
+      socket.off("activations-changed", onChanged);
       socket.off("connect", onChanged);
     };
   }, [refresh]);
-
-  const live = view.status === "live" ? view.snapshot.scenario : null;
-
-  // A new scenario arriving with a new scenarioid clears the old station choice.
-  const scenarioId = live?.scenarioId;
-  const [shownScenarioId, setShownScenarioId] = useState(scenarioId);
-  if (scenarioId !== shownScenarioId) {
-    setShownScenarioId(scenarioId);
-    setStation("");
-    setReportStatus(null);
-  }
 
   // The status belongs to one steward in one activation. When either
   // changes, the old status is cleared and the current one is fetched, so a
@@ -117,30 +105,26 @@ export function StewardView({
     setOwnStatus(null);
     setStatusError(null);
   }
+  // Each new copy of the scenario carries the server's status, which replaces
+  // what the app remembers, e.g. after a reload or a change from another
+  // phone (#310).
+  const deployments = shown?.state.deployments;
   useEffect(() => {
     if (activationId === undefined || userId === undefined) return;
     let cancelled = false;
-    void stewardStatus(token, activationId, userId, { type: "current" }).then(
-      (result) => {
-        if (!cancelled && result.ok) setOwnStatus(result.own);
-      },
-    );
+    void stewardStatus(
+      token,
+      activationId,
+      userId,
+      { type: "current" },
+      deployments,
+    ).then((result) => {
+      if (!cancelled && result.ok) setOwnStatus(result.own);
+    });
     return () => {
       cancelled = true;
     };
-  }, [token, activationId, userId]);
-
-  // The stations of the active scenario's current version, for the picker.
-  // Positions can only be reported while live.
-  const stations = live ? currentStations(live) : [];
-
-  // Reports the chosen station and shows the answer.
-  async function reportPosition() {
-    if (station === "" || activationId === undefined) return;
-    setReportStatus(
-      (await sendPositionReport(token, station, activationId)).message,
-    );
-  }
+  }, [token, activationId, userId, deployments]);
 
   // Sends a status change and shows the answer. Going on the way is a
   // position report to the server (#268). Only while live: the saved copy
@@ -157,9 +141,20 @@ export function StewardView({
     setSendingStatus(true);
     setStatusError(null);
     try {
-      const result = await stewardStatus(token, activationId, userId, change);
+      const result = await stewardStatus(
+        token,
+        activationId,
+        userId,
+        change,
+        deployments,
+      );
       if (result.ok) setOwnStatus(result.own);
       else setStatusError(result.message);
+      // The server or the app's own check refused the change, so the app's
+      // status is out of date (#310): a new copy brings the server's.
+      if (!result.ok && result.code === ERROR_CODES.INVALID_STATUS_TRANSITION) {
+        void refresh();
+      }
     } finally {
       setSendingStatus(false);
     }
@@ -211,7 +206,10 @@ export function StewardView({
       onLogout={onLogout}
     >
       <ScenarioNotice view={view} onDismiss={dismissNotice} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        scrollEnabled={!sliding}
+      >
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
         )}
@@ -252,10 +250,16 @@ export function StewardView({
               onArrive={() => void changeStatus({ type: "arrive" })}
               onCancel={() => void changeStatus({ type: "cancel" })}
               onCheckOut={() => void changeStatus({ type: "checkOut" })}
+              onSlidingChange={setSliding}
             />
             <ScenarioOverview
               snapshot={shown}
               assignedStation={ownStation}
+              checkedOutStation={
+                ownStatus?.status === "CHECKED_OUT"
+                  ? ownStatus.station
+                  : undefined
+              }
               onAssign={
                 canAssign
                   ? (station) => void changeStatus({ type: "assign", station })
@@ -267,26 +271,6 @@ export function StewardView({
 
         {online && (
           <>
-            {stations.length > 0 && (
-              <>
-                <StationPicker
-                  stations={stations}
-                  selected={station}
-                  onSelect={setStation}
-                />
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={reportPosition}
-                  disabled={station === ""}
-                  style={styles.button}
-                >
-                  <Text style={styles.buttonText}>Rapportér position</Text>
-                </Pressable>
-                {reportStatus && <Text>{reportStatus}</Text>}
-              </>
-            )}
-
             <Text style={isConnected ? styles.ok : styles.offline}>
               Socket: {isConnected ? "connected" : "disconnected"}
             </Text>
