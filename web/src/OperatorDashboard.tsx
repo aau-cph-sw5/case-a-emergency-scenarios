@@ -16,6 +16,7 @@ export function OperatorDashboard({
 }) {
   // The map and requirements preview share the selected scenario.
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [lineGroup, setLineGroup] = useState<"M1/M2" | "M3/M4">("M1/M2");
   return (
     <main className="operator-dashboard">
       <header className="operator-topbar">
@@ -27,6 +28,26 @@ export function OperatorDashboard({
         </div>
         <ActiveScenarioBanner />
         <div className="operator-profile">
+          <div
+            className="operator-line-switcher"
+            role="group"
+            aria-label="Vælg metrolinjer"
+          >
+            <button
+              type="button"
+              aria-pressed={lineGroup === "M1/M2"}
+              onClick={() => setLineGroup("M1/M2")}
+            >
+              M1 / M2
+            </button>
+            <button
+              type="button"
+              aria-pressed={lineGroup === "M3/M4"}
+              onClick={() => setLineGroup("M3/M4")}
+            >
+              M3 / M4
+            </button>
+          </div>
           <span className="operator-avatar" aria-hidden="true">
             OP
           </span>
@@ -39,6 +60,7 @@ export function OperatorDashboard({
       <ScenarioWorkspace
         token={token}
         selectedId={selectedId}
+        lineGroup={lineGroup}
         onSelect={setSelectedId}
         statusBar={<LiveStatusBar />}
         statusPopup={<StewardPositions mock={mockStewardPositions} />}

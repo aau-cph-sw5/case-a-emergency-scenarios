@@ -120,7 +120,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
     });
 
-    expect(report).toHaveBeenCalledWith("token", "Station B", "EN_ROUTE");
+    expect(report).toHaveBeenCalledWith("token", "Station B", 1, "EN_ROUTE");
     expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
     expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
 
@@ -130,7 +130,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       });
     });
 
-    expect(report).toHaveBeenLastCalledWith("token", "Station B", "ARRIVED");
+    expect(report).toHaveBeenLastCalledWith("token", "Station B", 1, "ARRIVED");
     expect(screen.getByText(/DU ER ANKOMMET/)).toBeTruthy();
 
     await act(async () => {
@@ -140,6 +140,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(report).toHaveBeenLastCalledWith(
       "token",
       "Station B",
+      1,
       "CHECKED_OUT",
     );
     expect(screen.getByText("Du er tjekket ud fra Station B.")).toBeTruthy();
@@ -157,7 +158,12 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       fireEvent.press(screen.getByText("FORTRYD"));
     });
 
-    expect(report).toHaveBeenLastCalledWith("token", "Station B", "CANCELLED");
+    expect(report).toHaveBeenLastCalledWith(
+      "token",
+      "Station B",
+      1,
+      "CANCELLED",
+    );
     expect(screen.getByText("Ingen status")).toBeTruthy();
     expect(screen.getByLabelText("Meld dig på vej til Station B")).toBeTruthy();
   });
@@ -207,6 +213,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(report).toHaveBeenLastCalledWith(
       "token",
       "Station B",
+      1,
       "CHECKED_OUT",
     );
   });
