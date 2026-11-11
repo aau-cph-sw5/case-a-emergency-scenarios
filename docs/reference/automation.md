@@ -122,6 +122,8 @@ coverage in LCOV format. For PRs Sonar analyzes the source branch; files whose
 source differs from the tested merge are omitted from its coverage report rather
 than attaching hits to the wrong lines. Updating the branch with its base makes
 these files match. SonarQube can apply its own quality-gate rules.
+Require the GitHub Actions `Sonar quality gate` check in the branch ruleset;
+it enforces the quality gate on pull requests and passes for merge queues.
 
 `npm run test:coverage` produces a local c8 HTML report, but does not combine
 Jest's coverage into the CI report.
