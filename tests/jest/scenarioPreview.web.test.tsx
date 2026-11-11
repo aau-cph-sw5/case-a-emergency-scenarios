@@ -16,7 +16,20 @@ import { postJson } from "../../web/src/get-json";
 
 jest.mock("../../web/src/components/OperatorSections.css", () => ({}));
 jest.mock("../../web/src/components/MetroMap", () => ({
-  MetroMap: () => null,
+  MetroMap: ({
+    scenarioId,
+    deployments,
+  }: {
+    scenarioId: string | null;
+    deployments: unknown;
+  }) => (
+    <div
+      data-testid="map-scenario"
+      data-live-coverage={deployments ? "active" : "none"}
+    >
+      {scenarioId ?? "none"}
+    </div>
+  ),
 }));
 
 jest.mock("../../web/src/get-json", () => ({
@@ -81,6 +94,7 @@ function Harness({ initialId = null }: { initialId?: string | null }) {
   return (
     <ScenarioWorkspace
       token="operator-token"
+      lineGroup="M1/M2"
       selectedId={selectedId}
       onSelect={onSelect}
     />
@@ -154,6 +168,22 @@ afterEach(async () => {
 });
 
 describe("scenario preview and activation", () => {
+  it("shows the active scenario on the map when none is selected, then clears it on stand-down", async () => {
+    await renderList(null, { activations: [activated] });
+    expect(
+      container.querySelector('[data-testid="map-scenario"]')?.textContent,
+    ).toBe(first.scenarioId);
+    expect(
+      container
+        .querySelector('[data-testid="map-scenario"]')
+        ?.getAttribute("data-live-coverage"),
+    ).toBe("active");
+    await renderList(null, { activations: [] });
+    expect(
+      container.querySelector('[data-testid="map-scenario"]')?.textContent,
+    ).toBe("none");
+  });
+
   it("opens switching and cancels back to the current scenario without an API call", async () => {
     await renderList(null, { activations: [activated] });
     await click("Skift scenarie");
@@ -427,6 +457,11 @@ describe("scenario preview and activation", () => {
     expect(container.querySelector(".scenario-preview")).toBeNull();
     expect(container.textContent).toContain("0/2");
     await click(second.name);
+    expect(
+      container
+        .querySelector('[data-testid="map-scenario"]')
+        ?.getAttribute("data-live-coverage"),
+    ).toBe("none");
     expect(container.textContent).toContain("0/2");
     expect(container.querySelector(".scenario-preview")?.textContent).toContain(
       "Station B",

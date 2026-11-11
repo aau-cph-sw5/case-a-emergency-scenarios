@@ -74,7 +74,14 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView
+        style={styles.container}
+        edges={
+          state.status === "signed-out" && !logoutStorageError
+            ? ["top", "left", "right"]
+            : ["top", "bottom", "left", "right"]
+        }
+      >
         {state.status === "restoring" && (
           <View style={styles.status}>
             <ActivityIndicator />
