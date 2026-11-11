@@ -15,6 +15,7 @@ import {
   linesThrough,
   requiredStations,
 } from "../../../shared/scenario/affected-stations";
+import { routeConnections } from "../../../shared/scenario/route-connections";
 import {
   stationCoverage,
   type ActiveDeployments,
@@ -39,19 +40,11 @@ function scenarioSegments(scenario: Scenario): TrackSegment[] {
   );
   const routes =
     current?.operatingPlan.patterns.flatMap((pattern) => {
-      const segments: TrackSegment[] = [];
-      for (let index = 1; index < pattern.route.length; index += 1) {
-        const stationA = pattern.route[index - 1].station;
-        const stationB = pattern.route[index].station;
-        if (typeof stationA === "string" && typeof stationB === "string") {
-          segments.push({
-            trackNumber: pattern.trackNumber,
-            stationA,
-            stationB,
-          });
-        }
-      }
-      return segments;
+      return routeConnections(pattern.route).map(([stationA, stationB]) => ({
+        trackNumber: pattern.trackNumber,
+        stationA,
+        stationB,
+      }));
     }) ?? [];
   const segments = routes.length > 0 ? routes : (scenario.covers ?? []);
   const unique = new Map<string, TrackSegment>();
@@ -77,29 +70,11 @@ function scenarioLines(scenario: Scenario, groupLines: typeof network) {
     current?.operatingPlan.patterns
       .filter((pattern) => pattern.did.trim() !== "")
       .sort((a, b) => a.did.localeCompare(b.did, undefined, { numeric: true }))
-      .map((pattern) => {
-        const stops = pattern.route
-          .slice()
-          .sort(
-            (a, b) =>
-              (typeof a.sequence === "number" ? a.sequence : 0) -
-              (typeof b.sequence === "number" ? b.sequence : 0),
-          );
-        return {
-          name: pattern.did,
-          tracks: pattern.trackNumber === 12 ? [1, 2] : [pattern.trackNumber],
-          connections: stops
-            .slice(1)
-            .map(
-              (stop, index) =>
-                [stops[index].station, stop.station] as [string, string],
-            )
-            .filter(
-              ([stationA, stationB]) =>
-                typeof stationA === "string" && typeof stationB === "string",
-            ),
-        };
-      }) ?? [];
+      .map((pattern) => ({
+        name: pattern.did,
+        tracks: pattern.trackNumber === 12 ? [1, 2] : [pattern.trackNumber],
+        connections: routeConnections(pattern.route),
+      })) ?? [];
 
   if (routes.length > 0) return routes;
 

@@ -272,7 +272,7 @@ describe("MetroMap", () => {
       }));
 
     const view = render(
-      withScenario("TEST-MAP", async () => scenario, undefined, undefined, []),
+      withScenario("TEST-MAP", async () => scenario, scenario, undefined, []),
     );
     await waitFor(() => expect(uniDot()).toBe(colors.statusRed));
 
@@ -280,7 +280,7 @@ describe("MetroMap", () => {
       withScenario(
         "TEST-MAP",
         async () => scenario,
-        undefined,
+        scenario,
         undefined,
         manned(1),
       ),
@@ -291,7 +291,7 @@ describe("MetroMap", () => {
       withScenario(
         "TEST-MAP",
         async () => scenario,
-        undefined,
+        scenario,
         undefined,
         manned(2),
       ),
