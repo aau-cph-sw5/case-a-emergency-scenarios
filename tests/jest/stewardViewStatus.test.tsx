@@ -213,6 +213,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(report).toHaveBeenLastCalledWith(
       "token",
       "Station B",
+      1,
       "CHECKED_OUT",
     );
   });

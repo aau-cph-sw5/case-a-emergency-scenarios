@@ -182,6 +182,7 @@ describe("stewardStatus (MET-A-015, #263, #305)", () => {
       expect(report).toHaveBeenLastCalledWith(
         "token",
         "Station B",
+        1,
         "CHECKED_OUT",
       );
     });
@@ -189,7 +190,12 @@ describe("stewardStatus (MET-A-015, #263, #305)", () => {
     it("uses its own change until the next copy arrives", async () => {
       await assign("Station C");
       await withServer({ type: "arrive" });
-      expect(report).toHaveBeenLastCalledWith("token", "Station C", "ARRIVED");
+      expect(report).toHaveBeenLastCalledWith(
+        "token",
+        "Station C",
+        1,
+        "ARRIVED",
+      );
     });
 
     // The same account changed status on another phone (#310).
