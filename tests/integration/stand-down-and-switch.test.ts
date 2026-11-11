@@ -1,5 +1,6 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { app } from "../../src/app.js";
@@ -65,6 +66,17 @@ function standDown(id: string | number, token?: string) {
   return fetch(`${baseUrl}/api/v1/activations/${id}/stand-down`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+function postReport(token: string, body: object) {
+  return fetch(`${baseUrl}/api/v1/position-reports`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
   });
 }
 
@@ -200,6 +212,39 @@ test("a switch stands down the active scenario and activates the new one, loggin
   assert.equal(incoming.sequence, Number(activated.sequence));
 
   activationId = incoming.activationId;
+});
+
+test("a report queued against a replaced scenario is refused as superseded", async () => {
+  const stewardToken = await tokenFor(STEWARD_USERNAME, "steward123", "mobile");
+  const replaced = (await activations("CLOSED")).find(
+    (a) => a.scenarioId === "DEMO-001",
+  );
+  assert.ok(replaced);
+
+  const stale = await postReport(stewardToken, {
+    id: randomUUID(),
+    activationId: replaced.activationId,
+    staff: "",
+    station: "Station B",
+    reportedAt: "2026-11-05T12:00:00Z",
+    event: "EN_ROUTE",
+  });
+  assert.equal(stale.status, 409);
+  assert.equal(
+    ((await stale.json()) as { error: { code: string } }).error.code,
+    ERROR_CODES.SCENARIO_STOOD_DOWN,
+  );
+
+  // A report against the scenario that replaced it is still accepted.
+  const current = await postReport(stewardToken, {
+    id: randomUUID(),
+    activationId,
+    staff: "",
+    station: "Station G",
+    reportedAt: "2026-11-05T12:01:00Z",
+    event: "EN_ROUTE",
+  });
+  assert.equal(current.status, 202);
 });
 
 test("an operator stands down the active scenario and it is logged", async () => {

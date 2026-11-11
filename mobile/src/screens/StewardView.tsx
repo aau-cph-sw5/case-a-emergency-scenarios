@@ -18,10 +18,12 @@ import { StewardStatusControl } from "../components/StewardStatusControl";
 import {
   stewardStatus,
   type OwnStatus,
+  type ReportSend,
   type StatusRequest,
 } from "../data/steward-status";
 import type { FlushResult } from "../offline/position-report-delivery";
 import { positionReportDelivery } from "../offline/position-report-delivery-instance";
+import { queuePositionReport } from "../offline/queue-position-report";
 import { snapshotStore } from "../offline/snapshot-store";
 import { socket } from "../socket";
 import { ScenarioNotice } from "./Notice";
@@ -29,10 +31,9 @@ import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
 import { ScenarioOverview } from "./ScenarioOverview";
 
-// Shown instead of the status actions while the app shows the saved copy
-// (MET-A-015, #263 criterion 4). Nothing is sent then.
+// Shown on the saved copy, where only going on the way can be reported.
 const STATUS_BLOCKED_OFFLINE =
-  "Uden forbindelse kan din status ikke ændres. Du ser den gemte kopi.";
+  "Uden forbindelse kan du kun melde dig på vej. Du ser den gemte kopi.";
 
 // Waits before each new try after a send failed while live
 export const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
@@ -165,6 +166,8 @@ export function StewardView({
         result.rejected > result.superseded.length
           ? "Positionen blev ikke modtaget."
           : null;
+      // The server has another status than the app, so its copy is fetched.
+      if (refused !== null) void refresh();
       const lines = [
         supersededMessage(result.superseded),
         refused,
@@ -180,7 +183,7 @@ export function StewardView({
         blocked: true,
       };
     }
-  }, [token]);
+  }, [token, refresh]);
 
   // Failed sends in a row while online; 0 means no retry is waiting.
   const [retries, setRetries] = useState(0);
@@ -232,12 +235,41 @@ export function StewardView({
     };
   }, [canSend, retries, sendQueued]);
 
-  // Sends a status change and shows the answer. Going on the way is a
-  // position report to the server (#268). Only while live: the saved copy
-  // can not change status, and nothing is sent then.
+  // Queues going on the way on the phone first, so it also works offline.
+  const queueReport: ReportSend = async (station, event) => {
+    if (!shown) return { ok: false, message: "Intet aktivt scenarie." };
+    try {
+      await queuePositionReport({
+        userId: shown.userId,
+        station,
+        scenarioId: shown.state.scenarioId,
+        activationId: shown.state.activationId,
+        event,
+      });
+    } catch {
+      return {
+        ok: false,
+        message: "Positionen kunne ikke gemmes på telefonen.",
+      };
+    }
+    if (!canSend) {
+      setReportStatus("Position gemt. Afventer levering.");
+      return { ok: true, message: "" };
+    }
+    const { message, blocked } = await deliver();
+    setReportStatus(message ?? "Position gemt. Afventer levering.");
+    // A report that could not be sent now is tried again after a delay.
+    if (blocked) setRetries((count) => count + 1);
+    return { ok: true, message: "" };
+  };
+
+  // Sends a status change, only on the way is allowed on the saved copy.
   async function changeStatus(change: StatusRequest) {
     if (
-      view.status !== "live" ||
+      !(
+        view.status === "live" ||
+        (view.status === "copy" && change.type === "assign")
+      ) ||
       activationId === undefined ||
       userId === undefined ||
       sendingStatus
@@ -253,6 +285,7 @@ export function StewardView({
         userId,
         change,
         deployments,
+        change.type === "assign" ? queueReport : undefined,
       );
       if (result.ok) setOwnStatus(result.own);
       else setStatusError(result.message);
@@ -274,7 +307,7 @@ export function StewardView({
       : undefined;
   // After arriving the steward checks out before choosing a new station.
   const canAssign =
-    view.status === "live" &&
+    (view.status === "live" || view.status === "copy") &&
     !sendingStatus &&
     ownStatus?.status !== "MANNED" &&
     ownStatus?.status !== "TASK_DONE";

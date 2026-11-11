@@ -11,6 +11,8 @@ import { sendPositionReport } from "../../mobile/src/api/position-report";
 import { ERROR_CODES } from "../../shared/error-codes";
 import { resetRememberedStatuses } from "../../mobile/src/data/steward-status";
 import { StewardView } from "../../mobile/src/screens/StewardView";
+import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
+import { queuePositionReport } from "../../mobile/src/offline/queue-position-report";
 import { socket } from "../../mobile/src/socket";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
@@ -53,6 +55,8 @@ jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
 const report = sendPositionReport as jest.MockedFunction<
   typeof sendPositionReport
 >;
+const queue = jest.mocked(queuePositionReport);
+const flush = jest.mocked(positionReportDelivery.flush);
 const activeScenario = useActiveScenario as jest.MockedFunction<
   typeof useActiveScenario
 >;
@@ -133,7 +137,19 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
     });
 
-    expect(report).toHaveBeenCalledWith("token", "Station B", 1, "EN_ROUTE");
+    expect(queue).toHaveBeenCalledWith({
+      userId: "9",
+      station: "Station B",
+      scenarioId: "DEMO-001",
+      activationId: 1,
+      event: "EN_ROUTE",
+    });
+    expect(report).not.toHaveBeenCalledWith(
+      "token",
+      "Station B",
+      1,
+      "EN_ROUTE",
+    );
     expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
     expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
 
@@ -181,34 +197,58 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(screen.getByLabelText("Meld dig på vej til Station B")).toBeTruthy();
   });
 
-  it("shows the refusal and keeps no status when the report is refused", async () => {
+  it("shows the refusal and keeps the status when arriving is refused", async () => {
+    showView({ status: "live", snapshot });
+    await renderView();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
+    });
     report.mockResolvedValue({
       ok: false,
       message: "Stationen er ikke en del af det aktive scenarie.",
     });
-    showView({ status: "live", snapshot });
-    await renderView();
 
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
     });
 
     expect(
       screen.getByText("Stationen er ikke en del af det aktive scenarie."),
     ).toBeTruthy();
-    expect(screen.getByText("Ingen status")).toBeTruthy();
+    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
   });
 
-  it("offers no + and sends nothing while showing the saved copy", async () => {
+  it("offers + on the saved copy and keeps the report on the phone", async () => {
     showView({ status: "copy", snapshot, reason: "offline" });
     await renderView(false);
 
     expect(
       screen.getByText(
-        "Uden forbindelse kan din status ikke ændres. Du ser den gemte kopi.",
+        "Uden forbindelse kan du kun melde dig på vej. Du ser den gemte kopi.",
       ),
     ).toBeTruthy();
-    expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
+    });
+
+    expect(queue).toHaveBeenCalledWith({
+      userId: "9",
+      station: "Station B",
+      scenarioId: "DEMO-001",
+      activationId: 1,
+      event: "EN_ROUTE",
+    });
+    expect(screen.getByText("Position gemt. Afventer levering.")).toBeTruthy();
+    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    expect(flush).not.toHaveBeenCalled();
     expect(report).not.toHaveBeenCalled();
   });
 
