@@ -110,7 +110,8 @@ function scenarioLines(scenario: Scenario, groupLines: typeof network) {
           name: groupLines[0].name,
           tracks: [1, 2],
           connections: segments.map(
-            ({ stationA, stationB }) => [stationA, stationB] as [string, string],
+            ({ stationA, stationB }) =>
+              [stationA, stationB] as [string, string],
           ),
         },
       ];
