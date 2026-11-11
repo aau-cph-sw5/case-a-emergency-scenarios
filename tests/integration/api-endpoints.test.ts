@@ -286,6 +286,59 @@ test("protected requests use the user's current database role", async () => {
   }
 });
 
+test("an assigned admin can sign in and is identified by their current role", async () => {
+  const previousSession = await loginAs(
+    OPERATOR_USERNAME,
+    "operator123",
+    "web",
+  );
+  await owner`UPDATE users SET role = 'ADMIN' WHERE id = ${operatorId}`;
+
+  try {
+    const previousMe = await fetch(`${baseUrl}/api/v1/me`, {
+      headers: { Authorization: `Bearer ${previousSession.token}` },
+    });
+    assert.equal((await previousMe.json()).role, "ADMIN");
+
+    const login = await postJson("/api/v1/auth/login", {
+      username: OPERATOR_USERNAME,
+      password: "operator123",
+      client: "web",
+    });
+    const session = await login.json();
+    assert.equal(login.status, 200);
+    assert.equal(session.role, "ADMIN");
+    assert.deepEqual(validate(session, "login-response.schema.json"), []);
+
+    const headers = { Authorization: `Bearer ${session.token}` };
+    const me = await fetch(`${baseUrl}/api/v1/me`, { headers });
+    const user = await me.json();
+    assert.equal(me.status, 200);
+    assert.equal(user.role, "ADMIN");
+    assert.deepEqual(validate(user, "me.schema.json"), []);
+
+    const activation = await postJson(
+      "/api/v1/scenarios/DEMO-002/activate",
+      {},
+      headers,
+    );
+    assert.equal(activation.status, 403);
+
+    const mobile = await postJson("/api/v1/auth/login", {
+      username: OPERATOR_USERNAME,
+      password: "operator123",
+      client: "mobile",
+    });
+    assert.equal(mobile.status, 401);
+
+    await owner`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
+    const demoted = await fetch(`${baseUrl}/api/v1/me`, { headers });
+    assert.equal((await demoted.json()).role, "OPERATOR");
+  } finally {
+    await owner`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
+  }
+});
+
 test("POST /api/v1/auth/logout revokes the current session", async () => {
   const headers = await stewardHeaders();
   const logout = await postJson("/api/v1/auth/logout", {}, headers);
