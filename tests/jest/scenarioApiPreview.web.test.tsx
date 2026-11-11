@@ -66,11 +66,11 @@ let root: Root;
 function response(body: unknown, status = 200) {
   return { ok: status === 200, status, json: async () => body } as Response;
 }
-async function mount() {
+async function mount(token = "operator-token") {
   await act(async () =>
     root.render(
-      <LiveDataProvider socket={socket} token="operator-token">
-        <OperatorDashboard token="operator-token" onLogout={() => {}} />
+      <LiveDataProvider socket={socket} token={token}>
+        <OperatorDashboard token={token} onLogout={() => {}} />
       </LiveDataProvider>,
     ),
   );
@@ -122,6 +122,21 @@ afterEach(async () => {
 });
 
 describe("API-backed scenario preview", () => {
+  it("names the operator's line group from the token in the header", async () => {
+    const claims = btoa(JSON.stringify({ userId: 2, lineGroup: "M3_M4" }));
+    await mount(`header.${claims}.signature`);
+    expect(
+      container.querySelector(".operator-profile strong")!.textContent,
+    ).toBe("Operator (M3/M4)");
+  });
+
+  it("shows only the role for a token without a line group", async () => {
+    await mount();
+    expect(
+      container.querySelector(".operator-profile strong")!.textContent,
+    ).toBe("Operator");
+  });
+
   it("keeps the active status bar and coverage when another scenario is selected", async () => {
     const normalFetch = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation(async (path, options) =>

@@ -1,12 +1,15 @@
 import type { Server } from "socket.io";
 import type { Request, Response } from "express";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
+import { roleRoom } from "../realtime/socket-server.js";
 
 import {
   ACTIVATION_STATUSES,
   findActiveScenarioVersion,
   type ActivationStatus,
+  findActiveActivation,
   listActivations,
+  type StoredActivation,
 } from "../repositories/activation-repository.js";
 import {
   findScenario,
@@ -20,8 +23,9 @@ import {
 } from "../services/activation-service.js";
 import type { ActivateRequest } from "../../shared/types/v1/activate-request.js";
 
+// Users only see their own line group's scenarios
 export async function getScenarios(_request: Request, response: Response) {
-  response.json(await getAllScenarios());
+  response.json(await getAllScenarios(response.locals.user.lineGroup));
 }
 
 export async function getScenario(
@@ -57,7 +61,11 @@ export async function getScenario(
     return;
   }
   const scenario = await findScenario(request.params.scenarioId, versionId);
-  if (scenario === undefined) {
+  // Another line group's scenario is treated as not existing.
+  if (
+    scenario === undefined ||
+    scenario.lineGroup !== response.locals.user.lineGroup
+  ) {
     response.status(404).json({ error: "Scenario not found" });
     return;
   }
@@ -70,14 +78,19 @@ export async function getCurrentScenarioState(
   _request: Request,
   response: Response,
 ) {
-  const [active] = await listActivations("ACTIVE");
+  const active = await findActiveActivation(response.locals.user.lineGroup);
   response.json(active ?? null);
 }
 
 export async function getActivations(request: Request, response: Response) {
   const { status } = request.query;
+  // Users only see their own line group's activations.
+  const inOwnLineGroup = (activations: StoredActivation[]) =>
+    activations.filter(
+      (activation) => activation.lineGroup === response.locals.user.lineGroup,
+    );
   if (status === undefined) {
-    response.json(await listActivations());
+    response.json(inOwnLineGroup(await listActivations()));
     return;
   }
   // A repeated or unknown status is refused, not silently treated as no filter.
@@ -95,7 +108,9 @@ export async function getActivations(request: Request, response: Response) {
       );
     return;
   }
-  response.json(await listActivations(status as ActivationStatus));
+  response.json(
+    inOwnLineGroup(await listActivations(status as ActivationStatus)),
+  );
 }
 
 // Metro on MET-A-026: "All in CCR can activate a scenario". The full role
@@ -132,7 +147,10 @@ export async function activate(
   }
 
   const scenario = await findScenario(scenarioId);
-  if (scenario === undefined) {
+  if (
+    scenario === undefined ||
+    scenario.lineGroup !== response.locals.user.lineGroup
+  ) {
     response
       .status(404)
       .json(
@@ -168,22 +186,23 @@ export async function activate(
       .json(
         errorBody(
           ERROR_CODES.CONFLICT,
-          `A scenario is already active, so '${scenarioId}' cannot be activated`,
+          `A scenario is already active in this line group, so '${scenarioId}' cannot be activated`,
         ),
       );
   } else {
     // Push the whole activated scenario to the connected stewards. Operators
     // get an empty signal, so their active-scenario banner refetches at once.
     const io = request.app.locals.io as Server | undefined;
+    const { lineGroup } = result.activation;
     if (!io) {
       console.warn("Socket.IO not attached; scenario-activated not sent");
     }
-    io?.to("STEWARD").emit("scenario-activated", {
+    io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-activated", {
       scenario,
       sentAt: new Date().toISOString(),
       sequence: result.sequence,
     });
-    io?.to("OPERATOR").emit("activations-changed");
+    io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
     console.log("Scenario activated:", result.activation);
     response.status(201).json(result.activation);
   }
@@ -236,9 +255,12 @@ export async function standDown(
     return;
   }
 
-  // Stewards refetch the scenario state, operators their activations.
   const io = request.app.locals.io as Server | undefined;
-  io?.to("STEWARD").emit("scenario-stood-down");
-  io?.to("OPERATOR").emit("activations-changed");
+  // Stewards refetch the scenario state, operators their activations, in the
+  // stood-down activation's line group only.
+  const { lineGroup } = result.activation;
+  io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-stood-down");
+  io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
+
   response.json(result.activation);
 }

@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import pg from "pg";
 import postgres from "postgres";
 import { seedScenarios, type Scenario } from "../../scripts/seed-scenarios.js";
+import type { SeededTestUser } from "../../scripts/seed-test-users.js";
+import type { LineGroup } from "../../shared/auth/line-groups.js";
 import { getDatabase, type Db } from "../../src/db/client.js";
 import type { NewIncidentEvent } from "../../src/services/incident-log-service.js";
 
@@ -102,4 +104,16 @@ export function anEvent(
     payload: { scenarioId: "DEMO-001", some_key: 1 },
     ...overrides,
   };
+}
+
+export function seededUser(
+  users: SeededTestUser[],
+  role: SeededTestUser["role"],
+  lineGroup: LineGroup,
+): SeededTestUser {
+  const user = users.find(
+    (candidate) => candidate.role === role && candidate.lineGroup === lineGroup,
+  );
+  if (!user) throw new Error(`No seeded ${role} in ${lineGroup}`);
+  return user;
 }

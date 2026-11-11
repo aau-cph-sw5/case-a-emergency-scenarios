@@ -142,7 +142,7 @@ test("an unknown activation cannot be stood down", async () => {
 });
 
 test("activating without replaces while a scenario is active is still refused", async () => {
-  const res = await activate("DEMO-002", operatorToken);
+  const res = await activate("DEMO-003", operatorToken);
   assert.equal(res.status, 409);
   assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
 });
@@ -150,7 +150,7 @@ test("activating without replaces while a scenario is active is still refused", 
 test("a switch that replaces another activation than the active one changes nothing", async () => {
   const before = await eventsFor(activationId);
 
-  const res = await activate("DEMO-002", operatorToken, {
+  const res = await activate("DEMO-003", operatorToken, {
     replaces: 2147483647,
   });
   assert.equal(res.status, 409);
@@ -164,7 +164,7 @@ test("a switch that replaces another activation than the active one changes noth
 });
 
 test("a body that does not match the contract is refused", async () => {
-  const res = await activate("DEMO-002", operatorToken, { replaces: "42" });
+  const res = await activate("DEMO-003", operatorToken, { replaces: "42" });
   assert.equal(res.status, 400);
   assert.deepEqual(
     (await activations("ACTIVE")).map((a) => a.activationId),
@@ -175,11 +175,11 @@ test("a body that does not match the contract is refused", async () => {
 test("a switch stands down the active scenario and activates the new one, logging both", async () => {
   const outgoing = activationId;
 
-  const res = await activate("DEMO-002", operatorToken, { replaces: outgoing });
+  const res = await activate("DEMO-003", operatorToken, { replaces: outgoing });
   assert.equal(res.status, 201);
   const incoming = await res.json();
   assert.deepEqual(validate(incoming, "scenario-state.schema.json"), []);
-  assert.equal(incoming.scenarioId, "DEMO-002");
+  assert.equal(incoming.scenarioId, "DEMO-003");
   assert.equal(incoming.status, "ACTIVE");
 
   // Only the new scenario is active; the old one is closed with an end time.
@@ -207,7 +207,7 @@ test("a switch stands down the active scenario and activates the new one, loggin
     assert.ok(event.serverTime instanceof Date);
   }
   assert.equal(stoodDown.payload.scenarioId, "DEMO-001");
-  assert.equal(activated.payload.scenarioId, "DEMO-002");
+  assert.equal(activated.payload.scenarioId, "DEMO-003");
   assert.ok(BigInt(stoodDown.sequence) < BigInt(activated.sequence));
   assert.equal(incoming.sequence, Number(activated.sequence));
 
