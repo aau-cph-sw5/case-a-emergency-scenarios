@@ -7,7 +7,7 @@ import {
 } from "../../shared/error-codes.js";
 import {
   findActivation,
-  listActivations,
+  findActiveActivation,
 } from "../repositories/activation-repository.js";
 import type { AuthUser } from "../services/auth-service.js";
 import {
@@ -29,7 +29,7 @@ function refuse(
 /* Refuse emit to the operators if request was not sent by a steward and if the station
 Reported in the postionreport is not part of the active scenario */
 export async function postPositionReport(request: Request, response: Response) {
-  const { userId, role } = response.locals.user as AuthUser;
+  const { userId, role, lineGroup } = response.locals.user as AuthUser;
   const { station, activationId } = request.body;
 
   if (role !== "STEWARD") {
@@ -59,11 +59,13 @@ export async function postPositionReport(request: Request, response: Response) {
       "Client report ID reused for a different action",
     );
   }
-  const activation = await findActivation(activationId);
+  // Another line group's activation is treated as unknown.
+  const found = await findActivation(activationId);
+  const activation = found?.lineGroup === lineGroup ? found : undefined;
   if (activation?.status !== "ACTIVE") {
     if (
       activation === undefined &&
-      (await listActivations("ACTIVE")).length === 0
+      (await findActiveActivation(lineGroup)) === undefined
     ) {
       return refuse(response, 409, ERROR_CODES.NO_ACTIVE_SCENARIO, station);
     }

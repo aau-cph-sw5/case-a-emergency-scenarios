@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.0.0
+  version: 8.1.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -15,8 +15,9 @@ paths:
     get:
       summary: Get current scenario state
       description: >
-        Returns the active activation, the same one GET /api/v1/activations
-        lists as ACTIVE. Answers 200 with null while no scenario is active.
+        Returns the active activation in the user's own line group, the
+        same one GET /api/v1/activations lists as ACTIVE. Answers 200 with
+        null while no scenario is active in that line group.
       security:
         - bearerAuth: []
       responses:
@@ -100,7 +101,7 @@ paths:
                   code: "E0001"
                   message: "Invalid or expired token"
         "404":
-          description: Scenario not found
+          description: Scenario not found, or it belongs to another line group
 
   /api/v1/metro-lines/{lineId}:
     get:
@@ -379,9 +380,9 @@ paths:
     get:
       summary: List activations
       description: >
-        Returns the activations in the store. Only one scenario can be
-        active at a time, so the list holds at most one ACTIVE entry. Any
-        signed-in role may read it.
+        Returns the activations of the user's own line group. Each line
+        group can have one active scenario at a time, so the list holds at
+        most one ACTIVE entry. Any signed-in role may read it.
       security:
         - bearerAuth: []
       parameters:
@@ -424,6 +425,10 @@ paths:
         To switch scenarios, send replaces with the active activationId:
         the old one is stood down and the new one activated together
         (MET-A-009).
+
+        Each line group (M1/M2, M3/M4) can have one active scenario at a
+        time. An operator can only activate or switch to scenarios in their
+        own line group; another line group's scenario answers 404.
       security:
         - bearerAuth: []
       parameters:
@@ -468,7 +473,7 @@ paths:
                   code: "E0002"
                   message: "Role STEWARD may not activate a scenario"
         "404":
-          description: Scenario not found
+          description: Scenario not found, or it belongs to another line group
           content:
             application/json:
               schema:
@@ -479,8 +484,9 @@ paths:
                   message: "No scenario with id 'S1' exists"
         "409":
           description: >
-            A scenario is active and replaces was not given, or replaces
-            is not the active activation. Nothing is changed.
+            A scenario is active in the line group and replaces was not
+            given, or replaces is not the line group's active activation.
+            Nothing is changed.
           content:
             application/json:
               schema:
@@ -490,7 +496,7 @@ paths:
                   value:
                     error:
                       code: "E0007"
-                      message: "A scenario is already active, so 'S1' cannot be activated"
+                      message: "A scenario is already active in this line group, so 'S1' cannot be activated"
                 replacesNotActive:
                   value:
                     error:
@@ -503,7 +509,8 @@ paths:
       description: >
         Requires the OPERATOR role. Sets the activation to CLOSED with
         endedAt and writes a SCENARIO_STOOD_DOWN event (MET-A-009).
-        Afterwards no scenario is active.
+        Afterwards no scenario is active in that line group. An operator
+        can only stand down their own line group's activation.
       security:
         - bearerAuth: []
       parameters:
@@ -541,7 +548,7 @@ paths:
                   code: "E0002"
                   message: "Role STEWARD may not stand down a scenario"
         "404":
-          description: No activation with this id
+          description: No activation with this id, or it belongs to another line group
           content:
             application/json:
               schema:

@@ -395,6 +395,7 @@ app.post("/api/v1/scenarios/:scenarioId/activate", requireAuth, (req, res) => {
   const activation = {
     activationId: activations.length + 1,
     scenarioId,
+    lineGroup: scenario.lineGroup,
     startedAt: new Date().toISOString(),
     endedAt: null,
     status: "ACTIVE",

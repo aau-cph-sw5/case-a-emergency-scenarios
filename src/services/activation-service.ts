@@ -3,7 +3,7 @@ import {
   closeActivation,
   createActivation,
   findActivation,
-  listActivations,
+  findActiveActivation,
   lockActivationLifecycle,
   type StoredActivation,
 } from "../repositories/activation-repository.js";
@@ -64,7 +64,7 @@ export function activateAndLog(
 ): Promise<LoggedActivationResult> {
   return getDatabase().begin(async (tx) => {
     await lockActivationLifecycle(tx);
-    if ((await listActivations("ACTIVE", tx)).length)
+    if (await findActiveActivation(scenario.lineGroup, tx))
       return { kind: "already-active" };
     return insertAndLog(tx, user, scenario, writeEvent);
   });
@@ -78,7 +78,8 @@ export function standDownAndLog(
   return getDatabase().begin(async (tx) => {
     await lockActivationLifecycle(tx);
     const activation = await findActivation(id, tx);
-    if (!activation) return { kind: "not-found" };
+    if (!activation || activation.lineGroup !== user.lineGroup)
+      return { kind: "not-found" };
     if (activation.status === "CLOSED") return { kind: "already-closed" };
     await closeActivation(tx, id);
     await writeEvent(
@@ -101,7 +102,8 @@ export function switchAndLog(
 ): Promise<SwitchResult> {
   return getDatabase().begin(async (tx) => {
     await lockActivationLifecycle(tx);
-    const [active] = await listActivations("ACTIVE", tx);
+    // Only the active scenario in the same line group can be replaced.
+    const active = await findActiveActivation(scenario.lineGroup, tx);
     if (active?.activationId !== replaces)
       return { kind: "replaces-not-active" };
     await closeActivation(tx, replaces);

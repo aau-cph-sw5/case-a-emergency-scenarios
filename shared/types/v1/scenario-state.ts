@@ -27,5 +27,6 @@ export interface ScenarioState {
     fulfills: string;
     [k: string]: unknown;
   }[];
+  lineGroup: "M1_M2" | "M3_M4";
   [k: string]: unknown;
 }
