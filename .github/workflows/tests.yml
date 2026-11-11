@@ -450,5 +450,26 @@ jobs:
       # published by the SonarQube GitHub integration when enabled there.
       - name: SonarQube scan
         uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        with:
+          args: -Dsonar.qualitygate.wait=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  sonar-quality-gate:
+    name: Sonar quality gate
+    needs: [sonarqube]
+    # A skipped or failed PR scan must fail this check. Merge groups rely on
+    # the already-passed PR check and do not create a SonarQube analysis.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require a successful analysis
+        if: ${{ github.event_name != 'merge_group' && needs.sonarqube.result != 'success' }}
+        run: |
+          echo '::error::SonarQube analysis and its quality gate must pass.'
+          exit 1
+
+      - name: Confirm quality gate
+        if: ${{ github.event_name == 'merge_group' || needs.sonarqube.result == 'success' }}
+        run: echo 'SonarQube quality gate requirement satisfied.'
