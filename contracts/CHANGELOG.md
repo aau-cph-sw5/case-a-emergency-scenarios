@@ -1,22 +1,32 @@
 # Scenario State Contract Changelog
 
-## 7.5.0 - 2026-11-11
+## 8.2.0 - 2026-11-11
 
-Additive. Operators only see their own line group's scenarios (#318).
+Additive. Operators only see their own line group's scenarios (#319), and socket events only reach the activation's line group (#318).
 
 - `GET /api/v1/scenarios` only returns scenarios in the user's own line group.
 - Socket events are sent to one room per role and line group, so they only reach users in the activation's line group. Event names and payloads are unchanged.
-- `info.version` in `openapi.yaml` is now 7.5.0.
+- `info.version` in `openapi.yaml` is now 8.2.0.
 
-## 7.4.0 - 2026-11-10
+## 8.1.0 - 2026-11-10
 
 Additive. One active scenario per line group (#317).
 
 - Each line group (M1/M2, M3/M4) can have one active scenario at the same time.
 - `GET /api/v1/activations` and `GET /api/v1/scenario-state` only return the user's own line group, and each activation has `lineGroup`.
 - Activating or switching to a scenario, or standing down an activation, in another line group answers 404 `E0004`.
-- Position reports are matched against the steward's own line group's activation.
-- `info.version` in `openapi.yaml` is now 7.4.0.
+- A position report's `activationId` must be an activation in the steward's own line group. Another line group's activation is treated as unknown: E1001 while the steward's own line group has nothing active, otherwise E1003.
+- `info.version` in `openapi.yaml` is now 8.1.0.
+
+## 8.0.0 - 2026-11-09
+
+Breaking. Reports against a superseded scenario are rejected (MET-A-006, #267).
+
+- `position-report.schema.json` has a required integer `activationId`: the activation the steward saw when making the report. Clients must send it.
+- `POST /api/v1/position-reports` answers 409 `E1003` when `activationId` is not an active activation, for example because the scenario was stood down or switched while the steward was offline. Nothing is stored and operators are not told. E1001 is answered only when the id is unknown and no scenario is active.
+- The station is checked against the report's own activation (E1004).
+- A replay of an accepted report (same `id`) still answers 202, also after the scenario has changed.
+- `info.version` in `openapi.yaml` is now 8.0.0.
 
 ## 7.3.0 - 2026-11-09
 

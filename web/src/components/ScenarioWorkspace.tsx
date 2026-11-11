@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ScenarioList } from "../ScenarioList";
 import { useLiveData } from "../data/liveData";
 import { useScenario } from "../data/useScenario";
@@ -10,32 +10,30 @@ import { MetroMap } from "./MetroMap";
 export function ScenarioWorkspace({
   token,
   selectedId,
+  lineGroup,
   onSelect,
   statusBar,
   statusPopup,
 }: {
   token: string;
   selectedId: string | null;
+  lineGroup: "M1/M2" | "M3/M4";
   onSelect: (id: string | null) => void;
   statusBar?: ReactNode;
   statusPopup?: ReactNode;
 }) {
   const { activations } = useLiveData();
-  const [lineControlsTarget, setLineControlsTarget] =
-    useState<HTMLDivElement | null>(null);
   const isActive =
     selectedId !== null && activations.some((a) => a.scenarioId === selectedId);
   const previewId = isActive ? null : selectedId;
   const preview = useScenario(previewId);
   const { scenario } = preview;
   const hasActiveScenario = activations.length > 0;
+  const mapScenarioId = selectedId ?? activations.at(-1)?.scenarioId ?? null;
 
   return (
     <OperatorSections
       statusPopup={statusPopup}
-      mapControls={
-        <div className="operator-map-controls" ref={setLineControlsTarget} />
-      }
       scenarioSelection={
         <>
           <ScenarioList
@@ -50,17 +48,12 @@ export function ScenarioWorkspace({
       }
       map={
         <MetroMap
-          lineControlsTarget={lineControlsTarget}
-          scenarioId={selectedId}
-          scenario={isActive ? undefined : scenario}
-          // The live coverage colours the map only for the active scenario;
-          // a preview shows its requirements as before (#310).
+          lineGroup={lineGroup}
+          scenarioId={mapScenarioId}
+          scenario={selectedId === null || isActive ? undefined : scenario}
           deployments={
-            isActive
-              ? (activations
-                  .filter((a) => a.scenarioId === selectedId)
-                  .at(-1) ?? null)
-              : null
+            activations.filter((a) => a.scenarioId === mapScenarioId).at(-1) ??
+            null
           }
         />
       }

@@ -6,7 +6,10 @@ import {
   errorBody,
   type ErrorCode,
 } from "../../shared/error-codes.js";
-import { findActiveActivation } from "../repositories/activation-repository.js";
+import {
+  findActivation,
+  findActiveActivation,
+} from "../repositories/activation-repository.js";
 import type { AuthUser } from "../services/auth-service.js";
 import {
   checkPositionReportReplay,
@@ -28,7 +31,7 @@ function refuse(
 Reported in the postionreport is not part of the active scenario */
 export async function postPositionReport(request: Request, response: Response) {
   const { userId, role, lineGroup } = response.locals.user as AuthUser;
-  const { station } = request.body;
+  const { station, activationId } = request.body;
 
   if (role !== "STEWARD") {
     return refuse(
@@ -57,15 +60,24 @@ export async function postPositionReport(request: Request, response: Response) {
       "Client report ID reused for a different action",
     );
   }
-  // Only the steward's own line group's activation counts.
-  const activation = await findActiveActivation(lineGroup);
-  const stations = new Set(
-    activation?.deployments.map((item) => item.fulfills),
-  );
-  if (activation === undefined || stations.size === 0) {
-    return refuse(response, 409, ERROR_CODES.NO_ACTIVE_SCENARIO, station);
+  // Another line group's activation is treated as unknown.
+  const found = await findActivation(activationId);
+  const activation = found?.lineGroup === lineGroup ? found : undefined;
+  if (activation?.status !== "ACTIVE") {
+    if (
+      activation === undefined &&
+      (await findActiveActivation(lineGroup)) === undefined
+    ) {
+      return refuse(response, 409, ERROR_CODES.NO_ACTIVE_SCENARIO, station);
+    }
+    return refuse(
+      response,
+      409,
+      ERROR_CODES.SCENARIO_STOOD_DOWN,
+      `activation ${activationId}`,
+    );
   }
-  if (!stations.has(station)) {
+  if (!activation.deployments.some((item) => item.fulfills === station)) {
     return refuse(response, 409, ERROR_CODES.STATION_NOT_IN_SCENARIO, station);
   }
 

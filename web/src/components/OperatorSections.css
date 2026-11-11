@@ -2,6 +2,24 @@
 body {
   margin: 0;
 }
+.login-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+}
+.login-page > div {
+  flex: 1;
+}
+.login-page input:focus-visible,
+.login-page [role="button"]:focus-visible {
+  outline: 3px solid #00a4bf;
+  outline-offset: 2px;
+}
+.login-page [role="button"]:not([aria-disabled="true"]):hover {
+  filter: brightness(0.88);
+  cursor: pointer;
+}
 .operator-dashboard {
   --operator-red: #e6140f;
   --operator-yellow: #ffc82d;
@@ -11,7 +29,7 @@ body {
   --operator-muted: #686868;
   box-sizing: border-box;
   min-height: 100dvh;
-  background: var(--operator-ink);
+  background: transparent;
   color: var(--operator-ink);
   font:
     13px Arial,
@@ -51,6 +69,7 @@ body {
   outline-offset: 3px;
 }
 .operator-topbar {
+  background: var(--operator-ink);
   min-height: 88px;
   padding: 18px 24px;
   display: flex;
@@ -80,6 +99,29 @@ body {
   color: white;
   font-size: 24px;
   font-weight: 900;
+}
+.operator-line-switcher {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #566167;
+  border-radius: 8px;
+  background: #252a2c;
+}
+.operator-line-switcher button {
+  border: 0;
+  border-radius: 5px;
+  padding: 8px 10px;
+  background: transparent;
+  color: #d5dee0;
+  font-weight: 700;
+}
+.operator-line-switcher button[aria-pressed="true"] {
+  background: #fff;
+  color: #1e1e1e;
+}
+.operator-line-switcher button:hover:not([aria-pressed="true"]) {
+  background: #465155;
 }
 .operator-avatar {
   display: grid;
