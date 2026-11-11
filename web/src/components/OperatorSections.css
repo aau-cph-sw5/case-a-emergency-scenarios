@@ -293,7 +293,7 @@ body {
   line-height: 1.5;
   color: var(--operator-muted);
 }
-.scenario-picker input {
+.scenario-picker :is(input, textarea) {
   width: 100%;
   padding: 12px 10px;
   margin: 0 0 14px;
@@ -303,7 +303,7 @@ body {
   background: var(--operator-blue);
   font-size: 12px;
 }
-.scenario-picker input::placeholder {
+.scenario-picker :is(input, textarea)::placeholder {
   color: white;
   opacity: 1;
 }
@@ -1030,4 +1030,16 @@ body {
   .scenario-orbit::after {
     offset-distance: 0%;
   }
+}
+.scenario-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.scenario-suggestions textarea {
+  resize: vertical;
+}
+.scenario-suggestions .scenario-list {
+  max-height: 160px;
 }

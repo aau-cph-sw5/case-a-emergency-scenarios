@@ -6,6 +6,7 @@ import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { isScenarioState } from "./scenario-state";
 import type { ScenarioSummary } from "./scenarios";
 import { canActivate, keepSelection } from "./selection";
+import { ScenarioSuggestions } from "./ScenarioSuggestions";
 
 type ActivationState =
   | { status: "idle" }
@@ -182,6 +183,14 @@ export function ScenarioList({
         }}
       >
         <h2 id="scenario-list-heading">Vælg scenarie</h2>
+
+        <ScenarioSuggestions
+          token={token}
+          names={names}
+          onSelect={onSelect}
+          onNoCandidate={() => setQuery("")}
+          disabled={busy}
+        />
 
         <label>
           <span className="visually-hidden">Søg efter scenarier</span>
