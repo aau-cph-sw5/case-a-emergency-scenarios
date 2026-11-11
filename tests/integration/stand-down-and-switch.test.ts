@@ -240,7 +240,7 @@ test("a report queued against a replaced scenario is refused as superseded", asy
     id: randomUUID(),
     activationId,
     staff: "",
-    station: "Station G",
+    station: "Station C",
     reportedAt: "2026-11-05T12:01:00Z",
     event: "EN_ROUTE",
   });
