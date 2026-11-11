@@ -37,11 +37,13 @@ const SCENARIO_FIXTURES = new URL(
   import.meta.url,
 );
 
-// Synthetic stations for the DEMO fixtures.
-const TEST_STATIONS = ["A", "B", "C", "D", "E", "F", "G"].map((letter) => ({
-  code: `Station ${letter}`,
-  name: `Station ${letter}`,
-}));
+// Synthetic stations for the DEMO fixtures, shared with `npm run seed:demo`.
+const TEST_STATIONS = JSON.parse(
+  readFileSync(
+    new URL("../../fixtures/v1/demo-stations.json", import.meta.url),
+    "utf8",
+  ),
+) as { code: string; name: string }[];
 
 // Loads the synthetic DEMO scenarios from fixtures/v1/scenarios/ into the test database
 export async function seedTestScenarios() {
@@ -61,6 +63,8 @@ export async function seedTestScenarios() {
   try {
     // Each test file starts with the same empty activation state as the server.
     // This is the dedicated test database and the test runner is serial.
+    // Reports point at their activation, so they go first.
+    await client.query("DELETE FROM position_reports");
     await client.query("DELETE FROM incident_activations");
     await seedScenarios(client, scenarios, TEST_STATIONS);
   } finally {

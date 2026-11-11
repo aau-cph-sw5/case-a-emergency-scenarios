@@ -19,6 +19,7 @@ let server: Server;
 let baseUrl: string;
 let stewardId: string;
 let stewardToken: string;
+let activationId: number;
 
 async function login(username: string, password: string, client: string) {
   const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
@@ -51,6 +52,7 @@ before(async () => {
     },
   );
   assert.equal(activated.status, 201);
+  ({ activationId } = (await activated.json()) as { activationId: number });
   await owner`DELETE FROM position_reports WHERE staff = ${stewardId}`;
 });
 
@@ -69,6 +71,7 @@ async function report(taskDone?: boolean) {
       Authorization: `Bearer ${stewardToken}`,
     },
     body: JSON.stringify({
+      activationId,
       staff: "",
       station: "Station G",
       reportedAt: "2026-10-31T08:00:00Z",
@@ -94,8 +97,8 @@ test("task done before reporting at the station is refused with E1006", async ()
 
 test("a task done from an earlier activation does not count", async () => {
   await owner`
-    INSERT INTO position_reports (staff, station, reported_at, task_done, received_at)
-    VALUES (${stewardId}, 'Station G', '2000-01-01T00:00:00Z', true, '2000-01-01T00:00:00Z')
+    INSERT INTO position_reports (staff, station, reported_at, task_done, received_at, activation_id)
+    VALUES (${stewardId}, 'Station G', '2000-01-01T00:00:00Z', true, '2000-01-01T00:00:00Z', ${activationId})
   `;
   const res = await report(true);
   assert.equal(res.status, 409);
@@ -123,8 +126,8 @@ test("sending task done again is a harmless repeat", async () => {
 test("task done when the latest report is at another station is refused with E1006", async () => {
   // DEMO-002 has only Station G, so the other report is written directly.
   await owner`
-    INSERT INTO position_reports (staff, station, reported_at)
-    VALUES (${stewardId}, 'Station H', now())
+    INSERT INTO position_reports (staff, station, reported_at, activation_id)
+    VALUES (${stewardId}, 'Station H', now(), ${activationId})
   `;
   const res = await report(true);
   assert.equal(res.status, 409);
