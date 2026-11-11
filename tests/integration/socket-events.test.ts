@@ -207,6 +207,10 @@ test("a position report reaches operators only, with the server's time", async (
   steward.on("position-report", () => {
     stewardGotReport = true;
   });
+  // The coverage changed, so the phones fetch again too (#310).
+  const stewardGotSignal = new Promise<unknown[]>((resolve) =>
+    steward.once("activations-changed", (...args) => resolve(args)),
+  );
   const received = new Promise<Record<string, string>>((resolve) =>
     operator.once("position-report", resolve),
   );
@@ -244,6 +248,7 @@ test("a position report reaches operators only, with the server's time", async (
   assert.notEqual(report.staff, "");
   assert.ok(Date.parse(report.reportedAt) >= before);
   assert.ok(Date.parse(report.reportedAt) <= Date.now());
+  assert.deepEqual(await stewardGotSignal, []);
 
   // Give a wrongly sent event time to arrive before checking it did not.
   await new Promise((resolve) => setTimeout(resolve, 100));

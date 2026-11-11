@@ -77,6 +77,22 @@ test("a checked-out deployment keeps its staff after the steward moves on", () =
   assert.equal(at(deployments, "B")[0].staff, "7");
 });
 
+test("checking out at a new station frees the steward's older checkout", () => {
+  const deployments = deploymentsFromReports(required, [
+    report("7", "A", "EN_ROUTE", "t1"),
+    report("7", "A", "ARRIVED", "t2"),
+    report("7", "A", "CHECKED_OUT", "t3"),
+    report("7", "B", "EN_ROUTE", "t4"),
+    report("7", "B", "ARRIVED", "t5"),
+    report("7", "B", "CHECKED_OUT", "t6"),
+  ]);
+  assert.deepEqual(at(deployments, "A"), [free("A")]);
+  assert.deepEqual(
+    at(deployments, "B").map((d) => [d.status, d.staff]),
+    [["CHECKED_OUT", "7"]],
+  );
+});
+
 test("a new steward takes over a checked-out deployment", () => {
   const deployments = deploymentsFromReports(required, [
     report("7", "A", "ARRIVED", "t1"),

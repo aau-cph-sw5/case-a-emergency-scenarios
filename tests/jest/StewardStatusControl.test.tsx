@@ -128,4 +128,14 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     confirmSlide();
     expect(onArrive).not.toHaveBeenCalled();
   });
+
+  // After a reload the server can report the task as done (#310).
+  it("offers Tjek ud when the task is done", () => {
+    const { onCheckOut } = renderControl({
+      own: { station: "Station B", status: "TASK_DONE" },
+    });
+    fireEvent.press(screen.getByText("TJEK UD"));
+    expect(onCheckOut).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
+  });
 });
