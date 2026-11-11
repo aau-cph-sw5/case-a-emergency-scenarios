@@ -1,7 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  checkScenarioFiles,
+  describeTarget,
   parseSeedJson,
+  readDemoData,
+  seedConnection,
   validate,
   type Scenario,
 } from "../../scripts/seed-scenarios.ts";
@@ -131,4 +135,155 @@ test("an unknown station is still rejected", () => {
   ]);
   assert.equal(errors.length, 1);
   assert.match(errors[0], /unknown station "NOPE"/);
+});
+
+// A valid scenario with one station requirement, for the checks below.
+function validScenario(): Scenario {
+  const scenario = scenarioWithRoute([
+    { sequence: 1, station: "VAN" },
+    { sequence: 2, station: "FL" },
+  ]);
+  scenario.versions[0].stationRequirements = [
+    {
+      station: "VAN",
+      placement: "platform",
+      minimumStaffing: 1,
+      actions: [
+        { sequence: 1, instruction: "first" },
+        { sequence: 2, instruction: "second" },
+      ],
+    },
+  ];
+  return scenario;
+}
+
+function validateScenario(scenario: Scenario) {
+  return validate(scenario, "test.json", allowedStations, shaftCodes);
+}
+
+test("the valid scenario used below has no errors", () => {
+  assert.deepEqual(validateScenario(validScenario()), []);
+});
+
+test("a scenario without covers is valid", () => {
+  const scenario = validScenario();
+  delete scenario.covers;
+  assert.deepEqual(validateScenario(scenario), []);
+});
+
+test("two versions with the same version are rejected", () => {
+  const scenario = validScenario();
+  scenario.versions.push(structuredClone(scenario.versions[0]));
+  const errors = validateScenario(scenario);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /^test\.json: version "1\.0" appears more than once/);
+});
+
+test("two actions with the same sequence are rejected", () => {
+  const scenario = validScenario();
+  scenario.versions[0].stationRequirements![0].actions![1].sequence = 1;
+  const errors = validateScenario(scenario);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /^test\.json: .*stationRequirements\[0\]\.actions/);
+  assert.match(errors[0], /sequence 1 is used by more than one action/);
+});
+
+test("a negative minimumStaffing is rejected", () => {
+  const scenario = validScenario();
+  scenario.versions[0].stationRequirements![0].minimumStaffing = -1;
+  const errors = validateScenario(scenario);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /^test\.json: .*minimumStaffing is -1/);
+});
+
+test("a negative maximumTrains is rejected", () => {
+  const scenario = validScenario();
+  scenario.versions[0].operatingPlan.patterns[0].maximumTrains = -2;
+  const errors = validateScenario(scenario);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /^test\.json: .*maximumTrains is -2/);
+});
+
+function checkFiles(files: { fileName: string; text: string }[]) {
+  return checkScenarioFiles(files, allowedStations, shaftCodes);
+}
+
+test("an invalid JSON file is named, without its content", () => {
+  const good = JSON.stringify(validScenario());
+  const { errors } = checkFiles([
+    { fileName: "SeedDataScenario_1.json", text: good },
+    { fileName: "SeedDataScenario_2.json", text: '{ "name": "secret", }' },
+  ]);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /^SeedDataScenario_2\.json: is not valid JSON/);
+  assert.doesNotMatch(errors[0], /secret/);
+});
+
+test("all files are checked and every problem is reported", () => {
+  const broken = validScenario();
+  broken.versions[0].operatingPlan.patterns[0].maximumTrains = -1;
+  const { errors } = checkFiles([
+    { fileName: "SeedDataScenario_1.json", text: "not json" },
+    { fileName: "SeedDataScenario_2.json", text: JSON.stringify(broken) },
+    {
+      fileName: "SeedDataScenario_3.json",
+      text: JSON.stringify(validScenario()),
+    },
+  ]);
+  assert.equal(errors.length, 3);
+  assert.match(errors[0], /^SeedDataScenario_1\.json: is not valid JSON/);
+  assert.match(errors[1], /^SeedDataScenario_2\.json: .*maximumTrains/);
+  assert.match(errors[2], /^SeedDataScenario_3\.json: scenarioId "TEST-1"/);
+});
+
+test("valid files give their scenarios and no errors", () => {
+  const { scenarios, errors } = checkFiles([
+    {
+      fileName: "SeedDataScenario_1.json",
+      text: JSON.stringify(validScenario()),
+    },
+  ]);
+  assert.deepEqual(errors, []);
+  assert.equal(scenarios.length, 1);
+});
+
+test("the DEMO fixtures load as valid demo data", () => {
+  const { scenarios, stationList } = readDemoData();
+  assert.deepEqual(
+    scenarios.map((s) => s.scenarioId),
+    ["DEMO-001", "DEMO-002", "DEMO-003"],
+  );
+  assert.deepEqual(
+    stationList.map((s) => s.code),
+    ["A", "B", "C", "D", "E", "F", "G"].map((letter) => `Station ${letter}`),
+  );
+});
+
+test("without SEED_DATABASE_URL the seed writes to the local database", () => {
+  const config = seedConnection({
+    POSTGRES_PASSWORD: "pw",
+    POSTGRES_PORT: "5433",
+  });
+  assert.equal(config.host, "localhost");
+  assert.equal(config.port, 5433);
+  assert.equal(config.database, "metro");
+  assert.equal(config.connectionString, undefined);
+  assert.equal(describeTarget(config), "localhost:5433/metro");
+});
+
+test("SEED_DATABASE_URL picks another database, and its password is not printed", () => {
+  const config = seedConnection({
+    SEED_DATABASE_URL: "postgresql://owner:s3cret@staging.example:6543/metro",
+  });
+  assert.equal(
+    config.connectionString,
+    "postgresql://owner:s3cret@staging.example:6543/metro",
+  );
+  assert.equal(config.connectionTimeoutMillis, 10_000);
+  assert.equal(describeTarget(config), "staging.example:6543/metro");
+  assert.doesNotMatch(describeTarget(config), /s3cret|owner/);
+});
+
+test("the local database needs POSTGRES_PASSWORD", () => {
+  assert.throws(() => seedConnection({}), /POSTGRES_PASSWORD is not set/);
 });

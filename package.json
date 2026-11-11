@@ -45,6 +45,7 @@
     "db:test:reset": "docker compose run --rm flyway-test clean && docker compose run --rm flyway-test migrate",
     "db:test:down": "docker compose stop db-test",
     "seed": "tsx --env-file=.env scripts/seed-scenarios.ts",
+    "seed:demo": "tsx --env-file=.env scripts/seed-scenarios.ts --demo",
     "dev": "tsx watch src/server.ts",
     "build": "tsc && npm run web:build",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
