@@ -10,6 +10,7 @@ export interface PositionReport {
    * Optional client-generated UUID identifying a position report. Used to recognise offline retries and prevent duplicate processing.
    */
   id?: string;
+  activationId: number;
   staff: string;
   station: string;
   reportedAt: string;

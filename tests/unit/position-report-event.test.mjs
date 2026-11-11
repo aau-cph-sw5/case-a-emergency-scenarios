@@ -4,6 +4,7 @@ import { validate } from "../../src/validation/contract-validator.ts";
 
 // The position report events agreed for MET-A-015 (#263), contract 6.6.0.
 const report = {
+  activationId: 1,
   staff: "",
   station: "Station B",
   reportedAt: "2026-11-05T12:00:00Z",

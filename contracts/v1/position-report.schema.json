@@ -2,12 +2,17 @@
   "$id": "position-report.schema.json",
   "title": "Position Report",
   "type": "object",
-  "required": ["staff", "station", "reportedAt"],
+  "required": ["activationId", "staff", "station", "reportedAt"],
   "properties": {
     "id": {
       "type": "string",
       "format": "uuid",
       "description": "Optional client-generated UUID identifying a position report. Used to recognise offline retries and prevent duplicate processing."
+    },
+    "activationId": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The activation the steward saw when making the report. A report against an activation that is no longer active is rejected with 409 E1003."
     },
     "staff": {
       "type": "string"
