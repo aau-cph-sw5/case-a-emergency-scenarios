@@ -62,13 +62,15 @@ export async function getJson<T>(
 }
 
 // body is sent as JSON when given; without it the request has no body.
+// signal aborts the request, e.g. when the component unmounts.
 export async function postJson<T>(
   path: string,
   token: string,
   isValid: (data: unknown) => data is T,
   body?: unknown,
+  signal?: AbortSignal,
 ): Promise<T> {
-  const response = await fetchWithTimeout(path, [], {
+  const response = await fetchWithTimeout(path, signal ? [signal] : [], {
     method: "POST",
     headers:
       body === undefined
