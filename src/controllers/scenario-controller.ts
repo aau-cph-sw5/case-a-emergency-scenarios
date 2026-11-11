@@ -250,7 +250,7 @@ export async function standDown(
       );
     return;
   }
-  
+
   const io = request.app.locals.io as Server | undefined;
   // Stewards refetch the scenario state, operators their activations, in the
   // stood-down activation's line group only.
