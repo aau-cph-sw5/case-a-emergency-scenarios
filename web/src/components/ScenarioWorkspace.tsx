@@ -53,6 +53,15 @@ export function ScenarioWorkspace({
           lineControlsTarget={lineControlsTarget}
           scenarioId={selectedId}
           scenario={isActive ? undefined : scenario}
+          // The live coverage colours the map only for the active scenario;
+          // a preview shows its requirements as before (#310).
+          deployments={
+            isActive
+              ? (activations
+                  .filter((a) => a.scenarioId === selectedId)
+                  .at(-1) ?? null)
+              : null
+          }
         />
       }
       coverage={
