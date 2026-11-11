@@ -101,8 +101,7 @@ async function reportsDuring(
     SELECT a.id AS activation_id, p.staff, p.station, p.event, p.task_done,
       p.reported_at
     FROM incident_activations a
-    JOIN position_reports p ON p.received_at >= a.activated_at
-      AND (a.deactivated_at IS NULL OR p.received_at < a.deactivated_at)
+    JOIN position_reports p ON p.activation_id = a.id
     WHERE a.id IN ${db(ids)}
     ORDER BY p.received_at, p.id
   `;

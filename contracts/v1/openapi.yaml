@@ -104,7 +104,7 @@ paths:
                   code: "E0001"
                   message: "Invalid or expired token"
         "404":
-          description: Scenario not found
+          description: Scenario not found, or it belongs to another line group
 
   /api/v1/metro-lines/{lineId}:
     get:

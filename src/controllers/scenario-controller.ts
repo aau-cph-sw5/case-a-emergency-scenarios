@@ -61,7 +61,11 @@ export async function getScenario(
     return;
   }
   const scenario = await findScenario(request.params.scenarioId, versionId);
-  if (scenario === undefined) {
+  // Another line group's scenario is treated as not existing.
+  if (
+    scenario === undefined ||
+    scenario.lineGroup !== response.locals.user.lineGroup
+  ) {
     response.status(404).json({ error: "Scenario not found" });
     return;
   }

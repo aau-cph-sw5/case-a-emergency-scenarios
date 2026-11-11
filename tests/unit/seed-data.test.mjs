@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { findSeedData } from "../../scripts/lib/seed-data.mjs";
+import { findSeedData, isInsideRepo } from "../../scripts/lib/seed-data.mjs";
 
 function seedDir(files) {
   const dir = mkdtempSync(path.join(tmpdir(), "seed-data-"));
@@ -22,37 +22,61 @@ test("finds no problem when stations.json and a scenario file exist", () => {
   assert.deepEqual(findSeedData(dir, dir), {
     scenarioFiles: ["SeedDataScenario_1.json", "SeedDataScenario_2.json"],
     problem: null,
-    fatal: false,
   });
 });
 
-test("reports that the scenario files are missing, without being fatal", () => {
+test("reports that the scenario files are missing", () => {
   const dir = seedDir(["stations.json", "shafts.json"]);
-  const { problem, fatal } = findSeedData(dir, dir);
+  const { problem } = findSeedData(dir, dir);
   assert.match(problem, /No SeedDataScenario_\*\.json files/);
-  assert.equal(fatal, false);
 });
 
-test("reports that stations.json is missing, as fatal", () => {
+test("reports that the scenario folder does not exist", () => {
+  const dir = seedDir(["stations.json", "shafts.json"]);
+  const missing = path.join(dir, "no-such-folder");
+  const { problem } = findSeedData(dir, missing);
+  assert.match(problem, /which does not exist/);
+});
+
+test("refuses a scenario folder inside the repository", () => {
+  const repo = seedDir(["stations.json", "shafts.json"]);
+  const inside = path.join(repo, "seed");
+  mkdirSync(inside);
+  writeFileSync(path.join(inside, "SeedDataScenario_1.json"), "{}");
+  for (const folder of [repo, inside]) {
+    const { scenarioFiles, problem } = findSeedData(repo, folder, repo);
+    assert.match(problem, /is inside this repository/);
+    assert.deepEqual(scenarioFiles, []);
+  }
+});
+
+test("accepts a folder next to the repository with a similar name", () => {
+  const parent = seedDir([]);
+  const repo = path.join(parent, "repo");
+  const sibling = path.join(parent, "repo-seed");
+  mkdirSync(repo);
+  mkdirSync(sibling);
+  assert.equal(isInsideRepo(sibling, repo), false);
+  assert.equal(isInsideRepo(path.join(repo, "a", ".."), repo), true);
+});
+
+test("reports that stations.json is missing", () => {
   const dir = seedDir(["SeedDataScenario_1.json"]);
-  const { problem, fatal } = findSeedData(dir, dir);
+  const { problem } = findSeedData(dir, dir);
   assert.match(problem, /stations\.json is missing/);
-  assert.equal(fatal, true);
 });
 
 test("reports that both are missing, also when the folder does not exist", () => {
   for (const dir of [seedDir([]), path.join(tmpdir(), "seed-data-missing")]) {
-    const { problem, fatal } = findSeedData(dir, dir);
+    const { problem } = findSeedData(dir, dir);
     assert.match(problem, /^No seed data: .*stations\.json and the/);
-    assert.equal(fatal, true);
   }
 });
 
-test("reports that shafts.json is missing, as fatal", () => {
+test("reports that shafts.json is missing", () => {
   const dir = seedDir(["stations.json", "SeedDataScenario_1.json"]);
-  const { problem, fatal } = findSeedData(dir, dir);
+  const { problem } = findSeedData(dir, dir);
   assert.match(problem, /shafts\.json is missing/);
-  assert.equal(fatal, true);
 });
 
 test("reads the scenario files from their own folder", () => {
@@ -61,15 +85,10 @@ test("reads the scenario files from their own folder", () => {
   assert.deepEqual(findSeedData(dir, scenariosDir), {
     scenarioFiles: ["SeedDataScenario_1.json"],
     problem: null,
-    fatal: false,
   });
 });
 
 test("refuses to seed when SEED_SCENARIOS_DIR is not set", () => {
-  const { problem, fatal } = findSeedData(
-    seedDir(["stations.json"]),
-    undefined,
-  );
+  const { problem } = findSeedData(seedDir(["stations.json"]), undefined);
   assert.match(problem, /SEED_SCENARIOS_DIR is not set/);
-  assert.equal(fatal, true);
 });

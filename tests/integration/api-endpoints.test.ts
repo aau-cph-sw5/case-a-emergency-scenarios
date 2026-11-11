@@ -623,6 +623,19 @@ test("GET /api/v1/scenarios/:scenarioId returns one scenario", async () => {
   assert.equal(body.scenarioId, "DEMO-001");
 });
 
+test("GET /api/v1/scenarios/:scenarioId returns 404 for another line group's scenario", async () => {
+  // DEMO-002 belongs to M3/M4.
+  const other = await fetch(`${baseUrl}/api/v1/scenarios/DEMO-002`, {
+    headers: await operatorHeaders(),
+  });
+  const own = await fetch(`${baseUrl}/api/v1/scenarios/DEMO-002`, {
+    headers: await m3m4OperatorHeaders(),
+  });
+
+  assert.equal(other.status, 404);
+  assert.equal(own.status, 200);
+});
+
 test("GET /api/v1/scenarios/:scenarioId returns 404 for an unknown id", async () => {
   const headers = await operatorHeaders();
   const unknown = await fetch(`${baseUrl}/api/v1/scenarios/wrongId`, {
