@@ -70,14 +70,14 @@ function eventsBy(username: string) {
 }
 
 test("without a token the activation is refused", async () => {
-  const res = await activate("DEMO-002");
+  const res = await activate("DEMO-001");
   assert.equal(res.status, 401);
   assert.equal((await res.json()).error.code, ERROR_CODES.AUTH_TOKEN_INVALID);
 });
 
 test("a steward may not activate a scenario", async () => {
   const res = await activate(
-    "DEMO-002",
+    "DEMO-001",
     await tokenFor(STEWARD_USERNAME, "steward123", "mobile"),
   );
   assert.equal(res.status, 403);
@@ -89,7 +89,7 @@ test("an operator activates a scenario and writes an incident event", async () =
   const token = await tokenFor(OPERATOR_USERNAME, "operator123", "web");
   const beforeCount = (await eventsBy(OPERATOR_USERNAME)).length;
 
-  const res = await activate("DEMO-002", token);
+  const res = await activate("DEMO-001", token);
   assert.equal(res.status, 201);
 
   const activation = await res.json();
@@ -98,7 +98,7 @@ test("an operator activates a scenario and writes an incident event", async () =
     SELECT id FROM incident_activations WHERE id = ${activation.activationId}
   `;
   assert.equal(stored.id, activation.activationId);
-  assert.equal(activation.scenarioId, "DEMO-002");
+  assert.equal(activation.scenarioId, "DEMO-001");
   assert.equal(activation.status, "ACTIVE");
   assert.equal(activation.actor, OPERATOR_USERNAME);
   assert.deepEqual(validate(activation, "scenario-state.schema.json"), []);
@@ -129,7 +129,7 @@ test("activating another scenario while one is active is refused", async () => {
   const token = await tokenFor(OPERATOR_USERNAME, "operator123", "web");
   const beforeCount = (await eventsBy(OPERATOR_USERNAME)).length;
 
-  for (const scenarioId of ["DEMO-001", "DEMO-003", "DEMO-002"]) {
+  for (const scenarioId of ["DEMO-003", "DEMO-001"]) {
     const res = await activate(scenarioId, token);
     assert.equal(res.status, 409);
     assert.equal((await res.json()).error.code, ERROR_CODES.CONFLICT);
@@ -161,7 +161,7 @@ test("the activations list returns the active scenario, filtered by status", asy
   }[];
 
   assert.equal(list.length, 1);
-  assert.equal(list[0].scenarioId, "DEMO-002");
+  assert.equal(list[0].scenarioId, "DEMO-001");
   assert.equal(list[0].status, "ACTIVE");
 
   for (const activation of list) {

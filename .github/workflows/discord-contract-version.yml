@@ -1,0 +1,104 @@
+name: Discord contract version notifications
+
+on:
+  push:
+    paths:
+      - contracts/v1/openapi.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && !github.event.deleted
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Compare contract versions and notify Discord
+        uses: actions/github-script@v9
+        env:
+          DISCORD_CONTRACT_WEBHOOK: ${{ secrets.DISCORD_CONTRACT_WEBHOOK }}
+        with:
+          script: |
+            const before = context.payload.before;
+            const after = context.sha;
+            if (/^0+$/.test(before)) {
+              core.info('New branch; no previous version to compare.');
+              return;
+            }
+
+            async function versionAt(ref) {
+              const { data } = await github.rest.repos.getContent({
+                ...context.repo,
+                path: 'contracts/v1/openapi.yaml',
+                ref,
+              });
+              if (Array.isArray(data) || data.type !== 'file' || data.encoding !== 'base64') {
+                throw new Error(`Could not read the OpenAPI contract at ${ref}`);
+              }
+              const yaml = Buffer.from(data.content, 'base64').toString('utf8');
+              const info = yaml.match(/^info:\s*\r?\n((?:[ \t]+.*\r?\n|\s*\r?\n)*)/m);
+              const version = info?.[1].match(/^  version:\s*["']?([^\s"'#]+)["']?\s*(?:#.*)?$/m)?.[1];
+              if (!version) throw new Error(`Missing info.version at ${ref}`);
+              return version;
+            }
+
+            const [oldVersion, newVersion] = await Promise.all([
+              versionAt(before),
+              versionAt(after),
+            ]);
+            if (oldVersion === newVersion) {
+              core.info(`Contract version unchanged: ${newVersion}`);
+              return;
+            }
+
+            let webhook;
+            try {
+              webhook = new URL(process.env.DISCORD_CONTRACT_WEBHOOK);
+            } catch {
+              throw new Error('DISCORD_CONTRACT_WEBHOOK secret is missing or invalid');
+            }
+            if (webhook.protocol !== 'https:' ||
+                !['discord.com', 'discordapp.com'].includes(webhook.hostname) ||
+                !/^\/api\/webhooks\/\d+\/[^/]+\/?$/.test(webhook.pathname)) {
+              throw new Error('DISCORD_CONTRACT_WEBHOOK must be a Discord HTTPS webhook URL');
+            }
+
+            let notes = '';
+            try {
+              const { data } = await github.rest.repos.getContent({
+                ...context.repo,
+                path: 'contracts/CHANGELOG.md',
+                ref: after,
+              });
+              if (Array.isArray(data) || data.type !== 'file' || data.encoding !== 'base64') {
+                throw new Error('Could not read the contract changelog');
+              }
+              const changelog = Buffer.from(data.content, 'base64').toString('utf8');
+              const sections = changelog.split(/^## /m).slice(1);
+              const section = sections.find((entry) => entry.split(/\r?\n/, 1)[0].split(/\s+/)[0] === newVersion);
+              if (section) notes = section.replace(/^[^\n]*(?:\n|$)/, '').trim();
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              core.warning('Contract changelog not found.');
+            }
+
+            const compareUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/compare/${before}...${after}`;
+            const heading = `📋 API contract version changed: **${oldVersion} → ${newVersion}**`;
+            const suffix = `\n${compareUrl}`;
+            const fallback = 'No changelog notes found for this version.';
+            const available = 2000 - heading.length - suffix.length - 2;
+            const details = notes || fallback;
+            const summary = details.length > available
+              ? `${details.slice(0, Math.max(0, available - 1))}…`
+              : details;
+            const response = await fetch(webhook, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                content: `${heading}\n\n${summary}${suffix}`,
+                allowed_mentions: { parse: [] },
+              }),
+            });
+            if (!response.ok) throw new Error(`Discord returned HTTP ${response.status}`);
+            core.info(`Notified Discord of contract version ${oldVersion} → ${newVersion}.`);

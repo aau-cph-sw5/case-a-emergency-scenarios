@@ -1,8 +1,11 @@
 import { getDatabase } from "../db/client.js";
 import type { Scenario } from "../../shared/types/v1/scenario.js";
 import type { ScenarioList } from "../../shared/types/v1/scenario-list.js";
+import type { LineGroup } from "../../shared/auth/line-groups.js";
 
-export async function getAllScenarios(): Promise<ScenarioList> {
+export async function getAllScenarios(
+  lineGroup?: LineGroup,
+): Promise<ScenarioList> {
   const sql = getDatabase();
   return sql<ScenarioList>`
     SELECT
@@ -25,6 +28,7 @@ export async function getAllScenarios(): Promise<ScenarioList> {
     LEFT JOIN track_segments  t ON t.id = c.track_segment_id
     LEFT JOIN stations a ON a.id = t.station_a_id
     LEFT JOIN stations b ON b.id = t.station_b_id
+    WHERE ${lineGroup ?? null}::text IS NULL OR s.line_group = ${lineGroup ?? null}
     GROUP BY s.scenario_id, s.name, v.version
     ORDER BY s.name
   `;

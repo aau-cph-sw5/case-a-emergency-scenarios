@@ -10,6 +10,7 @@ import {
   closeOwnerDatabase,
   getOwnerDatabase,
   seedTestScenarios,
+  seededUser,
 } from "./helpers.js";
 
 const sql = getDatabase();
@@ -33,8 +34,8 @@ async function login(username: string, password: string, client: string) {
 before(async () => {
   const users = await seedTestUsers("taskdone-");
   await seedTestScenarios();
-  const steward = users.find((user) => user.role === "STEWARD")!;
-  const operator = users.find((user) => user.role === "OPERATOR")!;
+  const steward = seededUser(users, "STEWARD", "M3_M4");
+  const operator = seededUser(users, "OPERATOR", "M3_M4");
   stewardId = String(steward.id);
 
   server = await new Promise<Server>((resolve) => {
