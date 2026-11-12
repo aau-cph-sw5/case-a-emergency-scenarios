@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   InvalidCredentialsError,
+  lineGroupFromToken,
   login,
   userIdFromToken,
 } from "../../shared/auth/login.ts";
@@ -63,7 +64,7 @@ test("throws an error with the status on other failures", async () => {
 
 test("rejects a response with an unknown role or no token", async () => {
   for (const body of [
-    { token: "abc", role: "ADMIN" },
+    { token: "abc", role: "UNKNOWN" },
     { role: "OPERATOR" },
     [],
   ]) {
@@ -92,6 +93,20 @@ test("userIdFromToken reads the user id without a request", () => {
 
 test("userIdFromToken returns the database id as a string", () => {
   assert.equal(userIdFromToken(tokenWith({ userId: 7, role: "STEWARD" })), "7");
+});
+
+test("lineGroupFromToken reads the line group, or null without a valid one", () => {
+  assert.equal(
+    lineGroupFromToken(tokenWith({ userId: 7, lineGroup: "M3_M4" })),
+    "M3_M4",
+  );
+  for (const token of [
+    "not-a-jwt",
+    tokenWith({ userId: 7 }),
+    tokenWith({ userId: 7, lineGroup: "M5" }),
+  ]) {
+    assert.equal(lineGroupFromToken(token), null);
+  }
 });
 
 test("userIdFromToken returns null for a token it cannot read", () => {

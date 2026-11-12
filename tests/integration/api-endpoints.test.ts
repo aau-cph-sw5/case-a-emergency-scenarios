@@ -76,6 +76,15 @@ function stewardHeaders() {
   return bearer(STEWARD_USERNAME, "steward123", "mobile");
 }
 
+// DEMO-002 belongs to M3/M4, so only the M3/M4 users can work with it.
+function m3m4OperatorHeaders() {
+  return bearer(`${OPERATOR_USERNAME}-m3m4`, "operator123", "web");
+}
+
+function m3m4StewardHeaders() {
+  return bearer(`${STEWARD_USERNAME}-m3m4`, "steward123", "mobile");
+}
+
 async function loginAs(
   username: string,
   password: string,
@@ -281,6 +290,59 @@ test("protected requests use the user's current database role", async () => {
       lineGroup: "M1_M2",
     });
     assert.equal(activation.status, 403);
+  } finally {
+    await owner`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
+  }
+});
+
+test("an assigned admin can sign in and is identified by their current role", async () => {
+  const previousSession = await loginAs(
+    OPERATOR_USERNAME,
+    "operator123",
+    "web",
+  );
+  await owner`UPDATE users SET role = 'ADMIN' WHERE id = ${operatorId}`;
+
+  try {
+    const previousMe = await fetch(`${baseUrl}/api/v1/me`, {
+      headers: { Authorization: `Bearer ${previousSession.token}` },
+    });
+    assert.equal((await previousMe.json()).role, "ADMIN");
+
+    const login = await postJson("/api/v1/auth/login", {
+      username: OPERATOR_USERNAME,
+      password: "operator123",
+      client: "web",
+    });
+    const session = await login.json();
+    assert.equal(login.status, 200);
+    assert.equal(session.role, "ADMIN");
+    assert.deepEqual(validate(session, "login-response.schema.json"), []);
+
+    const headers = { Authorization: `Bearer ${session.token}` };
+    const me = await fetch(`${baseUrl}/api/v1/me`, { headers });
+    const user = await me.json();
+    assert.equal(me.status, 200);
+    assert.equal(user.role, "ADMIN");
+    assert.deepEqual(validate(user, "me.schema.json"), []);
+
+    const activation = await postJson(
+      "/api/v1/scenarios/DEMO-002/activate",
+      {},
+      headers,
+    );
+    assert.equal(activation.status, 403);
+
+    const mobile = await postJson("/api/v1/auth/login", {
+      username: OPERATOR_USERNAME,
+      password: "operator123",
+      client: "mobile",
+    });
+    assert.equal(mobile.status, 401);
+
+    await owner`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
+    const demoted = await fetch(`${baseUrl}/api/v1/me`, { headers });
+    assert.equal((await demoted.json()).role, "OPERATOR");
   } finally {
     await owner`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
   }
@@ -614,6 +676,19 @@ test("GET /api/v1/scenarios/:scenarioId returns one scenario", async () => {
   assert.equal(body.scenarioId, "DEMO-001");
 });
 
+test("GET /api/v1/scenarios/:scenarioId returns 404 for another line group's scenario", async () => {
+  // DEMO-002 belongs to M3/M4.
+  const other = await fetch(`${baseUrl}/api/v1/scenarios/DEMO-002`, {
+    headers: await operatorHeaders(),
+  });
+  const own = await fetch(`${baseUrl}/api/v1/scenarios/DEMO-002`, {
+    headers: await m3m4OperatorHeaders(),
+  });
+
+  assert.equal(other.status, 404);
+  assert.equal(own.status, 200);
+});
+
 test("GET /api/v1/scenarios/:scenarioId returns 404 for an unknown id", async () => {
   const headers = await operatorHeaders();
   const unknown = await fetch(`${baseUrl}/api/v1/scenarios/wrongId`, {
@@ -688,7 +763,7 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   const before = await postJson(
     "/api/v1/position-reports",
     stationGReport(),
-    await stewardHeaders(),
+    await m3m4StewardHeaders(),
   );
   assert.equal(before.status, 409);
   assert.equal((await before.json()).error.code, "E1001");
@@ -696,7 +771,7 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   const activation = await postJson(
     "/api/v1/scenarios/DEMO-002/activate",
     {},
-    await operatorHeaders(),
+    await m3m4OperatorHeaders(),
   );
   assert.equal(activation.status, 201);
   const { activationId } = await activation.json();
@@ -704,7 +779,7 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   const after = await postJson(
     "/api/v1/position-reports",
     stationGReport(activationId),
-    await stewardHeaders(),
+    await m3m4StewardHeaders(),
   );
   assert.equal(after.status, 202);
   assert.deepEqual(await after.json(), { accepted: true });
@@ -713,7 +788,7 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   const other = await postJson(
     "/api/v1/position-reports",
     { ...stationGReport(activationId), station: "Station B" },
-    await stewardHeaders(),
+    await m3m4StewardHeaders(),
   );
   assert.equal(other.status, 409);
   assert.equal((await other.json()).error.code, "E1004");
@@ -724,4 +799,22 @@ test("protected endpoints reject requests without a token", async () => {
 
   assert.equal(response.status, 401);
   assert.equal((await response.json()).error.code, "E0001");
+});
+
+test("GET /api/v1/scenarios only returns the user's own line group", async () => {
+  const listFor = async (headers: Record<string, string>) => {
+    const response = await fetch(`${baseUrl}/api/v1/scenarios`, { headers });
+    assert.equal(response.status, 200);
+    return (
+      (await response.json()) as { scenarioId: string; lineGroup: string }[]
+    ).map(({ scenarioId, lineGroup }) => [scenarioId, lineGroup]);
+  };
+
+  assert.deepEqual((await listFor(await operatorHeaders())).sort(), [
+    ["DEMO-001", "M1_M2"],
+    ["DEMO-003", "M1_M2"],
+  ]);
+  assert.deepEqual(await listFor(await m3m4OperatorHeaders()), [
+    ["DEMO-002", "M3_M4"],
+  ]);
 });

@@ -1,5 +1,32 @@
 # Scenario State Contract Changelog
 
+## 8.3.0 - 2026-11-12
+
+Additive. Add the admin role (MET-A-030, #359).
+
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/renew` and `GET /api/v1/me` can return `ADMIN` as the user's role. Clients must accept the new value.
+- Admins can log in on the web, but cannot use operator-only actions.
+- `info.version` in `openapi.yaml` is now 8.3.0.
+
+## 8.2.0 - 2026-11-11
+
+Additive. Operators only see their own line group's scenarios (#319), and socket events only reach the activation's line group (#318).
+
+- `GET /api/v1/scenarios` only returns scenarios in the user's own line group.
+- Socket events are sent to one room per role and line group, so they only reach users in the activation's line group. Event names and payloads are unchanged.
+- `info.version` in `openapi.yaml` is now 8.2.0.
+
+## 8.1.0 - 2026-11-10
+
+Additive. One active scenario per line group (#317).
+
+- Each line group (M1/M2, M3/M4) can have one active scenario at the same time.
+- `GET /api/v1/activations` and `GET /api/v1/scenario-state` only return the user's own line group, and each activation has `lineGroup`.
+- Activating or switching to a scenario, or standing down an activation, in another line group answers 404 `E0004`.
+- `GET /api/v1/scenarios/{scenarioId}` answers 404 for a scenario in another line group.
+- A position report's `activationId` must be an activation in the steward's own line group. Another line group's activation is treated as unknown: E1001 while the steward's own line group has nothing active, otherwise E1003.
+- `info.version` in `openapi.yaml` is now 8.1.0.
+
 ## 8.0.0 - 2026-11-09
 
 Breaking. Reports against a superseded scenario are rejected (MET-A-006, #267).
