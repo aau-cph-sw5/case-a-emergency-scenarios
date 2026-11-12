@@ -138,6 +138,6 @@ describe("analyst web app", () => {
       session: { ...session, role: "ANALYST" },
     });
     await showApp();
-    expect(container.textContent).toContain("Analytiker");
+    expect(container.textContent).toContain("Analyst");
   });
 });

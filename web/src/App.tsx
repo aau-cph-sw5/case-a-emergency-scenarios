@@ -10,7 +10,7 @@ import { socket } from "./socket";
 
 // The web app:
 // Returns the control-room dashboard for operators,
-// and the analyst dashboard for analysts. 
+// and the analyst dashboard for analysts.
 // Stewards use the app in mobile/.
 export function App() {
   const {
