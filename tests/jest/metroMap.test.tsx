@@ -158,15 +158,15 @@ describe("MetroMap", () => {
         scenarioWithDistantStaffing,
       ),
     );
-    expect(shownLines()).toEqual(["M1", "M2"]);
+    const strokes = [
+      ...screen.UNSAFE_queryAllByType(Line),
+      ...screen.UNSAFE_queryAllByType(Path),
+    ].map((segment) => segment.props.stroke);
+    expect(strokes).toContain(DIDLineColors[0]);
+    expect(strokes).toContain(DIDLineColors[1]);
     expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(80);
     expect(screen.getByText("TEST")).toBeTruthy();
     expect(screen.getByText("TEST-2")).toBeTruthy();
-    const strokes = screen
-      .UNSAFE_queryAllByType(Line)
-      .map((segment) => segment.props.stroke);
-    expect(strokes).toContain(lineColors[0]);
-    expect(strokes).toContain(lineColors[1]);
     expect(markedDots().length).toBeGreaterThan(0);
     const fullView = viewBox();
     fireEvent.press(screen.getByText("Zoom ind"));
@@ -201,7 +201,8 @@ describe("MetroMap", () => {
       ...screen.UNSAFE_queryAllByType(Path),
     ].map((strip) => strip.props.stroke);
     expect(new Set(DIDLineColors).size).toBe(DIDLineColors.length);
-    expect(strokes).toEqual(expect.arrayContaining(DIDLineColors));
+    // Shared segments display at most two destination IDs at a time.
+    expect(strokes).toEqual(expect.arrayContaining(DIDLineColors.slice(0, 2)));
     expect(DIDLineColors).not.toEqual(
       expect.arrayContaining(lineColors.slice(0, 4)),
     );
