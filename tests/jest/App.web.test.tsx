@@ -28,7 +28,7 @@ jest.mock("../../web/src/data/liveData", () => ({
 }));
 jest.mock("../../web/src/OperatorDashboard", () => ({
   OperatorDashboard: ({ onLogout }: { onLogout: () => void }) => (
-    <button onClick={onLogout}>Log ud</button>
+    <button onClick={onLogout}>Operator log ud</button>
   ),
 }));
 jest.mock("../../web/src/socket", () => ({ socket: {} }));
@@ -115,6 +115,7 @@ describe("operator app session states", () => {
   it("shows the dashboard, revalidates on reconnect and signs out", async () => {
     setSession({ status: "signed-in", session });
     await showApp();
+    expect(container.textContent).toContain("Operator log ud");
     expect(useAuthenticatedSocket).toHaveBeenCalledWith(
       expect.anything(),
       session.token,
@@ -125,6 +126,20 @@ describe("operator app session states", () => {
       document.dispatchEvent(new Event("visibilitychange")),
     );
     expect(restore).toHaveBeenCalled();
+    await act(async () => container.querySelector("button")?.click());
+    expect(signOut).toHaveBeenCalled();
+  });
+
+  it("shows the admin placeholder and signs out without an operator socket", async () => {
+    setSession({ status: "signed-in", session: { ...session, role: "ADMIN" } });
+    await showApp();
+    expect(container.querySelector("h1")?.textContent).toBe("Admin");
+    expect(container.textContent).not.toContain("Operator log ud");
+    expect(useAuthenticatedSocket).toHaveBeenLastCalledWith(
+      expect.anything(),
+      undefined,
+      restore,
+    );
     await act(async () => container.querySelector("button")?.click());
     expect(signOut).toHaveBeenCalled();
   });
