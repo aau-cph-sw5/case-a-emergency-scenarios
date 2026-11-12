@@ -24,6 +24,11 @@ const REPORT_ERRORS: Record<string, string> = {
     "Din status er ændret et andet sted. Vi henter din aktuelle status.",
 };
 
+// The text the steward reads for a refusal with the given error code.
+export function reportErrorMessage(code?: string): string {
+  return (code && REPORT_ERRORS[code]) ?? "Positionen blev ikke modtaget.";
+}
+
 // code is the server's error code when the report was refused.
 export type PositionReportResult = {
   ok: boolean;
@@ -106,8 +111,7 @@ export async function sendPositionReport(
     const code: string | undefined = body?.error?.code;
     return {
       ok: false,
-      message:
-        (code && REPORT_ERRORS[code]) ?? "Positionen blev ikke modtaget.",
+      message: reportErrorMessage(code),
       ...(code ? { code } : {}),
     };
   } catch {

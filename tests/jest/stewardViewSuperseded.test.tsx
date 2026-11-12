@@ -143,6 +143,22 @@ describe("StewardView superseded reports", () => {
     expect(flush).toHaveBeenCalledWith("7", token);
   });
 
+  it("fetches the server's copy once a report saved offline is delivered", async () => {
+    flush.mockResolvedValue({ ...nothingSent, acknowledged: 1 });
+    showView({ status: "copy", reason: "offline", snapshot });
+    const { rerender } = render(stewardView(false));
+
+    showView({ status: "live", snapshot });
+    rerender(stewardView(true));
+
+    expect(await screen.findByText("Position sendt.")).toBeTruthy();
+    const { results } = useActiveScenario.mock;
+    const { refresh } = results[results.length - 1].value as {
+      refresh: jest.Mock;
+    };
+    expect(refresh).toHaveBeenCalled();
+  });
+
   it("tells the steward why a queued report was rejected when the scenario was stopped while offline", async () => {
     flush.mockResolvedValue({
       acknowledged: 0,

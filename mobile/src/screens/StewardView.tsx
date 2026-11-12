@@ -14,6 +14,7 @@ import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import { colors, palette, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
+import { reportErrorMessage } from "../api/position-report";
 import { StewardStatusControl } from "../components/StewardStatusControl";
 import {
   stewardStatus,
@@ -21,10 +22,12 @@ import {
   type ReportSend,
   type StatusRequest,
 } from "../data/steward-status";
+import type { QueuedPositionReport } from "../../../shared/offline/position-report-queue";
 import type { FlushResult } from "../offline/position-report-delivery";
 import { positionReportDelivery } from "../offline/position-report-delivery-instance";
 import { queuePositionReport } from "../offline/queue-position-report";
 import { snapshotStore } from "../offline/snapshot-store";
+import { reportRejection, waitingReport } from "../offline/waiting-report";
 import { socket } from "../socket";
 import { ScenarioNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
@@ -34,6 +37,10 @@ import { ScenarioOverview } from "./ScenarioOverview";
 // Shown on the saved copy, where only going on the way can be reported.
 const STATUS_BLOCKED_OFFLINE =
   "Uden forbindelse kan du kun melde dig på vej. Du ser den gemte kopi.";
+
+// Shown while a report waits on the phone, so a later change cannot overtake it.
+const STATUS_BLOCKED_WAITING =
+  "Din position er ikke sendt endnu. Du kan ændre status, når den er modtaget.";
 
 // Waits before each new try after a send failed while live
 export const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
@@ -120,11 +127,20 @@ export function StewardView({
       ? undefined
       : `${activationId}/${userId}`;
   const [shownStatusKey, setShownStatusKey] = useState(statusKey);
+  // The newest report saved on the phone that the server has not received yet.
+  const [waiting, setWaiting] = useState<QueuedPositionReport | null>(null);
   if (statusKey !== shownStatusKey) {
     setShownStatusKey(statusKey);
     setOwnStatus(null);
     setStatusError(null);
+    setWaiting(null);
   }
+
+  // Reads the waiting report again, none when the phone storage cannot be read.
+  const checkWaiting = useCallback(async () => {
+    if (activationId === undefined || userId === undefined) return;
+    setWaiting(await waitingReport(userId, activationId).catch(() => null));
+  }, [activationId, userId]);
   // Each new copy of the scenario carries the server's status, which replaces
   // what the app remembers, e.g. after a reload or a change from another
   // phone (#310).
@@ -132,14 +148,19 @@ export function StewardView({
   useEffect(() => {
     if (activationId === undefined || userId === undefined) return;
     let cancelled = false;
-    void stewardStatus(
-      token,
-      activationId,
-      userId,
-      { type: "current" },
-      deployments,
-    ).then((result) => {
-      if (!cancelled && result.ok) setOwnStatus(result.own);
+    void Promise.all([
+      stewardStatus(
+        token,
+        activationId,
+        userId,
+        { type: "current" },
+        deployments,
+      ),
+      waitingReport(userId, activationId).catch(() => null),
+    ]).then(([result, pending]) => {
+      if (cancelled) return;
+      if (result.ok) setOwnStatus(result.own);
+      setWaiting(pending);
     });
     return () => {
       cancelled = true;
@@ -166,8 +187,8 @@ export function StewardView({
         result.rejected > result.superseded.length
           ? "Positionen blev ikke modtaget."
           : null;
-      // The server has another status than the app, so its copy is fetched.
-      if (refused !== null) void refresh();
+      // A delivered or refused report changes the server's copy, so it is fetched again.
+      if (result.acknowledged > 0 || result.rejected > 0) void refresh();
       const lines = [
         supersededMessage(result.superseded),
         refused,
@@ -207,8 +228,9 @@ export function StewardView({
         if (isCancelled()) return;
         if (message !== null) setReportStatus(message);
         setRetries((count) => (blocked ? count + 1 : 0));
+        void checkWaiting();
       }),
-    [deliver],
+    [deliver, checkWaiting],
   );
 
   // Delivers reports queued while offline as soon as the phone is back online.
@@ -238,8 +260,9 @@ export function StewardView({
   // Queues going on the way on the phone first, so it also works offline.
   const queueReport: ReportSend = async (station, event) => {
     if (!shown) return { ok: false, message: "Intet aktivt scenarie." };
+    let queued: QueuedPositionReport;
     try {
-      await queuePositionReport({
+      queued = await queuePositionReport({
         userId: shown.userId,
         station,
         scenarioId: shown.state.scenarioId,
@@ -254,9 +277,23 @@ export function StewardView({
     }
     if (!canSend) {
       setReportStatus("Position gemt. Afventer levering.");
+      setWaiting(queued);
       return { ok: true, message: "" };
     }
     const { message, blocked } = await deliver();
+    // A refused report gives no status, and the reason is shown with the status.
+    const rejection = await reportRejection(shown.userId, queued.id).catch(
+      () => null,
+    );
+    await checkWaiting();
+    if (rejection !== null) {
+      setReportStatus(null);
+      return {
+        ok: false,
+        message: reportErrorMessage(rejection.code),
+        ...(rejection.code === undefined ? {} : { code: rejection.code }),
+      };
+    }
     setReportStatus(message ?? "Position gemt. Afventer levering.");
     // A report that could not be sent now is tried again after a delay.
     if (blocked) setRetries((count) => count + 1);
@@ -272,7 +309,8 @@ export function StewardView({
       ) ||
       activationId === undefined ||
       userId === undefined ||
-      sendingStatus
+      sendingStatus ||
+      (waiting !== null && change.type !== "assign")
     ) {
       return;
     }
@@ -299,18 +337,21 @@ export function StewardView({
     }
   }
 
+  // A waiting report wins over the server's copy, which has not received it yet.
+  const own: OwnStatus | null =
+    waiting !== null && (waiting.event ?? "EN_ROUTE") === "EN_ROUTE"
+      ? { station: waiting.station, status: "PENDING" }
+      : ownStatus;
   // The station the steward is on the way to or at. After checking out they
   // have none, so + comes back and nothing is highlighted.
   const ownStation =
-    ownStatus && ownStatus.status !== "CHECKED_OUT"
-      ? ownStatus.station
-      : undefined;
+    own && own.status !== "CHECKED_OUT" ? own.station : undefined;
   // After arriving the steward checks out before choosing a new station.
   const canAssign =
     (view.status === "live" || view.status === "copy") &&
     !sendingStatus &&
-    ownStatus?.status !== "MANNED" &&
-    ownStatus?.status !== "TASK_DONE";
+    own?.status !== "MANNED" &&
+    own?.status !== "TASK_DONE";
 
   // The coverage of the steward's station, from the server's deployments
   // only, so the steward sees the same as the control room.
@@ -379,10 +420,14 @@ export function StewardView({
         {shown && (
           <>
             <StewardStatusControl
-              own={ownStatus}
+              own={own}
               coverage={ownCoverage}
               blockedReason={
-                view.status === "copy" ? STATUS_BLOCKED_OFFLINE : null
+                view.status === "copy"
+                  ? STATUS_BLOCKED_OFFLINE
+                  : waiting !== null
+                    ? STATUS_BLOCKED_WAITING
+                    : null
               }
               sending={sendingStatus}
               error={statusError}
@@ -395,9 +440,7 @@ export function StewardView({
               snapshot={shown}
               assignedStation={ownStation}
               checkedOutStation={
-                ownStatus?.status === "CHECKED_OUT"
-                  ? ownStatus.station
-                  : undefined
+                own?.status === "CHECKED_OUT" ? own.station : undefined
               }
               onAssign={
                 canAssign
