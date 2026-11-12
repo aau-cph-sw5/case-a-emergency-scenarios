@@ -1,11 +1,19 @@
 # Scenario State Contract Changelog
 
-## 8.3.0 - 2026-11-12
+## 8.4.0 - 2026-11-12
 
 Additive. Added a new `ANALYST` role, for the Operations Analyst who needs their own login and page to review past incidents (MET-A-024, #365).
 
 - `role` in `login-response.schema.json` and `me.schema.json` can now be `ANALYST`.
 - Like the other users, an analyst belongs to one line group and only sees that line group's data.
+- `info.version` in `openapi.yaml` is now 8.4.0.
+
+## 8.3.0 - 2026-11-12
+
+Additive. Add the admin role (MET-A-030, #359).
+
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/renew` and `GET /api/v1/me` can return `ADMIN` as the user's role. Clients must accept the new value.
+- Admins can log in on the web, but cannot use operator-only actions.
 - `info.version` in `openapi.yaml` is now 8.3.0.
 
 ## 8.2.0 - 2026-11-11
