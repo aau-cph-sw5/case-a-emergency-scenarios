@@ -4,10 +4,14 @@ import { useSession } from "../../shared/auth/use-session";
 import { useAuthenticatedSocket } from "../../shared/socket/useAuthenticatedSocket";
 import { LiveDataProvider } from "./data/liveData";
 import { OperatorDashboard } from "./OperatorDashboard";
+import { AnalystDashboard } from "./AnalystDashboard";
 import { webSessionStore } from "./auth/session-store";
 import { socket } from "./socket";
 
-// The control-room dashboard. Stewards use the app in mobile/.
+// The web app:
+// Returns the control-room dashboard for operators,
+// and the analyst dashboard for analysts. 
+// Stewards use the app in mobile/.
 export function App() {
   const {
     state,
@@ -85,6 +89,10 @@ export function App() {
         </button>
       </main>
     );
+  }
+
+  if (state.session.role === "ANALYST") {
+    return <AnalystDashboard onLogout={() => void signOut()} />;
   }
 
   return (

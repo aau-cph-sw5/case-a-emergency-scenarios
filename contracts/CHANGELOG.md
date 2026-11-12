@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 8.3.0 - 2026-11-12
+
+Additive. Added a new `ANALYST` role, for the Operations Analyst who needs their own login and page to review past incidents (MET-A-024, #365).
+
+- `role` in `login-response.schema.json` and `me.schema.json` can now be `ANALYST`.
+- Like the other users, an analyst belongs to one line group and only sees that line group's data.
+- `info.version` in `openapi.yaml` is now 8.3.0.
+
 ## 8.2.0 - 2026-11-11
 
 Additive. Operators only see their own line group's scenarios (#319), and socket events only reach the activation's line group (#318).

@@ -195,13 +195,12 @@ Seed local users for database-backed authentication after applying migrations:
 npm run seed:users
 ```
 
-This creates or updates four local-only accounts, one operator and one steward
-for each line group:
+This creates or updates six local-only accounts, one operator, one steward and one analyst for each line group:
 
-| Line group | Operator | Steward |
+| Line group | Operator | Steward | Analyst |
 |---|---|---|
-| M1/M2 | `operator` / `operator123` | `steward` / `steward123` |
-| M3/M4 | `operator-m3m4` / `operator123` | `steward-m3m4` / `steward123` |
+| M1/M2 | `operator` / `operator123` | `steward` / `steward123` | `analyst` / `analyst123` |
+| M3/M4 | `operator-m3m4` / `operator123` | `steward-m3m4` / `steward123` | `analyst-m3m4` / `analyst123` |
 
 An operator only sees and changes their own line group's scenario, so use the
 M3/M4 operator for DEMO-002 and the M1/M2 operator for DEMO-001 and DEMO-003.

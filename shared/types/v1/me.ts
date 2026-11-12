@@ -7,7 +7,7 @@
 
 export interface Me {
   userId: number;
-  role: "STEWARD" | "OPERATOR";
+  role: "STEWARD" | "OPERATOR" | "ANALYST";
   lineGroup: "M1_M2" | "M3_M4";
   [k: string]: unknown;
 }
