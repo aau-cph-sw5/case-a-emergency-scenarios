@@ -1,5 +1,18 @@
 ## Stub API
 
+### Contract version notifications
+
+When `info.version` in `contracts/v1/openapi.yaml` changes on the default
+branch, GitHub Actions sends a message to Discord with the old and new versions,
+the matching version's notes from `contracts/CHANGELOG.md`, and a link to the
+changes. Keep the changelog updated with a heading such as `## 7.3.0 - 2026-11-09`.
+Long notes are shortened to fit Discord; if no matching notes exist, the message
+says so. Add a `DISCORD_CONTRACT_WEBHOOK` GitHub Actions secret containing the
+Discord webhook URL for the desired channel. This is separate from the review
+notification webhook.
+The workflow does not notify for changes on feature, staging, or production
+branches unless one of them is the default branch.
+
 ### Install dependencies:
 
 ```bash
