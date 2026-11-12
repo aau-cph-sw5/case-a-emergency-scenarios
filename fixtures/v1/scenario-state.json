@@ -26,5 +26,6 @@
       "staff": null,
       "fulfills": "Station C"
     }
-  ]
+  ],
+  "lineGroup": "M1_M2"
 }

@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 8.3.0 - 2026-11-12
+
+Additive. Add the admin role (MET-A-030, #359).
+
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/renew` and `GET /api/v1/me` can return `ADMIN` as the user's role. Clients must accept the new value.
+- Admins can log in on the web, but cannot use operator-only actions.
+- `info.version` in `openapi.yaml` is now 8.3.0.
+
 ## 8.2.0 - 2026-11-11
 
 Additive. Operators only see their own line group's scenarios (#319), and socket events only reach the activation's line group (#318).
