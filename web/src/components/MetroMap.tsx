@@ -35,29 +35,6 @@ const lineColor = Object.fromEntries(
   network.map((line, index) => [line.name, lineColors[index]]),
 );
 
-function scenarioSegments(scenario: Scenario): TrackSegment[] {
-  const current = scenario.versions.find(
-    (version) => version.version === scenario.currentVersion,
-  );
-  const routes =
-    current?.operatingPlan.patterns.flatMap((pattern) => {
-      return routeConnections(pattern.route).map(([stationA, stationB]) => ({
-        trackNumber: pattern.trackNumber,
-        stationA,
-        stationB,
-      }));
-    }) ?? [];
-  const segments = routes.length > 0 ? routes : (scenario.covers ?? []);
-  const unique = new Map<string, TrackSegment>();
-  for (const segment of segments) {
-    const [first, second] = [segment.stationA, segment.stationB].sort((a, b) =>
-      a.localeCompare(b),
-    );
-    unique.set(`${first}-${second}`, segment);
-  }
-  return [...unique.values()];
-}
-
 function scenarioLines(scenario: Scenario, groupLines: typeof network) {
   const expectedLines =
     scenario.lineGroup === "M1_M2" ? ["M1", "M2"] : ["M3", "M4"];
