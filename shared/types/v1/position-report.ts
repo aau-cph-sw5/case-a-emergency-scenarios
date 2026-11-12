@@ -10,6 +10,9 @@ export interface PositionReport {
    * Optional client-generated UUID identifying a position report. Used to recognise offline retries and prevent duplicate processing.
    */
   id?: string;
+  /**
+   * The activation the steward saw when making the report. A report against an activation that is no longer active is rejected with 409 E1003.
+   */
   activationId: number;
   staff: string;
   station: string;
