@@ -42,6 +42,7 @@ async function loginAsAnalyst() {
 test("an analyst can log in on the web app", async () => {
   const body = await loginAsAnalyst();
   assert.deepEqual(validate(body, "login-response.schema.json"), []);
+  assert.equal(body.role, "ANALYST");
 });
 
 test("an analyst can not activate a scenario", async () => {

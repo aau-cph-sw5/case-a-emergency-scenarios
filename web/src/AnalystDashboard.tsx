@@ -1,4 +1,5 @@
 import { View } from "react-native";
+import { Text } from "react-native";
 import { colors, panelRadius, spacing } from "../../shared/Theme";
 import "./components/OperatorSections.css";
 
@@ -35,8 +36,20 @@ export function AnalystDashboard({ onLogout }: { onLogout: () => void }) {
             borderWidth: 1,
             borderColor: colors.border,
             borderRadius: panelRadius,
+            justifyContent: "center",
+            alignItems: "center",
           }}
-        />
+        >
+          <Text
+            style={{
+              color: colors.text,
+              fontSize: 18,
+              textAlign: "center",
+            }}
+          >
+            Incident timeline coming soon
+          </Text>
+        </View>
       </View>
     </main>
   );
