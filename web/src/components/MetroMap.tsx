@@ -21,7 +21,7 @@ import {
   stationCoverage,
   type ActiveDeployments,
 } from "../../../shared/components/stationState";
-import type { Scenario, TrackSegment } from "../../../shared/types/v1/scenario";
+import type { Scenario } from "../../../shared/types/v1/scenario";
 import { useScenario } from "../data/useScenario";
 
 // The whole metro network, each line in its own colour (M1 to M4). The colour
