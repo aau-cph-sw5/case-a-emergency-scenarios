@@ -8,11 +8,18 @@ import {
 const K1 = 1.2; // caps how much repeating a term helps
 const B = 0.75; // how strongly long documents are pushed down
 
+export type Bm25Options = {
+  /** Count query terms found in no document towards the best possible score. */
+  includeUnknownTerms?: boolean;
+};
+
 export class BM25Ranker implements ScenarioRanker {
   private readonly tokenize: Tokenize;
+  private readonly includeUnknownTerms: boolean;
 
-  constructor(tokenize: Tokenize) {
+  constructor(tokenize: Tokenize, options: Bm25Options = {}) {
     this.tokenize = tokenize;
+    this.includeUnknownTerms = options.includeUnknownTerms ?? true;
   }
 
   rank(description: string, docs: ScenarioDocument[]): RankedCandidate[] {
@@ -34,10 +41,17 @@ export class BM25Ranker implements ScenarioRanker {
     const avgdl =
       indexed.reduce((sum, doc) => sum + doc.length, 0) / indexed.length;
 
+    // The best possible score is what a document of average length gets when it
+    // contains every counted query term once: the sum of their IDFs.
     const idf = new Map<string, number>();
+    let bestPossible = 0;
     for (const term of queryTerms) {
       const df = indexed.filter((doc) => doc.counts.has(term)).length;
-      idf.set(term, Math.log((indexed.length - df + 0.5) / (df + 0.5) + 1));
+      const termIdf = Math.log((indexed.length - df + 0.5) / (df + 0.5) + 1);
+      idf.set(term, termIdf);
+      if (df > 0 || this.includeUnknownTerms) {
+        bestPossible += termIdf;
+      }
     }
 
     const results: RankedCandidate[] = [];
@@ -54,7 +68,19 @@ export class BM25Ranker implements ScenarioRanker {
       results.push({ scenarioId: doc.scenarioId, score });
     }
 
-    return results.sort(byScoreThenId);
+    // Sort on the raw scores first: clamping can turn two different scores into 1, and the stronger match should still come first.
+    results.sort(byScoreThenId);
+
+    // No counted query terms means every raw score is 0. Returns them as they are instead of dividing by 0.
+    if (bestPossible === 0) {
+      return results;
+    }
+
+    // A repeated term or a short document can score above the best possible, so clamp to 1.
+    return results.map((result) => ({
+      scenarioId: result.scenarioId,
+      score: Math.min(1, result.score / bestPossible),
+    }));
   }
 }
 

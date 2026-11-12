@@ -130,3 +130,92 @@ test("never gives NaN when every document is empty", () => {
     { scenarioId: "DEMO-B", score: 0 },
   ]);
 });
+
+// Normalisation to 0..1
+
+// DEMO-B repeats "strøm" and DEMO-A is very short, so both score above the
+// best possible before clamping.
+const clampDocs = [
+  { scenarioId: "DEMO-A", text: "strøm" },
+  { scenarioId: "DEMO-B", text: "strøm strøm strøm" },
+  { scenarioId: "DEMO-C", text: "signalfejl kgn kk chr nør sporskifte" },
+];
+
+test("keeps every score within 0 and 1", () => {
+  const ranker = new BM25Ranker(splitOnSpace);
+
+  for (const [description, documents] of [
+    ["strøm", clampDocs],
+    ["ingen strøm", docs],
+    ["ingen strøm xyz", docs],
+    ["signalfejl kgn kk", docs],
+  ]) {
+    for (const { score } of ranker.rank(description, documents)) {
+      assert.ok(score >= 0 && score <= 1, `${description}: ${score}`);
+    }
+  }
+});
+
+test("gives 1 to a document of average length that contains the only query term once", () => {
+  const ranker = new BM25Ranker(splitOnSpace);
+  const sameLength = [
+    { scenarioId: "DEMO-A", text: "ingen strøm" },
+    { scenarioId: "DEMO-B", text: "signalfejl kk" },
+    { scenarioId: "DEMO-C", text: "sporskifte nør" },
+  ];
+
+  const [top, ...rest] = ranker.rank("ingen", sameLength);
+
+  assert.equal(top.scenarioId, "DEMO-A");
+  assert.ok(Math.abs(top.score - 1) < 1e-9, `score was ${top.score}`);
+  assert.ok(rest.every((r) => r.score === 0));
+});
+
+test("keeps the stronger match first when two scores are clamped to 1", () => {
+  const ranker = new BM25Ranker(splitOnSpace);
+
+  // DEMO-A would win the tie-break by scenarioId, so DEMO-B can only come
+  // first if the order was decided by the raw scores before clamping.
+  assert.deepEqual(ranker.rank("strøm", clampDocs), [
+    { scenarioId: "DEMO-B", score: 1 },
+    { scenarioId: "DEMO-A", score: 1 },
+    { scenarioId: "DEMO-C", score: 0 },
+  ]);
+});
+
+test("counts unknown query terms against the score by default", () => {
+  const byDefault = new BM25Ranker(splitOnSpace);
+  const including = new BM25Ranker(splitOnSpace, { includeUnknownTerms: true });
+  const ignoring = new BM25Ranker(splitOnSpace, { includeUnknownTerms: false });
+
+  // "xyz" is in no document.
+  const description = "ingen strøm xyz";
+
+  assert.deepEqual(
+    byDefault.rank(description, docs),
+    including.rank(description, docs),
+  );
+  assert.ok(
+    including.rank(description, docs)[0].score <
+      ignoring.rank(description, docs)[0].score,
+  );
+});
+
+test("ignoring unknown terms scores as if they were not in the description", () => {
+  const ranker = new BM25Ranker(splitOnSpace, { includeUnknownTerms: false });
+
+  assert.deepEqual(
+    ranker.rank("ingen strøm xyz", docs),
+    ranker.rank("ingen strøm", docs),
+  );
+});
+
+test("gives all scores 0 without NaN when only unknown terms are ignored", () => {
+  const ranker = new BM25Ranker(splitOnSpace, { includeUnknownTerms: false });
+
+  assert.deepEqual(ranker.rank("xyz", docs), [
+    { scenarioId: "DEMO-A", score: 0 },
+    { scenarioId: "DEMO-B", score: 0 },
+    { scenarioId: "DEMO-C", score: 0 },
+  ]);
+});
