@@ -14,6 +14,7 @@ The code is in `src/services/scenario-suggestion/`:
 | `types.ts`           | `ScenarioRanker`, the interface every ranker implements           |
 | `to-document.ts`     | `toDocument`: turns a scenario into the text that is searched     |
 | `bm25ranker.ts`      | `BM25Ranker`: ranks the texts against a description               |
+| `shortlist.ts`       | `shortlist`: keeps the best five of a ranked list                 |
 | `simple-tokenize.ts` | A stand-in tokenizer, to be replaced by the Danish one from #354 |
 
 ## The interface
@@ -26,7 +27,9 @@ interface ScenarioRanker {
 
 `rank` returns every document, best first, each with a score from 0 to 1. The
 same input always gives the same output: equal scores are ordered by
-`scenarioId`.
+`scenarioId`. `shortlist` then keeps the best five (`MAX_CANDIDATES`) for the
+operator. `rank` itself returns the whole list, so a threshold can look at
+more than the top five if it needs to.
 
 A caller only depends on this interface, so another ranker can replace BM25
 without changing the caller. `BM25Ranker` takes the tokenizer in its
