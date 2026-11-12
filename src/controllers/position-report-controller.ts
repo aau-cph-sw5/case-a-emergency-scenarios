@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import type { Server } from "socket.io";
+import { roleRoom } from "../realtime/socket-server.js";
 import {
   ERROR_CODES,
   errorBody,
@@ -7,7 +8,7 @@ import {
 } from "../../shared/error-codes.js";
 import {
   findActivation,
-  listActivations,
+  findActiveActivation,
 } from "../repositories/activation-repository.js";
 import type { AuthUser } from "../services/auth-service.js";
 import {
@@ -29,7 +30,7 @@ function refuse(
 /* Refuse emit to the operators if request was not sent by a steward and if the station
 Reported in the postionreport is not part of the active scenario */
 export async function postPositionReport(request: Request, response: Response) {
-  const { userId, role } = response.locals.user as AuthUser;
+  const { userId, role, lineGroup } = response.locals.user as AuthUser;
   const { station, activationId } = request.body;
 
   if (role !== "STEWARD") {
@@ -59,11 +60,13 @@ export async function postPositionReport(request: Request, response: Response) {
       "Client report ID reused for a different action",
     );
   }
-  const activation = await findActivation(activationId);
+  // Another line group's activation is treated as unknown.
+  const found = await findActivation(activationId);
+  const activation = found?.lineGroup === lineGroup ? found : undefined;
   if (activation?.status !== "ACTIVE") {
     if (
       activation === undefined &&
-      (await listActivations("ACTIVE")).length === 0
+      (await findActiveActivation(lineGroup)) === undefined
     ) {
       return refuse(response, 409, ERROR_CODES.NO_ACTIVE_SCENARIO, station);
     }
@@ -111,11 +114,15 @@ export async function postPositionReport(request: Request, response: Response) {
   }
 
   const io = request.app.locals.io as Server | undefined;
-  io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
-  // The deployments changed, so the control room loads the activations again,
+  io?.to(roleRoom("OPERATOR", activation.lineGroup)).emit("position-report", {
+    ...report,
+    sentAt: now,
+  });
+  // The deployments changed, so the control room of the same linegroup loads the activations again,
   // and the stewards' phones the active scenario, so their coverage and map
-  // follow other stewards' reports too (#310).
-  io?.to("OPERATOR").emit("activations-changed");
-  io?.to("STEWARD").emit("activations-changed");
+  io?.to(roleRoom("OPERATOR", activation.lineGroup)).emit(
+    "activations-changed",
+  );
+  io?.to(roleRoom("STEWARD", activation.lineGroup)).emit("activations-changed");
   response.status(202).json({ accepted: true });
 }
