@@ -164,7 +164,7 @@ export function MetroMap({
       ? groupNetwork
       : scenario === null
         ? []
-        : scenarioLineResult?.lines ?? [];
+        : (scenarioLineResult?.lines ?? []);
   const missingScenarioRoutes = scenarioLineResult?.missingRoutes ?? false;
   const routeColors =
     scenarioId === null
