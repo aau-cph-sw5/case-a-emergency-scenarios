@@ -78,7 +78,6 @@ test("a logged-in steward loads the active scenario from the real server", async
       VALUES ('DEMO-001', 'test-new-version', 'A later version') RETURNING id
     `;
     try {
-      await owner`INSERT INTO operating_plans (scenario_version_id, name) VALUES (${newVersion}, 'Later plan')`;
       await owner`UPDATE scenarios SET current_version_id = ${newVersion} WHERE scenario_id = 'DEMO-001'`;
 
       const current = await fetch(`${baseUrl}/api/v1/scenarios/DEMO-001`, {

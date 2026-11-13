@@ -43,11 +43,10 @@ export async function findScenario(
 
   const [row] = await sql`
     SELECT s.scenario_id, s.name, s.line_group, v.id AS version_id, v.version, v.revision,
-           p.name AS plan_name
+           v.operating_plan_name AS plan_name
     FROM scenarios s
     JOIN scenario_versions v ON v.scenario_id = s.scenario_id
       AND v.id = COALESCE(${versionId ?? null}::integer, s.current_version_id)
-    JOIN operating_plans p ON p.scenario_version_id = v.id
     WHERE s.scenario_id = ${scenarioId}
   `;
   if (!row) return undefined;
@@ -72,8 +71,7 @@ export async function findScenario(
                 FROM line_stops ls JOIN stations st ON st.id = ls.station_id
                 WHERE ls.operating_pattern_id = op.id) AS route
         FROM operating_patterns op
-        JOIN operating_plans p ON p.id = op.operating_plan_id
-        WHERE p.scenario_version_id = ${row.versionId}
+        WHERE op.scenario_version_id = ${row.versionId}
         ORDER BY op.id
       `,
 
@@ -112,7 +110,7 @@ export async function findScenario(
         version: row.version,
         revision: row.revision,
         operatingPlan: {
-          name: row.planName,
+          name: row.planName ?? row.name,
           patterns: patterns.map(({ description, route, ...pattern }) => ({
             ...pattern,
             ...(description !== null && { description }),

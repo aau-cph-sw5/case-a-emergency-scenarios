@@ -61,7 +61,8 @@ What `metro_app` may do with the tables that exist:
 | `auth_sessions` | `SELECT`, `INSERT`, `UPDATE` |
 | `position_reports` | `SELECT`, `INSERT` |
 | `users` | `SELECT`. Accounts are created by `npm run seed:users` |
-| Scenario reference data (`scenarios`, `scenario_versions`, `stations`, `track_segments`, `scenario_covers`, `operating_plans`, `operating_patterns`, `line_stops`, `station_requirements`, `staffing_windows`, `actions`, `passenger_information`) | `SELECT`. `npm run seed` loads them as the owner |
+| Scenario reference data (`scenarios`, `scenario_versions`, `stations`, `track_segments`, `scenario_covers`, `operating_patterns`, `line_stops`, `station_requirements`, `staffing_windows`, `actions`, `passenger_information`) | `SELECT`. `npm run seed` loads them as the owner |
+| `crossovers`, `station_map_positions`, `crossover_map_positions` | `SELECT`, `INSERT`, `UPDATE`, `DELETE`. Use the default privileges for new tables |
 
 ### A new table
 

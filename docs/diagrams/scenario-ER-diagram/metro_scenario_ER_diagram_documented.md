@@ -24,6 +24,7 @@ erDiagram
         text scenario_id FK
         text version "unique per scenario"
         text revision
+        text operating_plan_name "optional API display name"
     }
     stations {
         int id PK
@@ -36,24 +37,38 @@ erDiagram
         int station_a_id FK
         int station_b_id FK
     }
-    scenario_covers {
-        text scenario_id PK, FK
-        int track_segment_id PK, FK
-    }
-    operating_plans {
+    crossovers {
         int id PK
-        int scenario_version_id FK, UK "one plan per version"
-        text name
+        int from_track_segment_id FK
+        decimal from_position
+        int to_track_segment_id FK
+        decimal to_position
+    }
+    scenario_covers {
+        text scenario_id FK
+        int track_segment_id FK "one of segment or crossover"
+        int crossover_id FK "one of segment or crossover"
     }
     operating_patterns {
         int id PK
-        int operating_plan_id FK
+        int scenario_version_id FK "or normal_line"
+        text normal_line "or scenario_version_id"
         text operation_type "PENDULUM or ROUNDTRIP"
         text route_code
-        int track_number "1 or 2"
+        int track_number "1, 2 or 12"
         int maximum_trains
         text did
         text description
+    }
+    station_map_positions {
+        int station_id PK, FK
+        float x
+        float y
+    }
+    crossover_map_positions {
+        int crossover_id PK, FK
+        float x
+        float y
     }
     line_stops {
         int id PK
@@ -92,11 +107,14 @@ erDiagram
     scenarios ||--|{ scenario_versions : "versions (1 : 1..*)"
     scenarios |o--o| scenario_versions : "current version (1 : 1)"
     scenarios ||--o{ scenario_covers : "covers (1 : 0..*)"
-    track_segments ||--o{ scenario_covers : "covered by (1 : 0..*)"
+    track_segments |o--o{ scenario_covers : "covered segment"
+    crossovers |o--o{ scenario_covers : "covered crossover"
+    track_segments ||--o{ crossovers : "from or to"
+    stations ||--o| station_map_positions : "schematic position"
+    crossovers ||--o| crossover_map_positions : "schematic position"
     stations ||--o{ track_segments : "endpoint A (1 : 0..*)"
     stations ||--o{ track_segments : "endpoint B (1 : 0..*)"
-    scenario_versions ||--|| operating_plans : "operating plan (1 : 1)"
-    operating_plans ||--|{ operating_patterns : "patterns (1 : 1..*)"
+    scenario_versions ||--o{ operating_patterns : "patterns (1 : 0..*)"
     operating_patterns ||--|{ line_stops : "route (1 : 1..*)"
     stations ||--o{ line_stops : "stopped at (1 : 0..*)"
     scenario_versions ||--|{ station_requirements : "requires (1 : 1..*)"
@@ -120,7 +138,7 @@ The ER model adds database identifiers and references that are not needed in the
 
 `scenarios.scenario_id` remains the primary key because it is intended to be the stable scenario identifier.
 
-`scenarios` is a central table in this part of the model. All other scenario-related entities connect back to a scenario either **directly or indirectly** through the relationship chain. For example, `scenario_versions` references `scenarios` directly, while `operating_patterns`, `line_stops`, `actions`, and `staffing_windows` are connected through their parent entities. This makes the stable `scenario_id` important because it anchors the rest of the stored scenario definition.
+`scenarios` is a central table in this part of the model. Scenario-specific entities connect back to a scenario either **directly or indirectly** through the relationship chain; normal-service patterns are independent of scenarios. For example, `scenario_versions` references `scenarios` directly, while `operating_patterns`, `line_stops`, `actions`, and `staffing_windows` are connected through their parent entities. This makes the stable `scenario_id` important because it anchors the rest of the stored scenario definition.
 
 The remaining tables use integer `id` primary keys.
 
@@ -145,9 +163,9 @@ The relationships from the entity model are implemented through foreign keys.
 | Scenario → ScenarioVersion | `scenario_versions.scenario_id` → `scenarios.scenario_id` |
 | Scenario → current ScenarioVersion | `scenarios.current_version_id` → `scenario_versions.id` |
 | Scenario → covered TrackSegment | `scenario_covers.scenario_id` → `scenarios.scenario_id` and `scenario_covers.track_segment_id` → `track_segments.id` |
+| Scenario → covered Crossover | `scenario_covers.crossover_id` → `crossovers.id` |
 | TrackSegment → Station (endpoints) | `track_segments.station_a_id` → `stations.id` and `track_segments.station_b_id` → `stations.id` |
-| ScenarioVersion → OperatingPlan | `operating_plans.scenario_version_id` → `scenario_versions.id` |
-| OperatingPlan → OperatingPattern | `operating_patterns.operating_plan_id` → `operating_plans.id` |
+| ScenarioVersion → OperatingPattern | `operating_patterns.scenario_version_id` → `scenario_versions.id` |
 | OperatingPattern → LineStop | `line_stops.operating_pattern_id` → `operating_patterns.id` |
 | LineStop → Station | `line_stops.station_id` → `stations.id` |
 | ScenarioVersion → StationRequirement | `station_requirements.scenario_version_id` → `scenario_versions.id` |
@@ -178,7 +196,7 @@ This ensures that a scenario can only point to one of its **own** versions, neve
 
 ## Covers
 
-`covers` in the scenario contract is a **list of track segments** that the scenario covers. In a relational database a column holds a single value, so a list cannot be stored as one field on `scenarios`. Instead each item in the list becomes its own row in a separate table. This is the reason `scenario_covers` exists: it **is** the list of track segments a scenario covers.
+`covers` in the scenario contract is a **list of track segments** that the scenario covers. In a relational database a column holds a single value, so a list cannot be stored as one field on `scenarios`. Instead each item in the list becomes its own row in a separate table. The database also supports crossover coverage: each `scenario_covers` row refers to exactly one track segment or crossover. The current scenario API exposes only track segments.
 
 For example, a scenario covering three segments is stored as three rows:
 
@@ -211,23 +229,9 @@ CREATE UNIQUE INDEX track_segments_unique
 
 ---
 
-## One operating plan per scenario version
+## Operating patterns and the API plan
 
-The entity model states that a `ScenarioVersion` has one `OperatingPlan`.
-
-In the ER model this is implemented with:
-
-```text
-operating_plans.scenario_version_id FK, UK
-```
-
-The foreign key links the plan to its scenario version, while the unique constraint prevents several operating plans from referencing the same version.
-
----
-
-## Operating plan and operating pattern
-
-An operating plan is how the trains run while a scenario version is active. Each scenario version has exactly one, in `operating_plans`, and the plan is made of one or more patterns, in `operating_patterns`.
+Operating patterns reference their scenario version directly. The API groups them in an `operatingPlan` object, whose display name is stored in `scenario_versions.operating_plan_name`. There is no separate operating plan table.
 
 An operating pattern is one way a set of trains runs within the plan. A pattern names the stretch it serves, as a route of stops in `line_stops`, the track it runs on, the number of trains at most, and its Destination ID (DID), the code the signalling uses for that run. It is one of two types:
 
@@ -242,7 +246,7 @@ Source: `operatingPlan` and `patterns` in `contracts/v1/scenario.schema.json`, a
 
 ## Track
 
-Two columns name the physical track, and both hold 1 or 2.
+Track segments use 1 or 2. Patterns also allow 12 to represent both tracks.
 
 | Column | Table | Meaning | Source |
 |---|---|---|---|
