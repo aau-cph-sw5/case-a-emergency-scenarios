@@ -22,6 +22,14 @@ export const palette = {
   darkYellow: "#8A6A00", // yellow dark enough to read as text on white
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
+  // Operator web view (#357). Grey text and outlines that pass WCAG on white:
+  // mutedGrey 5.5:1 for small text, optionGrey only for decorative card edges.
+  mutedGrey: "#686868",
+  optionGrey: "#e0e0e0",
+  wellGrey: "#f4f4f4",
+  // Darker shade of M4 blue for focus rings: 5.0:1 on white, where M4 blue
+  // itself (2.9:1) fails the 3:1 that WCAG 2.4.13 asks of a focus indicator.
+  focusTeal: "#00758C",
 };
 
 export const colors = {
@@ -145,6 +153,30 @@ export const page = {
   backgroundColor: colors.page,
   flex: 1,
 };
+
+// The operator web view styles itself in web/src/components/OperatorSections.css.
+// These custom properties hand it the theme, so the colours it shares with the
+// rest of the app are defined once, here. OperatorDashboard sets them on its
+// root element.
+export const operatorCssVars = {
+  "--operator-red": palette.metroLineThree,
+  "--operator-yellow": palette.metroLineTwo,
+  "--operator-green": palette.metroLineOne,
+  "--operator-blue": palette.metroLineFour,
+  "--operator-ink": palette.metroBlack,
+  "--operator-muted": palette.mutedGrey,
+  "--operator-option-border": palette.optionGrey,
+  "--operator-well": palette.wellGrey,
+  "--operator-focus": palette.focusTeal,
+  // Pressed toggles are a light tint of ink, not yellow: yellow read as an
+  // alarm next to the map's warning colours (design review, #357).
+  "--operator-pressed": `${palette.metroBlack}1a`,
+  "--operator-pressed-border": `${palette.metroBlack}59`,
+  // Depth: action buttons sit on a 3px ledge, the selected item on 2px, and
+  // everything else is flat, so depth shows what matters most.
+  "--operator-ledge-action": "3px",
+  "--operator-ledge-selected": "2px",
+} as const;
 
 // A required station on the map by its live coverage (MET-A-011, #310): the
 // same green, yellow and red as the coverage cards. text is the colour of the

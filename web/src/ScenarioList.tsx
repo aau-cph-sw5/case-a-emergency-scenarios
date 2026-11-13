@@ -7,6 +7,7 @@ import { isScenarioState } from "./scenario-state";
 import type { ScenarioSummary } from "./scenarios";
 import { canActivate, keepSelection } from "./selection";
 import { ScenarioSuggestions } from "./ScenarioSuggestions";
+import { routeLabel } from "./suggestion-reasons";
 
 type ActivationState =
   | { status: "idle" }
@@ -39,6 +40,7 @@ export function ScenarioList({
   const { scenarios, scenariosError, reloadScenarios, activations, error } =
     useLiveData();
   const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
   const [switchPhase, setSwitchPhase] = useState<"closed" | "open" | "closing">(
     "closed",
   );
@@ -182,25 +184,52 @@ export function ScenarioList({
             finishSwitch();
         }}
       >
+        <span className="operator-eyebrow">SCENARIER</span>
         <h2 id="scenario-list-heading">Vælg scenarie</h2>
 
+        {/* Two routes to a scenario, both always visible: describe the
+            incident, or pick it yourself. The divider keeps them apart. */}
         <ScenarioSuggestions
           token={token}
-          names={names}
+          scenarios={scenarios ?? []}
+          selectedId={selectedId}
           onSelect={onSelect}
           onNoCandidate={() => setQuery("")}
+          onGoToList={() => searchRef.current?.focus()}
           disabled={busy}
         />
 
-        <label>
-          <span className="visually-hidden">Søg efter scenarier</span>
+        <div className="scenario-divider" aria-hidden="true">
+          <span>ELLER VÆLG SELV</span>
+        </div>
+
+        <label htmlFor="scenario-search" className="suggest-label">
+          Søg efter scenarie
+        </label>
+        <div className="scenario-search">
+          <svg
+            aria-hidden="true"
+            width="16"
+            height="16"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <circle cx="8.5" cy="8.5" r="5.5" />
+            <path d="M13 13l4 4" />
+          </svg>
           <input
+            ref={searchRef}
+            id="scenario-search"
             type="search"
-            placeholder="Søg efter scenarie"
+            placeholder="Navn eller station"
+            autoComplete="off"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-        </label>
+        </div>
 
         {scenarios === null && scenariosError === null && (
           <p role="status">Henter scenarier…</p>
@@ -221,6 +250,7 @@ export function ScenarioList({
           ) : (
             <ScenarioResults
               scenarios={filterScenarios(scenarios, query)}
+              total={scenarios.length}
               query={query}
               selectedId={selectedId}
               activeIds={activeIds}
@@ -230,7 +260,9 @@ export function ScenarioList({
           ))}
 
         {activeFailed && (
-          <p role="status">Aktive scenarier kunne ikke vises.</p>
+          <p role="status" className="scenario-notice">
+            Aktive scenarier kunne ikke vises.
+          </p>
         )}
       </div>
       {summary && !switching && (
@@ -239,6 +271,14 @@ export function ScenarioList({
 
       {/* Switching previews another scenario without stopping the current one. */}
       <div className="scenario-actions">
+        {/* Names what the buttons act on, before the operator presses them. */}
+        <p className="scenario-picked">
+          {actionIsActive && actionScenario
+            ? `Aktivt: ${actionScenario.name}`
+            : selected
+              ? `Valgt: ${selected.name}`
+              : "Intet scenarie valgt"}
+        </p>
         {actionIsActive && activeScenario && (
           <button
             type="button"
@@ -279,7 +319,8 @@ export function ScenarioList({
             onClick={() => setConfirming(true)}
             disabled={busy}
           >
-            Deaktivér valgt scenarie
+            {/* Short verbs, as in the design: the line above names the target. */}
+            STOP scenarie
           </button>
         ) : (
           <button
@@ -291,7 +332,7 @@ export function ScenarioList({
               !canActivate(selected?.scenarioId ?? null, busy, activeIds)
             }
           >
-            Aktivér valgt scenarie
+            START scenarie
           </button>
         )}
       </div>
@@ -343,6 +384,7 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
 
 function ScenarioResults({
   scenarios,
+  total,
   query,
   selectedId,
   activeIds,
@@ -350,50 +392,73 @@ function ScenarioResults({
   disabled,
 }: {
   scenarios: ScenarioSummary[];
+  total: number;
   query: string;
   selectedId: string | null;
   activeIds: ReadonlySet<string>;
   onSelect: (scenarioId: string) => void;
   disabled: boolean;
 }) {
+  // The count confirms the search worked and that nothing is hidden.
+  const count = (
+    <p className="scenario-count" aria-live="polite">
+      {query.trim()
+        ? `${scenarios.length} af ${total} scenarier`
+        : `${total} scenarier`}
+    </p>
+  );
   // No match is an empty list, not an error.
   if (scenarios.length === 0) {
-    return <p role="status">Ingen scenarier matcher “{query.trim()}”.</p>;
+    return (
+      <>
+        {count}
+        <p role="status">Ingen scenarier matcher “{query.trim()}”.</p>
+      </>
+    );
   }
   return (
-    <ul className="scenario-list">
-      {scenarios.map((scenario) => {
-        const isSelected = scenario.scenarioId === selectedId;
-        const live = activeIds.has(scenario.scenarioId);
-        // The yellow background and bold text mark the selection;
-        // aria-pressed also exposes it to screen readers.
-        return (
-          <li key={scenario.scenarioId}>
-            <button
-              type="button"
-              aria-pressed={isSelected}
-              onClick={() => onSelect(scenario.scenarioId)}
-              disabled={disabled}
-              className={
-                isSelected ? "scenario-option is-selected" : "scenario-option"
-              }
-            >
-              {scenario.name}
-            </button>
-            {/* A filled green dot when the scenario is live and an empty ring
+    <>
+      {count}
+      <ul className="scenario-list">
+        {scenarios.map((scenario) => {
+          const isSelected = scenario.scenarioId === selectedId;
+          const live = activeIds.has(scenario.scenarioId);
+          // The yellow background and bold text mark the selection;
+          // aria-pressed also exposes it to screen readers.
+          return (
+            <li key={scenario.scenarioId}>
+              <button
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => onSelect(scenario.scenarioId)}
+                disabled={disabled}
+                className={
+                  isSelected ? "scenario-option is-selected" : "scenario-option"
+                }
+              >
+                {scenario.name}
+                {/* The route, so a scenario can be recognised by its stations. */}
+                {scenario.covers && (
+                  <small className="scenario-route">
+                    {routeLabel(scenario.covers)}
+                  </small>
+                )}
+              </button>
+              {/* A filled green dot when the scenario is live and an empty ring
                 when it is not, so it is marked by shape as well as colour. */}
-            <span
-              className={
-                live ? "scenario-dot scenario-dot--live" : "scenario-dot"
-              }
-              role="img"
-              aria-label={live ? "Aktiv" : "Ikke aktiv"}
-              title={live ? "Aktiv" : "Ikke aktiv"}
-            />
-          </li>
-        );
-      })}
-    </ul>
+              <span
+                className={
+                  live ? "scenario-dot scenario-dot--live" : "scenario-dot"
+                }
+                role="img"
+                aria-label={live ? "Aktiv" : "Ikke aktiv"}
+                title={live ? "Aktiv" : "Ikke aktiv"}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 

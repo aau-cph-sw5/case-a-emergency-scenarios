@@ -188,7 +188,8 @@ describe("API-backed scenario preview", () => {
     expect(detailRequests()[0][1]?.headers).toEqual({
       Authorization: "Bearer operator-token",
     });
-    expect(container.querySelector("svg")).toBeNull();
+    // Decorative icons (aria-hidden) are fine; no map markers may be drawn.
+    expect(container.querySelector('svg:not([aria-hidden="true"])')).toBeNull();
     expect(container.textContent).not.toContain("ID-123");
 
     await searchAndSelect(239);
@@ -218,7 +219,7 @@ describe("API-backed scenario preview", () => {
       container.querySelector(".scenario-preview")!.textContent,
     ).not.toContain("Minimum");
     const activate = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Aktivér valgt scenarie",
+      (button) => button.textContent === "START scenarie",
     )!;
     expect(activate.disabled).toBe(true);
   });

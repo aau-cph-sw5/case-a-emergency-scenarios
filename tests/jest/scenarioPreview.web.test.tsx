@@ -191,9 +191,9 @@ describe("scenario preview and activation", () => {
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(false);
     expect(button("Annuller").disabled).toBe(false);
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    expect(button("START scenarie").disabled).toBe(true);
     await click(second.name);
-    expect(button("Aktivér valgt scenarie").disabled).toBe(false);
+    expect(button("START scenarie").disabled).toBe(false);
     await click("Annuller");
     expect(
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
@@ -206,7 +206,7 @@ describe("scenario preview and activation", () => {
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(true);
     expect(container.querySelector(".scenario-preview")).toBeNull();
-    expect(button("Deaktivér valgt scenarie").disabled).toBe(false);
+    expect(button("STOP scenarie").disabled).toBe(false);
     expect(jest.mocked(postJson)).not.toHaveBeenCalled();
   });
 
@@ -222,7 +222,7 @@ describe("scenario preview and activation", () => {
       expect(
         container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
       ).toBe(true);
-      expect(button("Deaktivér valgt scenarie").disabled).toBe(false);
+      expect(button("STOP scenarie").disabled).toBe(false);
     } finally {
       jest.useRealTimers();
     }
@@ -238,9 +238,9 @@ describe("scenario preview and activation", () => {
     await renderList(null, { activations: [activated] });
     await click("Skift scenarie");
     await click(first.name);
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    expect(button("START scenarie").disabled).toBe(true);
     await click(second.name);
-    await click("Aktivér valgt scenarie");
+    await click("START scenarie");
     const heading = container.querySelector(
       "#confirm-activation-heading",
     )?.textContent;
@@ -253,7 +253,7 @@ describe("scenario preview and activation", () => {
     expect(
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(false);
-    await click("Aktivér valgt scenarie");
+    await click("START scenarie");
     await click("Bekræft");
     expect(jest.mocked(postJson)).toHaveBeenCalledTimes(1);
     expect(jest.mocked(postJson)).toHaveBeenCalledWith(
@@ -267,7 +267,7 @@ describe("scenario preview and activation", () => {
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(true);
     expect(container.querySelector(".scenario-preview")).toBeNull();
-    await click("Deaktivér valgt scenarie");
+    await click("STOP scenarie");
     expect(container.querySelector("dialog")?.textContent).toContain(
       second.name,
     );
@@ -279,7 +279,7 @@ describe("scenario preview and activation", () => {
     await renderList(null, { activations: [activated] });
     await click("Skift scenarie");
     await click(second.name);
-    await click("Aktivér valgt scenarie");
+    await click("START scenarie");
     await click("Bekræft");
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "Ingen forbindelse til serveren",
@@ -287,7 +287,7 @@ describe("scenario preview and activation", () => {
     expect(
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(false);
-    expect(button("Aktivér valgt scenarie").disabled).toBe(false);
+    expect(button("START scenarie").disabled).toBe(false);
     await click("Annuller");
     expect(
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
@@ -296,7 +296,7 @@ describe("scenario preview and activation", () => {
       container.querySelector(".scenario-selection.is-closing"),
     ).not.toBeNull();
     await finishSwitchAnimation();
-    await click("Deaktivér valgt scenarie");
+    await click("STOP scenarie");
     expect(container.querySelector("dialog")?.textContent).toContain(
       first.name,
     );
@@ -307,8 +307,8 @@ describe("scenario preview and activation", () => {
     expect(
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(true);
-    expect(button("Deaktivér valgt scenarie").disabled).toBe(false);
-    await click("Deaktivér valgt scenarie");
+    expect(button("STOP scenarie").disabled).toBe(false);
+    await click("STOP scenarie");
     expect(container.querySelector("dialog")?.textContent).toContain(
       first.name,
     );
@@ -335,7 +335,7 @@ describe("scenario preview and activation", () => {
   it("puts requirements in the right column and the existing activation control on the left", async () => {
     await renderList(first.scenarioId);
     const columns = container.querySelectorAll(".operator-sections > section");
-    expect(columns[0].contains(button("Aktivér valgt scenarie"))).toBe(true);
+    expect(columns[0].contains(button("START scenarie"))).toBe(true);
     expect(columns[2].textContent).toContain("Station A");
     expect(columns[2].textContent).toContain("Nødvendige stewards: 2");
     expect(columns[2].textContent).not.toContain("Placering:");
@@ -351,7 +351,7 @@ describe("scenario preview and activation", () => {
     expect(container.textContent).toContain(
       "Vælg et scenarie for at se bemandingsbehov.",
     );
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    expect(button("START scenarie").disabled).toBe(true);
     expect(loadScenario).not.toHaveBeenCalled();
   });
 
@@ -362,9 +362,9 @@ describe("scenario preview and activation", () => {
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
       "Henter scenarie…",
     );
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    expect(button("START scenarie").disabled).toBe(true);
     await act(async () => pending.resolve(first));
-    expect(button("Aktivér valgt scenarie").disabled).toBe(false);
+    expect(button("START scenarie").disabled).toBe(false);
   });
 
   it("shows a load error with activation disabled, then retries the preview", async () => {
@@ -376,14 +376,14 @@ describe("scenario preview and activation", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "Kunne ikke hente scenariet:",
     );
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    expect(button("START scenarie").disabled).toBe(true);
     await click("Prøv igen");
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(container.querySelector(".scenario-preview")?.textContent).toContain(
       "Station A",
     );
     expect(loadScenario).toHaveBeenCalledTimes(2);
-    expect(button("Aktivér valgt scenarie").disabled).toBe(false);
+    expect(button("START scenarie").disabled).toBe(false);
   });
 
   it("ignores a late response after selecting another scenario", async () => {
@@ -403,7 +403,7 @@ describe("scenario preview and activation", () => {
     expect(
       container.querySelector(".scenario-preview")?.textContent,
     ).not.toContain("Station A");
-    await click("Aktivér valgt scenarie");
+    await click("START scenarie");
     expect(container.querySelector("dialog")?.textContent).toContain(
       second.name,
     );
@@ -413,7 +413,7 @@ describe("scenario preview and activation", () => {
     const pending = deferred<ScenarioState>();
     jest.mocked(postJson).mockReturnValue(pending.promise);
     await renderList(first.scenarioId);
-    await click("Aktivér valgt scenarie");
+    await click("START scenarie");
     expect(container.querySelector("dialog")?.textContent).toContain(
       first.name,
     );
@@ -427,7 +427,7 @@ describe("scenario preview and activation", () => {
     expect(container.querySelector("dialog .confirm-cancel")).not.toBeNull();
     await click("Annullér");
     expect(container.querySelector("dialog")).toBeNull();
-    await click("Aktivér valgt scenarie");
+    await click("START scenarie");
     await click("Bekræft");
     expect(jest.mocked(postJson)).toHaveBeenCalledWith(
       `/api/v1/scenarios/${first.scenarioId}/activate`,
@@ -435,7 +435,7 @@ describe("scenario preview and activation", () => {
       expect.any(Function),
       undefined,
     );
-    expect(button("Aktivér valgt scenarie").disabled).toBe(true);
+    expect(button("START scenarie").disabled).toBe(true);
     expect(button(second.name).disabled).toBe(true);
     await act(async () => pending.resolve(activated));
     expect(
@@ -453,7 +453,7 @@ describe("scenario preview and activation", () => {
 
   it("keeps live coverage visible while previewing another scenario and clears it on stand-down", async () => {
     await renderList(first.scenarioId, { activations: [activated] });
-    expect(button("Deaktivér valgt scenarie").disabled).toBe(false);
+    expect(button("STOP scenarie").disabled).toBe(false);
     expect(container.querySelector(".scenario-preview")).toBeNull();
     expect(container.textContent).toContain("0/2");
     await click(second.name);

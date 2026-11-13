@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
+import { operatorCssVars } from "../../shared/Theme";
 import { StewardPositions } from "./components/StewardPositions";
 import { ScenarioWorkspace } from "./components/ScenarioWorkspace";
 import { LiveStatusBar } from "./components/LiveStatusBar";
@@ -30,7 +31,11 @@ export function OperatorDashboard({
     ownLineGroup ? LINE_GROUP_LABELS[ownLineGroup] : "M1/M2",
   );
   return (
-    <main className="operator-dashboard">
+    // The theme reaches the CSS as custom properties (see operatorCssVars).
+    <main
+      className="operator-dashboard"
+      style={operatorCssVars as CSSProperties}
+    >
       <header className="operator-topbar">
         <div className="operator-brand">
           <span className="brand-mark" aria-hidden="true">

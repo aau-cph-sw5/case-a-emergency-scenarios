@@ -20,13 +20,8 @@ body {
   filter: brightness(0.88);
   cursor: pointer;
 }
+/* The --operator-* colours come from operatorCssVars in shared/Theme.tsx. */
 .operator-dashboard {
-  --operator-red: #e6140f;
-  --operator-yellow: #ffc82d;
-  --operator-green: #007d55;
-  --operator-blue: #00a0be;
-  --operator-ink: #1e1e1e;
-  --operator-muted: #686868;
   box-sizing: border-box;
   min-height: 100dvh;
   background: transparent;
@@ -53,7 +48,8 @@ body {
   border: 0;
 }
 .operator-dashboard button,
-.operator-dashboard input {
+.operator-dashboard input,
+.operator-dashboard textarea {
   font: inherit;
 }
 .operator-dashboard button,
@@ -64,8 +60,9 @@ body {
   cursor: default;
   opacity: 0.45;
 }
+/* Focus uses the darker teal: M4 blue is too light on white for a focus ring. */
 .operator-dashboard :is(button, input, [tabindex]):focus-visible {
-  outline: 3px solid var(--operator-blue);
+  outline: 3px solid var(--operator-focus);
   outline-offset: 3px;
 }
 .operator-topbar {
@@ -262,7 +259,10 @@ body {
   padding: 22px 18px;
   flex: 1;
   min-height: 180px;
-  overflow: hidden;
+  /* The describe box, suggestions and full list scroll together, so a long
+     suggestion list never squeezes the full list to nothing. */
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 .operator-eyebrow {
   display: block;
@@ -286,26 +286,31 @@ body {
   margin: 0;
 }
 .scenario-picker h2 {
-  margin-bottom: 38px;
+  margin-bottom: 16px;
 }
-.scenario-picker label {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--operator-muted);
-}
+/* Fields are white with a #686868 edge (5.5:1). The old white-on-M4-blue
+   fields failed contrast (2.9:1), and two identical teal fields looked like
+   the same kind of input although one submits and one filters. */
 .scenario-picker :is(input, textarea) {
   width: 100%;
   padding: 12px 10px;
-  margin: 0 0 14px;
-  border: 2px solid var(--operator-ink);
+  border: 1px solid var(--operator-muted);
   border-radius: 9px;
-  color: white;
-  background: var(--operator-blue);
-  font-size: 12px;
+  color: var(--operator-ink);
+  background: white;
+  font-size: 14px;
 }
 .scenario-picker :is(input, textarea)::placeholder {
-  color: white;
+  color: var(--operator-muted);
   opacity: 1;
+}
+/* Visible labels above each field; the placeholder is only an example. */
+.suggest-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--operator-ink);
 }
 .scenario-picker input::-webkit-search-cancel-button {
   cursor: pointer;
@@ -339,13 +344,16 @@ body {
     background 0.15s,
     border-color 0.15s;
 }
-.scenario-option:hover {
-  background: #f6f6f6;
-  border-color: #aaa;
+.scenario-option:not(:disabled):hover {
+  border-color: var(--operator-ink);
 }
-.scenario-option.is-selected {
+/* The selected scenario stays yellow, as before (Jakob's law), and is lifted
+   onto a 2px ledge: one step less depth than the action buttons. */
+.scenario-option.is-selected,
+.scenario-option[aria-pressed="true"] {
   background: var(--operator-yellow);
-  border-color: var(--operator-yellow);
+  border-color: var(--operator-ink);
+  box-shadow: 0 var(--operator-ledge-selected) 0 var(--operator-ink);
   color: var(--operator-ink);
   font-weight: bold;
 }
@@ -374,7 +382,7 @@ body {
 .scenario-actions button {
   flex: 1;
   height: 44px;
-  border: 0;
+  border: 1px solid var(--operator-ink);
   border-radius: 10px;
   padding: 0 8px;
   color: white;
@@ -398,6 +406,27 @@ body {
 }
 .scenario-actions button:not(:disabled):hover {
   filter: brightness(0.9);
+}
+/* Action buttons sit on a solid 3px ledge and drop onto it when pressed, so
+   they read as pressable and the press is felt at once. No blur: it matches
+   the crisp 1px outlines on the cards. A disabled button loses its ledge. */
+.scenario-actions button,
+.suggest-submit,
+.suggest-goto {
+  box-shadow: 0 var(--operator-ledge-action) 0 var(--operator-ink);
+  transition:
+    transform 70ms ease-out,
+    box-shadow 70ms ease-out,
+    filter 120ms ease-out;
+}
+:is(.scenario-actions button, .suggest-submit, .suggest-goto):not(
+    :disabled
+  ):active {
+  transform: translateY(var(--operator-ledge-action));
+  box-shadow: none;
+}
+:is(.scenario-actions button, .suggest-submit, .suggest-goto):disabled {
+  box-shadow: none;
 }
 .operator-summaries:empty {
   display: none;
@@ -1031,15 +1060,379 @@ body {
     offset-distance: 0%;
   }
 }
+/* Scenario suggestion box (#357). Design notes are in ScenarioSuggestions.tsx. */
+
+/* A light grey well groups "describe the incident" into one step and lets
+   the white field stand out. */
 .scenario-suggestions {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--operator-well);
+}
+.suggest-field {
+  display: flex;
+  align-items: flex-start;
+  border: 1px solid var(--operator-muted);
+  border-radius: 9px;
+  background: white;
+  overflow: hidden;
+}
+.suggest-field:has(textarea:focus-visible) {
+  outline: 3px solid var(--operator-focus);
+  outline-offset: 2px;
+}
+/* The field grows with its text up to about seven lines, then scrolls. No
+   resize handle: browsers draw it themselves and it cannot be styled.
+   Browsers without field-sizing keep the three-row height. */
+.scenario-picker .suggest-field textarea {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  min-height: 76px;
+  max-height: 168px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  resize: none;
+  field-sizing: content;
+  line-height: 1.5;
+}
+.suggest-clear {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: 2px 2px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--operator-ink);
+}
+.suggest-clear > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--operator-pressed);
+}
+.suggest-clear:hover > span {
+  background: var(--operator-pressed-border);
+}
+/* Dark bold text with a red icon. Red text on the grey well is only 4.2:1,
+   under WCAG's 4.5:1, and harder to read at a glance. */
+.scenario-picker .suggest-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1.4;
+  color: var(--operator-ink);
+}
+.suggest-error .suggest-icon {
+  flex-shrink: 0;
+  color: var(--operator-red);
+}
+.suggest-field:has(textarea[aria-invalid="true"]) {
+  border-color: var(--operator-red);
+  box-shadow: 0 0 0 1px var(--operator-red);
+}
+.suggest-help {
+  margin: 6px 0 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--operator-muted);
+}
+.suggest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.suggest-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--operator-option-border);
+  border-radius: 7px;
+  background: white;
+  color: var(--operator-ink);
+  font-size: 12px;
+  font-weight: bold;
+  transition:
+    background-color 180ms ease-out,
+    border-color 180ms ease-out;
+}
+.suggest-chip:not(:disabled):hover {
+  border-color: var(--operator-ink);
+}
+/* Pressed: a light ink tint plus a check, so the state is shape and tone,
+   never colour alone, and not yellow (read as an alarm). */
+.suggest-chip[aria-pressed="true"] {
+  background: var(--operator-pressed);
+  border-color: var(--operator-pressed-border);
+}
+.suggest-chip-check {
+  animation: suggest-chip-check 180ms ease-out;
+}
+@keyframes suggest-chip-check {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/* Dark, not green: green is kept for "Aktivér valgt scenarie", so the column
+   has one primary action. */
+.suggest-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  border: 1px solid var(--operator-ink);
+  border-radius: 10px;
+  background: var(--operator-ink);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+.suggest-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffffff40;
+  border-top-color: white;
+  border-radius: 50%;
+  animation: suggest-spin 0.8s linear infinite;
+}
+@keyframes suggest-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.suggest-status {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--operator-muted);
+}
+.suggest-status:empty {
+  display: none;
+}
+.scenario-suggestions section {
+  margin-top: 12px;
+}
+.scenario-suggestions .operator-eyebrow {
+  margin-bottom: 8px;
+}
+.suggest-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.scenario-option.suggest-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px 10px;
+  font-weight: normal;
+}
+.suggest-result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
   gap: 8px;
-  margin-bottom: 14px;
+  font-weight: bold;
 }
-.scenario-suggestions textarea {
-  resize: vertical;
+/* Names break only when a word is too long for the narrow column; the score
+   always stays on one line. */
+.suggest-result-head strong {
+  min-width: 0;
+  overflow-wrap: break-word;
 }
-.scenario-suggestions .scenario-list {
-  max-height: 160px;
+.suggest-result-head > span {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.suggest-bar {
+  display: block;
+  height: 4px;
+  border-radius: 6px;
+  background: var(--operator-option-border);
+  overflow: hidden;
+}
+.suggest-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--operator-green);
+}
+.suggest-reason {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.suggest-tag {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--operator-pressed);
+  font-size: 11px;
+  font-weight: bold;
+}
+/* TEMPORARY until #371: marks example suggestions as not real. */
+.suggest-example {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--operator-muted);
+  border-radius: 8px;
+  background: white;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--operator-ink);
+}
+.suggest-example strong {
+  margin-right: 4px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--operator-ink);
+  color: white;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+/* Message box for "no confident candidate" and errors: white ground, dark
+   text, bold title. The tone is in the icon and the edge only. */
+.suggest-notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--operator-option-border);
+  border-radius: 10px;
+  background: white;
+  color: var(--operator-ink);
+}
+.suggest-notice--error {
+  border-color: var(--operator-red);
+}
+.suggest-notice > .suggest-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--operator-muted);
+}
+.suggest-notice--error > .suggest-icon {
+  color: var(--operator-red);
+}
+.suggest-notice strong {
+  font-size: 13px;
+}
+.suggest-notice p {
+  margin: 4px 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--operator-ink);
+}
+.suggest-goto {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--operator-ink);
+  border-radius: 8px;
+  background: white;
+  color: var(--operator-ink);
+  font-size: 12px;
+  font-weight: bold;
+}
+/* "Or pick it yourself": the two routes are separate and both visible. */
+.scenario-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 14px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--operator-muted);
+}
+.scenario-divider::before,
+.scenario-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--operator-option-border);
+}
+.scenario-search {
+  position: relative;
+  margin-bottom: 12px;
+}
+.scenario-search svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--operator-muted);
+}
+.scenario-picker .scenario-search input {
+  min-height: 44px;
+  padding-left: 36px;
+}
+/* The picker scrolls as a whole, so the list keeps its full height. */
+.scenario-picker > .scenario-list {
+  flex-shrink: 0;
+  overflow: visible;
+}
+.scenario-picker .operator-eyebrow {
+  margin-bottom: 4px;
+}
+.scenario-route {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--operator-muted);
+}
+.scenario-option.is-selected .scenario-route {
+  color: var(--operator-ink);
+}
+.scenario-count {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--operator-muted);
+}
+/* The action card names its target above the buttons. */
+.scenario-actions {
+  flex-wrap: wrap;
+  height: auto;
+}
+.scenario-picked {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--operator-muted);
+  overflow-wrap: anywhere;
+}
+.scenario-notice {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--operator-well);
+  font-size: 12px;
+  color: var(--operator-muted);
 }
