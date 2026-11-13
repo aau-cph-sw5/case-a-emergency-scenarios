@@ -4,7 +4,7 @@ import type {
     StationMessageEvent,
     StationThreadsClosed,
   } from "../../shared/socket/events.js";
-../../shared/auth/line-groups.js
+  import type { LineGroup } from "../../shared/auth/line-groups.js";
 
 export function setCheckedIn(
     io: Server,
@@ -30,7 +30,7 @@ export function emitStationMessage(
     };
     io.to(roleRoom("OPERATOR", lineGroup))
     .to(stationRoom(message.activationId, message.station))
-    .emit("stationMessage", event);
+    .emit("station-message", event);
 }
 export function emitThreadsClosed(
     io: Server,
@@ -42,9 +42,9 @@ export function emitThreadsClosed(
     };
     io.to(roleRoom("STEWARD", lineGroup))
     .to(roleRoom("OPERATOR", lineGroup))
-    .emit("stationThreadsClosed", event);
+    .emit("station-threads-closed", event);
     
-    const prefix = `stationThreadsClosed:${activationId}:`;
+    const prefix = stationRoom(activationId, "");
     for (const room of io.of("/").adapter.rooms.keys()) {
         if (room.startsWith(prefix)) io.socketsLeave(room)
         }
