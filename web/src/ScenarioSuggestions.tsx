@@ -9,7 +9,7 @@ import {
 import { ApiError, userMessage } from "./get-json";
 import type { ScenarioSummary } from "./scenarios";
 import { exampleSuggestions } from "./example-suggestions";
-import { describeCovers, matchedStations } from "./suggestion-reasons";
+import { matchedStations, routeLabel } from "./suggestion-reasons";
 import { fetchSuggestions, type Suggestions } from "./suggestions";
 
 /*
@@ -20,9 +20,11 @@ import { fetchSuggestions, type Suggestions } from "./suggestions";
  *   "Gå til listen" only has to move focus there.
  * - A suggestion only selects the scenario. Activation still goes through
  *   "Aktivér valgt scenarie" and its confirmation dialog (MET-A-007, #357 AC1).
- * - Every suggestion shows its score as a number and a bar, and why it was
- *   suggested: the stretch it covers and the stations from the description it
- *   matches. Confidence is never colour alone, and a weak match is visible.
+ * - Each suggestion is two lines, so several fit in the narrow column: name
+ *   and score, then its route (the same text as in the full list) and the
+ *   stations from the description it matched. That shows why it was
+ *   suggested. No score bar: it repeated the number in the green that means
+ *   "start". Example scores (until #371) read "Eksempel", not a number.
  * - The submit button stays enabled when the text is empty: pressing it shows
  *   an inline message and moves focus to the field, rather than a greyed-out
  *   button that does not say why. It is disabled only while a request runs,
@@ -154,6 +156,8 @@ export function ScenarioSuggestions({
     state.status === "done" && state.result.status === "CONFIDENT"
       ? state.result.candidates
       : [];
+  // TEMPORARY until #371: true while the cards are browser-made examples.
+  const isExample = state.status === "done" && state.example === true;
 
   return (
     <form
@@ -282,7 +286,7 @@ export function ScenarioSuggestions({
         {loading
           ? "Søger efter passende scenarier…"
           : candidates.length > 0
-            ? `${candidates.length} forslag fundet. Vælg ét for at se det på kortet.`
+            ? `${candidates.length} forslag fundet.`
             : ""}
       </p>
 
@@ -300,14 +304,13 @@ export function ScenarioSuggestions({
         // TEMPORARY until #371: says plainly that these are not real results.
         <p className="suggest-example" role="note">
           <strong>Eksempel</strong> Forslagstjenesten er ikke koblet på endnu.
-          Forslagene nedenfor er lavet i browseren ud fra stationsnavne.
         </p>
       )}
 
       {candidates.length > 0 && (
         <section aria-labelledby={`${id}-results`}>
           <h3 id={`${id}-results`} className="operator-eyebrow">
-            FORSLAG · BEDSTE MATCH FØRST
+            FORSLAG
           </h3>
           <ul className="suggest-results">
             {candidates.map((candidate) => {
@@ -316,7 +319,7 @@ export function ScenarioSuggestions({
               // Editing clears the suggestions, so the current text is the
               // description they were made for.
               const matches = matchedStations(description, scenario?.covers);
-              const stretches = describeCovers(scenario?.covers);
+              const route = routeLabel(scenario?.covers);
               const isSelected = candidate.scenarioId === selectedId;
               return (
                 <li key={candidate.scenarioId}>
@@ -327,32 +330,25 @@ export function ScenarioSuggestions({
                     disabled={disabled}
                     onClick={() => onSelect(candidate.scenarioId)}
                   >
+                    {/* Two lines: name and score, then the same route text
+                        as the full list plus the stations that matched. */}
                     <span className="suggest-result-head">
                       <strong>{scenario?.name ?? candidate.scenarioId}</strong>
-                      <span>{percent} %</span>
+                      {/* TEMPORARY until #371: a made-up score is not shown
+                          as a number anyone could trust. */}
+                      <span>{isExample ? "Eksempel" : `${percent} %`}</span>
                     </span>
-                    <span className="suggest-bar" aria-hidden="true">
-                      <span style={{ width: `${percent}%` }} />
-                    </span>
-                    {stretches.length > 0 && (
-                      <span className="suggest-reason">
-                        Dækker {stretches.slice(0, 2).join(", ")}
-                        {stretches.length > 2 &&
-                          ` og ${stretches.length - 2} flere`}
-                      </span>
-                    )}
                     <span className="suggest-reason">
-                      {matches.length > 0 ? (
+                      {route}
+                      {matches.length > 0 && (
                         <>
-                          Matcher:{" "}
+                          <span className="visually-hidden">. Matcher:</span>
                           {matches.map((name) => (
                             <span key={name} className="suggest-tag">
                               {name}
                             </span>
                           ))}
                         </>
-                      ) : (
-                        "Ingen stationer fra beskrivelsen."
                       )}
                     </span>
                   </button>
