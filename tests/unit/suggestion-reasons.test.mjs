@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  describeCovers,
   matchedStations,
   routeLabel,
 } from "../../web/src/suggestion-reasons.tsx";
@@ -33,20 +32,11 @@ test("shows stored lower-case names as names", () => {
     { trackNumber: 1, stationA: "kongens nytorv", stationB: "nørreport" },
   ];
   assert.deepEqual(matchedStations("nørreport", lower), ["Nørreport"]);
-  assert.deepEqual(describeCovers(lower), [
-    "Kongens Nytorv ↔ Nørreport · spor 1",
-  ]);
+  assert.equal(routeLabel(lower), "Kongens Nytorv ↔ Nørreport");
 });
 
 test("no covers gives no matches", () => {
   assert.deepEqual(matchedStations("Forum", undefined), []);
-});
-
-test("merges the tracks of one stretch", () => {
-  assert.deepEqual(describeCovers(covers), [
-    "Forum ↔ Nørreport · spor 1 og 2",
-    "Fasanvej ↔ Forum · spor 1",
-  ]);
 });
 
 test("a chain of segments shows its two ends", () => {

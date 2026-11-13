@@ -77,23 +77,3 @@ export function routeLabel(
   const more = pairs.size - 1;
   return `${displayName(a)} ↔ ${displayName(b)}${more > 0 ? ` og ${more} flere` : ""}`;
 }
-
-// One line per covered stretch, with its tracks merged:
-// "Forum ↔ Nørreport · spor 1 og 2".
-export function describeCovers(
-  covers: readonly TrackSegment[] | undefined,
-): string[] {
-  const tracks = new Map<string, Set<number>>();
-  for (const segment of covers ?? []) {
-    const key = `${displayName(segment.stationA)} ↔ ${displayName(segment.stationB)}`;
-    tracks.set(key, (tracks.get(key) ?? new Set()).add(segment.trackNumber));
-  }
-  return [...tracks].map(([stretch, numbers]) => {
-    const list = [...numbers].sort((a, b) => a - b);
-    const joined =
-      list.length > 1
-        ? `${list.slice(0, -1).join(", ")} og ${list.at(-1)}`
-        : `${list[0]}`;
-    return `${stretch} · spor ${joined}`;
-  });
-}
