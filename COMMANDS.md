@@ -198,7 +198,7 @@ npm run seed:users
 This creates or updates six local-only accounts, one operator, one steward and one analyst for each line group:
 
 | Line group | Operator | Steward | Analyst |
-|---|---|---|
+|---|---|---|---|
 | M1/M2 | `operator` / `operator123` | `steward` / `steward123` | `analyst` / `analyst123` |
 | M3/M4 | `operator-m3m4` / `operator123` | `steward-m3m4` / `steward123` | `analyst-m3m4` / `analyst123` |
 

@@ -153,6 +153,10 @@ describe("analyst web app", () => {
       session: { ...session, role: "ANALYST" },
     });
     await showApp();
-    expect(container.textContent).toContain("Analyst");
+    expect(
+      container.querySelector(".operator-profile strong")?.textContent,
+    ).toBe("Analyst");
+    expect(container.textContent).not.toContain("Operator log ud");
+    expect(container.querySelector("h1")?.textContent).not.toBe("Admin");
   });
 });

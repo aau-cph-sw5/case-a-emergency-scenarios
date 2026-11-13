@@ -62,3 +62,21 @@ test("an analyst can not stand down a scenario", async () => {
   });
   assert.equal(response.status, 403);
 });
+
+test("an analyst can not report a position", async () => {
+  const { token } = await loginAsAnalyst();
+  const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      activationId: 1,
+      staff: "some-steward",
+      station: "some-station",
+      reportedAt: "2026-01-01T11:11:11Z",
+    }),
+  });
+  assert.equal(response.status, 403);
+});
