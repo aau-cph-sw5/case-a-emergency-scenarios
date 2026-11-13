@@ -1,0 +1,32 @@
+{
+  "$id": "station-message-request.schema.json",
+  "title": "Station Message Request",
+  "description": "The body a steward or an operator sends to write in a station's thread (MET-A-029). The station is in the path and the sender is taken from the token. No other fields are allowed.",
+  "type": "object",
+  "required": ["clientMessageId", "activationId", "text", "writtenAt"],
+  "additionalProperties": false,
+  "properties": {
+    "clientMessageId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Client-generated UUID, made when the message is written and kept across retries. Sending it again with the same content returns the stored message without storing another. Reusing it for different content is rejected with 409 E0007."
+    },
+    "activationId": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The activation the writer saw when writing. A message against an activation that is no longer active is rejected with 409 E1003, so a message queued offline never lands in a later scenario's thread."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S",
+      "description": "Free text, at least one character that is not whitespace and at most 1000 characters, counted as Unicode code points."
+    },
+    "writtenAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the message was written, from the device's clock. Kept across retries."
+    }
+  }
+}

@@ -1,5 +1,27 @@
 # Scenario State Contract Changelog
 
+## 8.4.0 - 2026-11-13
+
+Additive. Station messages between stewards and the control room (MET-A-029, #332). The server does not serve the endpoints or send the events yet.
+
+- New `station-message.schema.json`: `id`, `clientMessageId`, `activationId`, `station`, `sender` (`STATION` or `CONTROL_ROOM`), `text`, `writtenAt` and `receivedAt`. Neither a message nor a thread carries the steward's identity or allows other fields, so the operator never receives it. The identity is not stored with the message or written to its incident-log event either, so the steward who wrote a message cannot be found from it afterwards.
+- New `station-thread.schema.json`: a station's thread in one activation, with `state` (`UNANSWERED` or `ANSWERED`), `unansweredSince`, `lastMessageAt` and, when one thread is read, `messages`.
+- New `GET /api/v1/station-threads`, for the OPERATOR role: the threads with messages in the active activation of the operator's own line group, unanswered first with the oldest at the top. An empty list while nothing is active.
+- New `GET /api/v1/station-threads/{station}`: the thread with its messages. A steward must be checked in at the station, an operator can read any station that requires manning in the activation. While nothing is active it answers 409 `E1001`, unlike the list.
+- New `POST /api/v1/station-threads/{station}/messages` with `station-message-request.schema.json` (`clientMessageId`, `activationId`, `text`, `writtenAt`), for a steward checked in at the station and for an operator. `sender` is taken from the token. Answers 201 with the stored message.
+- Checked in means the steward's latest position report in the activation is `ARRIVED` at the station. Before arriving, after task done and after checking out the answer is 409 with the new code `E1007`.
+- The thread lives as long as the activation. A message whose `activationId` is not an active activation in the user's own line group gets 409 `E1003`, and `E1001` only when the id is unknown and nothing is active, as for position reports. A station that does not require manning in the activation gets 409 `E1004`, as for position reports.
+- `clientMessageId` is unique across all messages. A repeat with the same `clientMessageId` and content (station, `activationId`, `text` and `writtenAt`) answers 200 with the stored message, and stores, logs and pushes nothing more. The same `clientMessageId` with different content gets 409 `E0007`.
+- The checks are made in this order: the body (400 `E0006`), a repeat (200 or `E0007`), the activation (`E1001` or `E1003`), the station (`E1004`) and the check-in (`E1007`). A repeat therefore answers 200 also after stand-down and after the steward has checked out.
+- A 400 or 409 answer is final: the client drops the message and tells the user. Everything else is retried: no connection, 5xx answers, and 401 once the session is renewed.
+- `writtenAt` comes from the device and is kept as sent, but is only shown. Message order, the thread state and `unansweredSince` follow `receivedAt`, because a device's clock is not trusted. A steward message makes the thread `UNANSWERED` and an operator message makes it `ANSWERED`, in the order the server received them. A thread with only operator messages is `ANSWERED`.
+- `text` is plain text, 1 to 1000 characters counted as Unicode code points, and not only whitespace (400 `E0006`). It is stored exactly as sent.
+- `clientMessageId` is returned on the message so a client can recognise its own pending message. It is never written to the incident log.
+- New `station-message` socket event with the message, the thread after it (without messages) and `sentAt`: to operators in the activation's line group and to stewards checked in at the station.
+- New `station-threads-closed` socket event with `activationId` and `sentAt`, to both roles in the activation's line group when the activation is stood down, also when it is replaced in a switch. The new activation starts with empty threads. Socket events are not replayed, so after a reconnect clients read the thread again.
+- An `ADMIN` gets 403 `E0002` on all three endpoints.
+- `info.version` in `openapi.yaml` is now 8.4.0.
+
 ## 8.3.0 - 2026-11-12
 
 Additive. Add the admin role (MET-A-030, #359).
