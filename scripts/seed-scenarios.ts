@@ -433,7 +433,7 @@ async function loadScenario(
     // Replace the seed-controlled content while keeping the version ID, which
     // may already be referenced by an incident activation.
     await client.query(
-      "DELETE FROM operating_plans WHERE scenario_version_id = $1",
+      "DELETE FROM operating_patterns WHERE scenario_version_id = $1",
       [versionId],
     );
     await client.query(
@@ -445,19 +445,16 @@ async function loadScenario(
       [versionId],
     );
 
-    const planResult = await client.query(
-      `INSERT INTO operating_plans (scenario_version_id, name)
-             VALUES ($1, $2)
-             RETURNING id`,
-      [versionId, version.operatingPlan.name],
+    await client.query(
+      "UPDATE scenario_versions SET operating_plan_name = $1 WHERE id = $2",
+      [version.operatingPlan.name, versionId],
     );
-    const planId: number = planResult.rows[0].id;
     for (const pattern of version.operatingPlan.patterns) {
       const patternResult = await client.query(
-        `INSERT INTO operating_patterns (operating_plan_id, operation_type, route_code, track_number, 
+        `INSERT INTO operating_patterns (scenario_version_id, operation_type, route_code, track_number,
                 maximum_trains, did, description)VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
         [
-          planId,
+          versionId,
           pattern.operationType,
           pattern.routeCode,
           pattern.trackNumber,
