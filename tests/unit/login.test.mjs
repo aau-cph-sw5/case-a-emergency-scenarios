@@ -64,7 +64,7 @@ test("throws an error with the status on other failures", async () => {
 
 test("rejects a response with an unknown role or no token", async () => {
   for (const body of [
-    { token: "abc", role: "ADMIN" },
+    { token: "abc", role: "UNKNOWN" },
     { role: "OPERATOR" },
     [],
   ]) {

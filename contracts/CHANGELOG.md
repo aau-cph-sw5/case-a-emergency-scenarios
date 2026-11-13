@@ -1,6 +1,6 @@
 # Scenario State Contract Changelog
 
-## 8.3.0 - 2026-11-11
+## 8.4.0 - 2026-11-13
 
 Additive. Station messages between stewards and the control room (MET-A-029, #332). The server does not serve the endpoints or send the events yet.
 
@@ -19,6 +19,15 @@ Additive. Station messages between stewards and the control room (MET-A-029, #33
 - `clientMessageId` is returned on the message so a client can recognise its own pending message. It is never written to the incident log.
 - New `station-message` socket event with the message, the thread after it (without messages) and `sentAt`: to operators in the activation's line group and to stewards checked in at the station.
 - New `station-threads-closed` socket event with `activationId` and `sentAt`, to both roles in the activation's line group when the activation is stood down, also when it is replaced in a switch. The new activation starts with empty threads. Socket events are not replayed, so after a reconnect clients read the thread again.
+- An `ADMIN` gets 403 `E0002` on all three endpoints.
+- `info.version` in `openapi.yaml` is now 8.4.0.
+
+## 8.3.0 - 2026-11-12
+
+Additive. Add the admin role (MET-A-030, #359).
+
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/renew` and `GET /api/v1/me` can return `ADMIN` as the user's role. Clients must accept the new value.
+- Admins can log in on the web, but cannot use operator-only actions.
 - `info.version` in `openapi.yaml` is now 8.3.0.
 
 ## 8.2.0 - 2026-11-11

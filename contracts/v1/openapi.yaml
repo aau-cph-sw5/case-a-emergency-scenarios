@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.3.0
+  version: 8.4.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -657,6 +657,16 @@ paths:
                 error:
                   code: "E0001"
                   message: "Invalid or expired token"
+        "403":
+          description: The signed-in role is neither STEWARD nor OPERATOR
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "The authenticated user's role does not permit this action"
         "409":
           description: >
             The user's line group has no active scenario (E1001), the
@@ -782,6 +792,16 @@ paths:
                 error:
                   code: "E0001"
                   message: "Invalid or expired token"
+        "403":
+          description: The signed-in role is neither STEWARD nor OPERATOR
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "The authenticated user's role does not permit this action"
         "409":
           description: >
             activationId is unknown and the line group has no active
