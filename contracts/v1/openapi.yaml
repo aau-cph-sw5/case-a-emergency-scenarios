@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.3.0
+  version: 8.4.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -571,7 +571,287 @@ paths:
                   code: "E1003"
                   message: "'1' is already stood down"
 
+  /api/v1/station-threads:
+    get:
+      summary: List the station threads for the operator
+      description: >
+        Requires the OPERATOR role. Returns the station threads (MET-A-029)
+        of the active activation in the operator's own line group, without
+        their messages. Only threads with at least one message are listed.
+        UNANSWERED threads come first, the one with the oldest
+        unansweredSince at the top, then ANSWERED threads with the latest
+        lastMessageAt first. Answers 200 with an empty list while the line
+        group has no active scenario: no threads is a valid answer for the
+        list, while reading or writing one thread then answers 409 E1001.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The threads, empty when there are none
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./station-thread.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not list the station threads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "The authenticated user's role does not permit this action"
+
+  /api/v1/station-threads/{station}:
+    get:
+      summary: Read a station's thread
+      description: >
+        Returns the thread of the station in the active activation in the
+        user's own line group, with its messages in the order the server
+        received them (MET-A-029). A thread without messages is returned
+        ANSWERED with an empty messages list. Reading changes nothing.
+
+        A STEWARD must be checked in at the station: the steward's latest
+        position report in the activation is ARRIVED there. Before
+        arriving, after task done and after checking out the answer is
+        409 E1007. An OPERATOR can read any station that requires manning
+        in the activation, the same stations a position report can be made
+        for (E1004 otherwise).
+
+        A steward message is from the station. No response carries the
+        identity of the steward who wrote it.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Station"
+      responses:
+        "200":
+          description: The thread with its messages
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "./station-thread.schema.json"
+                  - required:
+                      - messages
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role is neither STEWARD nor OPERATOR
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "The authenticated user's role does not permit this action"
+        "409":
+          description: >
+            The user's line group has no active scenario (E1001), the
+            station does not require manning in the activation (E1004), or
+            the steward is not checked in at the station (E1007), checked
+            in that order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                noActiveScenario:
+                  value:
+                    error:
+                      code: "E1001"
+                      message: "No scenario is currently active"
+                stationNotInScenario:
+                  value:
+                    error:
+                      code: "E1004"
+                      message: "The station is not part of the active scenario"
+                notCheckedIn:
+                  value:
+                    error:
+                      code: "E1007"
+                      message: "The steward is not checked in at the station"
+
+  /api/v1/station-threads/{station}/messages:
+    post:
+      summary: Write a message in a station's thread
+      description: >
+        A STEWARD checked in (ARRIVED) at the station sends to the control
+        room, and an OPERATOR writes to any station that requires manning
+        in the active activation of their own line group, as a reply or as
+        the first message (MET-A-029). The sender is taken from the role in the token:
+        STATION for a steward, CONTROL_ROOM for an operator. The steward's
+        identity is not part of the message, and it is not stored with the
+        message or written to its incident-log event, so the steward who
+        wrote a message cannot be found from it afterwards.
+
+        receivedAt is set by the server and writtenAt is kept as sent. The
+        thread state follows the order the server received the messages: a
+        steward message makes the thread UNANSWERED and an operator message
+        makes it ANSWERED, also when a steward message written earlier
+        arrives after a later operator message. An accepted message is
+        pushed as the station-message Socket.IO event to the operators in
+        the activation's line group and to the stewards checked in at the
+        station.
+
+        activationId is the activation the writer saw. If it is not an
+        active activation in the user's own line group the answer is 409
+        E1003, for example because the scenario was stood down or switched
+        while the message waited in an offline queue. E1001 is answered
+        only when the id is unknown and the line group has no active
+        scenario.
+
+        clientMessageId identifies the message across retries and is
+        unique across all messages. Repeating an accepted request with the
+        same clientMessageId and content returns 200 with the stored
+        message, without storing another message, writing another
+        incident-log event or pushing another socket event. The content is
+        the same when the station, activationId, text and writtenAt are the
+        same; text is stored and compared exactly as sent. Reusing a
+        clientMessageId for different content returns 409 E0007.
+
+        The checks are made in this order: the body (400 E0006), a repeat
+        (200, or 409 E0007), the activation (E1001 or E1003), the station
+        (E1004) and, for a steward, the check-in (E1007). A repeat is
+        therefore answered with 200 also after stand-down and after the
+        steward has checked out, so a message whose first answer was lost
+        is never shown as rejected.
+
+        A 400 or 409 answer is final: the client drops the message and
+        tells the user. Everything else is retried: no connection, 5xx
+        answers, and 401 once the session is renewed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Station"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./station-message-request.schema.json"
+            example:
+              clientMessageId: "6f1c2f0e-4a53-4a0e-9d0b-2f8c7c1f5b11"
+              activationId: 1
+              text: "Elevatoren er ude af drift. Skal vi henvise til trappen?"
+              writtenAt: "2026-09-23T08:20:00Z"
+      responses:
+        "201":
+          description: Message stored
+          content:
+            application/json:
+              schema:
+                $ref: "./station-message.schema.json"
+        "200":
+          description: >
+            Repeat of an already stored message with the same
+            clientMessageId and content. The stored message.
+          content:
+            application/json:
+              schema:
+                $ref: "./station-message.schema.json"
+        "400":
+          description: Request body does not match the station-message-request contract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0006"
+                  message: "Request body does not match contract schema"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role is neither STEWARD nor OPERATOR
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "The authenticated user's role does not permit this action"
+        "409":
+          description: >
+            activationId is unknown and the line group has no active
+            scenario (E1001), the thread is closed because activationId is
+            not an active activation (E1003), the station does not require
+            manning in the activation (E1004), the
+            steward is not checked in at the station (E1007), or
+            clientMessageId was already used for different content (E0007).
+            Nothing is stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                noActiveScenario:
+                  value:
+                    error:
+                      code: "E1001"
+                      message: "No scenario is currently active"
+                threadClosed:
+                  value:
+                    error:
+                      code: "E1003"
+                      message: "The scenario has been stood down"
+                stationNotInScenario:
+                  value:
+                    error:
+                      code: "E1004"
+                      message: "The station is not part of the active scenario"
+                notCheckedIn:
+                  value:
+                    error:
+                      code: "E1007"
+                      message: "The steward is not checked in at the station"
+                clientMessageIdReused:
+                  value:
+                    error:
+                      code: "E0007"
+                      message: "The request conflicts with the current state of the resource"
+
 components:
+  parameters:
+    Station:
+      name: station
+      in: path
+      required: true
+      description: The station, the same value as station in a position report, URL-encoded.
+      schema:
+        type: string
+
   securitySchemes:
     bearerAuth:
       type: http
