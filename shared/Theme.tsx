@@ -168,6 +168,10 @@ export const operatorCssVars = {
   "--operator-option-border": palette.optionGrey,
   "--operator-well": palette.wellGrey,
   "--operator-focus": palette.focusTeal,
+  // Two corner sizes only: small for things you press or type in, larger for
+  // things that hold content. Circles use 50% directly.
+  "--operator-radius-control": "8px",
+  "--operator-radius-card": "12px",
   // Pressed toggles are a light tint of ink, not yellow: yellow read as an
   // alarm next to the map's warning colours (design review, #357).
   "--operator-pressed": `${palette.metroBlack}1a`,
