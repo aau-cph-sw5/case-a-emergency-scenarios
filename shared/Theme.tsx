@@ -12,6 +12,14 @@ export const palette = {
   metroLineFour: "#00A0BE",
   metroSummerRed: "#E40037",
   metroWhite: "#FFFFFF",
+  DIDLineOne: "#1F4E79",
+  DIDLineTwo: "#A61E75",
+  DIDLineThree: "#6B3FA0",
+  DIDLineFour: "#B45309",
+  DIDLineFive: "#00796B",
+  DIDLineSix: "#455A64",
+  DIDLineSeven: "#667C22",
+  DIDLineEight: "#795548",
 
   // Not in the metro set, kept so nothing changes visually. Swap for metro colours if you like.
   pageGrey: "#ecf0f1",
@@ -69,6 +77,17 @@ export const lineColors = [
   palette.metroLineFour,
   palette.linePurple,
   palette.lineOrange,
+];
+
+export const DIDLineColors = [
+  palette.DIDLineOne,
+  palette.DIDLineTwo,
+  palette.DIDLineThree,
+  palette.DIDLineFour,
+  palette.DIDLineFive,
+  palette.DIDLineSix,
+  palette.DIDLineSeven,
+  palette.DIDLineEight,
 ];
 
 // Controls the corner rounding of every element (the app currently has none).
