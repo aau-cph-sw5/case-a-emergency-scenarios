@@ -11,6 +11,12 @@ import { sendPositionReport } from "../../mobile/src/api/position-report";
 import { ERROR_CODES } from "../../shared/error-codes";
 import { resetRememberedStatuses } from "../../mobile/src/data/steward-status";
 import { StewardView } from "../../mobile/src/screens/StewardView";
+import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
+import { queuePositionReport } from "../../mobile/src/offline/queue-position-report";
+import {
+  reportRejection,
+  waitingReport,
+} from "../../mobile/src/offline/waiting-report";
 import { socket } from "../../mobile/src/socket";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
@@ -34,7 +40,12 @@ jest.mock("../../mobile/src/offline/snapshot-store", () => ({
   snapshotStore: {},
 }));
 jest.mock("../../mobile/src/api/position-report", () => ({
+  ...jest.requireActual<object>("../../mobile/src/api/position-report"),
   sendPositionReport: jest.fn(),
+}));
+jest.mock("../../mobile/src/offline/waiting-report", () => ({
+  waitingReport: jest.fn(async () => null),
+  reportRejection: jest.fn(async () => null),
 }));
 jest.mock("../../mobile/src/offline/queue-position-report", () => ({
   queuePositionReport: jest.fn(),
@@ -53,6 +64,21 @@ jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
 const report = sendPositionReport as jest.MockedFunction<
   typeof sendPositionReport
 >;
+const queue = jest.mocked(queuePositionReport);
+const flush = jest.mocked(positionReportDelivery.flush);
+const waiting = jest.mocked(waitingReport);
+const rejection = jest.mocked(reportRejection);
+
+// Steward 9's report to Station B as it is saved on the phone.
+const queuedReport = {
+  id: "report-9",
+  userId: "9",
+  station: "Station B",
+  reportedAt: "2026-11-08T10:00:00Z",
+  scenarioId: "DEMO-001",
+  activationId: 1,
+  event: "EN_ROUTE" as const,
+};
 const activeScenario = useActiveScenario as jest.MockedFunction<
   typeof useActiveScenario
 >;
@@ -116,6 +142,9 @@ async function renderView(online = true) {
 
 beforeEach(() => {
   report.mockResolvedValue({ ok: true, message: "Position sendt: Station B" });
+  queue.mockResolvedValue(queuedReport);
+  waiting.mockResolvedValue(null);
+  rejection.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -133,7 +162,19 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
     });
 
-    expect(report).toHaveBeenCalledWith("token", "Station B", 1, "EN_ROUTE");
+    expect(queue).toHaveBeenCalledWith({
+      userId: "9",
+      station: "Station B",
+      scenarioId: "DEMO-001",
+      activationId: 1,
+      event: "EN_ROUTE",
+    });
+    expect(report).not.toHaveBeenCalledWith(
+      "token",
+      "Station B",
+      1,
+      "EN_ROUTE",
+    );
     expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
     expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
 
@@ -181,10 +222,33 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(screen.getByLabelText("Meld dig på vej til Station B")).toBeTruthy();
   });
 
-  it("shows the refusal and keeps no status when the report is refused", async () => {
+  it("shows the refusal and keeps the status when arriving is refused", async () => {
+    showView({ status: "live", snapshot });
+    await renderView();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
+    });
     report.mockResolvedValue({
       ok: false,
       message: "Stationen er ikke en del af det aktive scenarie.",
+    });
+
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+
+    expect(
+      screen.getByText("Stationen er ikke en del af det aktive scenarie."),
+    ).toBeTruthy();
+    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+  });
+
+  it("shows the refusal and keeps no status when going on the way is refused", async () => {
+    rejection.mockResolvedValue({
+      httpStatus: 409,
+      code: ERROR_CODES.STATION_NOT_IN_SCENARIO,
     });
     showView({ status: "live", snapshot });
     await renderView();
@@ -193,22 +257,76 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
     });
 
+    expect(rejection).toHaveBeenCalledWith("9", "report-9");
     expect(
       screen.getByText("Stationen er ikke en del af det aktive scenarie."),
     ).toBeTruthy();
     expect(screen.getByText("Ingen status")).toBeTruthy();
+    expect(screen.queryByText(/DU ER PÅ VEJ/)).toBeNull();
   });
 
-  it("offers no + and sends nothing while showing the saved copy", async () => {
+  it("keeps the status from a waiting report when the saved copy is loaded again", async () => {
+    waiting.mockResolvedValue(queuedReport);
+    showView({ status: "copy", snapshot, reason: "offline" });
+    await renderView(false);
+
+    expect(waiting).toHaveBeenCalledWith("9", 1);
+    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    expect(screen.queryByText("Ingen status")).toBeNull();
+  });
+
+  it("blocks arriving and cancelling while a report waits to be sent", async () => {
+    waiting.mockResolvedValue(queuedReport);
+    showView({ status: "live", snapshot });
+    await renderView();
+
+    expect(
+      screen.getByText(
+        "Din position er ikke sendt endnu. Du kan ændre status, når den er modtaget.",
+      ),
+    ).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByText("FORTRYD"));
+    });
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+
+    expect(report).not.toHaveBeenCalled();
+    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+  });
+
+  it("offers + on the saved copy and keeps the report on the phone", async () => {
     showView({ status: "copy", snapshot, reason: "offline" });
     await renderView(false);
 
     expect(
       screen.getByText(
-        "Uden forbindelse kan din status ikke ændres. Du ser den gemte kopi.",
+        "Uden forbindelse kan du kun melde dig på vej. Du ser den gemte kopi.",
       ),
     ).toBeTruthy();
-    expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
+    });
+
+    expect(queue).toHaveBeenCalledWith({
+      userId: "9",
+      station: "Station B",
+      scenarioId: "DEMO-001",
+      activationId: 1,
+      event: "EN_ROUTE",
+    });
+    expect(screen.getByText("Position gemt. Afventer levering.")).toBeTruthy();
+    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    expect(flush).not.toHaveBeenCalled();
     expect(report).not.toHaveBeenCalled();
   });
 
