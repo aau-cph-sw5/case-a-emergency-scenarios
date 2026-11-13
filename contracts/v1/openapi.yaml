@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.4.0
+  version: 8.5.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -570,6 +570,42 @@ paths:
                 error:
                   code: "E1003"
                   message: "'1' is already stood down"
+
+  /api/v1/activations/{activationId}/events:
+    get:
+      summary: The incident log of one activation
+      description: >
+        Returns the activation's events ordered by sequence, or an empty
+        array if the activation has no events. A user can only read the
+        events from activations from their own line group.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: activationId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: The events, oldest first
+          content:
+            application/json:
+              schema:
+                $ref: "./incident-events.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: No activation with this id, or it belongs to another line group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
 components:
   securitySchemes:

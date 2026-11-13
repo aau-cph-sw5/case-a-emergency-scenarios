@@ -1,0 +1,27 @@
+{
+  "$id": "incident-events.schema.json",
+  "title": "Incident Events",
+  "description": "The events of one activation, ordered by sequence.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "sequence",
+      "type",
+      "actorType",
+      "actorId",
+      "actorRole",
+      "payload",
+      "serverTime"
+    ],
+    "properties": {
+      "sequence": { "type": "integer" },
+      "type": { "type": "string" },
+      "actorType": { "type": "string", "enum": ["USER", "SYSTEM"] },
+      "actorId": { "type": "string" },
+      "actorRole": { "type": ["string", "null"] },
+      "payload": { "type": "object" },
+      "serverTime": { "type": "string", "format": "date-time" }
+    }
+  }
+}

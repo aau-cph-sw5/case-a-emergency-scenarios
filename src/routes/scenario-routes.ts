@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   activate,
   getActivations,
+  getActivationEvents,
   getCurrentScenarioState,
   getScenario,
   getScenarios,
@@ -31,4 +32,9 @@ scenarioRouter.post(
   "/api/v1/activations/:activationId/stand-down",
   requireAuth,
   standDown,
+);
+scenarioRouter.get(
+  "/api/v1/activations/:activationId/events",
+  requireAuth,
+  getActivationEvents,
 );

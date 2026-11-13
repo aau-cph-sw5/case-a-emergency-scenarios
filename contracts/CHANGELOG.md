@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 8.5.0 - 2026-11-13
+
+Additive. The ability to read events from an incident (MET-A-024, #364).
+
+- Added a new `GET /api/v1/activations/{activationId}/events`. It returns the activation's events ordered by `sequence`, as described by `incident-events.schema.json`, or an empty array if it has no events.
+- An unknown activation, or one in another line group than the one the user belongs to answers 404 `E0004`.
+- `info.version` in `openapi.yaml` is now 8.5.0.
+
 ## 8.4.0 - 2026-11-12
 
 Additive. Added a new `ANALYST` role, for the Operations Analyst who needs their own login and page to review past incidents (MET-A-024, #365).

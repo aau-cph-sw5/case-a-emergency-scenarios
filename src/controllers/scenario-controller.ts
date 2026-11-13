@@ -6,6 +6,7 @@ import { roleRoom } from "../realtime/socket-server.js";
 import {
   ACTIVATION_STATUSES,
   findActiveScenarioVersion,
+  findActivation,
   type ActivationStatus,
   findActiveActivation,
   listActivations,
@@ -22,6 +23,9 @@ import {
   switchAndLog,
 } from "../services/activation-service.js";
 import type { ActivateRequest } from "../../shared/types/v1/activate-request.js";
+
+import { getDatabase } from "../db/client.js";
+import { listIncidentEvents } from "../services/incident-log-service.js";
 
 // Users only see their own line group's scenarios
 export async function getScenarios(_request: Request, response: Response) {
@@ -263,4 +267,27 @@ export async function standDown(
   io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
 
   response.json(result.activation);
+}
+
+// Events of one activation, ordered by sequence.
+export async function getActivationEvents(
+  request: Request<{ activationId: string }>,
+  response: Response,
+) {
+  const activation = await findActivation(Number(request.params.activationId));
+  if (!activation || activation.lineGroup !== response.locals.user.lineGroup) {
+    response
+      .status(404)
+      .json(errorBody(ERROR_CODES.NOT_FOUND, "Activation not found"));
+    return;
+  }
+  const events = await listIncidentEvents(
+    getDatabase(),
+    String(activation.activationId),
+  );
+  // sequence is a BIGINT in the database, and it returns those as a string,
+  // so it is converted back to a number here.
+  response.json(
+    events.map((event) => ({ ...event, sequence: Number(event.sequence) })),
+  );
 }

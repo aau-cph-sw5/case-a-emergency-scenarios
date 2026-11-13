@@ -96,7 +96,12 @@ export function App() {
   }
 
   if (state.session.role === "ANALYST") {
-    return <AnalystDashboard onLogout={() => void signOut()} />;
+    return (
+      <AnalystDashboard
+        token={state.session.token}
+        onLogout={() => void signOut()}
+      />
+    );
   }
 
   if (state.session.role === "OPERATOR") {
