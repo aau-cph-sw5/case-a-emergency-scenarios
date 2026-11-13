@@ -126,6 +126,7 @@ async function main() {
     if (response.status === 409) {
       throw new Error(`${SCENARIO} is already active`);
     }
+    const { activationId } = await response.json();
     report(
       "Activation → steward",
       (await Promise.all(activations)).flat(),
@@ -136,6 +137,7 @@ async function main() {
     t0 = performance.now();
     const reports = collect(operator, "position-report", CLIENTS, t0);
     const body = {
+      activationId,
       staff: "",
       station: STATION,
       reportedAt: new Date().toISOString(),

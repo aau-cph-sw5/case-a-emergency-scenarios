@@ -187,15 +187,25 @@ API route accesses the database, as the `metro_app` user (see
 [Database roles](#database-roles)). Integration tests use a separate local
 database and never write to this one.
 
+### Seed users
+
 Seed local users for database-backed authentication after applying migrations:
 
 ```bash
 npm run seed:users
 ```
 
-This creates or updates the local-only accounts `steward-test` /
-`steward-test-pw` and `operator-test` / `operator-test-pw`. Do not use these
-credentials outside local development.
+This creates or updates four local-only accounts, one operator and one steward
+for each line group:
+
+| Line group | Operator | Steward |
+|---|---|---|
+| M1/M2 | `operator` / `operator123` | `steward` / `steward123` |
+| M3/M4 | `operator-m3m4` / `operator123` | `steward-m3m4` / `steward123` |
+
+An operator only sees and changes their own line group's scenario, so use the
+M3/M4 operator for DEMO-002 and the M1/M2 operator for DEMO-001 and DEMO-003.
+Do not use these credentials outside local development.
 
 ## Hosted staging and production migrations
 

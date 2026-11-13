@@ -16,11 +16,31 @@ export type QueuedPositionReport = {
   taskDone?: boolean;
 };
 
+export type RejectionReason = { httpStatus: number; code?: string };
+export type RejectedPositionReport = QueuedPositionReport & {
+  rejection: RejectionReason;
+};
+type StoredPositionReport = QueuedPositionReport & {
+  rejection?: RejectionReason;
+};
+
 export type PositionReportQueueStore = ReturnType<
   typeof createPositionReportQueueStore
 >;
 
-function isQueuedReport(value: unknown): value is QueuedPositionReport {
+function isRejectionReason(value: unknown): value is RejectionReason {
+  if (typeof value !== "object" || value === null) return false;
+  const reason = value as Record<string, unknown>;
+  return (
+    typeof reason.httpStatus === "number" &&
+    Number.isInteger(reason.httpStatus) &&
+    reason.httpStatus >= 400 &&
+    reason.httpStatus < 500 &&
+    (reason.code === undefined || typeof reason.code === "string")
+  );
+}
+
+function isQueuedReport(value: unknown): value is StoredPositionReport {
   //unknown type guard to check if the value is a QueuedPositionReport
   if (typeof value !== "object" || value === null) return false;
 
@@ -42,7 +62,8 @@ function isQueuedReport(value: unknown): value is QueuedPositionReport {
       report.event === "ARRIVED" ||
       report.event === "CANCELLED" ||
       report.event === "CHECKED_OUT") &&
-    (report.event === undefined || report.taskDone === undefined)
+    (report.event === undefined || report.taskDone === undefined) &&
+    (report.rejection === undefined || isRejectionReason(report.rejection))
   );
 }
 
@@ -61,7 +82,7 @@ export function createPositionReportQueueStore(storage: SnapshotStorage) {
     return next;
   }
 
-  async function readQueue(): Promise<QueuedPositionReport[]> {
+  async function readQueue(): Promise<StoredPositionReport[]> {
     const raw = await storage.getItem(POSITION_REPORT_QUEUE_KEY);
     if (raw === null) return [];
 
@@ -76,7 +97,7 @@ export function createPositionReportQueueStore(storage: SnapshotStorage) {
     return parsed.filter(isQueuedReport); // keep valid reports, skip broken ones
   }
 
-  async function saveQueue(reports: QueuedPositionReport[]): Promise<void> {
+  async function saveQueue(reports: StoredPositionReport[]): Promise<void> {
     //saves the queue of position reports to storage
     await storage.setItem(
       //store the reports in storage under the key POSITION_REPORT_QUEUE_KEY
@@ -95,7 +116,9 @@ export function createPositionReportQueueStore(storage: SnapshotStorage) {
 
         if (existing) {
           //if a report with the same id already exists in the queue, check if it is the same as the new report
-          if (JSON.stringify(existing) !== JSON.stringify(report)) {
+          const existingReport = { ...existing };
+          delete existingReport.rejection;
+          if (JSON.stringify(existingReport) !== JSON.stringify(report)) {
             throw new Error("Report ID already used for different data");
           }
           return;
@@ -109,7 +132,32 @@ export function createPositionReportQueueStore(storage: SnapshotStorage) {
       //retrieves all pending reports for a specific user from the queue
       return serialize(async () => {
         const reports = await readQueue();
-        return reports.filter((report) => report.userId === userId);
+        return reports.filter(
+          (report) =>
+            report.userId === userId && report.rejection === undefined,
+        );
+      });
+    },
+
+    getRejected(userId: string): Promise<RejectedPositionReport[]> {
+      return serialize(async () =>
+        (await readQueue()).filter(
+          (report): report is RejectedPositionReport =>
+            report.userId === userId && report.rejection !== undefined,
+        ),
+      );
+    },
+
+    reject(userId: string, id: string, reason: RejectionReason): Promise<void> {
+      return serialize(async () => {
+        const reports = await readQueue();
+        const index = reports.findIndex(
+          (report) => report.userId === userId && report.id === id,
+        );
+        if (index < 0) throw new Error("Queued report not found");
+        if (reports[index].rejection !== undefined) return;
+        reports[index] = { ...reports[index], rejection: reason };
+        await saveQueue(reports);
       });
     },
 

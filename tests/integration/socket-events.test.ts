@@ -13,21 +13,25 @@ import {
   userRoom,
 } from "../../src/realtime/socket-server.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
-import { seedTestScenarios } from "./helpers.js";
+import { seedTestScenarios, seededUser } from "./helpers.js";
 
 let server: HttpServer;
 let baseUrl: string;
 let operatorUsername: string;
 let stewardUsername: string;
+let otherOperatorUsername: string;
+let otherStewardUsername: string;
 let stewardId: number;
 const sockets: Socket[] = [];
 
 before(async () => {
   const users = await seedTestUsers("socket-");
   await seedTestScenarios();
-  operatorUsername = users.find((user) => user.role === "OPERATOR")!.username;
-  stewardUsername = users.find((user) => user.role === "STEWARD")!.username;
-  stewardId = users.find((user) => user.role === "STEWARD")!.id;
+  operatorUsername = seededUser(users, "OPERATOR", "M3_M4").username;
+  stewardUsername = seededUser(users, "STEWARD", "M3_M4").username;
+  otherOperatorUsername = seededUser(users, "OPERATOR", "M1_M2").username;
+  otherStewardUsername = seededUser(users, "STEWARD", "M1_M2").username;
+  stewardId = seededUser(users, "STEWARD", "M3_M4").id;
 
   server = createServer(app);
   const io = new Server(server);
@@ -207,6 +211,10 @@ test("a position report reaches operators only, with the server's time", async (
   steward.on("position-report", () => {
     stewardGotReport = true;
   });
+  // The coverage changed, so the phones fetch again too (#310).
+  const stewardGotSignal = new Promise<unknown[]>((resolve) =>
+    steward.once("activations-changed", (...args) => resolve(args)),
+  );
   const received = new Promise<Record<string, string>>((resolve) =>
     operator.once("position-report", resolve),
   );
@@ -232,6 +240,7 @@ test("a position report reaches operators only, with the server's time", async (
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      activationId: active.activationId,
       staff: "",
       station: "Station G",
       reportedAt: "2099-01-01T00:00:00Z",
@@ -244,6 +253,7 @@ test("a position report reaches operators only, with the server's time", async (
   assert.notEqual(report.staff, "");
   assert.ok(Date.parse(report.reportedAt) >= before);
   assert.ok(Date.parse(report.reportedAt) <= Date.now());
+  assert.deepEqual(await stewardGotSignal, []);
 
   // Give a wrongly sent event time to arrive before checking it did not.
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -287,4 +297,49 @@ test("a stand-down reaches stewards and operators as signals", async () => {
   // Give a wrongly sent event time to arrive before checking it did not.
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.equal(operatorGotStandDown, false);
+});
+
+test("events for one line group never reach the other line group", async () => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const stewardToken = await login(stewardUsername, "steward123", "mobile");
+  const otherOperator = await open(
+    await login(otherOperatorUsername, "operator123", "web"),
+  );
+  const otherSteward = await open(
+    await login(otherStewardUsername, "steward123", "mobile"),
+  );
+  const leaked: string[] = [];
+  otherOperator.onAny((event) => leaked.push(`operator: ${event}`));
+  otherSteward.onAny((event) => leaked.push(`steward: ${event}`));
+
+  // Activate, report and stand down in M3/M4.
+  const activated = await fetch(
+    `${baseUrl}/api/v1/scenarios/DEMO-002/activate`,
+    { method: "POST", headers: { Authorization: `Bearer ${operatorToken}` } },
+  );
+  assert.equal(activated.status, 201);
+  const { activationId } = await activated.json();
+  const reported = await fetch(`${baseUrl}/api/v1/position-reports`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${stewardToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      activationId,
+      staff: "",
+      station: "Station G",
+      reportedAt: new Date().toISOString(),
+    }),
+  });
+  assert.equal(reported.status, 202);
+  const stoodDown = await fetch(
+    `${baseUrl}/api/v1/activations/${activationId}/stand-down`,
+    { method: "POST", headers: { Authorization: `Bearer ${operatorToken}` } },
+  );
+  assert.equal(stoodDown.status, 200);
+
+  // Give a wrongly sent event time to arrive before checking it did not.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.deepEqual(leaked, []);
 });

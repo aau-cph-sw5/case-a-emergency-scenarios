@@ -9,7 +9,8 @@
     "status",
     "actor",
     "sequence",
-    "deployments"
+    "deployments",
+    "lineGroup"
   ],
   "properties": {
     "activationId": {
@@ -72,6 +73,10 @@
           }
         }
       }
+    },
+    "lineGroup": {
+      "type": "string",
+      "enum": ["M1_M2", "M3_M4"]
     }
   }
 }

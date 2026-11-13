@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react-native";
 import { describe, expect, it } from "@jest/globals";
 import { Circle } from "react-native-svg";
 import MapRender from "../../shared/MapRenderer";
+import { getLines } from "../../mockData/data";
 
 const colors = { M2: "#00f" };
 
@@ -14,6 +15,26 @@ function drawnStations() {
 }
 
 describe("MapRender", () => {
+  it.each(["M1", "M2"])(
+    "shows Nørreport between Forum and Kongens Nytorv on %s",
+    (name) => {
+      const line = getLines().find((candidate) => candidate.name === name)!;
+      expect(line.connections).toEqual(
+        expect.arrayContaining([
+          ["FOR", "KN"],
+          ["KN", "KGN"],
+        ]),
+      );
+      render(
+        <MapRender
+          lines={[{ ...line, tracks: [1, 2] }]}
+          colors={{ [name]: "#00f" }}
+        />,
+      );
+      expect(drawnStations()).toContainEqual([565, 343]);
+    },
+  );
+
   it("draws a dot for each station of a line", () => {
     render(
       <MapRender

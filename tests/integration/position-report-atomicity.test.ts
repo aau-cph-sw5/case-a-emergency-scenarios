@@ -22,6 +22,7 @@ const owner = getOwnerDatabase();
 let steward: AuthUser;
 let operatorUsername: string;
 let stewardUsername: string;
+let activationId: number;
 
 let server: Server;
 let baseUrl: string;
@@ -36,6 +37,7 @@ before(async () => {
   steward = {
     userId: stewardAccount.id,
     role: stewardAccount.role,
+    lineGroup: stewardAccount.lineGroup,
     jti: "test-only-jti",
   };
 
@@ -56,6 +58,7 @@ class Rollback extends Error {}
 // A fresh `staff` value per test lets a test find its own rows afterwards.
 function aReport() {
   return {
+    activationId,
     staff: `steward-${randomUUID()}`,
     station: "Station B",
     reportedAt: "2026-09-23T08:10:00Z",
@@ -71,13 +74,14 @@ function reportsBy(staff: string) {
 type LoggedEvent = {
   type: string;
   actorId: string;
+  activationId: string | null;
   payload: unknown;
   clientTime: Date;
 };
 
 function eventsAbout(reportId: string) {
   return sql<LoggedEvent[]>`
-    SELECT type, actor_id, payload, client_time FROM incident_events
+    SELECT type, actor_id, activation_id, payload, client_time FROM incident_events
     WHERE subject_type = 'position-report' AND subject_id = ${reportId}
   `;
 }
@@ -115,6 +119,7 @@ test("a position report and its event are stored together, with the actor from t
     },
   );
   assert.equal(activation.status, 201);
+  ({ activationId } = (await activation.json()) as { activationId: number });
 
   await owner`DELETE FROM position_reports WHERE station = 'Station C'`;
   const stewardToken = await loginToken(
@@ -131,6 +136,7 @@ test("a position report and its event are stored together, with the actor from t
       Authorization: `Bearer ${stewardToken}`,
     },
     body: JSON.stringify({
+      activationId,
       staff: "someone-else",
       station: "Station C",
       reportedAt: "2026-09-23T08:10:00Z",
@@ -138,16 +144,21 @@ test("a position report and its event are stored together, with the actor from t
   });
 
   assert.equal(response.status, 202);
-  const saved = await sql<{ id: string; staff: string }[]>`
-    SELECT id, staff FROM position_reports WHERE station = 'Station C'
+  const saved = await sql<
+    { id: string; staff: string; activationId: number }[]
+  >`
+    SELECT id, staff, activation_id FROM position_reports WHERE station = 'Station C'
   `;
   assert.equal(saved.length, 1);
   try {
     assert.equal(saved[0].staff, String(steward.userId));
+    assert.equal(saved[0].activationId, activationId);
     const events = await eventsAbout(saved[0].id);
     assert.equal(events.length, 1);
     assert.equal(events[0].type, "POSITION_REPORTED");
     assert.equal(events[0].actorId, String(steward.userId));
+    // The log ties the report to the activation it was made against.
+    assert.equal(events[0].activationId, String(activationId));
     // The station stays in the log even if the report row is replaced later.
     assert.deepEqual(events[0].payload, {
       stationId: "Station C",

@@ -2,15 +2,20 @@ import type { Server, Socket } from "socket.io";
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { verifyToken, type AuthUser } from "../services/auth-service.js";
 import {
+  findActiveActivation,
   findActiveScenarioVersion,
-  listActivations,
 } from "../repositories/activation-repository.js";
 
 import { findScenario } from "../repositories/scenario-repository.js";
 
-// Each socket joins the room named after its role, so an event can be sent to
-// one role only: io.to("OPERATOR") or io.to("STEWARD").
-export type RoleRoom = AuthUser["role"];
+// Each socket joins the room for its role and line group, so an event reaches
+// one role in one line group only, e.g. io.to(roleRoom("STEWARD", "M1_M2")).
+export function roleRoom(
+  role: AuthUser["role"],
+  lineGroup: AuthUser["lineGroup"],
+): string {
+  return `${role}:${lineGroup}`;
+}
 
 export function userRoom(userId: number): string {
   return `user:${userId}`;
@@ -87,10 +92,17 @@ export function attachSocketHandlers(io: Server) {
           socket.disconnect();
           return;
         }
-        socket.join(role satisfies RoleRoom);
-        console.log("Socket connected:", socket.id, userId, role);
+        await socket.join(roleRoom(role, current.lineGroup));
+        console.log(
+          "Socket connected:",
+          socket.id,
+          userId,
+          role,
+          current.lineGroup,
+        );
         socket.emit("welcome", "Connected to the emergency scenarios server.");
-        const [latest] = await listActivations("ACTIVE");
+        // The active scenario in the user's own line group.
+        const latest = await findActiveActivation(current.lineGroup);
         if (role === "STEWARD" && latest) {
           try {
             const versionId = await findActiveScenarioVersion(

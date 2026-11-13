@@ -1,13 +1,20 @@
 import type { Request, Response } from "express";
 import type { Server } from "socket.io";
+import { roleRoom } from "../realtime/socket-server.js";
 import {
   ERROR_CODES,
   errorBody,
   type ErrorCode,
 } from "../../shared/error-codes.js";
-import { listActivations } from "../repositories/activation-repository.js";
+import {
+  findActivation,
+  findActiveActivation,
+} from "../repositories/activation-repository.js";
 import type { AuthUser } from "../services/auth-service.js";
-import { recordPositionReport } from "../services/position-report-service.js";
+import {
+  checkPositionReportReplay,
+  recordPositionReport,
+} from "../services/position-report-service.js";
 
 // The response carries the code's fixed message; the details go to the log.
 function refuse(
@@ -23,8 +30,8 @@ function refuse(
 /* Refuse emit to the operators if request was not sent by a steward and if the station
 Reported in the postionreport is not part of the active scenario */
 export async function postPositionReport(request: Request, response: Response) {
-  const { userId, role } = response.locals.user as AuthUser;
-  const { station } = request.body;
+  const { userId, role, lineGroup } = response.locals.user as AuthUser;
+  const { station, activationId } = request.body;
 
   if (role !== "STEWARD") {
     return refuse(
@@ -34,14 +41,43 @@ export async function postPositionReport(request: Request, response: Response) {
       `role ${role}`,
     );
   }
-  const [activation] = await listActivations("ACTIVE");
-  const stations = new Set(
-    activation?.deployments.map((item) => item.fulfills),
+  const clientTime = new Date(request.body.reportedAt);
+  const replay = await checkPositionReportReplay(
+    response.locals.user,
+    request.body,
+    clientTime,
   );
-  if (activation === undefined || stations.size === 0) {
-    return refuse(response, 409, ERROR_CODES.NO_ACTIVE_SCENARIO, station);
+
+  if (replay === "repeat") {
+    return response.status(202).json({ accepted: true });
   }
-  if (!stations.has(station)) {
+
+  if (replay === "conflict") {
+    return refuse(
+      response,
+      409,
+      ERROR_CODES.CONFLICT,
+      "Client report ID reused for a different action",
+    );
+  }
+  // Another line group's activation is treated as unknown.
+  const found = await findActivation(activationId);
+  const activation = found?.lineGroup === lineGroup ? found : undefined;
+  if (activation?.status !== "ACTIVE") {
+    if (
+      activation === undefined &&
+      (await findActiveActivation(lineGroup)) === undefined
+    ) {
+      return refuse(response, 409, ERROR_CODES.NO_ACTIVE_SCENARIO, station);
+    }
+    return refuse(
+      response,
+      409,
+      ERROR_CODES.SCENARIO_STOOD_DOWN,
+      `activation ${activationId}`,
+    );
+  }
+  if (!activation.deployments.some((item) => item.fulfills === station)) {
     return refuse(response, 409, ERROR_CODES.STATION_NOT_IN_SCENARIO, station);
   }
 
@@ -49,8 +85,6 @@ export async function postPositionReport(request: Request, response: Response) {
   // a phone with a wrong clock cannot reorder reports. Store the report and its
   // event first, so the operators are never told about a report that was lost.
   const now = new Date().toISOString();
-  // The phone's own time, for the event log, before reportedAt is replaced.
-  const clientTime = new Date(request.body.reportedAt);
   const report = { ...request.body, staff: userId, reportedAt: now };
   const result = await recordPositionReport(
     response.locals.user,
@@ -58,6 +92,14 @@ export async function postPositionReport(request: Request, response: Response) {
     clientTime,
     activation.startedAt,
   );
+  if (result.kind === "conflict") {
+    return refuse(
+      response,
+      409,
+      ERROR_CODES.CONFLICT,
+      "Client report ID reused for a different action",
+    );
+  }
   if (result.kind === "invalid") {
     return refuse(
       response,
@@ -72,8 +114,15 @@ export async function postPositionReport(request: Request, response: Response) {
   }
 
   const io = request.app.locals.io as Server | undefined;
-  io?.to("OPERATOR").emit("position-report", { ...report, sentAt: now });
-  // The deployments changed, so the control room loads the activations again.
-  io?.to("OPERATOR").emit("activations-changed");
+  io?.to(roleRoom("OPERATOR", activation.lineGroup)).emit("position-report", {
+    ...report,
+    sentAt: now,
+  });
+  // The deployments changed, so the control room of the same linegroup loads the activations again,
+  // and the stewards' phones the active scenario, so their coverage and map
+  io?.to(roleRoom("OPERATOR", activation.lineGroup)).emit(
+    "activations-changed",
+  );
+  io?.to(roleRoom("STEWARD", activation.lineGroup)).emit("activations-changed");
   response.status(202).json({ accepted: true });
 }

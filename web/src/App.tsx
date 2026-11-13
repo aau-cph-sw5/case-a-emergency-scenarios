@@ -4,10 +4,11 @@ import { useSession } from "../../shared/auth/use-session";
 import { useAuthenticatedSocket } from "../../shared/socket/useAuthenticatedSocket";
 import { LiveDataProvider } from "./data/liveData";
 import { OperatorDashboard } from "./OperatorDashboard";
+import { AdminDashboard } from "./AdminDashboard";
 import { webSessionStore } from "./auth/session-store";
 import { socket } from "./socket";
 
-// The control-room dashboard. Stewards use the app in mobile/.
+// Stewards use the app in mobile/.
 export function App() {
   const {
     state,
@@ -41,9 +42,10 @@ export function App() {
     };
   }, [restore]);
 
-  // One socket per login, shared by the banner and the dashboard.
+  // The operator's socket is shared by the banner and dashboard.
   const token =
-    state.status === "signed-in" || state.status === "unavailable"
+    (state.status === "signed-in" || state.status === "unavailable") &&
+    state.session.role === "OPERATOR"
       ? state.session.token
       : undefined;
   useAuthenticatedSocket(socket, token, restore);
@@ -67,7 +69,9 @@ export function App() {
       );
     }
     return (
-      <LoginScreen apiBaseUrl="" client="web" onLoggedIn={completeLogin} />
+      <div className="login-page">
+        <LoginScreen apiBaseUrl="" client="web" onLoggedIn={completeLogin} />
+      </div>
     );
   }
 
@@ -85,9 +89,20 @@ export function App() {
     );
   }
 
-  return (
-    <ControlRoom token={state.session.token} onLogout={() => void signOut()} />
-  );
+  if (state.session.role === "ADMIN") {
+    return <AdminDashboard onLogout={() => void signOut()} />;
+  }
+
+  if (state.session.role === "OPERATOR") {
+    return (
+      <ControlRoom
+        token={state.session.token}
+        onLogout={() => void signOut()}
+      />
+    );
+  }
+
+  return <main>Denne konto har ikke adgang til webappen.</main>;
 }
 
 function ControlRoom({

@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { createPortal } from "react-dom";
+﻿import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import MapRender from "../../../shared/MapRenderer";
 import {
   colors as theme,
+  DIDLineColors,
   lineColors,
   palette,
   radius,
@@ -16,6 +16,11 @@ import {
   linesThrough,
   requiredStations,
 } from "../../../shared/scenario/affected-stations";
+import { routeConnections } from "../../../shared/scenario/route-connections";
+import {
+  stationCoverage,
+  type ActiveDeployments,
+} from "../../../shared/components/stationState";
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import { useScenario } from "../data/useScenario";
 
@@ -30,12 +35,38 @@ const lineColor = Object.fromEntries(
   network.map((line, index) => [line.name, lineColors[index]]),
 );
 
-// What the map shows for the selected scenario (#183). Every line has a button,
-// but only the lines through its covered pieces start switched on, or the whole
-// network when none of them is on the map. The stations its current version
-// needs staff at are marked. The view zooms to the covered stretch and every
-// marked station, so a marked station on another line stays in the frame.
-export function mapView(scenario: Scenario | null) {
+function scenarioLines(scenario: Scenario, groupLines: typeof network) {
+  const expectedLines =
+    scenario.lineGroup === "M1_M2" ? ["M1", "M2"] : ["M3", "M4"];
+  if (!groupLines.some((line) => expectedLines.includes(line.name))) {
+    return { lines: [], missingRoutes: false };
+  }
+
+  const current = scenario.versions.find(
+    (version) => version.version === scenario.currentVersion,
+  );
+
+  const routes =
+    current?.operatingPlan.patterns
+      .filter((pattern) => pattern.did.trim() !== "")
+      .sort((a, b) => a.did.localeCompare(b.did, undefined, { numeric: true }))
+      .map((pattern) => ({
+        name: pattern.did,
+        tracks: pattern.trackNumber === 12 ? [1, 2] : [pattern.trackNumber],
+        connections: routeConnections(pattern.route),
+      })) ?? [];
+
+  return routes.length > 0
+    ? { lines: routes, missingRoutes: false }
+    : { lines: [], missingRoutes: true };
+}
+
+// Scenario data determines staffing markers and the optional close-up view.
+// The operator chooses the visible line group separately in the header.
+export function mapView(
+  scenario: Scenario | null,
+  deployments: ActiveDeployments | null = null,
+) {
   const stretch =
     scenario === null ? [] : affectedStretchAsMapLine(scenario).connections;
   const covered = linesThrough(network, stretch);
@@ -49,6 +80,7 @@ export function mapView(scenario: Scenario | null) {
     scenario?.versions.find(
       (version) => version.version === scenario.currentVersion,
     )?.stationRequirements ?? [];
+
   return {
     initiallyHidden:
       covered.length > 0
@@ -63,25 +95,29 @@ export function mapView(scenario: Scenario | null) {
         minimumStaffing,
       ]),
     ),
-    // Undefined for the whole network, which keeps the map's own view.
+    // Only for the active scenario: green, yellow or red per station, the
+    // same as its coverage card (MET-A-011, #310).
+    stationCoverage:
+      deployments === null ? {} : stationCoverage(requirements, deployments),
+    // Undefined without an affected stretch, which keeps the map's own view.
     viewBox:
-      covered.length > 0
-        ? areaAroundStations([...stretch.flat(), ...markedStations], 160)
-        : undefined,
+      covered.length > 0 ? areaAroundStations(stretch.flat(), 160) : undefined,
   };
 }
 
 export function MetroMap({
   scenarioId,
   scenario: previewScenario,
-  lineControlsTarget,
+  lineGroup = "M1/M2",
+  deployments = null,
 }: {
   scenarioId: string | null;
   scenario?: Scenario | null;
-  lineControlsTarget?: HTMLElement | null;
+  lineGroup?: "M1/M2" | "M3/M4";
+  deployments?: ActiveDeployments | null;
 }) {
-  // While the scenario loads, or if it cannot be loaded, scenario is null and
-  // the whole network is shown. The preview next to the map shows the error.
+  // While a selected scenario loads, or if it cannot be loaded, no map is
+  // drawn. The preview next to the map shows the error.
   // The requirements panel can supply its result, including null while loading
   // or retrying, so both previews always show the same saved version.
   const { scenario: loadedScenario } = useScenario(
@@ -89,11 +125,45 @@ export function MetroMap({
   );
   const scenario =
     previewScenario === undefined ? loadedScenario : previewScenario;
-  // Holds the scenario zoomed out from, so the next scenario zooms in again.
-  const [zoomedOutOf, setZoomedOutOf] = useState<string | null>(null);
-  const view = mapView(scenario);
-  const canZoom = view.viewBox !== undefined;
-  const zoomedOut = canZoom && zoomedOutOf === scenarioId;
+
+  // Each scenario starts with its whole line group in view.
+  const [zoomedInto, setZoomedInto] = useState<string | null>(null);
+  const view = mapView(scenario, deployments);
+  const groupNetwork = network.filter((line) =>
+    lineGroup.split("/").includes(line.name),
+  );
+  const scenarioLineResult =
+    scenarioId === null || scenario === null
+      ? null
+      : scenarioLines(scenario, groupNetwork);
+  const groupLines =
+    scenarioId === null
+      ? groupNetwork
+      : scenario === null
+        ? []
+        : (scenarioLineResult?.lines ?? []);
+  const missingScenarioRoutes = scenarioLineResult?.missingRoutes ?? false;
+  const routeColors =
+    scenarioId === null
+      ? lineColor
+      : Object.fromEntries(
+          groupLines.map((line, index) => [
+            line.name,
+            DIDLineColors[index % DIDLineColors.length],
+          ]),
+        );
+  const groupStations = new Set([
+    ...groupNetwork.flatMap((line) => line.connections.flat()),
+    ...groupLines.flatMap((line) => line.connections.flat()),
+  ]);
+  const groupViewBox = areaAroundStations([...groupStations], 90);
+  const groupHasScenario = groupLines.some(
+    (line) => !view.initiallyHidden.includes(line.name),
+  );
+  const canZoom = view.viewBox !== undefined && groupHasScenario;
+  const zoomKey = `${scenarioId}-${lineGroup}`;
+  const zoomedIn = canZoom && zoomedInto === zoomKey;
+
   return (
     <View style={{ flex: 1 }}>
       {scenario !== null && (
@@ -108,13 +178,17 @@ export function MetroMap({
           ]}
         >
           {scenario.name} · Tal på stationerne viser krævede stewards
+          {deployments !== null
+            ? " · Grøn: bemandet, gul: delvist, rød: mangler"
+            : ""}
         </Text>
       )}
+
       {canZoom && (
         <Pressable
           testID="map-zoom-toggle"
           accessibilityRole="button"
-          accessibilityLabel={zoomedOut ? "Zoom ind" : "Zoom ud"}
+          accessibilityLabel={zoomedIn ? "Zoom ud" : "Zoom ind"}
           style={{
             position: "absolute",
             top: 12,
@@ -127,36 +201,67 @@ export function MetroMap({
             padding: 8,
             margin: 4,
           }}
-          onPress={() => setZoomedOutOf(zoomedOut ? null : scenarioId)}
+          onPress={() => setZoomedInto(zoomedIn ? null : zoomKey)}
         >
           <Text
             style={[text.body, { color: theme.textInverse, fontWeight: "700" }]}
           >
-            {zoomedOut ? "Zoom ind" : "Zoom ud"}
+            {zoomedIn ? "Zoom ud" : "Zoom ind"}
           </Text>
         </Pressable>
       )}
-      {/* A new key once each scenario has loaded resets which lines are on,
-          so the choices made for one scenario do not carry into the next. */}
+
+      {/* Reset map interaction when the scenario or line group changes. */}
       <div className="operator-map-renderer">
         <MapRender
-          key={scenario?.scenarioId ?? "none"}
-          lines={network}
-          colors={lineColor}
-          lineGroups={lineGroups}
-          initiallyHidden={view.initiallyHidden}
-          renderLineButtons={
-            lineControlsTarget
-              ? (buttons) => createPortal(buttons, lineControlsTarget)
-              : undefined
-          }
-          viewBox={zoomedOut ? undefined : view.viewBox}
-          markedStations={view.markedStations}
+          key={`${scenario?.scenarioId ?? "none"}-${lineGroup}`}
+          lines={groupLines}
+          colors={routeColors}
+          showLineButtons={false}
+          viewBox={zoomedIn ? view.viewBox : groupViewBox}
+          markedStations={view.markedStations.filter((station) =>
+            groupStations.has(station),
+          )}
           requiredStaffing={view.requiredStaffing}
+          stationCoverage={view.stationCoverage}
           highlightColor={theme.requiredStation}
           blockedTracks={scenario?.covers ?? []}
         />
       </div>
+
+      {missingScenarioRoutes && (
+        <Text role="alert" style={text.small}>
+          Kunne ikke vise destinations-ID&apos;er: scenariet mangler
+          destinationsruter.
+        </Text>
+      )}
+
+      {scenarioId !== null && groupLines.length > 0 && (
+        <View
+          accessibilityLabel="Destination IDs"
+          style={{ marginLeft: 8, flexDirection: "column", gap: 6 }}
+        >
+          <Text style={text.small}>Destination IDs:</Text>
+          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+            {groupLines.map((line) => (
+              <View
+                key={line.name}
+                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+              >
+                <View
+                  style={{
+                    width: 20,
+                    height: 5,
+                    borderRadius: 2,
+                    backgroundColor: routeColors[line.name],
+                  }}
+                />
+                <Text style={text.small}>{line.name}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 }

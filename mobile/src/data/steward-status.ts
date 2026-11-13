@@ -1,7 +1,12 @@
 import { ERROR_CODES } from "../../../shared/error-codes";
 import type { PositionReport } from "../../../shared/types/v1/position-report";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
-import { sendPositionReport } from "../api/position-report";
+import type { Deployment } from "../../../shared/scenario/active-scenario";
+import {
+  sendPositionReport,
+  type PositionReportResult,
+} from "../api/position-report";
+import { findOwnAssignment } from "../screens/own-assignment";
 
 // A steward's status, as the contract names it (scenario-state.schema.json).
 // The app declares no status type of its own (MET-A-015).
@@ -21,6 +26,12 @@ export type StatusRequest =
   | { type: "cancel" }
   | { type: "checkOut" };
 
+// Sends or queues the report behind a status change; the default sends it at once.
+export type ReportSend = (
+  station: string,
+  event: NonNullable<PositionReport["event"]>,
+) => Promise<PositionReportResult>;
+
 export type StatusResult =
   | { ok: true; own: OwnStatus | null }
   | { ok: false; code?: string; message: string };
@@ -39,7 +50,23 @@ export type StatusResult =
 // sent. There is no endpoint for the steward's latest report yet (#253), so
 // the last status is remembered in memory per steward per activation, which
 // survives logging out and in again.
-const remembered = new Map<string, OwnStatus>();
+//
+// The server's status wins whenever a new copy of the scenario arrives: the
+// steward's own deployment, which #289 builds from the stored reports. So a
+// reload, a restart or a change from another phone shows what the server has
+// (#310). The memory only bridges the time between the steward's own change
+// and the next copy, which the server announces with activations-changed.
+const remembered = new Map<string, OwnStatus | null>();
+
+// The steward's status as the server has it, from their own deployment.
+export function serverStatus(
+  deployments: Deployment[] | undefined,
+  userId: string,
+): OwnStatus | null {
+  const own = findOwnAssignment(deployments ?? [], userId);
+  if (!own || own.status === "UNMANNED") return null;
+  return { station: own.fulfills, status: own.status };
+}
 
 const NOT_ALLOWED: Record<Exclude<StatusRequest["type"], "current">, string> = {
   assign: "Tjek ud fra din station, før du melder dig til en ny.",
@@ -55,9 +82,20 @@ export async function stewardStatus(
   activationId: ScenarioState["activationId"],
   userId: string,
   request: StatusRequest,
+  // The active scenario's deployments from the server. With "current" they
+  // are a new copy and replace what the app remembers (#310).
+  deployments?: Deployment[],
+  send: ReportSend = (station, event) =>
+    sendPositionReport(token, station, activationId, event),
 ): Promise<StatusResult> {
   const key = `${activationId}/${userId}`;
-  const current = remembered.get(key);
+  if (request.type === "current" && deployments !== undefined) {
+    remembered.set(key, serverStatus(deployments, userId));
+  }
+  const current =
+    (remembered.has(key)
+      ? remembered.get(key)
+      : serverStatus(deployments, userId)) ?? undefined;
 
   if (request.type === "current") {
     return { ok: true, own: current ?? null };
@@ -72,11 +110,16 @@ export async function stewardStatus(
     };
   }
 
-  const report = await sendPositionReport(token, change.station, change.event);
-  if (!report.ok) return { ok: false, message: report.message };
+  const report = await send(change.station, change.event);
+  if (!report.ok) {
+    return {
+      ok: false,
+      message: report.message,
+      ...(report.code ? { code: report.code } : {}),
+    };
+  }
 
-  if (change.own === null) remembered.delete(key);
-  else remembered.set(key, change.own);
+  remembered.set(key, change.own);
   return { ok: true, own: change.own };
 }
 

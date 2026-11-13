@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { getDatabase, type Db } from "../db/client.js";
 import {
+  findByClientReportId,
   findLatestReport,
   insertPositionReport,
   type NewPositionReport,
@@ -11,14 +13,61 @@ import { appendEvent } from "./incident-log-service.js";
 
 // Lets a test replace the event write with one that fails.
 type WriteEvent = typeof appendEvent;
+type ReplayResult = "repeat" | "conflict";
+function hashClientRequest(
+  user: AuthUser,
+  report: NewPositionReport,
+  clientTime: Date,
+): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        staff: String(user.userId),
+        station: report.station,
+        reportedAt: clientTime.toISOString(),
+        event: report.event ?? "EN_ROUTE",
+        taskDone: report.taskDone ?? false,
+      }),
+    )
+    .digest("hex");
+}
 
-// Stores the report and its POSITION_REPORTED event with the transaction it is
-// given, so both commit together or neither does. This is the pattern every
-// state-changing action follows: make the change with tx, then appendEvent with
-// the same tx.
-//
-// The actor is the user from the token. `clientTime` is the phone's own time,
-// which the controller replaces in `report.reportedAt`.
+// Determine whether this UUID belongs to an already accepted action.
+async function alreadyAccepted(
+  tx: Db,
+  user: AuthUser,
+  report: NewPositionReport,
+  clientTime: Date,
+): Promise<ReplayResult | null> {
+  if (!report.id) return null;
+
+  const existing = await findByClientReportId(tx, report.id);
+  if (!existing) return null;
+
+  const sameRequest =
+    existing.staff === String(user.userId) &&
+    existing.clientRequestHash === hashClientRequest(user, report, clientTime);
+
+  return sameRequest ? "repeat" : "conflict";
+}
+
+export function checkPositionReportReplay(
+  user: AuthUser,
+  report: NewPositionReport,
+  clientTime: Date,
+): Promise<ReplayResult | null> {
+  const clientReportId = report.id;
+  if (!clientReportId) {
+    return Promise.resolve(null);
+  }
+  return getDatabase().begin(async (tx) => {
+    await tx`
+      SELECT pg_advisory_xact_lock(hashtext(${clientReportId}))
+    `;
+    return alreadyAccepted(tx, user, report, clientTime);
+  });
+}
+
 export async function savePositionReport(
   tx: Db,
   user: AuthUser,
@@ -26,12 +75,17 @@ export async function savePositionReport(
   clientTime: Date,
   writeEvent: WriteEvent = appendEvent,
 ): Promise<StoredPositionReport> {
-  const saved = await insertPositionReport(tx, report);
-
+  const saved = await insertPositionReport(
+    tx,
+    report,
+    report.id ? hashClientRequest(user, report, clientTime) : null,
+  );
   await writeEvent(tx, user, {
     type: "POSITION_REPORTED",
     schemaVersion: 3,
     subject: { type: "position-report", id: saved.id },
+    // The activation the steward reported against.
+    activationId: String(report.activationId),
     // Keeps the location in the log even if the report row is later replaced.
     payload: {
       stationId: report.station,
@@ -40,13 +94,13 @@ export async function savePositionReport(
     },
     clientTime,
   });
-
   return saved;
 }
 
 export type RecordResult =
   | { kind: "saved" }
   | { kind: "repeat" }
+  | { kind: "conflict" }
   | { kind: "invalid"; latestStation: string | undefined };
 
 type Latest = Pick<StoredPositionReport, "station" | "event" | "taskDone">;

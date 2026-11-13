@@ -5,10 +5,10 @@ import {
   waitFor,
 } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
-import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
-import { StyleSheet } from "react-native";
-import { colors, lineColors, palette } from "../../shared/Theme";
+import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
+import { colors, DIDLineColors, lineColors } from "../../shared/Theme";
 import type { Scenario } from "../../shared/types/v1/scenario";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
 import { MetroMap } from "../../web/src/components/MetroMap";
 import { LiveDataContext } from "../../web/src/data/liveData";
@@ -18,13 +18,63 @@ import { LiveDataContext } from "../../web/src/data/liveData";
 const scenario: Scenario = {
   scenarioId: "TEST-MAP",
   name: "Map test",
+  lineGroup: "M1_M2",
   currentVersion: "1",
   covers: [{ trackNumber: 1, stationA: "ISB", stationB: "UNI" }],
   versions: [
     {
       version: "1",
       revision: "Test revision",
-      operatingPlan: { name: "Test plan", patterns: [] },
+      operatingPlan: {
+        name: "Test plan",
+        patterns: [
+          {
+            operationType: "PENDULUM",
+            routeCode: "VAN-VEA",
+            trackNumber: 1,
+            maximumTrains: 1,
+            did: "TEST",
+            route: [
+              { sequence: 1, station: "VAN" },
+              { sequence: 2, station: "FL" },
+              { sequence: 3, station: "LIT" },
+              { sequence: 4, station: "SOT" },
+              { sequence: 5, station: "FB" },
+              { sequence: 6, station: "FOR" },
+              { sequence: 7, station: "KN" },
+              { sequence: 8, station: "KGN" },
+              { sequence: 9, station: "KHC" },
+              { sequence: 10, station: "ISB" },
+              { sequence: 11, station: "UNI" },
+              { sequence: 12, station: "KHS" },
+              { sequence: 13, station: "BC" },
+              { sequence: 14, station: "ØRE" },
+              { sequence: 15, station: "VEA" },
+            ],
+          },
+          {
+            operationType: "ROUNDTRIP",
+            routeCode: "FB-CPH",
+            trackNumber: 12,
+            maximumTrains: 1,
+            did: "TEST-2",
+            route: [
+              { sequence: 1, station: "FB" },
+              { sequence: 2, station: "FOR" },
+              { sequence: 3, station: "KN" },
+              { sequence: 4, station: "KGN" },
+              { sequence: 5, station: "KHC" },
+              { sequence: 6, station: "AMB" },
+              { sequence: 7, station: "LGP" },
+              { sequence: 8, station: "ØSV" },
+              { sequence: 9, station: "AMS" },
+              { sequence: 10, station: "FEØ" },
+              { sequence: 11, station: "KSA" },
+              { sequence: 12, station: "CPH" },
+            ],
+          },
+        ],
+      },
       stationRequirements: [
         { station: "UNI", placement: "Platform", minimumStaffing: 2 },
       ],
@@ -37,6 +87,8 @@ function withScenario(
   scenarioId: string | null,
   loadScenario: () => Promise<Scenario>,
   preview?: Scenario | null,
+  lineGroup?: "M1/M2" | "M3/M4",
+  deployments: ScenarioState["deployments"] | null = null,
 ) {
   const value = {
     live: {
@@ -53,16 +105,22 @@ function withScenario(
   };
   return (
     <LiveDataContext value={value}>
-      <MetroMap scenarioId={scenarioId} scenario={preview} />
+      <MetroMap
+        scenarioId={scenarioId}
+        scenario={preview}
+        lineGroup={lineGroup}
+        deployments={deployments === null ? null : { deployments }}
+      />
     </LiveDataContext>
   );
 }
 
 // The lines actually drawn, told apart by their colour.
 const shownLines = () => {
-  const strokes = screen
-    .UNSAFE_queryAllByType(Line)
-    .map((strip) => strip.props.stroke);
+  const strokes = [
+    ...screen.UNSAFE_queryAllByType(Line),
+    ...screen.UNSAFE_queryAllByType(Path),
+  ].map((strip) => strip.props.stroke);
   return ["M1", "M2", "M3", "M4"].filter((_, index) =>
     strokes.includes(lineColors[index]),
   );
@@ -74,57 +132,148 @@ const markedDots = () =>
     .filter((dot) => dot.props.fill === colors.requiredStation);
 
 describe("MetroMap", () => {
-  it("shows every line and marks nothing when no scenario is selected", () => {
+  it("starts with the M1/M2 network fitted to the map", () => {
     render(withScenario(null, async () => scenario));
-
-    expect(shownLines()).toEqual(["M1", "M2", "M3", "M4"]);
+    expect(shownLines()).toEqual(["M1", "M2"]);
     expect(markedDots()).toHaveLength(0);
-    expect(viewBox()).toBe("0 0 950 700");
+    expect(viewBox()).not.toBe("0 0 950 700");
+    expect(screen.queryByText("M1")).toBeNull();
   });
 
-  it("shows the covered line group, centred, and marks the required station", async () => {
-    render(withScenario("TEST-MAP", async () => scenario));
-
-    // The whole network shows while the scenario loads, so wait for the change.
-    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
-    expect(markedDots().length).toBeGreaterThan(0);
-    // The view zooms to the covered stretch ISB–UNI, not all of M1.
-    expect(viewBox()).toBe("520 293 320 375");
-  });
-
-  it("keeps a required station on another line inside the view", async () => {
-    // CPH is only on M2, so fitting the covered stretch would leave it out.
-    const [version] = scenario.versions;
-    const offLine: Scenario = {
+  it("zooms to the affected stretch, excluding distant staffing stations", () => {
+    const scenarioWithDistantStaffing = {
       ...scenario,
-      versions: [
-        {
-          ...version,
-          stationRequirements: [
-            ...version.stationRequirements,
-            { station: "CPH", placement: "Platform", minimumStaffing: 1 },
-          ],
-        },
-      ],
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        stationRequirements: [
+          ...(version.stationRequirements ?? []),
+          { station: "CPH", placement: "Platform", minimumStaffing: 1 },
+        ],
+      })),
     };
-    render(withScenario("TEST-MAP", async () => offLine));
-
-    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
-    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI", "CPH"], 160));
+    render(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenarioWithDistantStaffing,
+        scenarioWithDistantStaffing,
+      ),
+    );
+    const strokes = [
+      ...screen.UNSAFE_queryAllByType(Line),
+      ...screen.UNSAFE_queryAllByType(Path),
+    ].map((segment) => segment.props.stroke);
+    expect(strokes).toContain(DIDLineColors[0]);
+    expect(strokes).toContain(DIDLineColors[1]);
+    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(80);
+    expect(screen.getByText("TEST")).toBeTruthy();
+    expect(screen.getByText("TEST-2")).toBeTruthy();
+    expect(markedDots().length).toBeGreaterThan(0);
+    const fullView = viewBox();
+    fireEvent.press(screen.getByText("Zoom ind"));
+    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"], 160));
+    fireEvent.press(screen.getByText("Zoom ud"));
+    expect(viewBox()).toBe(fullView);
   });
 
-  it("draws the blocked track dashed and the required station orange", async () => {
-    render(withScenario("TEST-MAP", async () => scenario));
-    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
+  it("uses a separate palette for destination IDs", () => {
+    const patterns = Array.from({ length: DIDLineColors.length }, (_, i) => ({
+      ...scenario.versions[0].operatingPlan.patterns[0],
+      did: `DID-${i + 1}`,
+    }));
+    const scenarioWithManyDestinations = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        operatingPlan: { ...version.operatingPlan, patterns },
+      })),
+    };
 
+    render(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenarioWithManyDestinations,
+        scenarioWithManyDestinations,
+      ),
+    );
+
+    const strokes = [
+      ...screen.UNSAFE_queryAllByType(Line),
+      ...screen.UNSAFE_queryAllByType(Path),
+    ].map((strip) => strip.props.stroke);
+    expect(new Set(DIDLineColors).size).toBe(DIDLineColors.length);
+    // Shared segments display at most two destination IDs at a time.
+    expect(strokes).toEqual(expect.arrayContaining(DIDLineColors.slice(0, 2)));
+    expect(DIDLineColors).not.toEqual(
+      expect.arrayContaining(lineColors.slice(0, 4)),
+    );
+  });
+
+  it("shows an error instead of inventing a destination ID without routes", () => {
+    const scenarioWithoutRoutes = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        operatingPlan: { ...version.operatingPlan, patterns: [] },
+      })),
+    };
+
+    render(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenarioWithoutRoutes,
+        scenarioWithoutRoutes,
+      ),
+    );
+
+    expect(screen.getByRole("alert").props.children).toContain(
+      "scenariet mangler destinationsruter.",
+    );
+    expect(screen.queryByText("M1")).toBeNull();
+  });
+
+  it("switches to the M3/M4 group with a centered view and separate tracks", () => {
+    const view = render(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenario,
+        scenario,
+        "M1/M2",
+      ),
+    );
+    fireEvent.press(screen.getByText("Zoom ind"));
+    view.rerender(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenario,
+        scenario,
+        "M3/M4",
+      ),
+    );
+    expect(shownLines()).toEqual([]);
+    expect(viewBox()).not.toBe(areaAroundStations(["ISB", "UNI"], 160));
+    expect(markedDots()).toHaveLength(0);
+    expect(screen.UNSAFE_queryAllByType(Path)).toHaveLength(0);
+    view.rerender(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenario,
+        scenario,
+        "M1/M2",
+      ),
+    );
+    expect(screen.getByText("Zoom ud")).toBeTruthy();
+  });
+
+  it("shows blocked track and the required staffing count", () => {
+    render(withScenario(scenario.scenarioId, async () => scenario, scenario));
     const blocked = screen
       .UNSAFE_queryAllByType(Line)
       .filter((strip) => strip.props.strokeDasharray !== undefined);
-    // One piece on one of the two tracks, which is drawn as two strips.
     expect(blocked).toHaveLength(2);
     expect(blocked[0].props.stroke).toBe(colors.blockedTrack);
-    expect(markedDots().length).toBeGreaterThan(0);
-    expect(markedDots()[0].props.stroke).toBe(colors.text);
+    expect(markedDots().some((dot) => dot.props.stroke === colors.text)).toBe(
+      true,
+    );
     expect(
       screen
         .UNSAFE_queryAllByType(SvgText)
@@ -132,94 +281,77 @@ describe("MetroMap", () => {
     ).toBe(true);
   });
 
-  it("uses the preview's current requirements without fetching another result", () => {
+  it("uses the preview without fetching, and clears markers when it is removed", () => {
     const loadScenario = jest.fn<() => Promise<Scenario>>();
     const view = render(
       withScenario(scenario.scenarioId, loadScenario, scenario),
     );
-    const counts = () =>
-      screen
-        .UNSAFE_queryAllByType(SvgText)
-        .map((label) => label.props.children);
-    expect(counts()).toContain(2);
     expect(loadScenario).not.toHaveBeenCalled();
-    view.rerender(withScenario(scenario.scenarioId, loadScenario, null));
-    expect(markedDots()).toHaveLength(0);
-    expect(counts()).not.toContain(2);
-  });
-
-  it("zooms out to the full map and back, keeping the marked station", async () => {
-    render(withScenario("TEST-MAP", async () => scenario));
-    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
-
-    expect(
-      StyleSheet.flatten(screen.getByTestId("map-zoom-toggle").props.style)
-        .backgroundColor,
-    ).toBe(palette.metroLineFour);
-    expect(
-      StyleSheet.flatten(screen.getByText("Zoom ud").props.style).color,
-    ).toBe(colors.textInverse);
-    fireEvent.press(screen.getByText("Zoom ud"));
-    // The frame widens, but the other lines stay off until they are toggled.
-    expect(shownLines()).toEqual(["M1", "M2"]);
-    expect(viewBox()).toBe("0 0 950 700");
     expect(markedDots().length).toBeGreaterThan(0);
-
-    fireEvent.press(screen.getByText("Zoom ind"));
-    expect(shownLines()).toEqual(["M1", "M2"]);
-    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"], 160));
-  });
-
-  it("toggles each line pair together and preserves the choices while zooming", async () => {
-    render(withScenario("TEST-MAP", async () => scenario));
-    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
-
-    fireEvent.press(screen.getByText("M2"));
+    view.rerender(withScenario(scenario.scenarioId, loadScenario, null));
     expect(shownLines()).toEqual([]);
-    fireEvent.press(screen.getByText("M1"));
-    expect(shownLines()).toEqual(["M1", "M2"]);
-    fireEvent.press(screen.getByText("M3"));
-    expect(shownLines()).toEqual(["M1", "M2", "M3", "M4"]);
-    fireEvent.press(screen.getByText("M4"));
-    expect(shownLines()).toEqual(["M1", "M2"]);
-
-    // The choice survives zooming out.
-    fireEvent.press(screen.getByText("Zoom ud"));
-    expect(shownLines()).toEqual(["M1", "M2"]);
+    expect(markedDots()).toHaveLength(0);
   });
 
-  it("offers no zoom button when the full map already shows", () => {
-    render(withScenario(null, async () => scenario));
-
-    expect(screen.queryByText("Zoom ud")).toBeNull();
-  });
-
-  it("zooms in again when another scenario is selected", async () => {
-    const view = render(withScenario("TEST-MAP", async () => scenario));
-    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
-    fireEvent.press(screen.getByText("Zoom ud"));
-
-    view.rerender(
-      withScenario("OTHER", async () => ({
-        ...scenario,
-        scenarioId: "OTHER",
-      })),
-    );
-
-    await waitFor(() => expect(shownLines()).toEqual(["M1", "M2"]));
-    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"], 160));
-  });
-
-  it("shows every line when the scenario cannot be loaded", async () => {
-    // useScenario logs the failure; silenced so the test output stays clean.
+  it("does not show the mock network while a selected scenario fails to load", async () => {
     const logged = jest.spyOn(console, "error").mockImplementation(() => {});
     render(
       withScenario("TEST-MAP", () => Promise.reject(new Error("Serverfejl"))),
     );
-
+    expect(shownLines()).toEqual([]);
     await waitFor(() => expect(logged).toHaveBeenCalled());
-    expect(shownLines()).toEqual(["M1", "M2", "M3", "M4"]);
+    expect(shownLines()).toEqual([]);
     expect(markedDots()).toHaveLength(0);
     logged.mockRestore();
+  });
+
+  // The map follows the live coverage of the active scenario, like the
+  // coverage cards beside it (MET-A-011, #310).
+  it("colours a required station by its live coverage", async () => {
+    const uniDot = () =>
+      screen
+        .UNSAFE_queryAllByType(Circle)
+        .filter((dot) =>
+          [
+            colors.statusRed,
+            colors.statusYellow,
+            colors.statusGreen,
+            colors.requiredStation,
+          ].includes(dot.props.fill),
+        )
+        .at(-1)?.props.fill;
+    const manned = (count: number) =>
+      Array.from({ length: count }, () => ({
+        status: "MANNED" as const,
+        staff: "1",
+        fulfills: "UNI",
+      }));
+
+    const view = render(
+      withScenario("TEST-MAP", async () => scenario, scenario, undefined, []),
+    );
+    await waitFor(() => expect(uniDot()).toBe(colors.statusRed));
+
+    view.rerender(
+      withScenario(
+        "TEST-MAP",
+        async () => scenario,
+        scenario,
+        undefined,
+        manned(1),
+      ),
+    );
+    expect(uniDot()).toBe(colors.statusYellow);
+
+    view.rerender(
+      withScenario(
+        "TEST-MAP",
+        async () => scenario,
+        scenario,
+        undefined,
+        manned(2),
+      ),
+    );
+    expect(uniDot()).toBe(colors.statusGreen);
   });
 });

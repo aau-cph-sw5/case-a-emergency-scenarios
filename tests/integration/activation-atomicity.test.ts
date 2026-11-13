@@ -26,6 +26,7 @@ after(() => getDatabase().end());
 const operator: AuthUser = {
   userId: 1,
   role: "OPERATOR",
+  lineGroup: "M1_M2",
   jti: "test-only-jti",
 };
 
@@ -48,7 +49,7 @@ test("an activation whose event cannot be written is taken back", async () => {
   await assert.rejects(
     activateAndLog(
       operator,
-      await scenario("DEMO-002"),
+      await scenario("DEMO-001"),
       "operator",
       failingWrite,
     ),
@@ -93,7 +94,7 @@ test("a switch whose second event cannot be written changes nothing", async () =
   await assert.rejects(
     switchAndLog(
       operator,
-      await scenario("DEMO-002"),
+      await scenario("DEMO-003"),
       "operator",
       outgoing.activationId,
       failOnSecond,
@@ -108,7 +109,7 @@ test("a switch whose second event cannot be written changes nothing", async () =
   );
   assert.equal((await listActivations("ACTIVE"))[0].endedAt, null);
   assert.equal(
-    (await listActivations()).some((a) => a.scenarioId === "DEMO-002"),
+    (await listActivations()).some((a) => a.scenarioId === "DEMO-003"),
     false,
   );
   assert.equal((await stoodDownEvents(outgoing.activationId)).length, 0);
@@ -132,7 +133,7 @@ test("an activation made while a stand-down is writing its event waits for it", 
   );
   const activation = activateAndLog(
     operator,
-    await scenario("DEMO-002"),
+    await scenario("DEMO-003"),
     "operator",
   );
 
@@ -161,12 +162,12 @@ test("the active activation can be read in a fresh server process", async () => 
   assert.deepEqual(JSON.parse(stdout), [expected]);
 });
 
-test("concurrent activations across line groups allow only one active scenario", async () => {
+test("concurrent activations in one line group allow only one active scenario", async () => {
   const [active] = await listActivations("ACTIVE");
   await standDownAndLog(operator, active.activationId);
   const [first, second] = await Promise.all([
     activateAndLog(operator, await scenario("DEMO-001"), "operator"),
-    activateAndLog(operator, await scenario("DEMO-002"), "operator"),
+    activateAndLog(operator, await scenario("DEMO-003"), "operator"),
   ]);
   assert.deepEqual([first.kind, second.kind].sort(), ["already-active", "ok"]);
   assert.equal((await listActivations("ACTIVE")).length, 1);
@@ -183,7 +184,7 @@ test("an activation waiting for a stand-down starts after it closes", async () =
     await new Promise((resolve) => setTimeout(resolve, 80));
     return appendEvent(tx, user, event);
   };
-  const nextScenario = await scenario("DEMO-002");
+  const nextScenario = await scenario(current.scenarioId);
   const closing = standDownAndLog(operator, current.activationId, slowWrite);
   await writeStarted;
   const starting = activateAndLog(operator, nextScenario, "operator");
@@ -196,4 +197,23 @@ test("an activation waiting for a stand-down starts after it closes", async () =
         Date.parse(closed.activation.endedAt!),
     );
   }
+});
+
+test("concurrent activations in different line groups are both allowed", async () => {
+  const m3m4Operator: AuthUser = { ...operator, lineGroup: "M3_M4" };
+  for (const active of await listActivations("ACTIVE")) {
+    await standDownAndLog(
+      active.lineGroup === "M1_M2" ? operator : m3m4Operator,
+      active.activationId,
+    );
+  }
+  const [first, second] = await Promise.all([
+    activateAndLog(operator, await scenario("DEMO-001"), "operator"),
+    activateAndLog(m3m4Operator, await scenario("DEMO-002"), "operator"),
+  ]);
+  assert.deepEqual([first.kind, second.kind], ["ok", "ok"]);
+  assert.deepEqual(
+    (await listActivations("ACTIVE")).map((a) => a.lineGroup).sort(),
+    ["M1_M2", "M3_M4"],
+  );
 });

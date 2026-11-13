@@ -76,6 +76,15 @@ function stewardHeaders() {
   return bearer(STEWARD_USERNAME, "steward123", "mobile");
 }
 
+// DEMO-002 belongs to M3/M4, so only the M3/M4 users can work with it.
+function m3m4OperatorHeaders() {
+  return bearer(`${OPERATOR_USERNAME}-m3m4`, "operator123", "web");
+}
+
+function m3m4StewardHeaders() {
+  return bearer(`${STEWARD_USERNAME}-m3m4`, "steward123", "mobile");
+}
+
 async function loginAs(
   username: string,
   password: string,
@@ -89,6 +98,7 @@ async function loginAs(
   return (await response.json()) as {
     token: string;
     role: string;
+    lineGroup: string;
     expiresAt: string;
   };
 }
@@ -104,13 +114,24 @@ test("POST /api/v1/auth/login returns a token and role", async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(validate(body, "login-response.schema.json"), []);
   assert.equal(body.role, "OPERATOR");
+  assert.equal(body.lineGroup, "M1_M2");
 
   const payload = jwt.decode(body.token);
   assert.ok(payload && typeof payload !== "string");
   assert.equal(payload.userId, operatorId);
   assert.equal(payload.role, "OPERATOR");
+  assert.equal(payload.lineGroup, "M1_M2");
   assert.equal(typeof payload.jti, "string");
   assert.equal(payload.exp! - payload.iat!, 30 * 24 * 60 * 60);
+});
+
+test("POST /api/v1/auth/login puts an M3/M4 user's line group in the token", async () => {
+  const body = await loginAs("api-operator-m3m4", "operator123", "web");
+  const payload = jwt.decode(body.token);
+
+  assert.equal(body.lineGroup, "M3_M4");
+  assert.ok(payload && typeof payload !== "string");
+  assert.equal(payload.lineGroup, "M3_M4");
 });
 
 test("POST /api/v1/auth/login matches usernames without regard to casing", async () => {
@@ -213,7 +234,25 @@ test("GET /api/v1/me returns the signed-in user", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(validate(body, "me.schema.json"), []);
-  assert.deepEqual(body, { userId: stewardId, role: "STEWARD" });
+  assert.deepEqual(body, {
+    userId: stewardId,
+    role: "STEWARD",
+    lineGroup: "M1_M2",
+  });
+});
+
+test("GET /api/v1/me rejects a signed token without a line group", async () => {
+  const token = jwt.sign(
+    { userId: operatorId, role: "OPERATOR", jti: "test-jti" },
+    process.env.JWT_SECRET!,
+  );
+
+  const response = await fetch(`${baseUrl}/api/v1/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error.code, "E0001");
 });
 
 test("GET /api/v1/me rejects a signed token with an invalid payload", async () => {
@@ -248,8 +287,62 @@ test("protected requests use the user's current database role", async () => {
     assert.deepEqual(await me.json(), {
       userId: operatorId,
       role: "STEWARD",
+      lineGroup: "M1_M2",
     });
     assert.equal(activation.status, 403);
+  } finally {
+    await owner`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
+  }
+});
+
+test("an assigned admin can sign in and is identified by their current role", async () => {
+  const previousSession = await loginAs(
+    OPERATOR_USERNAME,
+    "operator123",
+    "web",
+  );
+  await owner`UPDATE users SET role = 'ADMIN' WHERE id = ${operatorId}`;
+
+  try {
+    const previousMe = await fetch(`${baseUrl}/api/v1/me`, {
+      headers: { Authorization: `Bearer ${previousSession.token}` },
+    });
+    assert.equal((await previousMe.json()).role, "ADMIN");
+
+    const login = await postJson("/api/v1/auth/login", {
+      username: OPERATOR_USERNAME,
+      password: "operator123",
+      client: "web",
+    });
+    const session = await login.json();
+    assert.equal(login.status, 200);
+    assert.equal(session.role, "ADMIN");
+    assert.deepEqual(validate(session, "login-response.schema.json"), []);
+
+    const headers = { Authorization: `Bearer ${session.token}` };
+    const me = await fetch(`${baseUrl}/api/v1/me`, { headers });
+    const user = await me.json();
+    assert.equal(me.status, 200);
+    assert.equal(user.role, "ADMIN");
+    assert.deepEqual(validate(user, "me.schema.json"), []);
+
+    const activation = await postJson(
+      "/api/v1/scenarios/DEMO-002/activate",
+      {},
+      headers,
+    );
+    assert.equal(activation.status, 403);
+
+    const mobile = await postJson("/api/v1/auth/login", {
+      username: OPERATOR_USERNAME,
+      password: "operator123",
+      client: "mobile",
+    });
+    assert.equal(mobile.status, 401);
+
+    await owner`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
+    const demoted = await fetch(`${baseUrl}/api/v1/me`, { headers });
+    assert.equal((await demoted.json()).role, "OPERATOR");
   } finally {
     await owner`UPDATE users SET role = 'OPERATOR' WHERE id = ${operatorId}`;
   }
@@ -381,6 +474,7 @@ test("postRenew returns not due when another request wins the renewal race", asy
       user: {
         userId: operatorId,
         role: "OPERATOR" as const,
+        lineGroup: "M1_M2" as const,
         jti: "unused-jti",
       },
     },
@@ -454,6 +548,7 @@ test("renew returns the current session when another request renewed it", async 
     const result = await renew({
       userId: operatorId,
       role: "OPERATOR",
+      lineGroup: "M1_M2",
       jti: dueSession.jti,
     });
 
@@ -497,6 +592,7 @@ test("renew rejects a session that disappears during renewal", async () => {
       await renew({
         userId: operatorId,
         role: "OPERATOR",
+        lineGroup: "M1_M2",
         jti: dueSession.jti,
       }),
       { kind: "invalid" },
@@ -580,6 +676,19 @@ test("GET /api/v1/scenarios/:scenarioId returns one scenario", async () => {
   assert.equal(body.scenarioId, "DEMO-001");
 });
 
+test("GET /api/v1/scenarios/:scenarioId returns 404 for another line group's scenario", async () => {
+  // DEMO-002 belongs to M3/M4.
+  const other = await fetch(`${baseUrl}/api/v1/scenarios/DEMO-002`, {
+    headers: await operatorHeaders(),
+  });
+  const own = await fetch(`${baseUrl}/api/v1/scenarios/DEMO-002`, {
+    headers: await m3m4OperatorHeaders(),
+  });
+
+  assert.equal(other.status, 404);
+  assert.equal(own.status, 200);
+});
+
 test("GET /api/v1/scenarios/:scenarioId returns 404 for an unknown id", async () => {
   const headers = await operatorHeaders();
   const unknown = await fetch(`${baseUrl}/api/v1/scenarios/wrongId`, {
@@ -615,12 +724,15 @@ test("GET /api/v1/metro-lines/:lineId returns the line or 404", async () => {
   assert.equal(unknown.status, 404);
 });
 
-// Station G is only in DEMO-002
-const stationGReport = {
-  staff: "",
-  station: "Station G",
-  reportedAt: "2026-09-23T08:10:00Z",
-};
+// Station G is only in DEMO-002; 999999 stands in for an activation that does not exist.
+function stationGReport(activationId = 999999) {
+  return {
+    activationId,
+    staff: "",
+    station: "Station G",
+    reportedAt: "2026-09-23T08:10:00Z",
+  };
+}
 
 test("POST /api/v1/position-reports rejects an invalid body with 400", async () => {
   const response = await postJson(
@@ -638,7 +750,7 @@ test("POST /api/v1/position-reports rejects an invalid body with 400", async () 
 test("POST /api/v1/position-reports refuses an operator with E0002", async () => {
   const response = await postJson(
     "/api/v1/position-reports",
-    stationGReport,
+    stationGReport(),
     await operatorHeaders(),
   );
 
@@ -650,8 +762,8 @@ test("POST /api/v1/position-reports refuses an operator with E0002", async () =>
 test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 is activated, then accepts it with 202 and refuses Station B with E1004", async () => {
   const before = await postJson(
     "/api/v1/position-reports",
-    stationGReport,
-    await stewardHeaders(),
+    stationGReport(),
+    await m3m4StewardHeaders(),
   );
   assert.equal(before.status, 409);
   assert.equal((await before.json()).error.code, "E1001");
@@ -659,14 +771,15 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   const activation = await postJson(
     "/api/v1/scenarios/DEMO-002/activate",
     {},
-    await operatorHeaders(),
+    await m3m4OperatorHeaders(),
   );
   assert.equal(activation.status, 201);
+  const { activationId } = await activation.json();
 
   const after = await postJson(
     "/api/v1/position-reports",
-    stationGReport,
-    await stewardHeaders(),
+    stationGReport(activationId),
+    await m3m4StewardHeaders(),
   );
   assert.equal(after.status, 202);
   assert.deepEqual(await after.json(), { accepted: true });
@@ -674,8 +787,8 @@ test("POST /api/v1/position-reports refuses Station G with E1001 until DEMO-002 
   // Station B is in DEMO-001, but DEMO-002 is the active scenario.
   const other = await postJson(
     "/api/v1/position-reports",
-    { ...stationGReport, station: "Station B" },
-    await stewardHeaders(),
+    { ...stationGReport(activationId), station: "Station B" },
+    await m3m4StewardHeaders(),
   );
   assert.equal(other.status, 409);
   assert.equal((await other.json()).error.code, "E1004");
@@ -686,4 +799,22 @@ test("protected endpoints reject requests without a token", async () => {
 
   assert.equal(response.status, 401);
   assert.equal((await response.json()).error.code, "E0001");
+});
+
+test("GET /api/v1/scenarios only returns the user's own line group", async () => {
+  const listFor = async (headers: Record<string, string>) => {
+    const response = await fetch(`${baseUrl}/api/v1/scenarios`, { headers });
+    assert.equal(response.status, 200);
+    return (
+      (await response.json()) as { scenarioId: string; lineGroup: string }[]
+    ).map(({ scenarioId, lineGroup }) => [scenarioId, lineGroup]);
+  };
+
+  assert.deepEqual((await listFor(await operatorHeaders())).sort(), [
+    ["DEMO-001", "M1_M2"],
+    ["DEMO-003", "M1_M2"],
+  ]);
+  assert.deepEqual(await listFor(await m3m4OperatorHeaders()), [
+    ["DEMO-002", "M3_M4"],
+  ]);
 });
