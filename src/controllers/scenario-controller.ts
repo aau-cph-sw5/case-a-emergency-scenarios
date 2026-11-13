@@ -2,6 +2,7 @@ import type { Server } from "socket.io";
 import type { Request, Response } from "express";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 import { roleRoom } from "../realtime/socket-server.js";
+import { emitThreadsClosed } from "../realtime/station-messages.js";
 
 import {
   ACTIVATION_STATUSES,
@@ -197,6 +198,9 @@ export async function activate(
     if (!io) {
       console.warn("Socket.IO not attached; scenario-activated not sent");
     }
+    if (io && replaces !== undefined) {
+      emitThreadsClosed(io, replaces, lineGroup);
+    }
     io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-activated", {
       scenario,
       sentAt: new Date().toISOString(),
@@ -261,6 +265,9 @@ export async function standDown(
   const { lineGroup } = result.activation;
   io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-stood-down");
   io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
+  if (io) {
+    emitThreadsClosed(io, result.activation.activationId, lineGroup);
+  }
 
   response.json(result.activation);
 }

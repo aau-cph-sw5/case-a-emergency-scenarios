@@ -1,6 +1,7 @@
-import type { Scenario } from "../types/v1/scenario";
-import type { PositionReport } from "../types/v1/position-report";
-
+import type { Scenario } from "../types/v1/scenario.js";
+import type { PositionReport } from "../types/v1/position-report.js";
+import type { StationMessage } from "../types/v1/station-message.js";
+import type { StationThread } from "../types/v1/station-thread.js";
 // Events the server pushes: activations to stewards, position reports and the
 // "activations changed" signal to operators.
 export interface ServerToClientEvents {

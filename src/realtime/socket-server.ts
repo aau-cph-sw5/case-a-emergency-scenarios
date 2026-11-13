@@ -1,4 +1,6 @@
 import type { Server, Socket } from "socket.io";
+import { getDatabase } from "../db/client.js";
+
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { verifyToken, type AuthUser } from "../services/auth-service.js";
 import {
@@ -7,6 +9,7 @@ import {
 } from "../repositories/activation-repository.js";
 
 import { findScenario } from "../repositories/scenario-repository.js";
+import { findLatestReport } from "../repositories/position-report-repository.js";
 
 // Each socket joins the room for its role and line group, so an event reaches
 // one role in one line group only, e.g. io.to(roleRoom("STEWARD", "M1_M2")).
@@ -15,6 +18,9 @@ export function roleRoom(
   lineGroup: AuthUser["lineGroup"],
 ): string {
   return `${role}:${lineGroup}`;
+}
+export function stationRoom(activationId: number, station: string): string {
+  return `station:${activationId}:${station}`;
 }
 
 export function userRoom(userId: number): string {
@@ -100,9 +106,25 @@ export function attachSocketHandlers(io: Server) {
           role,
           current.lineGroup,
         );
-        socket.emit("welcome", "Connected to the emergency scenarios server.");
-        // The active scenario in the user's own line group.
+     // The active scenario in the user's own line group.
         const latest = await findActiveActivation(current.lineGroup);
+        if (role === "STEWARD" && latest) {
+          try{
+            const report = await findLatestReport(getDatabase(), String(userId), latest.startedAt,
+          );
+          if (
+            report?.activationId === latest.activationId &&
+            report.event === "ARRIVED" && !report.taskDone && socket.connected
+          ){
+            await socket.join(stationRoom(latest.activationId, report.station));
+          }
+          } catch (error) {
+            console.error("Could not rejoin the station room", error);
+          }
+        }
+        socket.emit("welcome", "Connected to the emergency scenarios server.");
+   
+
         if (role === "STEWARD" && latest) {
           try {
             const versionId = await findActiveScenarioVersion(

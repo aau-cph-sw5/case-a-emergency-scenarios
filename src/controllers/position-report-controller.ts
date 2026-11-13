@@ -15,6 +15,7 @@ import {
   checkPositionReportReplay,
   recordPositionReport,
 } from "../services/position-report-service.js";
+import { setCheckedIn } from "../realtime/station-messages.js";
 
 // The response carries the code's fixed message; the details go to the log.
 function refuse(
@@ -111,6 +112,10 @@ export async function postPositionReport(request: Request, response: Response) {
   // A repeat changes nothing, so the operators are not told again.
   if (result.kind === "repeat") {
     return response.status(202).json({ accepted: true });
+  }
+  const io = request.app.locals.io as Server | undefined;
+  if (io){
+    setCheckedIn(io, userId, activationId.activationId, station, report.event === "ARRIVED");
   }
 
   const io = request.app.locals.io as Server | undefined;
