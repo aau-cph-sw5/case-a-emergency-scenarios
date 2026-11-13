@@ -115,10 +115,9 @@ export async function postPositionReport(request: Request, response: Response) {
   }
   const io = request.app.locals.io as Server | undefined;
   if (io){
-    setCheckedIn(io, userId, activationId.activationId, station, report.event === "ARRIVED");
+    setCheckedIn(io, userId, activation.activationId, station, report.event === "ARRIVED");
   }
 
-  const io = request.app.locals.io as Server | undefined;
   io?.to(roleRoom("OPERATOR", activation.lineGroup)).emit("position-report", {
     ...report,
     sentAt: now,

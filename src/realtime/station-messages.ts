@@ -4,10 +4,10 @@ import type {
     StationMessageEvent,
     StationThreadsClosed,
   } from "../../shared/socket/events.js";
-import type { LineGroup } from "…";
+../../shared/auth/line-groups.js
 
 export function setCheckedIn(
-    io: server,
+    io: Server,
     userId: number,
     activationId: number,
     station: string,
@@ -15,7 +15,7 @@ export function setCheckedIn(
 ) {
     const sockets = io.in(userRoom(userId));
     const room = stationRoom(activationId, station);
-    if (checkedIn) sockets.join(room);
+    if (checkedIn) sockets.socketsJoin(room);
     else sockets.socketsLeave(room);
     
 }
