@@ -18,6 +18,12 @@ const m1m2Users = [
     role: "OPERATOR",
     lineGroup: "M1_M2",
   },
+  {
+    username: "analyst",
+    password: "analyst123",
+    role: "ANALYST",
+    lineGroup: "M1_M2",
+  },
 ] as const;
 
 // The same accounts for M3/M4, so tests can log in to either line group.
@@ -33,7 +39,7 @@ const users = [
 export type SeededTestUser = {
   id: number;
   username: string;
-  role: "STEWARD" | "OPERATOR";
+  role: "STEWARD" | "OPERATOR" | "ANALYST";
   lineGroup: LineGroup;
 };
 

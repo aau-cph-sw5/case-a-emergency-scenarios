@@ -5,7 +5,10 @@
   "required": ["userId", "role", "lineGroup"],
   "properties": {
     "userId": { "type": "integer" },
-    "role": { "type": "string", "enum": ["STEWARD", "OPERATOR", "ADMIN"] },
+    "role": {
+      "type": "string",
+      "enum": ["STEWARD", "OPERATOR", "ADMIN", "ANALYST"]
+    },
     "lineGroup": { "type": "string", "enum": ["M1_M2", "M3_M4"] }
   }
 }

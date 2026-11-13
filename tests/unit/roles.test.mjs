@@ -4,13 +4,14 @@ import { ROLES, isRole } from "../../shared/auth/roles.ts";
 import { isRoleAllowedForClient } from "../../shared/auth/client-access.ts";
 
 test("defines the supported account roles", () => {
-  assert.deepEqual(ROLES, ["STEWARD", "OPERATOR", "ADMIN"]);
+  assert.deepEqual(ROLES, ["STEWARD", "OPERATOR", "ADMIN", "ANALYST"]);
 });
 
 test("recognises only supported account roles", () => {
   assert.equal(isRole("STEWARD"), true);
   assert.equal(isRole("OPERATOR"), true);
   assert.equal(isRole("ADMIN"), true);
+  assert.equal(isRole("ANALYST"), true);
   assert.equal(isRole("UNKNOWN"), false);
   assert.equal(isRole(1), false);
   assert.equal(isRole(null), false);
