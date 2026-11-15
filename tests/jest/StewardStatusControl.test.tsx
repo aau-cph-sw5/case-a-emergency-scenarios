@@ -82,10 +82,12 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(screen.queryByText("TJEK UD")).toBeNull();
   });
 
-  it("shows no status after checking out, with the station that was left", () => {
+  // Checked out is a 4 s note only; then the box is back at the start (#376).
+  it("is back at no station after checking out", () => {
     renderControl({ own: { station: "Station B", status: "CHECKED_OUT" } });
-    expect(screen.getByText("CHECKET UD")).toBeTruthy();
-    expect(screen.getByText("Du er tjekket ud fra Station B.")).toBeTruthy();
+    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
+    expect(screen.getByText("Ingen station")).toBeTruthy();
+    expect(screen.queryByText("CHECKET UD")).toBeNull();
     expect(screen.queryByText("TJEK UD")).toBeNull();
   });
 
