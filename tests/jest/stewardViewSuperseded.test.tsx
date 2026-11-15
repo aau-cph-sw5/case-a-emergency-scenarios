@@ -9,6 +9,7 @@ import {
 } from "../../mobile/src/screens/StewardView";
 import { queuePositionReport } from "../../mobile/src/offline/queue-position-report";
 import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
+import { stationMessageDelivery } from "../../mobile/src/offline/station-message-store";
 import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
@@ -29,6 +30,9 @@ jest.mock("../../shared/socket/useSocketState", () => ({
 jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
   positionReportDelivery: { flush: jest.fn() },
 }));
+jest.mock("../../mobile/src/offline/station-message-store", () => ({
+  stationMessageDelivery: { flush: jest.fn() },
+}));
 jest.mock("../../mobile/src/offline/queue-position-report", () => ({
   queuePositionReport: jest.fn(),
 }));
@@ -40,6 +44,13 @@ const { useActiveScenario } = jest.requireMock(
   "../../shared/offline/use-active-scenario",
 ) as { useActiveScenario: jest.Mock };
 const flush = jest.mocked(positionReportDelivery.flush);
+const flushMessages = jest.mocked(stationMessageDelivery.flush);
+const noMessagesSent = {
+  delivered: [],
+  rejected: 0,
+  pending: 0,
+  blocked: false,
+};
 const queue = jest.mocked(queuePositionReport);
 const nothingSent = {
   acknowledged: 0,
@@ -60,6 +71,7 @@ const queued = {
 beforeEach(() => {
   jest.clearAllMocks();
   flush.mockResolvedValue(nothingSent);
+  flushMessages.mockResolvedValue(noMessagesSent);
 });
 
 // Shows the live view and reports going on the way to Station B.
@@ -119,6 +131,51 @@ function stewardView(online: boolean) {
     />
   );
 }
+
+describe("StewardView station messages written offline (MET-A-029)", () => {
+  it("sends the queued station messages when the phone is back online", async () => {
+    showView({ status: "copy", reason: "offline", snapshot });
+    const { rerender } = render(stewardView(false));
+    expect(flushMessages).not.toHaveBeenCalled();
+
+    showView({ status: "live", snapshot });
+    rerender(stewardView(true));
+    await act(async () => {});
+
+    expect(flushMessages).toHaveBeenCalledWith("7", token);
+  });
+
+  it("still shows how the reports went when sending the messages fails", async () => {
+    flush.mockResolvedValue({ ...nothingSent, acknowledged: 1 });
+    flushMessages.mockRejectedValue(new Error("storage failed"));
+    showView({ status: "copy", reason: "offline", snapshot });
+    const { rerender } = render(stewardView(false));
+
+    showView({ status: "live", snapshot });
+    rerender(stewardView(true));
+
+    expect(await screen.findByText("Position sendt.")).toBeTruthy();
+  });
+
+  it("tries again later while messages are waiting for the connection", async () => {
+    jest.useFakeTimers();
+    try {
+      flushMessages.mockResolvedValue({ ...noMessagesSent, blocked: true });
+      showView({ status: "live", snapshot });
+      render(stewardView(true));
+      await act(async () => {});
+      const sends = flushMessages.mock.calls.length;
+
+      await act(async () => {
+        jest.advanceTimersByTime(RETRY_DELAYS_MS[0]);
+      });
+
+      expect(flushMessages.mock.calls.length).toBeGreaterThan(sends);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
 
 describe("StewardView superseded reports", () => {
   it("tells the steward on reconnect, without user action, why a queued report was rejected", async () => {
