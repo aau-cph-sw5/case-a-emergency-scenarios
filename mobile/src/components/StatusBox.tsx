@@ -10,6 +10,16 @@ import {
 } from "react-native";
 import { colors, motion, panelRadius, steward } from "../../../shared/Theme";
 
+// How many are at a station and on the way, in the same words in the status
+// box and in the station list (#375, #376).
+export function staffingWords(arrived: number, enRoute: number): string {
+  const parts = [
+    arrived > 0 ? `${arrived} på stationen` : null,
+    enRoute > 0 ? `${enRoute} på vej` : null,
+  ].filter((part) => part !== null);
+  return parts.length > 0 ? parts.join(" · ") : "Ingen tildelt";
+}
+
 export type StatusChip = { label: string; background: string; color: string };
 
 // A short message that shows on the back of the box. key changes for every
@@ -54,7 +64,10 @@ export function StatusBox({
         toValue: toBack ? 1 : 0,
         duration: motion.flipMs,
         easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
+        // Driven from JavaScript on purpose: with the native driver, a
+        // re-render during the next status change (check in) put the box
+        // back on its black front for a moment before the new note.
+        useNativeDriver: false,
       }).start();
     },
     [turn],
@@ -68,7 +81,10 @@ export function StatusBox({
       turnTo(false);
       return;
     }
-    turnTo(true);
+    // A note that replaces one still showing changes the text on the back
+    // without turning the box (it never shows the black front in between).
+    if (!showingRef.current) turnTo(true);
+    else if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => turnTo(false), motion.notificationMs);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);

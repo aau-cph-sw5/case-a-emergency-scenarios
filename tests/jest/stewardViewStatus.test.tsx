@@ -25,6 +25,29 @@ import { useActiveScenario } from "../../shared/offline/use-active-scenario";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
+// Choosing a station is a tap on its row and the yellow BEKRÆFT slide, and
+// cancelling is the own row's swipe (or tap) and BEKRÆFT ANNULLÉR (#376).
+// Each step is its own act, so the screen has the new state before the next.
+async function chooseStation(station: string) {
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText(`Vælg ${station}`));
+  });
+  await act(async () => {
+    fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+      nativeEvent: { actionName: "activate" },
+    });
+  });
+}
+
+async function cancelStation(station: string) {
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText(`Annullér ${station}`));
+  });
+  await act(async () => {
+    fireEvent.press(screen.getByText("BEKRÆFT ANNULLÉR"));
+  });
+}
+
 // The view is driven by a given scenario view and a mocked position report,
 // so no server, socket or storage is needed.
 jest.mock("../../shared/offline/use-active-scenario", () => ({
@@ -158,9 +181,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     await renderView();
     expect(screen.getByText("IKKE VALGT")).toBeTruthy();
 
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
-    });
+    await chooseStation("Station B");
 
     expect(queue).toHaveBeenCalledWith({
       userId: "9",
@@ -176,7 +197,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       "EN_ROUTE",
     );
     expect(screen.getByText("PÅ VEJ")).toBeTruthy();
-    expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
+    expect(screen.queryByLabelText("Vælg Station B")).toBeNull();
 
     await act(async () => {
       fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
@@ -198,19 +219,15 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       "CHECKED_OUT",
     );
     expect(screen.getByText("Du er tjekket ud fra Station B.")).toBeTruthy();
-    expect(screen.getByLabelText("Meld dig på vej til Station B")).toBeTruthy();
+    expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
   });
 
   it("cancels while on the way and offers + again", async () => {
     showView({ status: "live", snapshot });
     await renderView();
 
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByText("FORTRYD"));
-    });
+    await chooseStation("Station B");
+    await cancelStation("Station B");
 
     expect(report).toHaveBeenLastCalledWith(
       "token",
@@ -219,15 +236,13 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       "CANCELLED",
     );
     expect(screen.getByText("IKKE VALGT")).toBeTruthy();
-    expect(screen.getByLabelText("Meld dig på vej til Station B")).toBeTruthy();
+    expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
   });
 
   it("shows the refusal and keeps the status when arriving is refused", async () => {
     showView({ status: "live", snapshot });
     await renderView();
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
-    });
+    await chooseStation("Station B");
     report.mockResolvedValue({
       ok: false,
       message: "Stationen er ikke en del af det aktive scenarie.",
@@ -253,9 +268,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     showView({ status: "live", snapshot });
     await renderView();
 
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
-    });
+    await chooseStation("Station B");
 
     expect(rejection).toHaveBeenCalledWith("9", "report-9");
     expect(
@@ -285,9 +298,11 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
         "Din position er ikke sendt endnu. Du kan ændre status, når den er modtaget.",
       ),
     ).toBeTruthy();
+    // The own row cannot be opened, so BEKRÆFT ANNULLÉR stays hidden (#376).
     await act(async () => {
-      fireEvent.press(screen.getByText("FORTRYD"));
+      fireEvent.press(screen.getByLabelText("Annullér Station B"));
     });
+    expect(screen.queryByText("BEKRÆFT ANNULLÉR")).toBeNull();
     await act(async () => {
       fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
         nativeEvent: { actionName: "activate" },
@@ -307,9 +322,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
         "Uden forbindelse kan du kun melde dig på vej. Du ser den gemte kopi.",
       ),
     ).toBeTruthy();
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
-    });
+    await chooseStation("Station B");
 
     expect(queue).toHaveBeenCalledWith({
       userId: "9",
@@ -318,7 +331,8 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       activationId: 1,
       event: "EN_ROUTE",
     });
-    expect(screen.getByText("Position gemt. Afventer levering.")).toBeTruthy();
+    // Saved on the phone; the status box shows the change, no extra line.
+    expect(screen.queryByText("Position gemt. Afventer levering.")).toBeNull();
     expect(screen.getByText("PÅ VEJ")).toBeTruthy();
     await act(async () => {
       fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
@@ -370,9 +384,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
   it("explains an E1006 refusal and fetches the scenario again (#310)", async () => {
     showView({ status: "live", snapshot });
     await renderView();
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
-    });
+    await chooseStation("Station B");
     report.mockResolvedValue({
       ok: false,
       message:
@@ -436,9 +448,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     );
     const view = render(element());
     await act(async () => {});
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
-    });
+    await chooseStation("Station B");
     await act(async () => {
       fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
         nativeEvent: { actionName: "activate" },

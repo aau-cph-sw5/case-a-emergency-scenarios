@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  AppState,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-} from "react-native";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { getStationState } from "../../../shared/components/stationState";
 import { userIdFromToken } from "../../../shared/auth/login";
 import { ERROR_CODES } from "../../../shared/error-codes";
@@ -34,7 +28,7 @@ import { socket } from "../socket";
 import { ScenarioNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
-import { ScenarioOverview } from "./ScenarioOverview";
+import { oneRowPerStation, ScenarioOverview } from "./ScenarioOverview";
 
 // Shown on the saved copy, where only going on the way can be reported.
 const STATUS_BLOCKED_OFFLINE =
@@ -109,7 +103,7 @@ export function StewardView({
   onRetry?: () => void;
 }) {
   // Data from the socketstate
-  const { isConnected, messages } = useSocketState(socket);
+  const { isConnected } = useSocketState(socket);
   const { view, refresh, dismissNotice } = useActiveScenario({
     apiBaseUrl,
     token,
@@ -123,8 +117,12 @@ export function StewardView({
   const [ownStatus, setOwnStatus] = useState<OwnStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [sendingStatus, setSendingStatus] = useState(false);
-  // The page does not scroll while the arrival slide is being slid.
-  const [sliding, setSliding] = useState(false);
+  // The station chosen in the list, assigned by the BEKRÆFT slide (#376).
+  const [selected, setSelected] = useState<string | undefined>(undefined);
+  // Whether the map is shown above the list; kept until logout (#376).
+  const [mapShown, setMapShown] = useState(true);
+  // Nudges the own row once after each assignment, so the swipe is found.
+  const [peekKey, setPeekKey] = useState<number | undefined>(undefined);
   // The note shown after the steward's own change, never after a reload.
   const [note, setNote] = useState<StatusNote | null>(null);
 
@@ -205,41 +203,40 @@ export function StewardView({
     };
   }, [token, activationId, userId, deployments]);
 
-  // Sends the queued reports and says what happened, null when nothing changed.
+  // Sends the queued reports and says what went wrong, null when nothing did.
+  // A report that went through says nothing (#376): the status box already
+  // shows the new status, so "Position sendt." was noise. delivered tells
+  // that something went through, so an old problem message can go.
   const deliver = useCallback(async (): Promise<{
     message: string | null;
     blocked: boolean;
+    delivered: boolean;
   }> => {
     // From the token, since a stopped scenario leaves no snapshot.
     const owner = userIdFromToken(token);
-    if (owner === null) return { message: null, blocked: false };
+    if (owner === null)
+      return { message: null, blocked: false, delivered: false };
     try {
       const result = await positionReportDelivery.flush(owner, token);
-      const sent =
-        result.pending > 0
-          ? "Position gemt. Afventer levering."
-          : result.acknowledged > 0
-            ? "Position sendt."
-            : null;
       const refused =
         result.rejected > result.superseded.length
           ? "Positionen blev ikke modtaget."
           : null;
       // A delivered or refused report changes the server's copy, so it is fetched again.
       if (result.acknowledged > 0 || result.rejected > 0) void refresh();
-      const lines = [
-        supersededMessage(result.superseded),
-        refused,
-        sent,
-      ].filter((line) => line !== null);
+      const lines = [supersededMessage(result.superseded), refused].filter(
+        (line) => line !== null,
+      );
       return {
         message: lines.length > 0 ? lines.join("\n") : null,
         blocked: result.blockedBy !== undefined,
+        delivered: result.acknowledged > 0,
       };
     } catch {
       return {
         message: "Position gemt på telefonen, men kunne ikke sendes endnu.",
         blocked: true,
+        delivered: false,
       };
     }
   }, [token, refresh]);
@@ -262,9 +259,10 @@ export function StewardView({
   // Sends the queue and shows the answer; a failed send waits for another try.
   const sendQueued = useCallback(
     (isCancelled: () => boolean) =>
-      void deliver().then(({ message, blocked }) => {
+      void deliver().then(({ message, blocked, delivered }) => {
         if (isCancelled()) return;
         if (message !== null) setReportStatus(message);
+        else if (delivered) setReportStatus(null);
         setRetries((count) => (blocked ? count + 1 : 0));
         void checkWaiting();
       }),
@@ -314,7 +312,8 @@ export function StewardView({
       };
     }
     if (!canSend) {
-      setReportStatus("Position gemt. Afventer levering.");
+      // Saved on the phone; the status box shows the steward on the way.
+      setReportStatus(null);
       setWaiting(queued);
       return { ok: true, message: "" };
     }
@@ -332,7 +331,7 @@ export function StewardView({
         ...(rejection.code === undefined ? {} : { code: rejection.code }),
       };
     }
-    setReportStatus(message ?? "Position gemt. Afventer levering.");
+    setReportStatus(message);
     // A report that could not be sent now is tried again after a delay.
     if (blocked) setRetries((count) => count + 1);
     return { ok: true, message: "" };
@@ -368,6 +367,8 @@ export function StewardView({
         animateNextLayout();
         setOwnStatus(result.own);
         setNote((last) => statusNote(result.own, (last?.key ?? 0) + 1));
+        setSelected(undefined);
+        if (change.type === "assign") setPeekKey((last) => (last ?? 0) + 1);
       } else setStatusError(result.message);
       // The server or the app's own check refused the change, so the app's
       // status is out of date (#310): a new copy brings the server's.
@@ -388,20 +389,30 @@ export function StewardView({
   // have none, so + comes back and nothing is highlighted.
   const ownStation =
     own && own.status !== "CHECKED_OUT" ? own.station : undefined;
-  // After arriving the steward checks out before choosing a new station.
-  const canAssign =
+  // A station is chosen only while the steward has none: on the way they
+  // cancel first (the swipe), and after arriving they check out first.
+  // A chosen station that a new copy of the scenario no longer has is
+  // dropped, so the slide cannot assign a station that is not there.
+  const chosen =
+    selected !== undefined &&
+    (shown?.scenario.versions[0]?.stationRequirements ?? []).some(
+      (row) => row.station === selected,
+    )
+      ? selected
+      : undefined;
+  const canPick =
     (view.status === "live" || view.status === "copy") &&
     !sendingStatus &&
-    own?.status !== "MANNED" &&
-    own?.status !== "TASK_DONE";
+    ownStation === undefined;
 
   // The coverage of the steward's station, from the server's deployments
   // only, so the steward sees the same as the control room.
   const ownRequirement =
     ownStation && shown
-      ? shown.scenario.versions[0]?.stationRequirements?.find(
-          (requirement) => requirement.station === ownStation,
-        )
+      ? // All rows of the station together, as in the list (#376).
+        oneRowPerStation(
+          shown.scenario.versions[0]?.stationRequirements ?? [],
+        ).find((requirement) => requirement.station === ownStation)
       : undefined;
   const ownCoverage =
     ownStation && shown && ownRequirement
@@ -424,14 +435,14 @@ export function StewardView({
   return (
     <RoleView
       title="Steward"
-      description="Logget ind som steward."
+      scenario={shown?.scenario.name}
+      connected={online && isConnected}
       onLogout={onLogout}
     >
       <ScenarioNotice view={view} onDismiss={dismissNotice} />
-      <ScrollView
-        contentContainerStyle={styles.content}
-        scrollEnabled={!sliding}
-      >
+      {/* The screen does not scroll (#376): the status box at the top, the
+          map and the list in the middle, and one control at the bottom. */}
+      <View style={styles.content}>
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
         )}
@@ -460,26 +471,32 @@ export function StewardView({
           />
         )}
         {shown && (
-          <>
-            <StewardStatusControl
-              own={own}
-              coverage={ownCoverage}
-              blockedReason={
-                view.status === "copy"
-                  ? STATUS_BLOCKED_OFFLINE
-                  : waiting !== null
-                    ? STATUS_BLOCKED_WAITING
-                    : null
-              }
-              sending={sendingStatus}
-              error={statusError}
-              onArrive={() => void changeStatus({ type: "arrive" })}
-              onCancel={() => void changeStatus({ type: "cancel" })}
-              onCheckOut={() => void changeStatus({ type: "checkOut" })}
-              onSlidingChange={setSliding}
-              note={note}
-              offline={view.status === "copy"}
-            />
+          <StewardStatusControl
+            own={own}
+            coverage={ownCoverage}
+            blockedReason={
+              view.status === "copy"
+                ? STATUS_BLOCKED_OFFLINE
+                : waiting !== null
+                  ? STATUS_BLOCKED_WAITING
+                  : null
+            }
+            sending={sendingStatus}
+            error={statusError}
+            onArrive={() => void changeStatus({ type: "arrive" })}
+            onAssign={
+              canPick
+                ? () =>
+                    chosen !== undefined &&
+                    void changeStatus({ type: "assign", station: chosen })
+                : undefined
+            }
+            selected={chosen}
+            onCheckOut={() => void changeStatus({ type: "checkOut" })}
+            note={note}
+            offline={view.status === "copy"}
+          >
+            {reportStatus && <Text style={styles.report}>{reportStatus}</Text>}
             <ScenarioOverview
               snapshot={shown}
               assignedStation={ownStation}
@@ -489,37 +506,47 @@ export function StewardView({
               ownArrived={
                 own?.status === "MANNED" || own?.status === "TASK_DONE"
               }
-              onAssign={
-                canAssign
-                  ? (station) => void changeStatus({ type: "assign", station })
+              onSelect={
+                canPick
+                  ? (station) => {
+                      animateNextLayout();
+                      setSelected(station);
+                    }
                   : undefined
               }
+              selected={chosen}
+              onCancel={() => void changeStatus({ type: "cancel" })}
+              cancelDisabled={
+                sendingStatus || view.status !== "live" || waiting !== null
+              }
+              peekKey={peekKey}
+              mapShown={mapShown}
+              onToggleMap={() => {
+                animateNextLayout();
+                setMapShown((shownNow) => !shownNow);
+              }}
             />
-          </>
+          </StewardStatusControl>
         )}
 
-        {reportStatus && <Text>{reportStatus}</Text>}
-
-        {online && (
-          <>
-            <Text style={isConnected ? styles.ok : styles.offline}>
-              Socket: {isConnected ? "connected" : "disconnected"}
-            </Text>
-
-            {messages.map((message) => (
-              <Text key={message.id}>Socket: {message.text}</Text>
-            ))}
-          </>
+        {/* Without a scenario (for example after a stop) the answer about
+            the reports still shows; with one, it sits above the list. */}
+        {!shown && reportStatus && (
+          <Text style={styles.report}>{reportStatus}</Text>
         )}
-      </ScrollView>
+      </View>
     </RoleView>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
+    flex: 1,
     paddingTop: 12,
-    paddingBottom: 24,
+  },
+  report: {
+    ...text.small,
+    marginBottom: 6,
   },
   message: {
     ...text.body,
@@ -531,15 +558,6 @@ const styles = StyleSheet.create({
     color: palette.metroDeepRed,
     fontWeight: "600",
     marginBottom: 4,
-  },
-  ok: {
-    color: "#1b7f3b",
-    fontWeight: "600",
-    marginTop: 8,
-  },
-  offline: {
-    color: "#6b7280",
-    marginTop: 8,
   },
   button: {
     alignSelf: "flex-start",

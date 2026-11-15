@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   colors,
@@ -8,7 +9,12 @@ import {
 } from "../../../shared/Theme";
 import type { OwnStatus } from "../data/steward-status";
 import { SlideToConfirm } from "./SlideToConfirm";
-import { StatusBox, type StatusChip, type StatusNote } from "./StatusBox";
+import {
+  StatusBox,
+  staffingWords,
+  type StatusChip,
+  type StatusNote,
+} from "./StatusBox";
 
 export type StationCoverage = {
   arrived: number;
@@ -17,10 +23,13 @@ export type StationCoverage = {
 };
 
 // The steward's own status in the active scenario (MET-A-015, #263, #305):
-// no status, on the way, arrived or checked out. Only the next valid actions
-// are offered: on the way, the arrival slide and Fortryd; arrived, Tjek ud.
-// Choosing a station happens with + in "Påvirkede stationer". Colours, words,
-// symbols, spacing and radius come from Theme.tsx.
+// no status, on the way, arrived or checked out. Only the next valid action
+// is offered, in ONE control at the bottom of the screen (#376): without a
+// station, the yellow BEKRÆFT slide for the station chosen in the list (grey
+// and locked until one is chosen); on the way, the CHECK IND slide; arrived,
+// Tjek ud. Cancelling is a swipe on the own row in the list. children (the
+// map and the list) sit between the status box and the control. Colours,
+// words, symbols, spacing and radius come from Theme.tsx.
 //
 // The status is shown in the black status box (#375): the station, a chip
 // with the status, and the staffing of the station under its name. note is
@@ -32,11 +41,13 @@ export function StewardStatusControl({
   sending,
   error,
   onArrive,
-  onCancel,
+  onAssign,
+  selected,
   onCheckOut,
   onSlidingChange,
   note = null,
   offline = false,
+  children,
 }: {
   own: OwnStatus | null;
   coverage: StationCoverage | null;
@@ -45,13 +56,17 @@ export function StewardStatusControl({
   sending: boolean;
   error: string | null;
   onArrive: () => void;
-  onCancel: () => void;
+  // Assigns the steward to the station chosen in the list. Left out when the
+  // steward cannot choose a station right now.
+  onAssign?: () => void;
+  selected?: string;
   onCheckOut: () => void;
   // Whether the arrival slide is being slid, so the screen can stop scrolling.
   onSlidingChange?: (sliding: boolean) => void;
   note?: StatusNote | null;
   // Showing the saved copy without a connection: the slide is grey and locked.
   offline?: boolean;
+  children?: ReactNode;
 }) {
   // After checking out the steward is free again, like with no status.
   const active = own !== null && own.status !== "CHECKED_OUT" ? own : null;
@@ -85,28 +100,14 @@ export function StewardStatusControl({
             ? `Du er tjekket ud fra ${own.station}.`
             : active === null
               ? "Vælg den nærmeste station"
-              : staffing(coverage)
+              : coverage && coverage.needed > 0
+                ? staffingWords(coverage.arrived, coverage.enRoute)
+                : null
         }
         note={note}
       />
 
-      {active === null && (
-        <Text style={styles.hint}>
-          Tryk + ved en station under Påvirkede stationer for at melde dig på
-          vej.
-        </Text>
-      )}
-
-      {active?.status === "PENDING" && blockedReason === null && (
-        <Text style={styles.hint}>
-          Forkert station? Tryk + ved den rigtige, eller fortryd.
-        </Text>
-      )}
-      {atStation && blockedReason === null && (
-        <Text style={styles.hint}>
-          Tjek ud, når du forlader stationen. Så kan du melde dig til en ny.
-        </Text>
-      )}
+      <View style={styles.middle}>{children}</View>
 
       {active?.status === "PENDING" && (
         <>
@@ -118,16 +119,18 @@ export function StewardStatusControl({
             onConfirm={onArrive}
             onSlidingChange={onSlidingChange}
           />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled }}
-            disabled={disabled}
-            onPress={onCancel}
-            style={[styles.secondaryButton, disabled && styles.disabled]}
-          >
-            <Text style={styles.secondaryText}>FORTRYD</Text>
-          </Pressable>
         </>
+      )}
+
+      {active === null && onAssign && (
+        <SlideToConfirm
+          label="BEKRÆFT"
+          tone="yellow"
+          lockedReason={selected === undefined ? "Vælg en station" : null}
+          disabled={sending}
+          onConfirm={onAssign}
+          onSlidingChange={onSlidingChange}
+        />
       )}
 
       {atStation && (
@@ -182,20 +185,12 @@ function statusChip(
   }
 }
 
-// The line under the station name: how many are at the station and on the
-// way, the same words as the station list. Nothing when the app has no count.
-function staffing(coverage: StationCoverage | null): string | null {
-  if (coverage === null || coverage.needed === 0) return null;
-  const parts = [
-    coverage.arrived > 0 ? `${coverage.arrived} på stationen` : null,
-    coverage.enRoute > 0 ? `${coverage.enRoute} på vej` : null,
-  ].filter((part) => part !== null);
-  return parts.length > 0 ? parts.join(" · ") : "Ingen tildelt";
-}
-
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.medium,
+    flex: 1,
+  },
+  middle: {
+    flex: 1,
   },
   error: {
     ...text.body,
@@ -209,11 +204,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: spacing.small,
   },
-  hint: {
-    ...text.body,
-    color: colors.text,
-    marginTop: spacing.small,
-  },
   primaryButton: {
     alignItems: "center",
     backgroundColor: steward.black,
@@ -224,19 +214,6 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     ...text.button,
-    letterSpacing: 1,
-  },
-  secondaryButton: {
-    alignItems: "center",
-    backgroundColor: steward.strip,
-    borderRadius: panelRadius,
-    justifyContent: "center",
-    marginTop: spacing.medium,
-    minHeight: 44,
-  },
-  secondaryText: {
-    ...text.button,
-    color: colors.text,
     letterSpacing: 1,
   },
   disabled: {
