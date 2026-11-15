@@ -8,7 +8,6 @@ function renderControl(
   props: Partial<Parameters<typeof StewardStatusControl>[0]> = {},
 ) {
   const onArrive = jest.fn();
-  const onCancel = jest.fn();
   const onCheckOut = jest.fn();
   render(
     <StewardStatusControl
@@ -18,12 +17,11 @@ function renderControl(
       sending={false}
       error={null}
       onArrive={onArrive}
-      onCancel={onCancel}
       onCheckOut={onCheckOut}
       {...props}
     />,
   );
-  return { onArrive, onCancel, onCheckOut };
+  return { onArrive, onCheckOut };
 }
 
 function confirmSlide() {
@@ -33,11 +31,24 @@ function confirmSlide() {
 }
 
 describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
-  it("shows no status and points to + when the steward has none", () => {
+  it("shows no status, and no slide when the steward cannot choose", () => {
     renderControl();
     expect(screen.getByText("IKKE VALGT")).toBeTruthy();
-    expect(screen.getByText(/Tryk \+ ved en station/)).toBeTruthy();
+    expect(screen.getByText("Vælg den nærmeste station")).toBeTruthy();
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
+  });
+
+  // The yellow BEKRÆFT slide assigns the station chosen in the list (#376).
+  it("locks BEKRÆFT until a station is chosen, then assigns it", () => {
+    const onAssign = jest.fn();
+    renderControl({ onAssign });
+    expect(screen.getByText("Vælg en station")).toBeTruthy();
+    confirmSlide();
+    expect(onAssign).not.toHaveBeenCalled();
+    screen.unmount();
+    renderControl({ onAssign, selected: "Station B" });
+    confirmSlide();
+    expect(onAssign).toHaveBeenCalledTimes(1);
   });
 
   it("shows on the way with the station and offers only the arrival slide", () => {
@@ -48,7 +59,6 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(screen.getByText("PÅ VEJ")).toBeTruthy();
     expect(screen.getByText("Station B")).toBeTruthy();
     expect(screen.getByText("1 på stationen · 1 på vej")).toBeTruthy();
-    expect(screen.getByText(/Forkert station\?/)).toBeTruthy();
     confirmSlide();
     expect(onArrive).toHaveBeenCalledTimes(1);
   });
@@ -61,18 +71,15 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(screen.getByText("ANKOMMET 2/2")).toBeTruthy();
     expect(screen.getByText("2 på stationen")).toBeTruthy();
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
-    expect(screen.queryByText("FORTRYD")).toBeNull();
     fireEvent.press(screen.getByText("TJEK UD"));
     expect(onCheckOut).toHaveBeenCalledTimes(1);
   });
 
-  it("offers Fortryd while on the way", () => {
-    const { onCancel } = renderControl({
-      own: { station: "Station B", status: "PENDING" },
-    });
+  // Cancelling is the swipe on the own row in the list, not a button (#376).
+  it("offers no FORTRYD button while on the way", () => {
+    renderControl({ own: { station: "Station B", status: "PENDING" } });
+    expect(screen.queryByText("FORTRYD")).toBeNull();
     expect(screen.queryByText("TJEK UD")).toBeNull();
-    fireEvent.press(screen.getByText("FORTRYD"));
-    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it("shows no status after checking out, with the station that was left", () => {
@@ -82,14 +89,7 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(screen.queryByText("TJEK UD")).toBeNull();
   });
 
-  it("locks Fortryd and Tjek ud while blocked", () => {
-    const pending = renderControl({
-      own: { station: "Station B", status: "PENDING" },
-      blockedReason: "Offline.",
-    });
-    fireEvent.press(screen.getByText("FORTRYD"));
-    expect(pending.onCancel).not.toHaveBeenCalled();
-    screen.unmount();
+  it("locks Tjek ud while a change is being sent", () => {
     const manned = renderControl({
       own: { station: "Station B", status: "MANNED" },
       sending: true,
