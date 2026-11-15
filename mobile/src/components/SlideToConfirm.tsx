@@ -7,9 +7,16 @@ import {
   View,
   type LayoutChangeEvent,
 } from "react-native";
-import { colors, panelRadius, spacing, text } from "../../../shared/Theme";
+import {
+  colors,
+  panelRadius,
+  spacing,
+  steward,
+  text,
+} from "../../../shared/Theme";
 
-const KNOB_SIZE = 52;
+// The track is steward.slideHeight high (#375): the knob plus the gap above and below it.
+const KNOB_SIZE = steward.slideHeight - 2 * spacing.small;
 // The gap between the knob and the edge of the track.
 const INSET = spacing.small;
 // How far the knob must travel before the action counts, so a brush with a
@@ -27,12 +34,15 @@ const CONFIRM_SHARE = 0.85;
 export function SlideToConfirm({
   label,
   color,
+  textColor = colors.textInverse,
   disabled = false,
   onConfirm,
   onSlidingChange,
 }: {
   label: string;
   color: string;
+  // Dark text on a light track, such as the yellow one.
+  textColor?: string;
   disabled?: boolean;
   onConfirm: () => void;
   onSlidingChange?: (sliding: boolean) => void;
@@ -96,7 +106,14 @@ export function SlideToConfirm({
       ]}
       testID="slide-to-confirm"
     >
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: textColor }]}>{label}</Text>
+      {/* Three chevrons point the way the knob goes. */}
+      <Text
+        style={[styles.chevrons, { color: textColor }]}
+        importantForAccessibility="no"
+      >
+        ›››
+      </Text>
       <Animated.View
         {...responder.panHandlers}
         style={[styles.knob, { transform: [{ translateX: offset }] }]}
@@ -121,14 +138,25 @@ const styles = StyleSheet.create({
   label: {
     ...text.button,
     color: colors.textInverse,
-    letterSpacing: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 1.6,
     paddingLeft: KNOB_SIZE + spacing.large,
+  },
+  chevrons: {
+    color: colors.textInverse,
+    fontSize: 26,
+    fontWeight: "700",
+    letterSpacing: 2,
+    opacity: 0.6,
+    position: "absolute",
+    right: spacing.large,
   },
   knob: {
     alignItems: "center",
     backgroundColor: colors.background,
     // Follows the track's corner, inset by the gap.
-    borderRadius: panelRadius - INSET,
+    borderRadius: panelRadius - INSET * 1.5,
     height: KNOB_SIZE,
     justifyContent: "center",
     left: INSET,

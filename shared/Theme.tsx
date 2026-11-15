@@ -30,6 +30,19 @@ export const palette = {
   darkYellow: "#8A6A00", // yellow dark enough to read as text on white
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
+
+  // The steward app's look from the approved prototype (#375). Only the
+  // steward app uses these; the web keeps the colours above.
+  stewardYellow: "#F6CD54",
+  stewardGreen: "#3B8764",
+  stewardRed: "#D8332A",
+  stewardBlack: "#212121",
+  stewardChipGrey: "#9AA0A6",
+  stewardLabelGrey: "#C9CCD0",
+  stewardLine: "#D9DCDF",
+  stewardStrip: "#F6F7F8",
+  stewardMuted: "#5B6168",
+  stewardNobody: "#C0281C",
 };
 
 export const colors = {
@@ -163,6 +176,42 @@ export const badge = {
 export const page = {
   backgroundColor: colors.page,
   flex: 1,
+};
+
+// The steward app's colours and sizes (#375). The status colours match the
+// slide that leads to the status: yellow on the way, green arrived, red
+// checked out. A station row uses two colours only: red when nobody is
+// assigned and black otherwise, with a check mark when it is fully staffed.
+export const steward = {
+  yellow: palette.stewardYellow,
+  green: palette.stewardGreen,
+  red: palette.stewardRed,
+  black: palette.stewardBlack,
+  chipGrey: palette.stewardChipGrey,
+  labelGrey: palette.stewardLabelGrey,
+  line: palette.stewardLine,
+  strip: palette.stewardStrip,
+  muted: palette.stewardMuted,
+  nobody: palette.stewardNobody,
+  // The black status box is this high in every state, so nothing below it
+  // moves when the status changes.
+  statusBoxHeight: 112,
+  ownRowHeight: 64,
+  slideHeight: 56,
+};
+
+// How things move in the steward app (#375). Every block that opens or closes
+// uses the same duration and an ease-in-out curve; text in a block that grows
+// fades in once the block is past half way, and text in a block that shrinks
+// fades out first. A notification shows on the back of the status box for
+// notificationMs, or until it is tapped.
+export const motion = {
+  layoutMs: 380,
+  fadeInDelayMs: 140,
+  fadeInMs: 200,
+  fadeOutMs: 120,
+  flipMs: 300,
+  notificationMs: 4000,
 };
 
 // A required station on the map by its live coverage (MET-A-011, #310): the

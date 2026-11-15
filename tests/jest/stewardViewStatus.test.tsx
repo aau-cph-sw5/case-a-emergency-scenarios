@@ -156,7 +156,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
   it("goes from no status, via on the way and arrived, to checked out", async () => {
     showView({ status: "live", snapshot });
     await renderView();
-    expect(screen.getByText("Ingen status")).toBeTruthy();
+    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
@@ -175,7 +175,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       1,
       "EN_ROUTE",
     );
-    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
     expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
 
     await act(async () => {
@@ -185,7 +185,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     });
 
     expect(report).toHaveBeenLastCalledWith("token", "Station B", 1, "ARRIVED");
-    expect(screen.getByText(/DU ER ANKOMMET/)).toBeTruthy();
+    expect(screen.getByText(/^ANKOMMET/)).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByText("TJEK UD"));
@@ -218,7 +218,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       1,
       "CANCELLED",
     );
-    expect(screen.getByText("Ingen status")).toBeTruthy();
+    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
     expect(screen.getByLabelText("Meld dig på vej til Station B")).toBeTruthy();
   });
 
@@ -242,7 +242,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(
       screen.getByText("Stationen er ikke en del af det aktive scenarie."),
     ).toBeTruthy();
-    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
   });
 
   it("shows the refusal and keeps no status when going on the way is refused", async () => {
@@ -261,8 +261,8 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(
       screen.getByText("Stationen er ikke en del af det aktive scenarie."),
     ).toBeTruthy();
-    expect(screen.getByText("Ingen status")).toBeTruthy();
-    expect(screen.queryByText(/DU ER PÅ VEJ/)).toBeNull();
+    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
+    expect(screen.queryByText("PÅ VEJ")).toBeNull();
   });
 
   it("keeps the status from a waiting report when the saved copy is loaded again", async () => {
@@ -271,8 +271,8 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     await renderView(false);
 
     expect(waiting).toHaveBeenCalledWith("9", 1);
-    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
-    expect(screen.queryByText("Ingen status")).toBeNull();
+    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
+    expect(screen.queryByText("IKKE VALGT")).toBeNull();
   });
 
   it("blocks arriving and cancelling while a report waits to be sent", async () => {
@@ -295,7 +295,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     });
 
     expect(report).not.toHaveBeenCalled();
-    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
   });
 
   it("offers + on the saved copy and keeps the report on the phone", async () => {
@@ -319,13 +319,13 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       event: "EN_ROUTE",
     });
     expect(screen.getByText("Position gemt. Afventer levering.")).toBeTruthy();
-    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
     await act(async () => {
       fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
         nativeEvent: { actionName: "activate" },
       });
     });
-    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
     expect(flush).not.toHaveBeenCalled();
     expect(report).not.toHaveBeenCalled();
   });
@@ -334,8 +334,8 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     showView({ status: "live", snapshot: arrivedOnServer });
     await renderView();
 
-    expect(screen.queryByText("Ingen status")).toBeNull();
-    expect(screen.getByText(/DU ER ANKOMMET/)).toBeTruthy();
+    expect(screen.queryByText("IKKE VALGT")).toBeNull();
+    expect(screen.getByText(/^ANKOMMET/)).toBeTruthy();
     expect(screen.getByText("TJEK UD")).toBeTruthy();
 
     await act(async () => {
@@ -363,7 +363,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     showView({ status: "live", snapshot: onTheWay });
     await renderView();
 
-    expect(screen.getByText(/DU ER PÅ VEJ/)).toBeTruthy();
+    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
     expect(screen.getByTestId("slide-to-confirm")).toBeTruthy();
   });
 
@@ -444,7 +444,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
         nativeEvent: { actionName: "activate" },
       });
     });
-    expect(screen.getByText(/DU ER ANKOMMET/)).toBeTruthy();
+    expect(screen.getByText(/^ANKOMMET/)).toBeTruthy();
 
     const checkedOutElsewhere = buildSnapshot(
       {
@@ -470,7 +470,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     view.rerender(element());
     await act(async () => {});
 
-    expect(screen.queryByText(/DU ER ANKOMMET/)).toBeNull();
+    expect(screen.queryByText(/^ANKOMMET/)).toBeNull();
     expect(screen.getByText("Du er tjekket ud fra Station B.")).toBeTruthy();
   });
 });

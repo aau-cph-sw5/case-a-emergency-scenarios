@@ -12,10 +12,12 @@ import { ERROR_CODES } from "../../../shared/error-codes";
 import { NO_COPY_MESSAGES } from "../../../shared/offline/copy-reason";
 import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
-import { colors, palette, text } from "../../../shared/Theme";
+import { colors, palette, steward, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
 import { reportErrorMessage } from "../api/position-report";
+import type { StatusNote } from "../components/StatusBox";
 import { StewardStatusControl } from "../components/StewardStatusControl";
+import { animateNextLayout } from "../motion";
 import {
   stewardStatus,
   type OwnStatus,
@@ -56,6 +58,40 @@ export function supersededMessage(
     : `${reports.length} positioner (${stations}) blev afvist, fordi scenariet blev stoppet eller skiftet, efter du sendte dem.`;
 }
 
+// The note that turns the status box over after the steward's own change
+// (#375): where to go, that the check in went through, or the check out.
+// Cancelling has none; the status box itself shows the change.
+export function statusNote(
+  own: OwnStatus | null,
+  key: number,
+): StatusNote | null {
+  switch (own?.status) {
+    case "PENDING":
+      return {
+        key,
+        text: `Tag til ${own.station}`,
+        background: steward.yellow,
+        color: colors.text,
+      };
+    case "MANNED":
+      return {
+        key,
+        text: `Checket ind på ${own.station}`,
+        background: steward.green,
+        color: colors.textInverse,
+      };
+    case "CHECKED_OUT":
+      return {
+        key,
+        text: "Du er checket ud",
+        background: steward.red,
+        color: colors.textInverse,
+      };
+    default:
+      return null;
+  }
+}
+
 // online is false when the phone has no connection or the session could not
 // be confirmed; the saved copy is shown then, and nothing is sent.
 export function StewardView({
@@ -89,6 +125,8 @@ export function StewardView({
   const [sendingStatus, setSendingStatus] = useState(false);
   // The page does not scroll while the arrival slide is being slid.
   const [sliding, setSliding] = useState(false);
+  // The note shown after the steward's own change, never after a reload.
+  const [note, setNote] = useState<StatusNote | null>(null);
 
   // Fetches again when the app returns to the foreground, when the socket
   // announces an activation or a stand-down, and when the socket reconnects,
@@ -325,8 +363,12 @@ export function StewardView({
         deployments,
         change.type === "assign" ? queueReport : undefined,
       );
-      if (result.ok) setOwnStatus(result.own);
-      else setStatusError(result.message);
+      if (result.ok) {
+        // The blocks that change with the status open and close smoothly.
+        animateNextLayout();
+        setOwnStatus(result.own);
+        setNote((last) => statusNote(result.own, (last?.key ?? 0) + 1));
+      } else setStatusError(result.message);
       // The server or the app's own check refused the change, so the app's
       // status is out of date (#310): a new copy brings the server's.
       if (!result.ok && result.code === ERROR_CODES.INVALID_STATUS_TRANSITION) {
@@ -435,12 +477,16 @@ export function StewardView({
               onCancel={() => void changeStatus({ type: "cancel" })}
               onCheckOut={() => void changeStatus({ type: "checkOut" })}
               onSlidingChange={setSliding}
+              note={note}
             />
             <ScenarioOverview
               snapshot={shown}
               assignedStation={ownStation}
               checkedOutStation={
                 own?.status === "CHECKED_OUT" ? own.station : undefined
+              }
+              ownArrived={
+                own?.status === "MANNED" || own?.status === "TASK_DONE"
               }
               onAssign={
                 canAssign

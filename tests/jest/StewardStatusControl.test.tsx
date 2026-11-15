@@ -35,7 +35,7 @@ function confirmSlide() {
 describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
   it("shows no status and points to + when the steward has none", () => {
     renderControl();
-    expect(screen.getByText("Ingen status")).toBeTruthy();
+    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
     expect(screen.getByText(/Tryk \+ ved en station/)).toBeTruthy();
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
   });
@@ -45,9 +45,9 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
       own: { station: "Station B", status: "PENDING" },
       coverage,
     });
-    expect(screen.getByText("DU ER PÅ VEJ")).toBeTruthy();
+    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
     expect(screen.getByText("Station B")).toBeTruthy();
-    expect(screen.getByText("1 af 2 ankommet · 1 på vej")).toBeTruthy();
+    expect(screen.getByText("1 på stationen · 1 på vej")).toBeTruthy();
     expect(screen.getByText(/Forkert station\?/)).toBeTruthy();
     confirmSlide();
     expect(onArrive).toHaveBeenCalledTimes(1);
@@ -58,8 +58,8 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
       own: { station: "Station B", status: "MANNED" },
       coverage: { arrived: 2, enRoute: 0, needed: 2 },
     });
-    expect(screen.getByText("✓ DU ER ANKOMMET")).toBeTruthy();
-    expect(screen.getByText("Du er tjekket ind på Station B.")).toBeTruthy();
+    expect(screen.getByText("ANKOMMET 2/2")).toBeTruthy();
+    expect(screen.getByText("2 på stationen")).toBeTruthy();
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
     expect(screen.queryByText("FORTRYD")).toBeNull();
     fireEvent.press(screen.getByText("TJEK UD"));
@@ -77,7 +77,7 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
 
   it("shows no status after checking out, with the station that was left", () => {
     renderControl({ own: { station: "Station B", status: "CHECKED_OUT" } });
-    expect(screen.getByText("Ingen status")).toBeTruthy();
+    expect(screen.getByText("CHECKET UD")).toBeTruthy();
     expect(screen.getByText("Du er tjekket ud fra Station B.")).toBeTruthy();
     expect(screen.queryByText("TJEK UD")).toBeNull();
   });
@@ -127,6 +127,15 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     });
     confirmSlide();
     expect(onArrive).not.toHaveBeenCalled();
+  });
+
+  // The note turns the status box over after the steward's own change (#375).
+  it("shows the note on the status box", () => {
+    renderControl({
+      own: { station: "Station B", status: "PENDING" },
+      note: { key: 1, text: "Tag til Station B", background: "y", color: "b" },
+    });
+    expect(screen.getByText("Tag til Station B")).toBeTruthy();
   });
 
   // After a reload the server can report the task as done (#310).
