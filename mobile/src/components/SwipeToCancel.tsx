@@ -145,7 +145,14 @@ export function SwipeToCancel({
           <Pressable
             accessibilityRole="button"
             disabled={disabled}
-            onPress={onCancel}
+            // The row closes first, then the cancel is sent: the row is shut
+            // before it stops being the own row. Cancelling from the open
+            // row left its content slid out of sight on the phone, so the
+            // station seemed to vanish from the list.
+            onPress={() => {
+              slideTo(false);
+              onCancel?.();
+            }}
             style={[styles.button, styles.cancel]}
           >
             <Text style={styles.cancelText}>BEKRÆFT ANNULLÉR</Text>
