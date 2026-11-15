@@ -2,6 +2,7 @@ import express from "express";
 import { authRouter } from "./routes/auth-routes.js";
 import { healthRouter } from "./routes/health-routes.js";
 import { metroLineRouter } from "./routes/metro-line-routes.js";
+import { networkRouter } from "./routes/network-routes.js";
 import { positionReportRouter } from "./routes/position-report-routes.js";
 import { scenarioRouter } from "./routes/scenario-routes.js";
 
@@ -12,4 +13,5 @@ app.use(healthRouter);
 app.use(authRouter);
 app.use(scenarioRouter);
 app.use(metroLineRouter);
+app.use(networkRouter);
 app.use(positionReportRouter);
