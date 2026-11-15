@@ -218,7 +218,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       1,
       "CHECKED_OUT",
     );
-    expect(screen.getByText("Du er tjekket ud fra Station B.")).toBeTruthy();
+    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
     expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
   });
 
@@ -481,6 +481,6 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     await act(async () => {});
 
     expect(screen.queryByText(/^ANKOMMET/)).toBeNull();
-    expect(screen.getByText("Du er tjekket ud fra Station B.")).toBeTruthy();
+    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
   });
 });

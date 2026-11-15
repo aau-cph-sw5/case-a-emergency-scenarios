@@ -90,19 +90,16 @@ export function StewardStatusControl({
       )}
 
       <StatusBox
-        station={
-          active?.station ??
-          (own?.status === "CHECKED_OUT" ? own.station : "Ingen station")
-        }
-        chip={statusChip(own, coverage)}
+        // After checking out the box is back at the start (#376): no station
+        // chosen. "Du er checket ud" shows only as the 4 s note.
+        station={active?.station ?? "Ingen station"}
+        chip={statusChip(active, coverage)}
         subLine={
-          own?.status === "CHECKED_OUT"
-            ? `Du er tjekket ud fra ${own.station}.`
-            : active === null
-              ? "Vælg den nærmeste station"
-              : coverage && coverage.needed > 0
-                ? staffingWords(coverage.arrived, coverage.enRoute)
-                : null
+          active === null
+            ? "Vælg den nærmeste station"
+            : coverage && coverage.needed > 0
+              ? staffingWords(coverage.arrived, coverage.enRoute)
+              : null
         }
         note={note}
       />
@@ -168,12 +165,6 @@ function statusChip(
           ? `ANKOMMET ${coverage.arrived}/${coverage.needed}`
           : "ANKOMMET",
         background: steward.green,
-        color: colors.textInverse,
-      };
-    case "CHECKED_OUT":
-      return {
-        label: "CHECKET UD",
-        background: steward.red,
         color: colors.textInverse,
       };
     default:
