@@ -215,8 +215,18 @@ export const motion = {
   fadeInDelayMs: 140,
   fadeInMs: 200,
   fadeOutMs: 120,
-  flipMs: 300,
+  // A turn is a bigger change than a fade, so it is a little slower, eased
+  // in and out: it starts softly, turns through the edge and lands softly.
+  flipMs: 400,
   notificationMs: 4000,
+  // Shared axis: how one thing replaces another in the same place (the slide
+  // taking its next action, a control replacing another). The old moves a
+  // little up while fading out, then the new moves up into place from a
+  // little below while fading in. Material moves 30 dp; the slide is only 56
+  // high, so this moves less.
+  axisDistance: 16,
+  axisOutMs: 100,
+  axisInMs: 220,
 };
 
 // A required station on the map by its live coverage (MET-A-011, #310): the

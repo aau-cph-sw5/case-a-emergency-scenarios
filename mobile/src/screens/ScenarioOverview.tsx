@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -17,6 +17,7 @@ import {
   steward,
 } from "../../../shared/Theme";
 import { staffingWords } from "../components/StatusBox";
+import { AxisSwap } from "../components/AxisSwap";
 import { SwipeToCancel } from "../components/SwipeToCancel";
 import MapRender from "../../../shared/MapRenderer";
 import { getLines } from "../../../mockData/data";
@@ -141,47 +142,22 @@ export function ScenarioOverview({
   const ownActions = sortedActions(ownRow);
   const [listHeight, setListHeight] = useState(0);
 
-  // The map is drawn again only when what it shows changes: the scenario, the
-  // coverage, the own station or its size. Choosing a row, measuring the list
-  // and the like re-render the list, not the SVG map (#376).
-  const map = useMemo(() => {
-    const stretch = affectedStretchAsMapLine(scenario);
-    const networkLines = networkWithoutStretch(
-      getLines(),
-      stretch.connections,
-    ).map((line) => ({ ...line, tracks: [1, 2] }));
-    const required = oneRowPerStation(
-      scenario.versions[0]?.stationRequirements ?? [],
-    );
-    return (
-      <MapRender
-        viewBox={zoomedViewBox(
-          affectedStations(scenario),
-          mapSize.width,
-          mapSize.height,
-          fontScale,
-        )}
-        lines={[...networkLines, stretch]}
-        colors={{
-          [scenario.name]: STRETCH_COLOR,
-          M1: palette.networkGrey,
-          M2: palette.networkGrey,
-          M3: palette.networkGrey,
-          M4: palette.networkGrey,
-        }}
-        showLineButtons={false}
-        highlightStation={ownStation}
-        highlightColor={OWN_COLOR}
-        // Every station the scenario needs staff at, coloured by how far it
-        // is covered right now, like the dashboard (MET-A-011).
-        markedStations={required.map((row) => row.station)}
-        requiredStaffing={Object.fromEntries(
-          required.map((row) => [row.station, row.minimumStaffing]),
-        )}
-        stationCoverage={stationCoverage(required, state)}
-      />
-    );
-  }, [scenario, state, ownStation, mapSize.width, mapSize.height, fontScale]);
+  // The map is drawn again only when what it shows changes (MapCard): the
+  // scenario, the coverage level of a station, the own station or its size.
+  // A new copy of the scenario with the same content does not redraw it.
+  const levels = stationCoverage(rows, state);
+  const map = (
+    <MapCard
+      scenario={scenario}
+      scenarioKey={`${scenario.scenarioId}@${scenario.currentVersion}`}
+      levels={levels}
+      levelsKey={JSON.stringify(levels)}
+      ownStation={ownStation}
+      width={mapSize.width}
+      height={mapSize.height}
+      fontScale={fontScale}
+    />
+  );
 
   // The coverage of each row, counted once per render (the sort and the rows
   // both need it).
@@ -256,15 +232,17 @@ export function ScenarioOverview({
           >
             {row.station}
           </Text>
-          <Text
-            style={[
-              styles.sub,
-              swipe && styles.hint,
-              onGreen && styles.inverse,
-            ]}
-          >
-            {sub}
-          </Text>
+          <AxisSwap swapKey={sub}>
+            <Text
+              style={[
+                styles.sub,
+                swipe && styles.hint,
+                onGreen && styles.inverse,
+              ]}
+            >
+              {sub}
+            </Text>
+          </AxisSwap>
         </View>
         {chosen && <Text style={styles.chosenMark}>✓</Text>}
         <Text style={[styles.count, { color: countColor }]}>
@@ -273,34 +251,21 @@ export function ScenarioOverview({
         </Text>
       </View>
     );
-    const key = row.station;
-    if (swipe) {
-      return (
-        <SwipeToCancel
-          key={key}
-          station={row.station}
-          onCancel={onCancel}
-          peekKey={peekKey}
-          disabled={cancelDisabled}
-        >
-          {content}
-        </SwipeToCancel>
-      );
-    }
-    if (onSelect && !own) {
-      return (
-        <Pressable
-          key={key}
-          accessibilityRole="button"
-          accessibilityLabel={`Vælg ${row.station}`}
-          accessibilityState={{ selected: chosen }}
-          onPress={() => onSelect(row.station)}
-        >
-          {content}
-        </Pressable>
-      );
-    }
-    return <View key={key}>{content}</View>;
+    // One row component in every state, keyed by the station, so a chosen
+    // station that becomes the own station stays the same element (#376).
+    return (
+      <SwipeToCancel
+        key={row.station}
+        station={row.station}
+        onCancel={swipe ? onCancel : undefined}
+        onSelect={onSelect && !own ? () => onSelect(row.station) : undefined}
+        selected={chosen}
+        peekKey={swipe ? peekKey : undefined}
+        disabled={swipe && cancelDisabled}
+      >
+        {content}
+      </SwipeToCancel>
+    );
   };
 
   return (
@@ -320,9 +285,13 @@ export function ScenarioOverview({
           onPress={onToggleMap}
           style={styles.strip}
         >
-          <Text style={styles.stripTitle}>
-            {onSelect ? "Vælg nærmeste station" : "Påvirkede stationer"}
-          </Text>
+          {/* A new heading takes the old one's place with the shared-axis
+              change (AxisSwap), like every other replacement. */}
+          <AxisSwap swapKey={onSelect ? "choose" : "affected"}>
+            <Text style={styles.stripTitle}>
+              {onSelect ? "Vælg nærmeste station" : "Påvirkede stationer"}
+            </Text>
+          </AxisSwap>
           <Text style={styles.stripAction}>
             {mapShown ? `Vis alle ${rows.length}` : "Vis kort"}
           </Text>
@@ -368,6 +337,77 @@ export function ScenarioOverview({
     </View>
   );
 }
+
+type MapCardProps = {
+  scenario: ScenarioSnapshot["scenario"];
+  // What the map shows, as plain values, so a new copy of the same scenario
+  // or the same coverage does not draw the map again.
+  scenarioKey: string;
+  levels: ReturnType<typeof stationCoverage>;
+  levelsKey: string;
+  ownStation: string | undefined;
+  width: number;
+  height: number;
+  fontScale: number;
+};
+
+// The SVG map of the affected stretch. Drawing it is the most expensive part
+// of the screen, and the screen renders many times for one status change, so
+// it is drawn again only when one of the plain values above changes.
+const MapCard = memo(
+  function MapCard({
+    scenario,
+    levels,
+    ownStation,
+    width,
+    height,
+    fontScale,
+  }: MapCardProps) {
+    const stretch = affectedStretchAsMapLine(scenario);
+    const networkLines = networkWithoutStretch(
+      getLines(),
+      stretch.connections,
+    ).map((line) => ({ ...line, tracks: [1, 2] }));
+    const required = oneRowPerStation(
+      scenario.versions[0]?.stationRequirements ?? [],
+    );
+    return (
+      <MapRender
+        viewBox={zoomedViewBox(
+          affectedStations(scenario),
+          width,
+          height,
+          fontScale,
+        )}
+        lines={[...networkLines, stretch]}
+        colors={{
+          [scenario.name]: STRETCH_COLOR,
+          M1: palette.networkGrey,
+          M2: palette.networkGrey,
+          M3: palette.networkGrey,
+          M4: palette.networkGrey,
+        }}
+        showLineButtons={false}
+        highlightStation={ownStation}
+        highlightColor={OWN_COLOR}
+        // Every station the scenario needs staff at, coloured by how far it
+        // is covered right now, like the dashboard (MET-A-011).
+        markedStations={required.map((row) => row.station)}
+        requiredStaffing={Object.fromEntries(
+          required.map((row) => [row.station, row.minimumStaffing]),
+        )}
+        stationCoverage={levels}
+      />
+    );
+  },
+  (a, b) =>
+    a.scenarioKey === b.scenarioKey &&
+    a.levelsKey === b.levelsKey &&
+    a.ownStation === b.ownStation &&
+    a.width === b.width &&
+    a.height === b.height &&
+    a.fontScale === b.fontScale,
+);
 
 function sortedActions(row: StationRequirement | undefined) {
   return [...(row?.actions ?? [])].sort((a, b) => a.sequence - b.sequence);

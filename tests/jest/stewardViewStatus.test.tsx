@@ -6,7 +6,14 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
+import { Profiler } from "react";
 import { sendPositionReport } from "../../mobile/src/api/position-report";
 import { ERROR_CODES } from "../../shared/error-codes";
 import { resetRememberedStatuses } from "../../mobile/src/data/steward-status";
@@ -179,7 +186,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
   it("goes from no status, via on the way and arrived, to checked out", async () => {
     showView({ status: "live", snapshot });
     await renderView();
-    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
 
     await chooseStation("Station B");
 
@@ -196,7 +203,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       1,
       "EN_ROUTE",
     );
-    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
     expect(screen.queryByLabelText("Vælg Station B")).toBeNull();
 
     await act(async () => {
@@ -206,10 +213,11 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     });
 
     expect(report).toHaveBeenLastCalledWith("token", "Station B", 1, "ARRIVED");
-    expect(screen.getByText(/^ANKOMMET/)).toBeTruthy();
+    expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
 
+    const tjekUd = await screen.findByText("TJEK UD");
     await act(async () => {
-      fireEvent.press(screen.getByText("TJEK UD"));
+      fireEvent.press(tjekUd);
     });
 
     expect(report).toHaveBeenLastCalledWith(
@@ -218,7 +226,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       1,
       "CHECKED_OUT",
     );
-    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
     expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
   });
 
@@ -235,7 +243,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       1,
       "CANCELLED",
     );
-    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
     expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
   });
 
@@ -257,7 +265,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(
       screen.getByText("Stationen er ikke en del af det aktive scenarie."),
     ).toBeTruthy();
-    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
   });
 
   it("shows the refusal and keeps no status when going on the way is refused", async () => {
@@ -274,8 +282,8 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(
       screen.getByText("Stationen er ikke en del af det aktive scenarie."),
     ).toBeTruthy();
-    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
-    expect(screen.queryByText("PÅ VEJ")).toBeNull();
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("PÅ VEJ")).toBeNull());
   });
 
   it("keeps the status from a waiting report when the saved copy is loaded again", async () => {
@@ -284,8 +292,8 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     await renderView(false);
 
     expect(waiting).toHaveBeenCalledWith("9", 1);
-    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
-    expect(screen.queryByText("IKKE VALGT")).toBeNull();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("IKKE VALGT")).toBeNull());
   });
 
   it("blocks arriving and cancelling while a report waits to be sent", async () => {
@@ -310,7 +318,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     });
 
     expect(report).not.toHaveBeenCalled();
-    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
   });
 
   it("offers + on the saved copy and keeps the report on the phone", async () => {
@@ -333,13 +341,13 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     });
     // Saved on the phone; the status box shows the change, no extra line.
     expect(screen.queryByText("Position gemt. Afventer levering.")).toBeNull();
-    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
     await act(async () => {
       fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
         nativeEvent: { actionName: "activate" },
       });
     });
-    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
     expect(flush).not.toHaveBeenCalled();
     expect(report).not.toHaveBeenCalled();
   });
@@ -348,9 +356,9 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     showView({ status: "live", snapshot: arrivedOnServer });
     await renderView();
 
-    expect(screen.queryByText("IKKE VALGT")).toBeNull();
-    expect(screen.getByText(/^ANKOMMET/)).toBeTruthy();
-    expect(screen.getByText("TJEK UD")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("IKKE VALGT")).toBeNull());
+    expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
+    expect(await screen.findByText("TJEK UD")).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByText("TJEK UD"));
@@ -377,7 +385,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     showView({ status: "live", snapshot: onTheWay });
     await renderView();
 
-    expect(screen.getByText("PÅ VEJ")).toBeTruthy();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
     expect(screen.getByTestId("slide-to-confirm")).toBeTruthy();
   });
 
@@ -454,7 +462,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
         nativeEvent: { actionName: "activate" },
       });
     });
-    expect(screen.getByText(/^ANKOMMET/)).toBeTruthy();
+    expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
 
     const checkedOutElsewhere = buildSnapshot(
       {
@@ -480,7 +488,92 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     view.rerender(element());
     await act(async () => {});
 
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
     expect(screen.queryByText(/^ANKOMMET/)).toBeNull();
-    expect(screen.getByText("IKKE VALGT")).toBeTruthy();
   });
+
+  // SMOOTH TRANSITIONS (#376): through a whole shift, no text may show for a
+  // moment and go again within one action (a flash), and the control at the
+  // bottom may never be missing while the steward has no station or is on
+  // the way (the list above it would jump). Every render is checked.
+  it("never flashes text or loses the bottom control through a shift", async () => {
+    showView({ status: "live", snapshot });
+    report.mockResolvedValue({ ok: true, message: "" });
+    const visible = () => {
+      const out = new Set<string>();
+      const walk = (node: unknown) => {
+        if (typeof node === "string") out.add(node);
+        else if (Array.isArray(node)) node.forEach(walk);
+        else if (node && typeof node === "object")
+          walk((node as { children?: unknown }).children);
+      };
+      walk(screen.toJSON());
+      return out;
+    };
+    let action = "";
+    let seen = new Map<string, number>();
+    let commit = 0;
+    const problems: string[] = [];
+    let last = new Set<string>();
+    const check = () => {
+      commit += 1;
+      if (action === "") return;
+      const now = visible();
+      for (const t of now) if (!last.has(t)) seen.set(t, commit);
+      for (const t of last)
+        if (!now.has(t) && seen.get(t) !== undefined)
+          problems.push(`${action}: "${t}" showed and went again`);
+      if (
+        !screen.queryByTestId("slide-to-confirm", {
+          includeHiddenElements: true,
+        }) &&
+        !now.has("TJEK UD")
+      )
+        problems.push(`${action}: no control at the bottom (render ${commit})`);
+      last = now;
+    };
+    const step = async (name: string, act1: () => void) => {
+      action = name;
+      last = visible();
+      seen = new Map();
+      await act(async () => act1());
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 900));
+      });
+      action = "";
+    };
+    const slide = () =>
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    render(
+      <Profiler id="shift" onRender={check}>
+        <StewardView
+          token="token"
+          online
+          onLogout={jest.fn()}
+          onUnauthorized={jest.fn()}
+        />
+      </Profiler>,
+    );
+    await act(async () => {});
+    await step("choose", () =>
+      fireEvent.press(screen.getByLabelText("Vælg Station B")),
+    );
+    await step("assign", slide);
+    await step("open the row", () =>
+      fireEvent.press(screen.getByLabelText("Annullér Station B")),
+    );
+    await step("cancel", () =>
+      fireEvent.press(screen.getByText("BEKRÆFT ANNULLÉR")),
+    );
+    await step("choose again", () =>
+      fireEvent.press(screen.getByLabelText("Vælg Station B")),
+    );
+    await step("assign again", slide);
+    await step("check in", slide);
+    await screen.findByText("TJEK UD");
+    await step("check out", () => fireEvent.press(screen.getByText("TJEK UD")));
+    expect(problems).toEqual([]);
+  }, 20000);
 });

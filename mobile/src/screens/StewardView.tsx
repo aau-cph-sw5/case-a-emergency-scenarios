@@ -27,6 +27,7 @@ import { reportRejection, waitingReport } from "../offline/waiting-report";
 import { socket } from "../socket";
 import { ScenarioNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
+import { withOwnStatus } from "./own-assignment";
 import { RoleView } from "./RoleView";
 import { oneRowPerStation, ScenarioOverview } from "./ScenarioOverview";
 
@@ -165,8 +166,12 @@ export function StewardView({
   const [shownStatusKey, setShownStatusKey] = useState(statusKey);
   // The newest report saved on the phone that the server has not received yet.
   const [waiting, setWaiting] = useState<QueuedPositionReport | null>(null);
+  // Whether the steward's own status for this activation has been read, so
+  // the app's own status may be counted in the numbers (withOwnStatus).
+  const [ownLoaded, setOwnLoaded] = useState(false);
   if (statusKey !== shownStatusKey) {
     setShownStatusKey(statusKey);
+    setOwnLoaded(false);
     setOwnStatus(null);
     setStatusError(null);
     setWaiting(null);
@@ -197,6 +202,7 @@ export function StewardView({
       if (cancelled) return;
       if (result.ok) setOwnStatus(result.own);
       setWaiting(pending);
+      setOwnLoaded(true);
     });
     return () => {
       cancelled = true;
@@ -400,13 +406,32 @@ export function StewardView({
     )
       ? selected
       : undefined;
+  // Not tied to sending: while an assignment is sent the BEKRÆFT slide and
+  // the rows stay as they are (the slide is blocked by sending, and
+  // changeStatus refuses a second change), so nothing on the screen jumps.
   const canPick =
     (view.status === "live" || view.status === "copy") &&
-    !sendingStatus &&
     ownStation === undefined;
 
-  // The coverage of the steward's station, from the server's deployments
-  // only, so the steward sees the same as the control room.
+  // The scenario with the steward's own status counted at once (#376), so the
+  // numbers do not show an old value and jump when the server's next copy
+  // arrives. Before the own status has been read, the server's copy as it is.
+  const counted =
+    shown && ownLoaded
+      ? {
+          ...shown,
+          state: {
+            ...shown.state,
+            deployments: withOwnStatus(
+              shown.state.deployments,
+              shown.userId,
+              own,
+            ),
+          },
+        }
+      : shown;
+
+  // The coverage of the steward's station, with the own status counted.
   const ownRequirement =
     ownStation && shown
       ? // All rows of the station together, as in the list (#376).
@@ -418,7 +443,7 @@ export function StewardView({
     ownStation && shown && ownRequirement
       ? (() => {
           const state = getStationState(
-            shown.state,
+            (counted ?? shown).state,
             ownStation,
             ownRequirement.minimumStaffing,
           );
@@ -495,10 +520,11 @@ export function StewardView({
             onCheckOut={() => void changeStatus({ type: "checkOut" })}
             note={note}
             offline={view.status === "copy"}
+            ready={ownLoaded}
           >
             {reportStatus && <Text style={styles.report}>{reportStatus}</Text>}
             <ScenarioOverview
-              snapshot={shown}
+              snapshot={counted ?? shown}
               assignedStation={ownStation}
               checkedOutStation={
                 own?.status === "CHECKED_OUT" ? own.station : undefined
