@@ -16,6 +16,7 @@ const OPEN_SHARE = 0.35;
 const FLICK_SPEED = 0.6;
 // How far the row nudges left once after assignment, so the swipe is found.
 const PEEK = 64;
+const PEEK_DELAY_MS = 3000;
 // The last nudge that was played. The row is built again when the list
 // changes (the map is collapsed, the list is measured), and without this the
 // nudge would play again every time.
@@ -28,22 +29,40 @@ let lastPeek: number | undefined;
 // swipe off for destructive actions). A tap on the row opens the same buttons,
 // so cancelling never needs a swipe (WCAG 2.5.1). peekKey nudges the row left
 // once, each time it changes.
+//
+// EVERY station row is this component, in every state (#376): a row that can
+// be chosen (onSelect), the own row on the way (onCancel), or a row that only
+// shows. The row therefore stays the same element when a chosen station
+// becomes the own station or the steward checks in, and only its content
+// changes; a row that changed component was built anew and flickered.
 export function SwipeToCancel({
   station,
   children,
   onCancel,
+  onSelect,
+  selected = false,
   peekKey,
   disabled = false,
 }: {
   station: string;
   children: ReactNode;
-  onCancel: () => void;
+  // Makes the row swipe (or tap) to cancel.
+  onCancel?: () => void;
+  // Makes the row a choice, when it cannot be cancelled.
+  onSelect?: () => void;
+  selected?: boolean;
   peekKey?: number;
   disabled?: boolean;
 }) {
+  const cancelable = onCancel !== undefined;
   const [width, setWidth] = useState(0);
   const [x] = useState(() => new Animated.Value(0));
   const [open, setOpen] = useState(false);
+  // A row that can no longer be cancelled closes.
+  if (!cancelable && open) setOpen(false);
+  useEffect(() => {
+    if (!cancelable) x.setValue(0);
+  }, [cancelable, x]);
 
   const slideTo = (toOpen: boolean) => {
     setOpen(toOpen);
@@ -60,6 +79,7 @@ export function SwipeToCancel({
       PanResponder.create({
         // Only a sideways move is a swipe; an up or down move scrolls.
         onMoveShouldSetPanResponder: (_event, g) =>
+          cancelable &&
           !disabled &&
           !open &&
           Math.abs(g.dx) > 8 &&
@@ -78,13 +98,16 @@ export function SwipeToCancel({
         },
         onPanResponderTerminate: () => x.setValue(0),
       }),
-    [disabled, open, width, x],
+    [cancelable, disabled, open, width, x],
   );
 
   useEffect(() => {
-    if (peekKey === undefined || peekKey === lastPeek) return;
+    if (!cancelable || peekKey === undefined || peekKey === lastPeek) return;
     lastPeek = peekKey;
     Animated.sequence([
+      // A while after the assignment (#376), when the steward has seen the
+      // new status, the row nudges to show that it can be swiped.
+      Animated.delay(PEEK_DELAY_MS),
       Animated.timing(x, {
         toValue: -PEEK,
         duration: motion.flipMs,
@@ -98,45 +121,54 @@ export function SwipeToCancel({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [peekKey, x]);
+  }, [cancelable, peekKey, x]);
 
   return (
     <View
       style={styles.wrap}
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
     >
-      <View
-        style={styles.under}
-        // Hidden from screen readers until the row is open (Android, iOS).
-        importantForAccessibility={open ? "auto" : "no-hide-descendants"}
-        accessibilityElementsHidden={!open}
-      >
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => slideTo(false)}
-          style={[styles.button, styles.keep]}
+      {cancelable && (
+        <View
+          style={styles.under}
+          // Hidden from screen readers until the row is open (Android, iOS).
+          importantForAccessibility={open ? "auto" : "no-hide-descendants"}
+          accessibilityElementsHidden={!open}
         >
-          <Text style={styles.keepText}>BEHOLD</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={disabled}
-          onPress={onCancel}
-          style={[styles.button, styles.cancel]}
-        >
-          <Text style={styles.cancelText}>BEKRÆFT ANNULLÉR</Text>
-        </Pressable>
-      </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => slideTo(false)}
+            style={[styles.button, styles.keep]}
+          >
+            <Text style={styles.keepText}>BEHOLD</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            disabled={disabled}
+            onPress={onCancel}
+            style={[styles.button, styles.cancel]}
+          >
+            <Text style={styles.cancelText}>BEKRÆFT ANNULLÉR</Text>
+          </Pressable>
+        </View>
+      )}
       <Animated.View
         {...responder.panHandlers}
         style={{ transform: [{ translateX: x }] }}
         pointerEvents={open ? "none" : "auto"}
       >
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Annullér ${station}`}
-          disabled={disabled}
-          onPress={() => slideTo(true)}
+          accessibilityRole={cancelable || onSelect ? "button" : undefined}
+          accessibilityLabel={
+            cancelable
+              ? `Annullér ${station}`
+              : onSelect
+                ? `Vælg ${station}`
+                : undefined
+          }
+          accessibilityState={onSelect ? { selected } : undefined}
+          disabled={disabled || (!cancelable && !onSelect)}
+          onPress={() => (cancelable ? slideTo(true) : onSelect?.())}
         >
           {children}
         </Pressable>
