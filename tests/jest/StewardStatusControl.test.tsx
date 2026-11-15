@@ -138,6 +138,16 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(screen.getByText("Tag til Station B")).toBeTruthy();
   });
 
+  it("locks the check in slide without a connection", () => {
+    const { onArrive } = renderControl({
+      own: { station: "Station B", status: "PENDING" },
+      offline: true,
+    });
+    expect(screen.getByText("Ingen forbindelse")).toBeTruthy();
+    confirmSlide();
+    expect(onArrive).not.toHaveBeenCalled();
+  });
+
   // After a reload the server can report the task as done (#310).
   it("offers Tjek ud when the task is done", () => {
     const { onCheckOut } = renderControl({

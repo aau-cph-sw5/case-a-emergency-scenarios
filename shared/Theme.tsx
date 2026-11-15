@@ -43,6 +43,8 @@ export const palette = {
   stewardStrip: "#F6F7F8",
   stewardMuted: "#5B6168",
   stewardNobody: "#C0281C",
+  stewardLocked: "#C9CDD2",
+  stewardLockedText: "#3D4249",
 };
 
 export const colors = {
@@ -193,6 +195,9 @@ export const steward = {
   strip: palette.stewardStrip,
   muted: palette.stewardMuted,
   nobody: palette.stewardNobody,
+  // A slide that cannot be used right now, for example without a connection.
+  locked: palette.stewardLocked,
+  lockedText: palette.stewardLockedText,
   // The black status box is this high in every state, so nothing below it
   // moves when the status changes.
   statusBoxHeight: 112,

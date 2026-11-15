@@ -36,6 +36,7 @@ export function StewardStatusControl({
   onCheckOut,
   onSlidingChange,
   note = null,
+  offline = false,
 }: {
   own: OwnStatus | null;
   coverage: StationCoverage | null;
@@ -49,6 +50,8 @@ export function StewardStatusControl({
   // Whether the arrival slide is being slid, so the screen can stop scrolling.
   onSlidingChange?: (sliding: boolean) => void;
   note?: StatusNote | null;
+  // Showing the saved copy without a connection: the slide is grey and locked.
+  offline?: boolean;
 }) {
   // After checking out the steward is free again, like with no status.
   const active = own !== null && own.status !== "CHECKED_OUT" ? own : null;
@@ -109,7 +112,8 @@ export function StewardStatusControl({
         <>
           <SlideToConfirm
             label="CHECK IND"
-            color={steward.green}
+            tone="green"
+            lockedReason={offline ? "Ingen forbindelse" : null}
             disabled={disabled}
             onConfirm={onArrive}
             onSlidingChange={onSlidingChange}

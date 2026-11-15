@@ -478,6 +478,7 @@ export function StewardView({
               onCheckOut={() => void changeStatus({ type: "checkOut" })}
               onSlidingChange={setSliding}
               note={note}
+              offline={view.status === "copy"}
             />
             <ScenarioOverview
               snapshot={shown}
