@@ -41,6 +41,11 @@ import { fetchSuggestions, type Suggestions } from "./suggestions";
  *   check that scales in, not yellow, which read as an alarm. The ranking
  *   (#355) searches station names and track segments, so the help text still
  *   asks for a station; the incident word mainly helps the operator log it.
+ * - Messages are dark text with a red icon, not red text: red on the grey
+ *   well is only 4.2:1. The empty-text alert is rendered only when needed,
+ *   since role=alert is announced on insertion.
+ * - The clear ✕ has its own column inside the field, so it never covers the
+ *   scrollbar.
  * Styling: .scenario-suggestions in OperatorSections.css, colours from Theme.tsx.
  */
 
@@ -95,7 +100,6 @@ export function ScenarioSuggestions({
   const [state, setState] = useState<State>({ status: "idle" });
   const abortRef = useRef<AbortController | null>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
   const loading = state.status === "loading";
   const byId = new Map(scenarios.map((s) => [s.scenarioId, s]));
 
@@ -104,7 +108,6 @@ export function ScenarioSuggestions({
   async function submit(event?: FormEvent) {
     event?.preventDefault();
     if (loading) return;
-    abortRef.current?.abort();
     const text = description.trim();
     if (text === "") {
       setEmpty(true);
@@ -147,11 +150,6 @@ export function ScenarioSuggestions({
     setState({ status: "idle" });
   }
 
-  function clear() {
-    edit("");
-    fieldRef.current?.focus();
-  }
-
   const candidates =
     state.status === "done" && state.result.status === "CONFIDENT"
       ? state.result.candidates
@@ -160,16 +158,10 @@ export function ScenarioSuggestions({
   const isExample = state.status === "done" && state.example === true;
 
   return (
-    <form
-      ref={formRef}
-      className="scenario-suggestions"
-      onSubmit={submit}
-      noValidate
-    >
+    <form className="scenario-suggestions" onSubmit={submit} noValidate>
       <label htmlFor={fieldId} className="suggest-label">
         Beskriv hændelsen
       </label>
-      {/* The clear button has its own column, so it never covers the scrollbar. */}
       <div className="suggest-field">
         <textarea
           ref={fieldRef}
@@ -189,18 +181,20 @@ export function ScenarioSuggestions({
               !event.nativeEvent.isComposing
             ) {
               event.preventDefault();
-              formRef.current?.requestSubmit();
+              event.currentTarget.form?.requestSubmit();
             }
           }}
         />
         {description !== "" && !loading && (
-          // 28px circle inside a 36px target (WCAG 2.5.8 asks for 24px).
           <button
             type="button"
             className="suggest-clear"
             aria-label="Ryd beskrivelse og forslag"
             title="Ryd"
-            onClick={clear}
+            onClick={() => {
+              edit("");
+              fieldRef.current?.focus();
+            }}
           >
             <span aria-hidden="true">
               <svg
@@ -218,13 +212,9 @@ export function ScenarioSuggestions({
           </button>
         )}
       </div>
-      {/* Dark text with a red icon: red text on the grey well is only 4.2:1.
-          The field's red edge (aria-invalid) points to where to fix it. */}
-      {/* Rendered only when needed: role=alert is announced on insertion,
-          and an empty alert would be the first alert the page finds. */}
       {empty && (
         <p id={errorId} role="alert" className="suggest-error">
-          <WarningIcon />
+          <Icon>{TRIANGLE}</Icon>
           Skriv en kort beskrivelse af hændelsen først.
         </p>
       )}
@@ -280,8 +270,6 @@ export function ScenarioSuggestions({
         {loading && <span className="suggest-spinner" aria-hidden="true" />}
         {loading ? "Finder forslag…" : "Foreslå scenarie"}
       </button>
-      {/* aria-live, not role=status: the column's own status messages
-          (loading a scenario) keep the status role to themselves. */}
       <p aria-live="polite" className="suggest-status">
         {loading
           ? "Søger efter passende scenarier…"
@@ -300,8 +288,7 @@ export function ScenarioSuggestions({
         </Notice>
       )}
 
-      {state.status === "done" && state.example && (
-        // TEMPORARY until #371: says plainly that these are not real results.
+      {isExample && (
         <p className="suggest-example" role="note">
           <strong>Eksempel</strong> Forslagstjenesten er ikke koblet på endnu.
         </p>
@@ -330,12 +317,8 @@ export function ScenarioSuggestions({
                     disabled={disabled}
                     onClick={() => onSelect(candidate.scenarioId)}
                   >
-                    {/* Two lines: name and score, then the same route text
-                        as the full list plus the stations that matched. */}
                     <span className="suggest-result-head">
                       <strong>{scenario?.name ?? candidate.scenarioId}</strong>
-                      {/* TEMPORARY until #371: a made-up score is not shown
-                          as a number anyone could trust. */}
                       <span>{isExample ? "Eksempel" : `${percent} %`}</span>
                     </span>
                     <span className="suggest-reason">
@@ -373,7 +356,14 @@ export function ScenarioSuggestions({
   );
 }
 
-function WarningIcon() {
+const TRIANGLE = (
+  <>
+    <path d="M10 2.5 18.5 17h-17z" />
+    <path d="M10 8v4M10 14.5h.01" />
+  </>
+);
+
+function Icon({ children }: { children: ReactNode }) {
   return (
     <svg
       className="suggest-icon"
@@ -387,8 +377,7 @@ function WarningIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M10 2.5 18.5 17h-17z" />
-      <path d="M10 8v4M10 14.5h.01" />
+      {children}
     </svg>
   );
 }
@@ -413,24 +402,16 @@ function Notice({
       className={`suggest-notice suggest-notice--${tone}`}
       role={tone === "error" ? "alert" : "status"}
     >
-      {tone === "error" ? (
-        <WarningIcon />
-      ) : (
-        <svg
-          className="suggest-icon"
-          aria-hidden="true"
-          width="16"
-          height="16"
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <circle cx="10" cy="10" r="8" />
-          <path d="M10 6v5M10 14h.01" />
-        </svg>
-      )}
+      <Icon>
+        {tone === "error" ? (
+          TRIANGLE
+        ) : (
+          <>
+            <circle cx="10" cy="10" r="8" />
+            <path d="M10 6v5M10 14h.01" />
+          </>
+        )}
+      </Icon>
       <div>
         <strong>{title}</strong>
         <p>{children}</p>

@@ -249,8 +249,7 @@ export function ScenarioList({
             <p role="status">Ingen scenarier tilgængelige.</p>
           ) : (
             <ScenarioResults
-              scenarios={filterScenarios(scenarios, query)}
-              total={scenarios.length}
+              scenarios={scenarios}
               query={query}
               selectedId={selectedId}
               activeIds={activeIds}
@@ -383,8 +382,7 @@ function ActivationStatus({ activation }: { activation: ActivationState }) {
 }
 
 function ScenarioResults({
-  scenarios,
-  total,
+  scenarios: all,
   query,
   selectedId,
   activeIds,
@@ -392,72 +390,63 @@ function ScenarioResults({
   disabled,
 }: {
   scenarios: ScenarioSummary[];
-  total: number;
   query: string;
   selectedId: string | null;
   activeIds: ReadonlySet<string>;
   onSelect: (scenarioId: string) => void;
   disabled: boolean;
 }) {
-  // The count confirms the search worked and that nothing is hidden.
-  const count = (
-    <p className="scenario-count" aria-live="polite">
-      {query.trim()
-        ? `${scenarios.length} af ${total} scenarier`
-        : `${total} scenarier`}
-    </p>
-  );
-  // No match is an empty list, not an error.
-  if (scenarios.length === 0) {
-    return (
-      <>
-        {count}
-        <p role="status">Ingen scenarier matcher “{query.trim()}”.</p>
-      </>
-    );
-  }
+  const scenarios = filterScenarios(all, query);
   return (
     <>
-      {count}
-      <ul className="scenario-list">
-        {scenarios.map((scenario) => {
-          const isSelected = scenario.scenarioId === selectedId;
-          const live = activeIds.has(scenario.scenarioId);
-          // The yellow background and bold text mark the selection;
-          // aria-pressed also exposes it to screen readers.
-          return (
-            <li key={scenario.scenarioId}>
-              <button
-                type="button"
-                aria-pressed={isSelected}
-                onClick={() => onSelect(scenario.scenarioId)}
-                disabled={disabled}
-                className={
-                  isSelected ? "scenario-option is-selected" : "scenario-option"
-                }
-              >
-                {scenario.name}
-                {/* The route, so a scenario can be recognised by its stations. */}
-                {scenario.covers && (
-                  <small className="scenario-route">
-                    {routeLabel(scenario.covers)}
-                  </small>
-                )}
-              </button>
-              {/* A filled green dot when the scenario is live and an empty ring
+      {/* The count confirms the search worked and that nothing is hidden. */}
+      <p className="scenario-count" aria-live="polite">
+        {query.trim()
+          ? `${scenarios.length} af ${all.length} scenarier`
+          : `${all.length} scenarier`}
+      </p>
+      {/* No match is an empty list, not an error. */}
+      {scenarios.length === 0 ? (
+        <p role="status">Ingen scenarier matcher “{query.trim()}”.</p>
+      ) : (
+        <ul className="scenario-list">
+          {scenarios.map((scenario) => {
+            const isSelected = scenario.scenarioId === selectedId;
+            const live = activeIds.has(scenario.scenarioId);
+            // The yellow background and bold text mark the selection;
+            // aria-pressed also exposes it to screen readers.
+            return (
+              <li key={scenario.scenarioId}>
+                <button
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => onSelect(scenario.scenarioId)}
+                  disabled={disabled}
+                  className="scenario-option"
+                >
+                  {scenario.name}
+                  {/* The route, so a scenario can be recognised by its stations. */}
+                  {scenario.covers && (
+                    <small className="scenario-route">
+                      {routeLabel(scenario.covers)}
+                    </small>
+                  )}
+                </button>
+                {/* A filled green dot when the scenario is live and an empty ring
                 when it is not, so it is marked by shape as well as colour. */}
-              <span
-                className={
-                  live ? "scenario-dot scenario-dot--live" : "scenario-dot"
-                }
-                role="img"
-                aria-label={live ? "Aktiv" : "Ikke aktiv"}
-                title={live ? "Aktiv" : "Ikke aktiv"}
-              />
-            </li>
-          );
-        })}
-      </ul>
+                <span
+                  className={
+                    live ? "scenario-dot scenario-dot--live" : "scenario-dot"
+                  }
+                  role="img"
+                  aria-label={live ? "Aktiv" : "Ikke aktiv"}
+                  title={live ? "Aktiv" : "Ikke aktiv"}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </>
   );
 }

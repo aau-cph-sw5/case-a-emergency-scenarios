@@ -11,47 +11,54 @@ const covers = [
   { trackNumber: 1, stationA: "Fasanvej", stationB: "Forum" },
 ];
 
-test("finds a station named in the description", () => {
-  assert.deepEqual(matchedStations("signalfejl ved Forum", covers), ["Forum"]);
-});
+const lower = [
+  { trackNumber: 1, stationA: "kongens nytorv", stationB: "nørreport" },
+];
+const branching = [
+  { trackNumber: 1, stationA: "a", stationB: "b" },
+  { trackNumber: 1, stationA: "b", stationB: "c" },
+  { trackNumber: 1, stationA: "b", stationB: "d" },
+];
 
-test("folds Danish letters, so norreport finds Nørreport", () => {
-  assert.deepEqual(matchedStations("togstop norreport", covers), ["Nørreport"]);
-});
+for (const [name, text, list, expected] of [
+  [
+    "finds a station named in the description",
+    "signalfejl ved Forum",
+    covers,
+    ["Forum"],
+  ],
+  [
+    "folds Danish letters, so norreport finds Nørreport",
+    "togstop norreport",
+    covers,
+    ["Nørreport"],
+  ],
+  [
+    "a typed word of four letters or more can start a station name",
+    "fasan",
+    covers,
+    ["Fasanvej"],
+  ],
+  ["short words do not match", "ved for", covers, []],
+  ["shows stored lower-case names as names", "nørreport", lower, ["Nørreport"]],
+  ["no covers gives no matches", "Forum", undefined, []],
+]) {
+  test(name, () => assert.deepEqual(matchedStations(text, list), expected));
+}
 
-test("a typed word of four letters or more can start a station name", () => {
-  assert.deepEqual(matchedStations("fasan", covers), ["Fasanvej"]);
-});
-
-test("short words do not match", () => {
-  assert.deepEqual(matchedStations("ved for", covers), []);
-});
-
-test("shows stored lower-case names as names", () => {
-  const lower = [
-    { trackNumber: 1, stationA: "kongens nytorv", stationB: "nørreport" },
-  ];
-  assert.deepEqual(matchedStations("nørreport", lower), ["Nørreport"]);
-  assert.equal(routeLabel(lower), "Kongens Nytorv ↔ Nørreport");
-});
-
-test("no covers gives no matches", () => {
-  assert.deepEqual(matchedStations("Forum", undefined), []);
-});
-
-test("a chain of segments shows its two ends", () => {
-  assert.equal(routeLabel(covers), "Fasanvej ↔ Nørreport");
-});
-
-test("a branching scenario shows its first stretch and the rest as a count", () => {
-  const branching = [
-    { trackNumber: 1, stationA: "a", stationB: "b" },
-    { trackNumber: 1, stationA: "b", stationB: "c" },
-    { trackNumber: 1, stationA: "b", stationB: "d" },
-  ];
-  assert.equal(routeLabel(branching), "A ↔ B og 2 flere");
-});
-
-test("no covers gives no route", () => {
-  assert.equal(routeLabel(undefined), "");
-});
+for (const [name, list, expected] of [
+  [
+    "shows stored lower-case names as names in the route",
+    lower,
+    "Kongens Nytorv ↔ Nørreport",
+  ],
+  ["a chain of segments shows its two ends", covers, "Fasanvej ↔ Nørreport"],
+  [
+    "a branching scenario shows its first stretch and the rest as a count",
+    branching,
+    "A ↔ B og 2 flere",
+  ],
+  ["no covers gives no route", undefined, ""],
+]) {
+  test(name, () => assert.equal(routeLabel(list), expected));
+}

@@ -31,7 +31,6 @@ export function OperatorDashboard({
     ownLineGroup ? LINE_GROUP_LABELS[ownLineGroup] : "M1/M2",
   );
   return (
-    // The theme reaches the CSS as custom properties (see operatorCssVars).
     <main
       className="operator-dashboard"
       style={operatorCssVars as CSSProperties}

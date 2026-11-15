@@ -15,14 +15,11 @@ export function filterScenarios<
 >(scenarios: T[], query: string): T[] {
   const needle = query.trim().toLowerCase();
   return scenarios
-    .filter(
-      (scenario) =>
-        scenario.name.toLowerCase().includes(needle) ||
-        (scenario.covers ?? []).some(
-          (segment) =>
-            segment.stationA.toLowerCase().includes(needle) ||
-            segment.stationB.toLowerCase().includes(needle),
-        ),
+    .filter((scenario) =>
+      [
+        scenario.name,
+        ...(scenario.covers ?? []).flatMap((s) => [s.stationA, s.stationB]),
+      ].some((text) => text.toLowerCase().includes(needle)),
     )
     .sort((a, b) => scenarioNameOrder.compare(a.name, b.name));
 }

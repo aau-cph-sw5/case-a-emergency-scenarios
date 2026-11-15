@@ -319,14 +319,12 @@ body {
 .scenario-picker input::-webkit-search-cancel-button {
   cursor: pointer;
 }
+/* The picker scrolls as a whole, so the list keeps its full height. */
 .scenario-list {
   list-style: none;
-  padding: 0 4px 0 0;
+  padding: 0;
   margin: 0;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #aaa #f2f2f2;
+  flex-shrink: 0;
 }
 .scenario-list li {
   display: flex;
@@ -353,7 +351,6 @@ body {
 }
 /* The selected scenario stays yellow, as before (Jakob's law), and is lifted
    onto a 2px ledge: one step less depth than the action buttons. */
-.scenario-option.is-selected,
 .scenario-option[aria-pressed="true"] {
   background: var(--operator-yellow);
   border-color: var(--operator-ink);
@@ -377,7 +374,9 @@ body {
 .scenario-actions {
   display: flex;
   align-items: center;
-  height: 68px;
+  /* The action card names its target above the buttons. */
+  flex-wrap: wrap;
+  height: auto;
   gap: 8px;
   padding: 10px 12px;
   flex-shrink: 0;
@@ -386,13 +385,10 @@ body {
 .scenario-actions button {
   flex: 1;
   height: 44px;
-  border: 1px solid var(--operator-ink);
-  border-radius: var(--operator-radius-control);
   padding: 0 8px;
   color: white;
   font-size: 12px;
   line-height: 1.4;
-  font-weight: bold;
 }
 .scenario-actions .scenario-switch {
   flex: 0 0 26%;
@@ -400,7 +396,7 @@ body {
   font-size: 12px;
 }
 .scenario-start {
-  background: var(--operator-green, #007d55);
+  background: var(--operator-green);
 }
 .scenario-stop {
   background: var(--operator-red);
@@ -418,10 +414,15 @@ body {
 }
 /* Action buttons sit on a solid 3px ledge and drop onto it when pressed, so
    they read as pressable and the press is felt at once. No blur: it matches
-   the crisp 1px outlines on the cards. A disabled button loses its ledge. */
+   the crisp 1px outlines on the cards. A disabled button loses its ledge.
+   .scenario-picker raises the two suggestion buttons above
+   ".operator-dashboard button { font: inherit }", which would reset bold. */
 .scenario-actions button,
-.suggest-submit,
-.suggest-goto {
+.scenario-picker .suggest-submit,
+.scenario-picker .suggest-goto {
+  border: 1px solid var(--operator-ink);
+  border-radius: var(--operator-radius-control);
+  font-weight: bold;
   box-shadow: 0 var(--operator-ledge-action) 0 var(--operator-ink);
   transition:
     transform 70ms ease-out,
@@ -805,7 +806,7 @@ body {
 .operator-confirm[aria-labelledby="confirm-stand-down-heading"]
   .confirm-actions
   > button:last-child {
-  background: var(--operator-green, #007d55);
+  background: var(--operator-green);
 }
 .operator-confirm .confirm-actions button:hover {
   filter: brightness(0.9);
@@ -1097,7 +1098,6 @@ body {
    resize handle: browsers draw it themselves and it cannot be styled.
    Browsers without field-sizing keep the three-row height. */
 .scenario-picker .suggest-field textarea {
-  display: block;
   flex: 1;
   min-width: 0;
   min-height: 76px;
@@ -1213,12 +1213,9 @@ body {
   justify-content: center;
   gap: 10px;
   min-height: 44px;
-  border: 1px solid var(--operator-ink);
-  border-radius: var(--operator-radius-control);
   background: var(--operator-ink);
   color: white;
   font-size: 14px;
-  font-weight: bold;
 }
 .suggest-spinner {
   width: 16px;
@@ -1299,7 +1296,6 @@ body {
   border-radius: var(--operator-radius-control);
   background: var(--operator-pressed);
   color: var(--operator-ink);
-  font-size: 12px;
   font-weight: 600;
 }
 /* TEMPORARY until #371: marks example suggestions as not real. One quiet
@@ -1356,12 +1352,9 @@ body {
 .suggest-goto {
   min-height: 36px;
   padding: 0 12px;
-  border: 1px solid var(--operator-ink);
-  border-radius: var(--operator-radius-control);
   background: white;
   color: var(--operator-ink);
   font-size: 12px;
-  font-weight: bold;
 }
 /* "Or pick it yourself": the two routes are separate and both visible. */
 .scenario-divider {
@@ -1396,11 +1389,6 @@ body {
   min-height: 44px;
   padding-left: 36px;
 }
-/* The picker scrolls as a whole, so the list keeps its full height. */
-.scenario-picker > .scenario-list {
-  flex-shrink: 0;
-  overflow: visible;
-}
 .scenario-picker .operator-eyebrow {
   margin-bottom: 4px;
 }
@@ -1411,18 +1399,13 @@ body {
   font-weight: normal;
   color: var(--operator-muted);
 }
-.scenario-option.is-selected .scenario-route {
+.scenario-option[aria-pressed="true"] .scenario-route {
   color: var(--operator-ink);
 }
 .scenario-count {
   margin: 0 0 8px;
   font-size: 12px;
   color: var(--operator-muted);
-}
-/* The action card names its target above the buttons. */
-.scenario-actions {
-  flex-wrap: wrap;
-  height: auto;
 }
 .scenario-picked {
   flex-basis: 100%;

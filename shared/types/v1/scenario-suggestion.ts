@@ -17,77 +17,10 @@ export type ScenarioSuggestionResponse =
        * @minItems 1
        * @maxItems 5
        */
-      candidates:
-        | [
-            {
-              scenarioId: string;
-              score: number;
-            },
-          ]
-        | [
-            {
-              scenarioId: string;
-              score: number;
-            },
-            {
-              scenarioId: string;
-              score: number;
-            },
-          ]
-        | [
-            {
-              scenarioId: string;
-              score: number;
-            },
-            {
-              scenarioId: string;
-              score: number;
-            },
-            {
-              scenarioId: string;
-              score: number;
-            },
-          ]
-        | [
-            {
-              scenarioId: string;
-              score: number;
-            },
-            {
-              scenarioId: string;
-              score: number;
-            },
-            {
-              scenarioId: string;
-              score: number;
-            },
-            {
-              scenarioId: string;
-              score: number;
-            },
-          ]
-        | [
-            {
-              scenarioId: string;
-              score: number;
-            },
-            {
-              scenarioId: string;
-              score: number;
-            },
-            {
-              scenarioId: string;
-              score: number;
-            },
-            {
-              scenarioId: string;
-              score: number;
-            },
-            {
-              scenarioId: string;
-              score: number;
-            },
-          ];
+      candidates: {
+        scenarioId: string;
+        score: number;
+      }[];
     }
   | {
       status: "NO_CONFIDENT_CANDIDATE";

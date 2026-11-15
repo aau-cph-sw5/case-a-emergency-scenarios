@@ -13,30 +13,20 @@ export function exampleSuggestions(
   scenarios: readonly ScenarioSummary[],
 ): Suggestions {
   const candidates = scenarios
-    .map((scenario) => {
-      const stations = new Set(
+    .map((scenario) => ({
+      scenarioId: scenario.scenarioId,
+      matched: matchedStations(description, scenario.covers).length,
+      stationCount: new Set(
         (scenario.covers ?? []).flatMap((s) => [s.stationA, s.stationB]),
-      );
-      const matched = matchedStations(description, scenario.covers).length;
-      return {
-        scenarioId: scenario.scenarioId,
-        score:
-          stations.size > 0
-            ? Math.round(50 + (45 * matched) / stations.size) / 100
-            : 0,
-        matched,
-      };
-    })
+      ).size,
+    }))
     .filter((c) => c.matched > 0)
+    .map((c) => ({
+      scenarioId: c.scenarioId,
+      score: Math.round(50 + (45 * c.matched) / c.stationCount) / 100,
+    }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, 5)
-    .map(({ scenarioId, score }) => ({ scenarioId, score }));
+    .slice(0, 5);
   if (candidates.length === 0) return { status: "NO_CONFIDENT_CANDIDATE" };
-  return {
-    status: "CONFIDENT",
-    candidates: candidates as Extract<
-      Suggestions,
-      { status: "CONFIDENT" }
-    >["candidates"],
-  };
+  return { status: "CONFIDENT", candidates };
 }
