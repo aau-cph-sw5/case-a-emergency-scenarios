@@ -122,6 +122,9 @@ export function StewardView({
   const [selected, setSelected] = useState<string | undefined>(undefined);
   // Whether the map is shown above the list; kept until logout (#376).
   const [mapShown, setMapShown] = useState(true);
+  // After check in: whether the other stations are open under the map (#377).
+  // Each check in starts with the tasks open.
+  const [restOpen, setRestOpen] = useState(false);
   // Nudges the own row once after each assignment, so the swipe is found.
   const [peekKey, setPeekKey] = useState<number | undefined>(undefined);
   // The note shown after the steward's own change, never after a reload.
@@ -377,6 +380,7 @@ export function StewardView({
         setOwnStatus(result.own);
         setNote((last) => statusNote(result.own, (last?.key ?? 0) + 1));
         setSelected(undefined);
+        if (change.type === "arrive") setRestOpen(false);
         if (change.type === "assign") setPeekKey((last) => (last ?? 0) + 1);
       } else setStatusError(result.message);
       // The server or the app's own check refused the change, so the app's
@@ -550,6 +554,11 @@ export function StewardView({
               }
               peekKey={peekKey}
               mapShown={mapShown}
+              restOpen={restOpen}
+              onToggleRest={() => {
+                animateNextLayout();
+                setRestOpen((open) => !open);
+              }}
               onToggleMap={() => {
                 animateNextLayout();
                 setMapShown((shownNow) => !shownNow);

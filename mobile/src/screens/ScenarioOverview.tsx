@@ -11,13 +11,13 @@ import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot
 import {
   lineColors,
   colors,
-  text,
   palette,
   panelRadius,
   steward,
 } from "../../../shared/Theme";
 import { staffingWords } from "../components/StatusBox";
 import { AxisSwap } from "../components/AxisSwap";
+import { RevealBox } from "../components/RevealBox";
 import { SwipeToCancel } from "../components/SwipeToCancel";
 import MapRender from "../../../shared/MapRenderer";
 import { getLines } from "../../../mockData/data";
@@ -87,6 +87,8 @@ export function ScenarioOverview({
   peekKey,
   mapShown = true,
   onToggleMap,
+  restOpen = false,
+  onToggleRest,
   assignedStation,
   checkedOutStation,
   ownArrived = false,
@@ -102,6 +104,10 @@ export function ScenarioOverview({
   peekKey?: number;
   mapShown?: boolean;
   onToggleMap?: () => void;
+  // After check in (#377): whether the other stations are open under the map.
+  // The tasks then close to their strip, and the strip opens them again.
+  restOpen?: boolean;
+  onToggleRest?: () => void;
   // The station the steward is on the way to or at.
   assignedStation?: string;
   // The station the steward has checked out from. It is no longer their own
@@ -138,8 +144,18 @@ export function ScenarioOverview({
     (checkedOutStation === undefined && ownAssignment?.status !== "CHECKED_OUT"
       ? ownAssignment?.fulfills
       : undefined);
-  const ownRow = requirements.find((row) => row.station === ownStation);
-  const ownActions = sortedActions(ownRow);
+  // The tasks of the own station from ALL its requirement rows (#377), in the
+  // order of the rows, numbered from 1; the placements are listed together.
+  const ownRows = requirements.filter((row) => row.station === ownStation);
+  const ownActions = ownRows.flatMap((row) =>
+    sortedActions(row).map((action) => ({
+      key: `${row.placement}-${action.sequence}`,
+      instruction: action.instruction,
+    })),
+  );
+  const ownPlacement = [...new Set(ownRows.map((row) => row.placement))].join(
+    " · ",
+  );
   const [listHeight, setListHeight] = useState(0);
 
   // The map is drawn again only when what it shows changes (MapCard): the
@@ -268,21 +284,70 @@ export function ScenarioOverview({
     );
   };
 
+  // After check in only the own station matters (#377): the map is always
+  // shown, the other stations only on request, and the tasks of the own
+  // station hang under them in the SAME frame.
+  const arrived = ownArrived && ownStation !== undefined;
+  const showMap = arrived || mapShown;
+  // The tasks hang under the map in the same frame (#377). Their text is
+  // pinned to the bottom of its box (RevealBox), so the heading strip
+  // sliding up uncovers it and sliding down covers it again.
+  const tasks = arrived && (
+    <View
+      style={[styles.tasks, restOpen && styles.tasksClosed]}
+      accessibilityLabel="Din opgave"
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: !restOpen }}
+        disabled={!restOpen}
+        onPress={onToggleRest}
+        style={styles.strip}
+      >
+        <Text style={styles.stripTitle} accessibilityRole="header">
+          Opgaver på {ownStation}
+        </Text>
+        {restOpen && <Text style={styles.stripAction}>Vis opgaver</Text>}
+      </Pressable>
+      <RevealBox open={!restOpen} anchor="bottom" openStyle={styles.list}>
+        <ScrollView style={styles.list}>
+          {ownPlacement !== "" && (
+            <Text style={styles.placement}>{ownPlacement}</Text>
+          )}
+          {ownActions.length > 0 ? (
+            ownActions.map((action, index) => (
+              <View key={action.key} style={styles.task}>
+                <Text style={styles.taskNumber}>{index + 1}.</Text>
+                <Text style={styles.taskText}>{action.instruction}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.placement}>
+              Ingen opgaver for denne station
+            </Text>
+          )}
+        </ScrollView>
+      </RevealBox>
+    </View>
+  );
+
   return (
     <View style={styles.root}>
       <View style={styles.card}>
-        {mapShown && (
+        {/* The map is pinned to the top of its box, so the strip under it
+            covers it as it slides up and uncovers it as it slides down. */}
+        <RevealBox open={showMap} anchor="top" openStyle={styles.mapBox}>
           <View
-            style={styles.mapBox}
+            style={styles.list}
             onLayout={(event) => setMapSize(event.nativeEvent.layout)}
           >
             {map}
           </View>
-        )}
+        </RevealBox>
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ expanded: !mapShown }}
-          onPress={onToggleMap}
+          accessibilityState={{ expanded: arrived ? restOpen : !mapShown }}
+          onPress={arrived ? onToggleRest : onToggleMap}
           style={styles.strip}
         >
           {/* A new heading takes the old one's place with the shared-axis
@@ -293,10 +358,22 @@ export function ScenarioOverview({
             </Text>
           </AxisSwap>
           <Text style={styles.stripAction}>
-            {mapShown ? `Vis alle ${rows.length}` : "Vis kort"}
+            {arrived
+              ? restOpen
+                ? "Vis færre"
+                : `Vis alle ${rows.length}`
+              : mapShown
+                ? `Vis alle ${rows.length}`
+                : "Vis kort"}
           </Text>
         </Pressable>
-        {mapShown ? (
+        {arrived ? (
+          // The other stations are pinned to the top of their box, so the
+          // tasks strip sliding down uncovers them.
+          <RevealBox open={restOpen} anchor="top" openStyle={styles.list}>
+            <ScrollView style={styles.list}>{sorted.map(renderRow)}</ScrollView>
+          </RevealBox>
+        ) : mapShown ? (
           <View
             style={styles.list}
             onLayout={(event) => setListHeight(event.nativeEvent.layout.height)}
@@ -306,34 +383,8 @@ export function ScenarioOverview({
         ) : (
           <ScrollView style={styles.list}>{sorted.map(renderRow)}</ScrollView>
         )}
+        {tasks}
       </View>
-
-      {ownArrived && ownStation !== undefined && (
-        // Layout from the design group: a dark card with the station's
-        // actions as a numbered list. Sub-issue 3 (#377) gives it its new look.
-        <View style={styles.ownCard} accessibilityLabel="Din opgave">
-          <Text style={styles.ownCardTitle} accessibilityRole="header">
-            Opgaver på {ownStation}
-          </Text>
-          {ownRow && (
-            <Text style={styles.ownCardPlacement}>{ownRow.placement}</Text>
-          )}
-          {ownActions.length > 0 ? (
-            ownActions.map((action, index) => (
-              <Text
-                key={action.sequence}
-                style={[styles.ownCardTask, index > 0 && styles.ownCardDivider]}
-              >
-                {action.sequence}. {action.instruction}
-              </Text>
-            ))
-          ) : (
-            <Text style={styles.ownCardTask}>
-              Ingen opgaver for denne station
-            </Text>
-          )}
-        </View>
-      )}
     </View>
   );
 }
@@ -484,33 +535,42 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // The steward's tasks after check in: a dark card plus text labels, so it
-  // does not rely on colour alone.
-  ownCard: {
-    backgroundColor: colors.active,
-    // Rounded as in the design group's sketch, like the status panels.
-    borderRadius: panelRadius,
-    padding: 12,
-    marginTop: 8,
-  },
-  ownCardTitle: {
-    ...text.title,
-    color: colors.textInverse,
-    marginBottom: 4,
-  },
-  ownCardPlacement: {
-    ...text.body,
-    color: colors.textInverse,
-    marginBottom: 6,
-  },
-  ownCardTask: {
-    ...text.body,
-    color: colors.textInverse,
-    paddingVertical: 8,
-    paddingLeft: 8,
-  },
-  ownCardDivider: {
+  // After check in the station card only holds the map and its strip, and
+  // the tasks fill the rest of the same frame (#377).
+  tasks: {
+    backgroundColor: colors.background,
+    borderTopColor: steward.line,
     borderTopWidth: 1,
-    borderTopColor: palette.networkGrey,
+    flex: 1,
+    overflow: "hidden",
+  },
+  tasksClosed: {
+    flex: 0,
+  },
+  placement: {
+    color: steward.muted,
+    fontSize: 14,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  task: {
+    borderTopColor: steward.line,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  taskNumber: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+    minWidth: 20,
+  },
+  taskText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 21,
   },
 });

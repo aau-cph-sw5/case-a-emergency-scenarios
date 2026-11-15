@@ -63,7 +63,7 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(onArrive).toHaveBeenCalledTimes(1);
   });
 
-  it("shows arrived and offers only Tjek ud", () => {
+  it("shows arrived and offers only Tjek ud", async () => {
     const { onCheckOut } = renderControl({
       own: { station: "Station B", status: "MANNED" },
       coverage: { arrived: 2, enRoute: 0, needed: 2 },
@@ -71,8 +71,24 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(screen.getByText("ANKOMMET 2/2")).toBeTruthy();
     expect(screen.getByText("2 på stationen")).toBeTruthy();
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
+    // Two steps (#377): TJEK UD shows the red slide, the slide checks out.
     fireEvent.press(screen.getByText("TJEK UD"));
+    expect(onCheckOut).not.toHaveBeenCalled();
+    // The red slide takes the button's place with the shared-axis change.
+    expect(await screen.findByText("BEKRÆFT TJEK UD")).toBeTruthy();
+    confirmSlide();
     expect(onCheckOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("steps back from the red slide with the cross", async () => {
+    const { onCheckOut } = renderControl({
+      own: { station: "Station B", status: "MANNED" },
+    });
+    fireEvent.press(screen.getByText("TJEK UD"));
+    fireEvent.press(await screen.findByLabelText("Fortryd tjek ud"));
+    expect(await screen.findByText("TJEK UD")).toBeTruthy();
+    expect(screen.queryByText("BEKRÆFT TJEK UD")).toBeNull();
+    expect(onCheckOut).not.toHaveBeenCalled();
   });
 
   // Cancelling is the swipe on the own row in the list, not a button (#376).
@@ -151,12 +167,13 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
   });
 
   // After a reload the server can report the task as done (#310).
-  it("offers Tjek ud when the task is done", () => {
+  it("offers Tjek ud when the task is done", async () => {
     const { onCheckOut } = renderControl({
       own: { station: "Station B", status: "TASK_DONE" },
     });
     fireEvent.press(screen.getByText("TJEK UD"));
+    await screen.findByText("BEKRÆFT TJEK UD");
+    confirmSlide();
     expect(onCheckOut).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
   });
 });

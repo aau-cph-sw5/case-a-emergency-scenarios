@@ -46,6 +46,21 @@ async function chooseStation(station: string) {
   });
 }
 
+// Checking out is TJEK UD and then the red slide (#377).
+async function checkOut() {
+  const tjekUd = await screen.findByText("TJEK UD");
+  await act(async () => {
+    fireEvent.press(tjekUd);
+  });
+  // The red slide takes the button's place with the shared-axis change.
+  await screen.findByText("BEKRÆFT TJEK UD");
+  await act(async () => {
+    fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+      nativeEvent: { actionName: "activate" },
+    });
+  });
+}
+
 async function cancelStation(station: string) {
   await act(async () => {
     fireEvent.press(screen.getByLabelText(`Annullér ${station}`));
@@ -215,10 +230,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(report).toHaveBeenLastCalledWith("token", "Station B", 1, "ARRIVED");
     expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
 
-    const tjekUd = await screen.findByText("TJEK UD");
-    await act(async () => {
-      fireEvent.press(tjekUd);
-    });
+    await checkOut();
 
     expect(report).toHaveBeenLastCalledWith(
       "token",
@@ -360,9 +372,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
     expect(await screen.findByText("TJEK UD")).toBeTruthy();
 
-    await act(async () => {
-      fireEvent.press(screen.getByText("TJEK UD"));
-    });
+    await checkOut();
     expect(report).toHaveBeenLastCalledWith(
       "token",
       "Station B",
@@ -574,6 +584,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     await step("check in", slide);
     await screen.findByText("TJEK UD");
     await step("check out", () => fireEvent.press(screen.getByText("TJEK UD")));
+    await step("confirm check out", slide);
     expect(problems).toEqual([]);
   }, 20000);
 });

@@ -48,6 +48,38 @@ describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
     expect(screen.getByText("Påvirkede stationer")).toBeTruthy();
   });
 
+  // After check in (#377): the map, then the tasks in the same frame; the
+  // other stations only when opened, and then the tasks close to their strip.
+  it("shows the tasks under the map after check in, the stations on request", () => {
+    const onToggleRest = jest.fn();
+    render(
+      <ScenarioOverview
+        snapshot={snapshot}
+        assignedStation="Station B"
+        ownArrived
+        onToggleRest={onToggleRest}
+      />,
+    );
+    expect(screen.getByText("Opgaver på Station B")).toBeTruthy();
+    expect(screen.queryByText("0/1")).toBeNull();
+    fireEvent.press(screen.getByText("Vis alle 1"));
+    expect(onToggleRest).toHaveBeenCalledTimes(1);
+    screen.unmount();
+    render(
+      <ScenarioOverview
+        snapshot={snapshot}
+        assignedStation="Station B"
+        ownArrived
+        restOpen
+        onToggleRest={onToggleRest}
+      />,
+    );
+    expect(screen.getByText("0/1")).toBeTruthy();
+    expect(screen.getByText("Vis færre")).toBeTruthy();
+    fireEvent.press(screen.getByText("Vis opgaver"));
+    expect(onToggleRest).toHaveBeenCalledTimes(2);
+  });
+
   it("shows the tasks only after check in", () => {
     render(
       <ScenarioOverview snapshot={snapshot} assignedStation="Station B" />,
@@ -126,6 +158,46 @@ describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
     expect(screen.getByText(`0/${row.minimumStaffing * 2}`)).toBeTruthy();
   });
 
+  // The tasks come from every requirement row of the station (#377).
+  it("lists the tasks of all the station's rows, numbered from 1", () => {
+    const base = (scenario as Scenario).versions[0];
+    const row = base.stationRequirements![0];
+    const twoRows = buildSnapshot(
+      {
+        active: true,
+        state: activeState as ScenarioState,
+        scenario: {
+          ...(scenario as Scenario),
+          versions: [
+            {
+              ...base,
+              stationRequirements: [
+                { ...row, actions: [{ sequence: 1, instruction: "First" }] },
+                {
+                  ...row,
+                  placement: "Second placement",
+                  actions: [{ sequence: 1, instruction: "Second" }],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      "9",
+      new Date(),
+    );
+    render(
+      <ScenarioOverview
+        snapshot={twoRows}
+        assignedStation="Station B"
+        ownArrived
+      />,
+    );
+    expect(screen.getByText("First")).toBeTruthy();
+    expect(screen.getByText("Second")).toBeTruthy();
+    expect(screen.getByText("2.")).toBeTruthy();
+  });
+
   it("merges rows in the order each station first appears", () => {
     const row = (scenario as Scenario).versions[0].stationRequirements![0];
     const merged = oneRowPerStation([
@@ -175,6 +247,7 @@ describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
         snapshot={snapshot}
         assignedStation="Station B"
         ownArrived
+        restOpen
       />,
     );
     expect(screen.getByText("0/1")).toHaveStyle({ color: colors.textInverse });

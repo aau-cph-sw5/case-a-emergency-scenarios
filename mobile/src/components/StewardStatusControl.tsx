@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   colors,
@@ -79,11 +79,21 @@ export function StewardStatusControl({
   // from either (#310).
   const atStation =
     active?.status === "MANNED" || active?.status === "TASK_DONE";
+  // Whether TJEK UD has been pressed and the red slide is showing. It starts
+  // over each time the steward is at a station again.
+  const [confirmOut, setConfirmOut] = useState(false);
+  if (!atStation && confirmOut) setConfirmOut(false);
 
   // What the bottom control is: the slide, the TJEK UD button or nothing.
   // Empty until the steward's status is read, so no control shows that is
   // not the steward's (BEKRÆFT for a steward who is on the way).
-  const bottomKind = !ready ? "" : atStation ? "check-out" : "slide";
+  const bottomKind = !ready
+    ? ""
+    : atStation
+      ? confirmOut
+        ? "confirm-check-out"
+        : "check-out"
+      : "slide";
   // The slide at the bottom: BEKRÆFT without a station, CHECK IND on the way.
   const slide: "assign" | "check-in" | null =
     active?.status === "PENDING"
@@ -160,16 +170,43 @@ export function StewardStatusControl({
           </View>
         )}
 
-        {ready && atStation && (
+        {/* Checking out takes two steps (#377), so a stray tap cannot check
+            anyone out: TJEK UD is replaced (the same shared-axis change) by
+            the red BEKRÆFT TJEK UD slide, and the cross steps back. No
+            approval from the control room. */}
+        {ready && atStation && !confirmOut && (
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled }}
             disabled={disabled}
-            onPress={onCheckOut}
+            onPress={() => setConfirmOut(true)}
             style={[styles.primaryButton, disabled && styles.disabled]}
           >
             <Text style={styles.primaryText}>TJEK UD</Text>
           </Pressable>
+        )}
+        {ready && atStation && confirmOut && (
+          <View style={styles.confirmRow}>
+            <View style={styles.grow}>
+              <SlideToConfirm
+                label="BEKRÆFT TJEK UD"
+                tone="red"
+                lockedReason={offline ? "Ingen forbindelse" : null}
+                disabled={disabled}
+                pending={sending}
+                onConfirm={onCheckOut}
+                onSlidingChange={onSlidingChange}
+              />
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Fortryd tjek ud"
+              onPress={() => setConfirmOut(false)}
+              style={styles.closeButton}
+            >
+              <Text style={styles.closeText}>✕</Text>
+            </Pressable>
+          </View>
         )}
       </AxisSwap>
     </View>
@@ -246,5 +283,26 @@ const styles = StyleSheet.create({
   placeholder: {
     height: steward.slideHeight,
     marginTop: spacing.medium,
+  },
+  confirmRow: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    gap: spacing.small * 2,
+  },
+  grow: {
+    flex: 1,
+  },
+  closeButton: {
+    alignItems: "center",
+    backgroundColor: steward.strip,
+    borderRadius: panelRadius,
+    height: steward.slideHeight,
+    justifyContent: "center",
+    width: steward.slideHeight,
+  },
+  closeText: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "700",
   },
 });
