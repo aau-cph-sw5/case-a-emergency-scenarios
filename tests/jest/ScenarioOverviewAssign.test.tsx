@@ -1,6 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { ScenarioOverview } from "../../mobile/src/screens/ScenarioOverview";
+import { Circle } from "react-native-svg";
+import { network as networkFixture } from "../helpers/network";
+import { buildMapNetwork } from "../../shared/network/network";
+import type { Network } from "../../shared/types/v1/network";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
 import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
@@ -19,6 +23,23 @@ const snapshot = buildSnapshot(
 );
 
 describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
+  it("draws scenario stations at the provided network positions", () => {
+    const network = buildMapNetwork(networkFixture as Network);
+    render(
+      <ScenarioOverview
+        snapshot={snapshot}
+        network={network}
+        networkIsCached
+      />,
+    );
+    const dots = screen
+      .UNSAFE_queryAllByType(Circle)
+      .map((dot) => [dot.props.cx, dot.props.cy]);
+    expect(dots).toContainEqual([100, 200]);
+    expect(dots).toContainEqual([200, 200]);
+    expect(screen.getByText("Viser gemt metronetværk.")).toBeTruthy();
+  });
+
   it("offers + on each affected station and reports the pressed one", () => {
     const onAssign = jest.fn();
     render(<ScenarioOverview snapshot={snapshot} onAssign={onAssign} />);

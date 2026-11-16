@@ -12,6 +12,30 @@ import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
 import { MetroMap } from "../../web/src/components/MetroMap";
 import { LiveDataContext } from "../../web/src/data/liveData";
+import { useNetwork } from "../../web/src/data/useNetwork";
+import { getLines, getStation } from "../../mockData/data";
+
+jest.mock("../../web/src/data/useNetwork", () => ({ useNetwork: jest.fn() }));
+const mapLines = getLines().map((line) => ({ ...line, tracks: [1, 2] }));
+const codes = [...new Set(mapLines.flatMap((line) => line.connections.flat()))];
+const testNetwork = {
+  lines: mapLines,
+  positions: Object.fromEntries(codes.map((code) => [code, getStation(code)])),
+  segments: mapLines.flatMap((line) =>
+    line.connections.flatMap(([stationA, stationB]) =>
+      [1, 2].map((trackNumber) => ({
+        id: 1,
+        trackNumber: trackNumber as 1 | 2,
+        stationA,
+        stationB,
+      })),
+    ),
+  ),
+  incomplete: false,
+};
+jest
+  .mocked(useNetwork)
+  .mockReturnValue({ network: testNetwork, error: null, retry: () => {} });
 
 // A synthetic scenario on the map's own station codes: it covers ISB–UNI,
 // which only M1 runs through, and needs staff at UNI.
@@ -106,6 +130,7 @@ function withScenario(
   return (
     <LiveDataContext value={value}>
       <MetroMap
+        token="test-token"
         scenarioId={scenarioId}
         scenario={preview}
         lineGroup={lineGroup}
