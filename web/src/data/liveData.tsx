@@ -12,9 +12,9 @@ import type { AppSocket } from "../../../shared/socket/createSocket";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
+import { sanitizeLogValue } from "../../../shared/sanitize";
 import { fetchActiveActivations } from "../activations";
 import { userMessage } from "../get-json";
-import { sanitizeLogValue } from "../sanitize-log";
 import {
   fetchScenario,
   fetchScenarios,

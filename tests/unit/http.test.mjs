@@ -64,13 +64,7 @@ test("getJson rejects encoded path separators before making a request", async ()
   const { fetchImpl, calls } = mockFetch(200, []);
 
   await assert.rejects(
-    getJson(
-      API,
-      "/api/v1/scenarios/a%2fb",
-      "abc",
-      isList,
-      fetchImpl,
-    ),
+    getJson(API, "/api/v1/scenarios/a%2fb", "abc", isList, fetchImpl),
     /traversal segments/,
   );
   assert.equal(calls.length, 0);

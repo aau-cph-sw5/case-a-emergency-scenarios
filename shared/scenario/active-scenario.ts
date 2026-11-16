@@ -1,12 +1,8 @@
 // No react-native imports here, so the unit tests can import this file.
 // The one place the steward app fetches the active scenario (#157), so the
 // offline copy (MET-A-005) can wrap it.
-import {
-  encodeApiPathSegment,
-  FormatError,
-  HttpError,
-  getJson,
-} from "../api/http";
+import { FormatError, HttpError, getJson } from "../api/http";
+import { sanitizeApiPathSegment } from "../sanitize";
 import type { Scenario, TrackSegment } from "../types/v1/scenario";
 import type { ScenarioState } from "../types/v1/scenario-state";
 
@@ -152,7 +148,10 @@ export async function loadActiveScenario(
     }
     let scenario: ScenarioDefinition;
     try {
-      const scenarioId = encodeApiPathSegment(state.scenarioId);
+      const scenarioId = sanitizeApiPathSegment(state.scenarioId);
+      if (scenarioId === null) {
+        throw new FormatError("a scenario-state with an invalid scenario id");
+      }
       scenario = await getJson(
         apiBaseUrl,
         `/api/v1/scenarios/${scenarioId}?activationId=${state.activationId}`,

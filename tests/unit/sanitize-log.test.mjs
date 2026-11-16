@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sanitizeLogValue } from "../../web/src/sanitize-log.ts";
+import { sanitizeLogValue } from "../../shared/sanitize.ts";
 
 test("sanitizeLogValue neutralizes line breaks and control characters", () => {
   assert.equal(
