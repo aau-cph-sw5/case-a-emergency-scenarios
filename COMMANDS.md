@@ -195,13 +195,15 @@ Seed local users for database-backed authentication after applying migrations:
 npm run seed:users
 ```
 
-This creates or updates four local-only accounts, one operator and one steward
-for each line group:
+This creates or updates five local-only accounts, one operator and one steward
+for each line group, and one admin:
 
-| Line group | Operator | Steward |
-|---|---|---|
-| M1/M2 | `operator` / `operator123` | `steward` / `steward123` |
-| M3/M4 | `operator-m3m4` / `operator123` | `steward-m3m4` / `steward123` |
+| Line group | Operator                        | Steward                       |
+| ---------- | ------------------------------- | ----------------------------- |
+| M1/M2      | `operator` / `operator123`      | `steward` / `steward123`      |
+| M3/M4      | `operator-m3m4` / `operator123` | `steward-m3m4` / `steward123` |
+
+The admin is `admin` / `admin123` and signs in on the web dashboard.
 
 An operator only sees and changes their own line group's scenario, so use the
 M3/M4 operator for DEMO-002 and the M1/M2 operator for DEMO-001 and DEMO-003.
@@ -297,6 +299,7 @@ npm run validate
 ```
 
 ## Tests
+
 Run all unit and integration tests:
 
 ```bash
@@ -317,13 +320,13 @@ like the hosted application. They do not write to the local development database
 Use `npm run db:test:down` afterwards if you want to stop its container.
 
 Tests live in `tests/unit/`, `tests/jest/` and `tests/integration/`. GitHub Actions runs them as
-separate **Unit tests** **Jest tests** and  **Integration tests** checks, against a throwaway
+separate **Unit tests** **Jest tests** and **Integration tests** checks, against a throwaway
 database, and reports coverage in a separate **Backend coverage** check. See
 `docs/reference/automation.md`.
 
 ## Generate:
 
-Generates typescript types from the json schemas, in the `contracts/` folder, preferably use these 
+Generates typescript types from the json schemas, in the `contracts/` folder, preferably use these
 so the contracts serves as a source of truth.
 
 ```bash

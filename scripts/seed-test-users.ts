@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import postgres from "postgres";
 import { fileURLToPath } from "node:url";
 import type { LineGroup } from "../shared/auth/line-groups.js";
+import type { Role } from "../shared/auth/roles.js";
 
 const SALT_ROUNDS = 10;
 
@@ -20,7 +21,13 @@ const m1m2Users = [
   },
 ] as const;
 
-// The same accounts for M3/M4, so tests can log in to either line group.
+const adminAccount = {
+  username: "admin",
+  password: "admin123",
+  role: "ADMIN",
+  lineGroup: "M1_M2",
+} as const;
+
 const users = [
   ...m1m2Users,
   ...m1m2Users.map((user) => ({
@@ -28,12 +35,13 @@ const users = [
     username: `${user.username}-m3m4`,
     lineGroup: "M3_M4" as const,
   })),
+  adminAccount,
 ];
 
 export type SeededTestUser = {
   id: number;
   username: string;
-  role: "STEWARD" | "OPERATOR";
+  role: Role;
   lineGroup: LineGroup;
 };
 

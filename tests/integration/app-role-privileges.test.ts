@@ -33,7 +33,7 @@ const ALL = ["SELECT", "INSERT", "UPDATE", "DELETE"];
 const expected: Record<string, string[]> = {
   incident_events: ["SELECT", "INSERT"],
   incident_activations: ["SELECT", "INSERT", "UPDATE"],
-  users: ["SELECT"],
+  users: ["SELECT", "INSERT", "UPDATE"],
   auth_sessions: ["SELECT", "INSERT", "UPDATE"],
   position_reports: ["SELECT", "INSERT"],
   scenarios: ["SELECT"],

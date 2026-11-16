@@ -4,6 +4,7 @@ import { healthRouter } from "./routes/health-routes.js";
 import { metroLineRouter } from "./routes/metro-line-routes.js";
 import { positionReportRouter } from "./routes/position-report-routes.js";
 import { scenarioRouter } from "./routes/scenario-routes.js";
+import { userRouter } from "./routes/user-routes.js";
 
 export const app = express();
 
@@ -13,3 +14,4 @@ app.use(authRouter);
 app.use(scenarioRouter);
 app.use(metroLineRouter);
 app.use(positionReportRouter);
+app.use(userRouter);
