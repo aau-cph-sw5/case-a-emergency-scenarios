@@ -50,11 +50,11 @@ test("reseeding updates scenario content without breaking activation references"
     await seedScenarios(client, [scenario], stations);
 
     const result = await client.query(
-      `SELECT s.name, s.current_version_id, a.scenario_version_id, p.name AS plan_name,
+      `SELECT s.name, s.current_version_id, a.scenario_version_id, v.operating_plan_name AS plan_name,
          (SELECT count(*)::int FROM scenario_versions WHERE scenario_id = s.scenario_id) AS version_count
        FROM scenarios s
        JOIN incident_activations a ON a.scenario_id = s.scenario_id
-       JOIN operating_plans p ON p.scenario_version_id = a.scenario_version_id
+       JOIN scenario_versions v ON v.id = a.scenario_version_id
        WHERE a.id = $1`,
       [activationId],
     );
