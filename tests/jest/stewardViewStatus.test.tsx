@@ -205,6 +205,12 @@ afterEach(() => {
 });
 
 describe("StewardView status (MET-A-015, #263, #305)", () => {
+  // The steps wait in real time for the status card to turn (settle). A test
+  // with three turns takes about 2 s on a laptop, and the CI runner with
+  // coverage on is slower, so Jest's 5 s default cut the first test off and
+  // left its screen mounted for the tests after it.
+  jest.setTimeout(20000);
+
   it("goes from no status, via on the way and arrived, to checked out", async () => {
     showView({ status: "live", snapshot });
     await renderView();
