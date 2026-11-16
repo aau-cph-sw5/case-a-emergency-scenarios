@@ -69,9 +69,14 @@ export function validateNetwork(data: NetworkSeed): string[] {
       );
       return;
     }
+    const [firstStation, secondStation] =
+      segment.stationA < segment.stationB
+        ? [segment.stationA, segment.stationB]
+        : [segment.stationB, segment.stationA];
     const key = JSON.stringify([
       segment.trackNumber,
-      ...[segment.stationA, segment.stationB].sort(),
+      firstStation,
+      secondStation,
     ]);
     if (segmentKeys.has(key))
       errors.push(`segments[${index}] repeats a track segment.`);

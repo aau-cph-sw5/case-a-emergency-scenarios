@@ -35,6 +35,23 @@ test("rejects duplicate segments in either direction", () => {
   assert.match(validateNetwork(data).join("\n"), /repeats a track segment/);
 });
 
+test("keeps distinct station codes separate when checking reversed segments", () => {
+  const data = demo();
+  data.stations.push({ code: "Station a", name: "Station a", x: 300, y: 200 });
+  data.segments.push({
+    trackNumber: 1,
+    stationA: "Station B",
+    stationB: "Station a",
+  });
+  assert.deepEqual(validateNetwork(data), []);
+  data.segments.push({
+    trackNumber: 1,
+    stationA: "Station a",
+    stationB: "Station B",
+  });
+  assert.match(validateNetwork(data).join("\n"), /repeats a track segment/);
+});
+
 test("requires real pattern values and known stations", () => {
   const data = demo();
   data.normalPatterns[0].did = "";
