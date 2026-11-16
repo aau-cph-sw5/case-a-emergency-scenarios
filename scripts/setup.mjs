@@ -10,7 +10,7 @@ import {
   installDependencies,
   main,
   migrateDatabase,
-  seedReferenceData,
+  seedDatabase,
   startDatabase,
   seedUsers,
 } from "./lib/local-env.mjs";
@@ -25,7 +25,7 @@ await main(
     ["Starting the database", startDatabase],
     ["Applying migrations", migrateDatabase],
     ["Seeding test users", seedUsers],
-    ["Seeding network and scenario data", seedReferenceData],
+    ["Seeding scenario data", seedDatabase],
   ],
   "Setup complete. Start the API and web client with `npm run dev:web`.",
 );

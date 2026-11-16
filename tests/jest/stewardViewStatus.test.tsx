@@ -36,9 +36,6 @@ jest.mock("../../shared/socket/useSocketState", () => ({
 jest.mock("../../mobile/src/socket", () => ({
   socket: { on: jest.fn(), off: jest.fn() },
 }));
-jest.mock("../../mobile/src/network/useNetwork", () => ({
-  useNetwork: () => ({ network: null, usingCached: false }),
-}));
 jest.mock("../../mobile/src/offline/snapshot-store", () => ({
   snapshotStore: {},
 }));

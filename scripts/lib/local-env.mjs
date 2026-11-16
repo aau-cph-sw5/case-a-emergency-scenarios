@@ -6,16 +6,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline";
-// Available since Node 20.12; kept as a built-in so setup can run before npm ci.
-// eslint-disable-next-line n/no-unsupported-features/node-builtins
-import { parseEnv } from "node:util";
 import { root, run, npm } from "./run.mjs";
-import {
-  FETCH_HINT,
-  SEED_DATA_DIR,
-  findSeedData,
-  isInsideRepo,
-} from "./seed-data.mjs";
+import { FETCH_HINT, SEED_DATA_DIR, findSeedData } from "./seed-data.mjs";
 import { warn } from "./output.mjs";
 
 const MIN_NODE = [20, 19, 0];
@@ -265,78 +257,33 @@ export function seedUsers() {
     throw new SetupError("Seeding the test users failed");
   }
 }
-// Node's --env-file gives inherited environment variables precedence over
-// .env. Use the same rules here so setup cannot accidentally seed a remote DB.
-export function automaticSeedSettings(envText, environment = process.env) {
-  const env = { ...parseEnv(envText), ...environment };
-  return {
-    networkFile: env.NETWORK_SEED_FILE?.trim() || undefined,
-    scenariosDir: env.SEED_SCENARIOS_DIR?.trim() || undefined,
-    remoteTarget: Boolean(env.SEED_DATABASE_URL?.trim()),
-  };
-}
-
-// Setup and reset load the shared network first; scenario data must never run
-// after a skipped or failed network seed. Dependencies can be supplied in tests
-// without running Docker or writing to a database.
-export function seedReferenceData({
-  rootDir = root,
-  environment = process.env,
-  runNpm = npm,
-  reportWarning = warn,
-  reportNote = note,
-} = {}) {
-  const envFile = path.join(rootDir, ".env");
+export function seedDatabase() {
+  // SEED_SCENARIOS_DIR from the same .env that `npm run seed` reads.
+  const envFile = path.join(root, ".env");
   const env = existsSync(envFile) ? readFileSync(envFile, "utf8") : "";
-  const settings = automaticSeedSettings(env, environment);
-  if (settings.remoteTarget) {
-    reportWarning(
-      "Skipped network and scenario seeds: SEED_DATABASE_URL targets another database.",
+  const configured = /^SEED_SCENARIOS_DIR[ \t]*=[ \t]*(.*)$/m
+    .exec(env)?.[1]
+    .trim();
+  const scenariosDir = configured ? path.resolve(root, configured) : undefined;
+  // Setup only prepares the local database, so it never seeds another one.
+  if (/^SEED_DATABASE_URL[ \t]*=[ \t]*\S/m.test(env)) {
+    warn(
+      "Skipped: SEED_DATABASE_URL is set in .env, so seeding would not go to the local database.",
     );
-    reportNote(
-      "Run the seed commands yourself when you mean to use that database.",
-    );
+    note("Run `npm run seed` yourself when you mean to seed that database.");
     return;
   }
-  if (!settings.networkFile) {
-    reportWarning(
-      "Skipped network and scenario seeds: set NETWORK_SEED_FILE in .env first.",
-    );
-    return;
-  }
-  const networkFile = path.resolve(rootDir, settings.networkFile);
-  if (isInsideRepo(networkFile, rootDir)) {
-    throw new SetupError(
-      "NETWORK_SEED_FILE must point to a file outside the repository.",
-    );
-  }
-  if (!existsSync(networkFile)) {
-    throw new SetupError(
-      "NETWORK_SEED_FILE does not exist. Check its path in .env.",
-    );
-  }
-  reportNote("Loading the shared network before scenarios.");
-  if (runNpm(["run", "seed:network"]).status !== 0) {
-    throw new SetupError(
-      "Network seeding failed. Scenario seeding was not run.",
-    );
-  }
-
-  const scenariosDir = settings.scenariosDir
-    ? path.resolve(rootDir, settings.scenariosDir)
-    : undefined;
   const { problem } = findSeedData(
-    path.join(rootDir, SEED_DATA_DIR),
+    path.join(root, SEED_DATA_DIR),
     scenariosDir,
-    rootDir,
   );
   if (problem) {
-    reportWarning(`Scenario seed skipped: ${problem}`);
-    reportNote(`${FETCH_HINT} Then run \`npm run seed\`.`);
+    warn(`Skipped: ${problem}`);
+    note(`${FETCH_HINT} Then run \`npm run seed\`.`);
     return;
   }
-  if (runNpm(["run", "seed"]).status !== 0) {
-    throw new SetupError("Scenario seeding failed. See the output above.");
+  if (npm(["run", "seed"]).status !== 0) {
+    throw new SetupError("Seeding failed. See the output above.");
   }
 }
 

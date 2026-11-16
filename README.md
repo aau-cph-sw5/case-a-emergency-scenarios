@@ -46,13 +46,11 @@ npm run dev:web
 ```
 
 `npm run setup` installs dependencies, creates `.env` and a local JWT secret,
-starts the local PostgreSQL database and applies the migrations. When
-`NETWORK_SEED_FILE` is configured in `.env`, it loads the network first and
-then loads scenarios if `SEED_SCENARIOS_DIR` is also configured. Without the
-network file, automatic network and scenario seeding is skipped; see [the seed
-loader guide](scripts/README.md). It is safe to re-run, for example after
-pulling new migrations. `npm run db:reset` deletes the local database and
-rebuilds it using the same seed order.
+starts the local PostgreSQL database, applies the migrations and seeds scenario
+data when the seed files are present (see [the seed loader guide](scripts/README.md)).
+It is safe to re-run at any time, for example after pulling new migrations. If
+the local database gets into a bad state, `npm run db:reset` deletes it and
+rebuilds it from scratch.
 
 The browser-based web client opens at `http://localhost:5173`; the API and
 Socket.IO server run at `http://localhost:3000`. Use

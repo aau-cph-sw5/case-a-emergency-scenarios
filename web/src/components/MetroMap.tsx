@@ -9,6 +9,7 @@ import {
   radius,
   text,
 } from "../../../shared/Theme";
+import { getLines } from "../../../mockData/data";
 import {
   affectedStretchAsMapLine,
   areaAroundStations,
@@ -22,23 +23,19 @@ import {
 } from "../../../shared/components/stationState";
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import { useScenario } from "../data/useScenario";
-import { useNetwork } from "../data/useNetwork";
-import { resolveStops, type MapNetwork } from "../../../shared/network/network";
 
-// Each normal line keeps its colour when shown alone.
+// The whole metro network, each line in its own colour (M1 to M4). The colour
+// belongs to the line, so M2 keeps its colour when it is shown alone.
+const network = getLines().map((line) => ({ ...line, tracks: [1, 2] }));
 const lineGroups = [
   ["M1", "M2"],
   ["M3", "M4"],
 ] as const;
 const lineColor = Object.fromEntries(
-  ["M1", "M2", "M3", "M4"].map((line, index) => [line, lineColors[index]]),
+  network.map((line, index) => [line.name, lineColors[index]]),
 );
 
-function scenarioLines(
-  scenario: Scenario,
-  groupLines: MapNetwork["lines"],
-  segments: MapNetwork["segments"],
-) {
+function scenarioLines(scenario: Scenario, groupLines: typeof network) {
   const expectedLines =
     scenario.lineGroup === "M1_M2" ? ["M1", "M2"] : ["M3", "M4"];
   if (!groupLines.some((line) => expectedLines.includes(line.name))) {
@@ -49,41 +46,29 @@ function scenarioLines(
     (version) => version.version === scenario.currentVersion,
   );
 
-  let missingRoutes = false;
   const routes =
     current?.operatingPlan.patterns
       .filter((pattern) => pattern.did.trim() !== "")
       .sort((a, b) => a.did.localeCompare(b.did, undefined, { numeric: true }))
-      .map((pattern) => {
-        const tracks =
-          pattern.trackNumber === 12 ? [1, 2] : [pattern.trackNumber];
-        const stops = routeConnections(pattern.route);
-        const stopList = stops.length
-          ? [stops[0][0], ...stops.map(([, station]) => station)]
-          : [];
-        if (stopList.length < 2 || stops.length !== pattern.route.length - 1) {
-          missingRoutes = true;
-          return { name: pattern.did, tracks, connections: [] };
-        }
-        const result = resolveStops(stopList, groupLines, segments, tracks);
-        if (result.incomplete) missingRoutes = true;
-        return { name: pattern.did, tracks, connections: result.connections };
-      }) ?? [];
-  return { lines: routes, missingRoutes: missingRoutes || routes.length === 0 };
+      .map((pattern) => ({
+        name: pattern.did,
+        tracks: pattern.trackNumber === 12 ? [1, 2] : [pattern.trackNumber],
+        connections: routeConnections(pattern.route),
+      })) ?? [];
+
+  return routes.length > 0
+    ? { lines: routes, missingRoutes: false }
+    : { lines: [], missingRoutes: true };
 }
 
 // Scenario data determines staffing markers and the optional close-up view.
 // The operator chooses the visible line group separately in the header.
 export function mapView(
   scenario: Scenario | null,
-  deployments: ActiveDeployments | null,
-  network: MapNetwork["lines"],
-  position?: (station: string) => [number, number] | undefined,
+  deployments: ActiveDeployments | null = null,
 ) {
   const stretch =
-    scenario === null
-      ? []
-      : affectedStretchAsMapLine(scenario, position).connections;
+    scenario === null ? [] : affectedStretchAsMapLine(scenario).connections;
   const covered = linesThrough(network, stretch);
   const enabledLines: readonly string[] = lineGroups
     .filter((group) =>
@@ -116,20 +101,16 @@ export function mapView(
       deployments === null ? {} : stationCoverage(requirements, deployments),
     // Undefined without an affected stretch, which keeps the map's own view.
     viewBox:
-      covered.length > 0
-        ? areaAroundStations(stretch.flat(), 160, position)
-        : undefined,
+      covered.length > 0 ? areaAroundStations(stretch.flat(), 160) : undefined,
   };
 }
 
 export function MetroMap({
-  token,
   scenarioId,
   scenario: previewScenario,
   lineGroup = "M1/M2",
   deployments = null,
 }: {
-  token: string;
   scenarioId: string | null;
   scenario?: Scenario | null;
   lineGroup?: "M1/M2" | "M3/M4";
@@ -147,27 +128,14 @@ export function MetroMap({
 
   // Each scenario starts with its whole line group in view.
   const [zoomedInto, setZoomedInto] = useState<string | null>(null);
-  const { network: mapNetwork, error: networkError, retry } = useNetwork(token);
-  if (networkError)
-    return (
-      <View>
-        <Text role="alert">{networkError}</Text>
-        <Pressable onPress={retry}>
-          <Text>Prøv igen</Text>
-        </Pressable>
-      </View>
-    );
-  if (!mapNetwork) return <Text>Indlæser metronetværk…</Text>;
-  const network = mapNetwork.lines;
-  const position = (station: string) => mapNetwork.positions[station];
-  const view = mapView(scenario, deployments, network, position);
+  const view = mapView(scenario, deployments);
   const groupNetwork = network.filter((line) =>
     lineGroup.split("/").includes(line.name),
   );
   const scenarioLineResult =
     scenarioId === null || scenario === null
       ? null
-      : scenarioLines(scenario, groupNetwork, mapNetwork.segments);
+      : scenarioLines(scenario, groupNetwork);
   const groupLines =
     scenarioId === null
       ? groupNetwork
@@ -188,7 +156,7 @@ export function MetroMap({
     ...groupNetwork.flatMap((line) => line.connections.flat()),
     ...groupLines.flatMap((line) => line.connections.flat()),
   ]);
-  const groupViewBox = areaAroundStations([...groupStations], 90, position);
+  const groupViewBox = areaAroundStations([...groupStations], 90);
   const groupHasScenario = groupLines.some(
     (line) => !view.initiallyHidden.includes(line.name),
   );
@@ -249,13 +217,6 @@ export function MetroMap({
           key={`${scenario?.scenarioId ?? "none"}-${lineGroup}`}
           lines={groupLines}
           colors={routeColors}
-          positions={mapNetwork.positions}
-          ringStations={
-            network
-              .find((line) => line.name === "M3")
-              ?.connections.map(([station]) => station) ?? []
-          }
-          availableSegments={mapNetwork.segments}
           showLineButtons={false}
           viewBox={zoomedIn ? view.viewBox : groupViewBox}
           markedStations={view.markedStations.filter((station) =>
@@ -268,11 +229,6 @@ export function MetroMap({
         />
       </div>
 
-      {mapNetwork.incomplete && (
-        <Text role="alert" style={text.small}>
-          Metronetværket er ufuldstændigt.
-        </Text>
-      )}
       {missingScenarioRoutes && (
         <Text role="alert" style={text.small}>
           Kunne ikke vise destinations-ID&apos;er: scenariet mangler

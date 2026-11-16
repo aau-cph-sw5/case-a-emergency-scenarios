@@ -10,13 +10,10 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
-  automaticSeedSettings,
   dependenciesUpToDate,
   ensureJwtSecret,
   lockfileHash,
   resetConfirmation,
-  seedReferenceData,
-  SetupError,
 } from "../../scripts/lib/local-env.mjs";
 
 function project(lockfile) {
@@ -109,120 +106,4 @@ test("adds a JWT secret when .env predates authentication", () => {
 
   const env = readFileSync(path.join(dir, ".env"), "utf8");
   assert.match(env, /^JWT_SECRET=[A-Za-z0-9_-]{64}$/m);
-});
-
-function seedProject() {
-  const parent = mkdtempSync(path.join(tmpdir(), "setup-seed-"));
-  const repo = path.join(parent, "repo");
-  const scenarios = path.join(parent, "scenarios");
-  const network = path.join(parent, "network data.json");
-  mkdirSync(path.join(repo, "docs", "scenario-state"), { recursive: true });
-  mkdirSync(scenarios);
-  writeFileSync(path.join(repo, "docs/scenario-state/stations.json"), "[]");
-  writeFileSync(path.join(repo, "docs/scenario-state/shafts.json"), "[]");
-  writeFileSync(path.join(scenarios, "SeedDataScenario_1.json"), "{}");
-  writeFileSync(network, "{}");
-  writeFileSync(
-    path.join(repo, ".env"),
-    `NETWORK_SEED_FILE="${network}"\nSEED_SCENARIOS_DIR="${scenarios}"\n`,
-  );
-  return { repo, network, scenarios };
-}
-
-function runSeeds(repo, overrides = {}) {
-  const calls = [];
-  const warnings = [];
-  const options = {
-    rootDir: repo,
-    environment: {},
-    runNpm: (args) => {
-      calls.push(args);
-      return { status: 0 };
-    },
-    reportWarning: (message) => warnings.push(message),
-    reportNote: () => {},
-    ...overrides,
-  };
-  seedReferenceData(options);
-  return { calls, warnings };
-}
-
-test("setup seeds the network before scenarios with quoted paths", () => {
-  const { repo } = seedProject();
-  assert.deepEqual(runSeeds(repo).calls, [
-    ["run", "seed:network"],
-    ["run", "seed"],
-  ]);
-});
-
-test("setup skips both seeds when no network file is configured", () => {
-  const { repo, scenarios } = seedProject();
-  writeFileSync(path.join(repo, ".env"), `SEED_SCENARIOS_DIR="${scenarios}"\n`);
-  const { calls, warnings } = runSeeds(repo);
-  assert.deepEqual(calls, []);
-  assert.match(warnings[0], /NETWORK_SEED_FILE/);
-});
-
-test("a failed network seed stops scenario seeding", () => {
-  const { repo } = seedProject();
-  const calls = [];
-  assert.throws(
-    () =>
-      runSeeds(repo, {
-        runNpm: (args) => {
-          calls.push(args);
-          return { status: 1 };
-        },
-      }),
-    SetupError,
-  );
-  assert.deepEqual(calls, [["run", "seed:network"]]);
-});
-
-test("automatic seeding skips remote targets from either environment or .env", () => {
-  const { repo, network } = seedProject();
-  assert.deepEqual(
-    runSeeds(repo, {
-      environment: { SEED_DATABASE_URL: "postgresql://remote/db" },
-    }).calls,
-    [],
-  );
-  writeFileSync(
-    path.join(repo, ".env"),
-    `NETWORK_SEED_FILE="${network}"\nSEED_DATABASE_URL=postgresql://remote/db\n`,
-  );
-  assert.deepEqual(runSeeds(repo).calls, []);
-});
-
-test("inherited environment settings take precedence over .env", () => {
-  assert.deepEqual(
-    automaticSeedSettings(
-      'NETWORK_SEED_FILE="/a path/file.json"\nSEED_DATABASE_URL=\n',
-      {
-        NETWORK_SEED_FILE: "/other/file.json",
-        SEED_DATABASE_URL: "postgresql://remote/db",
-      },
-    ),
-    {
-      networkFile: "/other/file.json",
-      scenariosDir: undefined,
-      remoteTarget: true,
-    },
-  );
-});
-
-test("setup refuses a configured network file inside the repository", () => {
-  const { repo } = seedProject();
-  const inside = path.join(repo, "network.json");
-  writeFileSync(inside, "{}");
-  writeFileSync(path.join(repo, ".env"), `NETWORK_SEED_FILE="${inside}"\n`);
-  assert.throws(() => runSeeds(repo), /outside the repository/);
-});
-
-test("setup can seed the network when scenario files are not configured", () => {
-  const { repo, network } = seedProject();
-  writeFileSync(path.join(repo, ".env"), `NETWORK_SEED_FILE="${network}"\n`);
-  const { calls, warnings } = runSeeds(repo);
-  assert.deepEqual(calls, [["run", "seed:network"]]);
-  assert.match(warnings[0], /SEED_SCENARIOS_DIR/);
 });
