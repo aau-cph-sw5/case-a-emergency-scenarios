@@ -14,10 +14,7 @@ function refuse(response: Response, code: string) {
   return response.status(status).json(errorBody(code as never));
 }
 
-export async function getStationThreads(
-  _request: Request,
-  response: Response,
-) {
+export async function getStationThreads(_request: Request, response: Response) {
   // requireAuth puts the user from the verified token in response.locals.
   const user = response.locals.user as AuthUser;
   if (user.role !== "OPERATOR") {
@@ -64,8 +61,10 @@ export async function postStationMessage(
     return refuse(response, result.code);
   }
 
-  return response
-    // A retry is acknowledged with 200; a newly stored message returns 201.
-    .status(result.kind === "repeat" ? 200 : 201)
-    .json(result.message);
+  return (
+    response
+      // A retry is acknowledged with 200; a newly stored message returns 201.
+      .status(result.kind === "repeat" ? 200 : 201)
+      .json(result.message)
+  );
 }

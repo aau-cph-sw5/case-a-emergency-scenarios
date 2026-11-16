@@ -2,37 +2,37 @@ import type { StationMessage } from "../../shared/types/v1/station-message.js";
 import type { Db } from "../db/client.js";
 
 export type StoredStationMessage = {
-    id: number;
-    clientMessageId: string;
-    activationId: number;
-    station: string;
-    sender: "STATION" | "CONTROL_ROOM";
-    text: string;
-    writtenAt: Date;
-    receivedAt: Date;
+  id: number;
+  clientMessageId: string;
+  activationId: number;
+  station: string;
+  sender: "STATION" | "CONTROL_ROOM";
+  text: string;
+  writtenAt: Date;
+  receivedAt: Date;
 };
 
 // The API uses timestamp strings, so convert the database dates here.
 function toMessage(row: StoredStationMessage): StationMessage {
-    return {
-        ...row,
-        writtenAt: row.writtenAt.toISOString(),
-        receivedAt: row.receivedAt.toISOString(),
-    };
+  return {
+    ...row,
+    writtenAt: row.writtenAt.toISOString(),
+    receivedAt: row.receivedAt.toISOString(),
+  };
 }
 
 export async function lockClientMessageId(
-    db: Db,
-    clientMessageId: string,
+  db: Db,
+  clientMessageId: string,
 ): Promise<void> {
-    // Make requests with the same ID wait so a retry can't save twice.
-    await db`
+  // Make requests with the same ID wait so a retry can't save twice.
+  await db`
         SELECT pg_advisory_xact_lock(hashtext(${clientMessageId.toLowerCase()}))
     `;
 }
 
 export async function lockActivationForMessage(
-    db: Db,
+  db: Db,
   activationId: number,
 ): Promise<void> {
   // Keep the activation from being stood down while this message is saved.
@@ -106,8 +106,8 @@ export async function stewardIsCheckedIn(
   activationId: number,
   station: string,
 ): Promise<boolean> {
-    // Use the newest report; older reports don't show the steward's current status.
-    const [latest] = await db<
+  // Use the newest report; older reports don't show the steward's current status.
+  const [latest] = await db<
     { station: string; event: string; taskDone: boolean }[]
   >`
     SELECT station, event, task_done

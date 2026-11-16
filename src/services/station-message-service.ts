@@ -72,7 +72,10 @@ async function validateActiveActivation(
   user: AuthUser,
   activationId: number,
 ): Promise<
-  | { kind: "ok"; activation: NonNullable<Awaited<ReturnType<typeof findActivation>>> }
+  | {
+      kind: "ok";
+      activation: NonNullable<Awaited<ReturnType<typeof findActivation>>>;
+    }
   | Refusal
 > {
   // A message can only belong to an active scenario in the user's line group.
@@ -103,10 +106,7 @@ export async function createStationMessage(
   user: AuthUser,
   station: string,
   request: StationMessageRequest,
-): Promise<
-  | { kind: "created" | "repeat"; message: StationMessage }
-  | Refusal
-> {
+): Promise<{ kind: "created" | "repeat"; message: StationMessage } | Refusal> {
   return getDatabase().begin(async (tx) => {
     // Keep using this client-generated ID for retries; ignore differences in letter case.
     const clientMessageId = request.clientMessageId.toLowerCase();
