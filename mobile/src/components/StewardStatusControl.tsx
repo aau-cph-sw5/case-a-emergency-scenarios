@@ -94,13 +94,19 @@ export function StewardStatusControl({
   // BEKRÆFT ANNULLÉR slide is showing. It starts over on every new status.
   const [confirmCancel, setConfirmCancel] = useState(false);
   if (!onTheWay && confirmCancel) setConfirmCancel(false);
+  // Whether TJEK UD has been pressed and the red BEKRÆFT TJEK UD slide is
+  // showing. It starts over each time the steward is at a station again.
+  const [confirmOut, setConfirmOut] = useState(false);
+  if (!atStation && confirmOut) setConfirmOut(false);
 
   // What the bottom control is. Empty until the steward's status is read, so
   // no control shows that is not the steward's.
   const bottomKind = !ready
     ? ""
     : atStation
-      ? "check-out"
+      ? confirmOut
+        ? "confirm-check-out"
+        : "check-out"
       : onTheWay && confirmCancel
         ? "confirm-cancel"
         : "slide";
@@ -216,12 +222,30 @@ export function StewardStatusControl({
                   onConfirm={onCancel ?? noop}
                 />
               )}
+              {/* Checking out takes two steps, like cancelling, so a stray
+                  tap cannot check anyone out: TJEK UD, then the red slide
+                  with a cross that steps back. No approval from the control
+                  room. */}
               {bottomKind === "check-out" && (
                 <CardButton
                   kind="wide"
                   label="TJEK UD"
                   disabled={disabled}
-                  onPress={onCheckOut}
+                  onPress={() => setConfirmOut(true)}
+                />
+              )}
+              {bottomKind === "confirm-check-out" && (
+                <SlideToConfirm
+                  label="BEKRÆFT TJEK UD"
+                  tone="red"
+                  lockedReason={offline ? "Ingen forbindelse" : null}
+                  disabled={disabled}
+                  pending={sending}
+                  cross={{
+                    label: "Fortryd tjek ud",
+                    onPress: () => setConfirmOut(false),
+                  }}
+                  onConfirm={onCheckOut}
                 />
               )}
             </Swap>

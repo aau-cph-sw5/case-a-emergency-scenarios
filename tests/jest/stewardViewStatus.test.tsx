@@ -61,12 +61,13 @@ async function chooseStation(station: string) {
   await slide();
 }
 
-// TJEK UD checks out.
+// TJEK UD, then the red BEKRÆFT TJEK UD slide (#377).
 async function checkOut() {
   await act(async () => {
     fireEvent.press(await screen.findByText("TJEK UD"));
   });
-  await settle();
+  await screen.findByText("BEKRÆFT TJEK UD");
+  await slide();
 }
 
 async function cancelStation() {
@@ -605,7 +606,10 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     await step("assign again", slide);
     await step("check in", slide);
     await screen.findByText("TJEK UD");
-    await step("check out", () => fireEvent.press(screen.getByText("TJEK UD")));
+    await step("ask to check out", () =>
+      fireEvent.press(screen.getByText("TJEK UD")),
+    );
+    await step("check out", slide);
     expect(problems).toEqual([]);
   }, 20000);
 });

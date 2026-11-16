@@ -160,6 +160,65 @@ describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
     expect(screen.queryByText("0/1")).toBeNull();
   });
 
+  // A station with several requirement rows lists the tasks of all of them,
+  // numbered from 1 (#377).
+  it("lists the tasks of all the station's rows, numbered from 1", () => {
+    const base = (scenario as Scenario).versions[0];
+    const row = base.stationRequirements![0];
+    const twoRows = buildSnapshot(
+      {
+        active: true,
+        state: activeState as ScenarioState,
+        scenario: {
+          ...(scenario as Scenario),
+          versions: [
+            {
+              ...base,
+              stationRequirements: [
+                { ...row, actions: [{ sequence: 1, instruction: "First" }] },
+                {
+                  ...row,
+                  placement: "Second placement",
+                  actions: [{ sequence: 1, instruction: "Second" }],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      "9",
+      new Date(),
+    );
+    render(
+      <ScenarioOverview
+        snapshot={twoRows}
+        assignedStation="Station B"
+        ownArrived
+      />,
+    );
+    expect(screen.getByText("First")).toBeTruthy();
+    expect(screen.getByText("Second")).toBeTruthy();
+    expect(screen.getByText("2.")).toBeTruthy();
+  });
+
+  // After check in the stations open on request, in the same card, and the
+  // tasks close to their strip; the strip opens them again (#376).
+  it("opens the stations and the tasks again after check in", () => {
+    render(
+      <ScenarioOverview
+        snapshot={snapshot}
+        assignedStation="Station B"
+        ownArrived
+      />,
+    );
+    fireEvent.press(screen.getByText("Vis alle 1"));
+    expect(screen.getByText("0/1")).toHaveStyle({ color: colors.textInverse });
+    expect(screen.queryByLabelText("Din opgave")).toBeNull();
+    fireEvent.press(screen.getByText("Vis opgaver"));
+    expect(screen.getByLabelText("Din opgave")).toBeTruthy();
+    expect(screen.queryByText("0/1")).toBeNull();
+  });
+
   // After checking out the steward has left the station; the row says so
   // instead of "Din station" (#310).
   describe("after checking out", () => {

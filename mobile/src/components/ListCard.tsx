@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, panelRadius, steward } from "../../../shared/Theme";
 
@@ -50,6 +50,58 @@ export function ListStrip({
   );
 }
 
+// THE way a part of the ListCard opens and closes (#377). The content is
+// always laid out at its full, open size and pinned to the edge of the part
+// that stands still (anchor). When the part opens or closes (animateNextLayout
+// moves its other edge), that moving edge uncovers or covers the content
+// pixel by pixel, like a frame sliding over it. The text itself never moves,
+// fades or appears late.
+//
+// Example: the tasks after check in are pinned to the bottom of their part,
+// so the strip above them sliding up uncovers them from the top down; the
+// other stations are pinned to the top, so the tasks strip sliding down
+// uncovers them. Open, the part takes the room left in the card; closed, it
+// has no height and its content is hidden from touch and screen readers.
+export function ListSection({
+  open,
+  anchor,
+  children,
+  testID,
+}: {
+  open: boolean;
+  anchor: "top" | "bottom";
+  children: ReactNode;
+  testID?: string;
+}) {
+  // The open height, kept while the part is closed, so the content keeps
+  // its size (and its place) while the part closes and opens again.
+  const [height, setHeight] = useState(0);
+  return (
+    <View
+      style={[open ? styles.open : styles.closed, styles.clip]}
+      onLayout={(event) => {
+        if (open) setHeight(event.nativeEvent.layout.height);
+      }}
+      pointerEvents={open ? "auto" : "none"}
+      importantForAccessibility={open ? "auto" : "no-hide-descendants"}
+      accessibilityElementsHidden={!open}
+      testID={testID}
+    >
+      <View
+        testID={testID && `${testID}-content`}
+        style={
+          height > 0
+            ? { position: "absolute", left: 0, right: 0, [anchor]: 0, height }
+            : // Not measured yet (the first time it is open): in the flow.
+              styles.open
+        }
+      >
+        {children}
+      </View>
+    </View>
+  );
+}
+
 // The text style of a strip's title, for a title built from several parts
 // (for example with one word in red).
 export const listStripTitle = StyleSheet.create({
@@ -57,6 +109,9 @@ export const listStripTitle = StyleSheet.create({
 }).text;
 
 const styles = StyleSheet.create({
+  open: { flex: 1 },
+  closed: { height: 0 },
+  clip: { overflow: "hidden" },
   card: {
     backgroundColor: colors.background,
     borderColor: steward.line,

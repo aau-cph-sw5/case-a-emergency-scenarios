@@ -26,9 +26,11 @@ function renderControl(
   return { onArrive, onCheckOut };
 }
 
-// TJEK UD checks out.
+// TJEK UD, then the red BEKRÆFT TJEK UD slide (#377).
 async function checkOut() {
   fireEvent.press(screen.getByText("TJEK UD"));
+  await screen.findByText("BEKRÆFT TJEK UD");
+  confirmSlide();
 }
 
 function confirmSlide() {
@@ -82,6 +84,20 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(onCheckOut).toHaveBeenCalledTimes(1);
   });
 
+  // Checking out takes two steps (#377): TJEK UD, then the red slide; its
+  // cross steps back without checking out.
+  it("checks out only after TJEK UD and the red slide", async () => {
+    const { onCheckOut } = renderControl({
+      own: { station: "Station B", status: "MANNED" },
+    });
+    fireEvent.press(screen.getByText("TJEK UD"));
+    await screen.findByText("BEKRÆFT TJEK UD");
+    expect(onCheckOut).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByLabelText("Fortryd tjek ud"));
+    await screen.findByText("TJEK UD");
+    expect(onCheckOut).not.toHaveBeenCalled();
+  });
+
   // Cancelling is the cross next to CHECK IND, not a button of its own (#376).
   it("offers no FORTRYD button while on the way", () => {
     renderControl({ own: { station: "Station B", status: "PENDING" } });
@@ -104,6 +120,7 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
       sending: true,
     });
     fireEvent.press(screen.getByText("TJEK UD"));
+    expect(screen.queryByText("BEKRÆFT TJEK UD")).toBeNull();
     expect(manned.onCheckOut).not.toHaveBeenCalled();
   });
 
