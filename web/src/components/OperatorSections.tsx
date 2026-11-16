@@ -8,12 +8,14 @@ export function OperatorSections({
   coverage,
   mapControls,
   statusPopup,
+  messagePanel,
 }: {
   scenarioSelection: ReactNode;
   map: ReactNode;
   coverage: ReactNode;
   mapControls?: ReactNode;
   statusPopup?: ReactNode;
+  messagePanel?: ReactNode;
 }) {
   return (
     <div className="operator-sections">
@@ -45,17 +47,10 @@ export function OperatorSections({
           <h2 className="coverage-heading">Bemandingsplan</h2>
           {coverage}
         </div>
-        {statusPopup && (
+        {(statusPopup || messagePanel) && (
           <div className="operator-status-footer">
             <div className="status-popup">{statusPopup}</div>
-            <button
-              type="button"
-              className="operator-message-button"
-              disabled
-              title="Beskeder er endnu ikke tilgængelige"
-            >
-              Beskeder
-            </button>
+            {messagePanel}
           </div>
         )}
       </section>

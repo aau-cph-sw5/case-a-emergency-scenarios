@@ -2,6 +2,7 @@ import { useState } from "react";
 import { StewardPositions } from "./components/StewardPositions";
 import { ScenarioWorkspace } from "./components/ScenarioWorkspace";
 import { LiveStatusBar } from "./components/LiveStatusBar";
+import { OperatorMessagePanel } from "./components/OperatorMessagePanel";
 import { mockStewardPositions } from "./local-settings";
 import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
 import type { LineGroup } from "../../shared/auth/line-groups";
@@ -80,6 +81,9 @@ export function OperatorDashboard({
         onSelect={setSelectedId}
         statusBar={<LiveStatusBar />}
         statusPopup={<StewardPositions mock={mockStewardPositions} />}
+        messagePanel={
+          <OperatorMessagePanel token={token} lineGroup={ownLineGroup} />
+        }
       />
     </main>
   );

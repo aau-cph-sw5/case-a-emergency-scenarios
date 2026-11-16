@@ -48,6 +48,7 @@ export type LiveData = {
 type LiveContext = {
   live: LiveData;
   loadScenario: (scenarioId: string) => Promise<Scenario>;
+  socket?: AppSocket;
 };
 
 // One request per scenario id, shared by every useScenario(). The request is
@@ -72,7 +73,7 @@ export const LiveDataContext = createContext<LiveContext | null>(null);
 
 // Loads the server data for the control room once and hands it to every
 // component inside it. App puts it around the banner and the dashboard, so no
-// component fetches or listens to the socket itself.
+// view has to load activation data or listen for activation changes itself.
 export function LiveDataProvider({
   socket,
   token,
@@ -167,6 +168,7 @@ export function LiveDataProvider({
         reloadScenarios,
       },
       loadScenario,
+      socket,
     }),
     [
       activations,
@@ -178,6 +180,7 @@ export function LiveDataProvider({
       scenariosError,
       reloadScenarios,
       loadScenario,
+      socket,
     ],
   );
 
