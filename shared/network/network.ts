@@ -53,7 +53,7 @@ export function isNetwork(value: unknown): value is Network {
 
 type Pair = [string, string];
 export const connectionKey = (a: string, b: string) =>
-  JSON.stringify([a, b].sort());
+  JSON.stringify(a < b ? [a, b] : [b, a]);
 export type MapNetwork = {
   positions: Record<string, [number, number]>;
   lines: {

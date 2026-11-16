@@ -37,6 +37,12 @@ for (const line of ["M2", "M3", "M4"] as const) {
   network.normalPatterns.push({ ...network.normalPatterns[0], line });
 }
 
+test("connection keys are independent of endpoint order and preserve station codes", () => {
+  assert.equal(connectionKey("a", "B"), JSON.stringify(["B", "a"]));
+  assert.equal(connectionKey("a", "B"), connectionKey("B", "a"));
+  assert.notEqual(connectionKey("a", "B"), connectionKey("A", "B"));
+});
+
 test("network map uses stored positions and connected normal stops", () => {
   assert.equal(isNetwork(network), true);
   const map = buildMapNetwork(network);
