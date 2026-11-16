@@ -22,6 +22,35 @@ export class FormatError extends Error {
   }
 }
 
+export function encodeApiPathSegment(value: string): string {
+  if (
+    value.length === 0 ||
+    value === "." ||
+    value === ".." ||
+    value.includes("/") ||
+    value.includes("\\")
+  ) {
+    throw new FormatError("a path segment that cannot be used in a URL");
+  }
+  return encodeURIComponent(value);
+}
+
+function sanitizeApiPath(path: string): string {
+  const pathname = path.split(/[?#]/, 1)[0];
+  for (const segment of pathname.split("/")) {
+    const decoded = decodeURIComponent(segment);
+    if (
+      decoded === "." ||
+      decoded === ".." ||
+      decoded.includes("/") ||
+      decoded.includes("\\")
+    ) {
+      throw new TypeError("API paths must not contain traversal segments");
+    }
+  }
+  return path;
+}
+
 // GET an endpoint with the bearer token and check the answer against the
 // contract. A failed or timed-out request rejects with fetch's own error.
 export async function getJson<T>(
@@ -31,7 +60,7 @@ export async function getJson<T>(
   isValid: (data: unknown) => data is T,
   fetchImpl: typeof fetch = fetch,
 ): Promise<T> {
-  const response = await fetchImpl(`${apiBaseUrl}${path}`, {
+  const response = await fetchImpl(`${apiBaseUrl}${sanitizeApiPath(path)}`, {
     headers: { Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });

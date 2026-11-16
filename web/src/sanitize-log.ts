@@ -1,4 +1,4 @@
-const LOG_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
+const LOG_CONTROL_CHARACTERS = /[\p{Cc}\u2028\u2029]/gu;
 
 export function sanitizeLogValue(value: unknown): string {
   const message =
