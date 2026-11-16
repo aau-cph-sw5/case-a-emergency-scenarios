@@ -39,9 +39,10 @@ database with `npm run db:down`; its Docker volume is retained, so your local
 schema history remains intact.
 
 If your local database already contains scenarios when applying the line-group
-migration, reset it with `npm run db:reset` and reseed it. The reset deletes local
-database data. A reset is also needed if you applied an earlier version of a
-migration that has since changed.
+migration, reset it with `npm run db:reset` and reseed it. V016 also requires a
+fresh or cleared database: it does not migrate existing operating plans or
+patterns. The reset deletes local database data. A reset is also needed if you
+applied an earlier version of a migration that has since changed.
 
 ## Commands
 
