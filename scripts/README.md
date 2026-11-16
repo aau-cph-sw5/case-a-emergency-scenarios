@@ -17,7 +17,7 @@ skipped. If the network seed fails, scenario seeding does not run.
 
 ## 1. Get the seed data
 
-1. Open the project OneDrive and download the folder **Current Seed data to use (up to date)**. It downloads as a zip file.
+1. Open the project OneDrive and download the folder **Current Seed data to use (up to date)**. It downloads as a zip file. Must also download the metro_network.json file from SeedData folder.
 2. Unzip it.
 
 Only use the files from that folder. Do not mix in older versions of a scenario.
@@ -37,7 +37,7 @@ The loader reads every file in the folder whose name starts with `SeedDataScenar
 
 In `.env`, set `NETWORK_SEED_FILE` to the full path of the network JSON and
 `SEED_SCENARIOS_DIR` to the scenario folder. Both must be outside the
-repository. Use forward slashes, also on Windows:
+repository:
 
 ```env
 NETWORK_SEED_FILE=/Users/you/metro-network.json
