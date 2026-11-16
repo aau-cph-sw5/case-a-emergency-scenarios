@@ -31,18 +31,14 @@ export const palette = {
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
 
-  // The steward app's look from the approved prototype (#375). Only the
-  // steward app uses these; the web keeps the colours above.
-  stewardYellow: "#F6CD54",
-  stewardGreen: "#3B8764",
-  stewardRed: "#D8332A",
-  stewardBlack: "#212121",
+  // The steward app's look from the approved prototype (#375). Its status
+  // colours are the metro colours above; these are the greys around them.
+  // Only the steward app uses these; the web keeps the colours above.
   stewardChipGrey: "#9AA0A6",
   stewardLabelGrey: "#C9CCD0",
   stewardLine: "#D9DCDF",
   stewardStrip: "#F6F7F8",
   stewardMuted: "#5B6168",
-  stewardNobody: "#C0281C",
   stewardLocked: "#C9CDD2",
   stewardLockedText: "#3D4249",
 };
@@ -182,19 +178,23 @@ export const page = {
 
 // The steward app's colours and sizes (#375). The status colours match the
 // slide that leads to the status: yellow on the way, green arrived, red
-// checked out. A station row uses two colours only: red when nobody is
-// assigned and black otherwise, with a check mark when it is fully staffed.
+// checked out. They are the exact line colours from Metro's brand guide (M2
+// yellow, M1 green, M3 red), and the neutral colour is Metro Black. M4 blue is
+// not used: as a neutral colour it would read as the M4 line. A station row
+// uses two colours only: red when nobody is assigned and black otherwise, with
+// a check mark when it is fully staffed. Red text is Metro Deep Red, the
+// darker brand red, which stays legible on white at small sizes.
 export const steward = {
-  yellow: palette.stewardYellow,
-  green: palette.stewardGreen,
-  red: palette.stewardRed,
-  black: palette.stewardBlack,
+  yellow: palette.metroLineTwo,
+  green: palette.metroLineOne,
+  red: palette.metroLineThree,
+  black: palette.metroBlack,
   chipGrey: palette.stewardChipGrey,
   labelGrey: palette.stewardLabelGrey,
   line: palette.stewardLine,
   strip: palette.stewardStrip,
   muted: palette.stewardMuted,
-  nobody: palette.stewardNobody,
+  nobody: palette.metroDeepRed,
   // A slide that cannot be used right now, for example without a connection.
   locked: palette.stewardLocked,
   lockedText: palette.stewardLockedText,

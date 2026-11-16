@@ -8,6 +8,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
+import { DoubleArrow } from "./DoubleArrow";
 import {
   colors,
   panelRadius,
@@ -133,14 +134,13 @@ export function SlideToConfirm({
           </Text>
         )}
       </View>
-      {/* Three chevrons point the way the knob goes. */}
+      {/* Three of Metro's double arrows point the way the knob goes. */}
       {!locked && (
-        <Text
-          style={[styles.chevrons, { color: look.text }]}
-          importantForAccessibility="no"
-        >
-          ›››
-        </Text>
+        <View style={styles.chevrons} importantForAccessibility="no">
+          <DoubleArrow height={13} color={look.text} />
+          <DoubleArrow height={13} color={look.text} />
+          <DoubleArrow height={13} color={look.text} />
+        </View>
       )}
       <Animated.View
         {...responder.panHandlers}
@@ -160,7 +160,7 @@ export function SlideToConfirm({
             <Path d="M8 11V8a4 4 0 0 1 8 0v3" />
           </Svg>
         ) : (
-          <Text style={[styles.arrow, { color: look.track }]}>→</Text>
+          <DoubleArrow height={20} color={look.track} />
         )}
       </Animated.View>
     </View>
@@ -191,9 +191,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   chevrons: {
-    fontSize: 26,
-    fontWeight: "700",
-    letterSpacing: 2,
+    flexDirection: "row",
+    gap: spacing.small * 2,
     opacity: 0.6,
     position: "absolute",
     right: spacing.large,
@@ -201,16 +200,13 @@ const styles = StyleSheet.create({
   knob: {
     alignItems: "center",
     backgroundColor: colors.background,
-    // Follows the track's corner, inset by the gap.
-    borderRadius: panelRadius - INSET * 1.5,
+    // Follows the track's corner: the track's radius minus the gap around
+    // the knob, so the two corners run parallel.
+    borderRadius: panelRadius - INSET,
     height: KNOB_SIZE,
     justifyContent: "center",
     left: INSET,
     position: "absolute",
     width: KNOB_SIZE,
-  },
-  arrow: {
-    fontSize: 26,
-    fontWeight: "700",
   },
 });
