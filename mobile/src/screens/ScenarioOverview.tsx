@@ -18,6 +18,7 @@ import {
 } from "../../../shared/Theme";
 import MapRender from "../../../shared/MapRenderer";
 import { getLines } from "../../../mockData/data";
+import type { MapNetwork } from "../../../shared/network/network";
 import {
   affectedStations,
   affectedStretchAsMapLine,
@@ -44,7 +45,11 @@ export function ScenarioOverview({
   onAssign,
   assignedStation,
   checkedOutStation,
+  network,
+  networkIsCached = false,
 }: {
+  network?: MapNetwork | null;
+  networkIsCached?: boolean;
   snapshot: ScenarioSnapshot;
   // Offers + on each station, to report on the way there (MET-A-015, #263).
   // Left out when the steward cannot choose a station right now.
@@ -70,11 +75,18 @@ export function ScenarioOverview({
   const { fontScale } = useWindowDimensions();
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
   const rows = scenario.versions[0]?.stationRequirements ?? [];
-  const stretch = affectedStretchAsMapLine(scenario);
+  const position = network
+    ? (station: string) => network.positions[station]
+    : undefined;
+  const stretch = affectedStretchAsMapLine(scenario, position);
   const networkLines = networkWithoutStretch(
-    getLines(),
+    network?.lines ?? getLines(),
     stretch.connections,
-  ).map((line) => ({ ...line, tracks: [1, 2] }));
+  ).map((line) => ({
+    ...line,
+    tracks:
+      "tracks" in line && Array.isArray(line.tracks) ? line.tracks : [1, 2],
+  }));
   const mapLines = [...networkLines, stretch];
   // MET-A-010 criterion 2: the steward's own assignment stands out without
   // interaction. userId comes from the offline copy, so this works offline.
@@ -120,8 +132,18 @@ export function ScenarioOverview({
             mapSize.width,
             mapSize.height,
             fontScale,
+            position,
           )}
           lines={mapLines}
+          positions={network?.positions}
+          availableSegments={network?.segments}
+          ringStations={
+            network
+              ? (network.lines
+                  .find((line) => line.name === "M3")
+                  ?.connections.map(([station]) => station) ?? [])
+              : undefined
+          }
           colors={mapColors}
           showLineButtons={false}
           highlightStation={ownStation}
@@ -136,6 +158,14 @@ export function ScenarioOverview({
         />
       </View>
 
+      {network === null && (
+        <Text style={styles.body}>
+          Viser det indbyggede kort, indtil netværket er hentet.
+        </Text>
+      )}
+      {networkIsCached && (
+        <Text style={styles.body}>Viser gemt metronetværk.</Text>
+      )}
       <View style={styles.legend}>
         <View style={styles.legendLine} />
         <Text style={styles.body}>Berørt strækning</Text>
