@@ -10,7 +10,9 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
+import { CardButton } from "./CardButton";
 import { DoubleArrow } from "./DoubleArrow";
+import { Swap } from "./Swap";
 import {
   colors,
   motion,
@@ -22,8 +24,10 @@ import {
 
 // The track is steward.slideHeight high (#375): the knob plus the gap above and below it.
 const KNOB_SIZE = steward.slideHeight - 2 * spacing.small;
-// The gap between the knob and the edge of the track.
+// The gap between the knob and the edge of the track, and between the slide
+// and the cross next to it.
 const INSET = spacing.small;
+const GAP = spacing.small * 2;
 // How far the knob must travel before the action counts, so a brush with a
 // thumb while walking does not confirm anything.
 const CONFIRM_SHARE = 0.85;
@@ -36,18 +40,10 @@ const SPINNER_MIN_MS = 300;
 // When the screen never reports that it is working (pending), the slide lets
 // go after this, so it can never stay stuck.
 const NO_ANSWER_MS = 600;
-// SHARED AXIS (#376): when the slide gets a new action (a new label), its
-// frame stays and only the content changes, with the same shared-axis change
-// as AxisSwap (motion.axis*): the old label, chevrons and knob go up and fade,
-// the new ones come up from below, and the track's colour fades from the old
-// to the new. The old is gone before the new arrives.
-const AXIS_DISTANCE = motion.axisDistance;
-const AXIS_OUT_MS = motion.axisOutMs;
-const AXIS_IN_MS = motion.axisInMs;
 
 // The three looks of a slide (#375), each in the colour of the status it
-// leads to: yellow to confirm a station, green to check in, red to check out.
-// Text is dark on the light yellow track and white on the others.
+// leads to: yellow to confirm a station, green to check in, red to check out
+// or cancel. Text is dark on the yellow track and white on the others.
 export type SlideTone = "yellow" | "green" | "red";
 const TONES: Record<SlideTone, { track: string; text: string }> = {
   yellow: { track: steward.yellow, text: colors.text },
@@ -55,24 +51,27 @@ const TONES: Record<SlideTone, { track: string; text: string }> = {
   red: { track: steward.red, text: colors.textInverse },
 };
 
-// A slider the steward pushes to the right to confirm. Used where a single
-// tap would be too easy to make by mistake, such as confirming arrival.
-// Screen readers get the same action as a plain "activate".
-//
-// The slider keeps the gesture once it has started: a thumb that drifts up or
-// down while sliding would otherwise hand it to the surrounding ScrollView, so
-// the page scrolled and the knob sprang back. onSlidingChange tells the
-// screen when a slide starts and ends, so it can stop scrolling meanwhile.
+// THE slide (#375, #376): the steward pushes the knob to the right to
+// confirm, where a single tap would be too easy to make by mistake. Screen
+// readers get the same action as a plain "activate". Every slide in the app
+// is this component.
 //
 // A locked slide (lockedReason set, for example without a connection) is grey,
 // shows a padlock instead of the arrow and the reason under the label, and
 // cannot be slid. disabled blocks the slide without changing its look.
 //
-// A completed slide is HELD (#376): the knob stays at the end and the slide
-// takes no new gesture, so the steward sees at once that the slide counted.
-// While the screen works on it (pending), a spinner shows in the knob if it
-// takes long. The slide lets go when the work is done; when the next action
-// takes its place (a new label) it starts from the left at once.
+// A completed slide is HELD: the knob stays at the end and the slide takes no
+// new gesture, so the steward sees at once that the slide counted. While the
+// screen works on it (pending), a spinner shows in the knob if it takes long.
+// The slide lets go when the work is done.
+//
+// A new action in the same place (a new label) keeps the frame: the content
+// changes with the shared-axis change (Swap), the knob starts from the left,
+// and the track's colour fades from the old to the new.
+//
+// cross puts the ✕ button next to the slide (CardButton), for the slides
+// the steward can step away from. The track's arrows then make room for the
+// label.
 export function SlideToConfirm({
   label,
   tone,
@@ -80,8 +79,8 @@ export function SlideToConfirm({
   disabled: busy = false,
   pending = false,
   actionKey = label,
+  cross,
   onConfirm,
-  onSlidingChange,
 }: {
   label: string;
   tone: SlideTone;
@@ -92,8 +91,8 @@ export function SlideToConfirm({
   // Which action the slide does now. When it changes, the hold ends at once
   // (the next action can be slid), also before the new label is shown.
   actionKey?: string;
+  cross?: { label: string; onPress: () => void };
   onConfirm: () => void;
-  onSlidingChange?: (sliding: boolean) => void;
 }) {
   const locked = lockedReason !== null;
   const [held, setHeld] = useState(false);
@@ -111,94 +110,42 @@ export function SlideToConfirm({
   const look = locked
     ? { track: steward.locked, text: steward.lockedText }
     : TONES[tone];
-  // What the slide shows. It follows the props at once, except for a new
-  // label, which arrives through the shared-axis change below.
-  const [shown, setShown] = useState({ label, look, lockedReason });
-  if (
-    label === shown.label &&
-    (look.track !== shown.look.track ||
-      look.text !== shown.look.text ||
-      lockedReason !== shown.lockedReason)
-  ) {
-    setShown({ label, look, lockedReason });
-  }
-  const [contentY] = useState(() => new Animated.Value(0));
-  const [contentOpacity] = useState(() => new Animated.Value(1));
-  const [oldTrack, setOldTrack] = useState(look.track);
-  const [oldTrackOpacity] = useState(() => new Animated.Value(0));
-  // The newest props, read when the old content has gone.
-  const latestRef = useRef({ label, look, lockedReason });
-  useEffect(() => {
-    latestRef.current = { label, look, lockedReason };
-  });
   const [trackWidth, setTrackWidth] = useState(0);
   const [offset] = useState(() => new Animated.Value(0));
   const maxOffset = Math.max(trackWidth - KNOB_SIZE - 2 * INSET, 0);
 
-  // The shared-axis change to a new label (see AXIS_DISTANCE).
-  const shownLabel = shown.label;
-  const shownTrack = shown.look.track;
+  // The old track colour on top of the new one, fading away when the slide
+  // takes a new colour, at the pace of the shared-axis change. The colours
+  // are set while rendering; the fade starts once they are on screen.
+  const [track, setTrack] = useState({
+    now: look.track,
+    old: look.track,
+    n: 0,
+  });
+  if (look.track !== track.now) {
+    setTrack({ now: look.track, old: track.now, n: track.n + 1 });
+  }
+  const [oldTrackOpacity] = useState(() => new Animated.Value(0));
   useEffect(() => {
-    if (label === shownLabel) return;
-    Animated.parallel([
-      Animated.timing(contentY, {
-        toValue: -AXIS_DISTANCE,
-        duration: AXIS_OUT_MS,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(contentOpacity, {
+    if (track.n === 0) return;
+    oldTrackOpacity.setValue(1);
+    // Started on the next tick: the overlay has just been given its colour,
+    // and a native animation started in the same moment would connect to
+    // the view that was replaced.
+    const timer = setTimeout(() => {
+      Animated.timing(oldTrackOpacity, {
         toValue: 0,
-        duration: AXIS_OUT_MS,
-        easing: Easing.in(Easing.cubic),
+        duration: motion.axisOutMs + motion.axisInMs,
+        easing: Easing.inOut(Easing.cubic),
         useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      // Stopped (the slide went away): do nothing more.
-      if (!finished) return;
-      // The old content is gone: the new one starts below, the knob at the
-      // start, and the old track colour on top, fading away.
-      setOldTrack(shownTrack);
-      oldTrackOpacity.setValue(1);
-      setShown(latestRef.current);
-      offset.setValue(0);
-      contentY.setValue(AXIS_DISTANCE);
-      Animated.parallel([
-        Animated.timing(contentY, {
-          toValue: 0,
-          duration: AXIS_IN_MS,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(contentOpacity, {
-          toValue: 1,
-          duration: AXIS_IN_MS,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(oldTrackOpacity, {
-          toValue: 0,
-          duration: AXIS_IN_MS,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
-  }, [
-    label,
-    shownLabel,
-    shownTrack,
-    contentY,
-    contentOpacity,
-    oldTrackOpacity,
-    offset,
-  ]);
+      }).start();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [track.n, oldTrackOpacity]);
 
-  // Rebuilt when the width, the disabled state or the action changes, so the
-  // gesture always uses the current values.
   // A held slide waits for the screen: a spinner after SPINNER_DELAY_MS, and
   // when the work is done it lets go (after the spinner's minimum time, and
-  // after the half turn in which the next action takes its place).
+  // after the half change in which the next action takes its place).
   useEffect(() => {
     if (!held) return;
     if (pending) {
@@ -213,7 +160,7 @@ export function SlideToConfirm({
       ? SPINNER_MIN_MS - (Date.now() - spinnerAtRef.current)
       : 0;
     const wait = sawPendingRef.current
-      ? Math.max(AXIS_OUT_MS + 20, spinnerLeft)
+      ? Math.max(motion.axisOutMs + 20, spinnerLeft)
       : NO_ANSWER_MS;
     const timer = setTimeout(() => {
       sawPendingRef.current = false;
@@ -225,16 +172,15 @@ export function SlideToConfirm({
     return () => clearTimeout(timer);
   }, [held, pending, offset]);
 
+  // Rebuilt when the width, the disabled state or the action changes, so the
+  // gesture always uses the current values. The slide keeps the gesture once
+  // it has started, so a thumb that drifts up or down does not lose it.
   const responder = useMemo(() => {
-    const reset = () => {
-      onSlidingChange?.(false);
+    const back = () =>
       Animated.spring(offset, { toValue: 0, useNativeDriver: false }).start();
-    };
     return PanResponder.create({
       onStartShouldSetPanResponder: () => !disabled,
       onMoveShouldSetPanResponder: () => !disabled,
-      onPanResponderGrant: () => onSlidingChange?.(true),
-      // A ScrollView asks for the gesture when the thumb moves vertically.
       onPanResponderTerminationRequest: () => false,
       onShouldBlockNativeResponder: () => true,
       onPanResponderMove: (_event, gesture) => {
@@ -244,22 +190,17 @@ export function SlideToConfirm({
         if (maxOffset > 0 && gesture.dx >= maxOffset * CONFIRM_SHARE) {
           // Held at the end until the screen is done (see above).
           offset.setValue(maxOffset);
-          onSlidingChange?.(false);
           setHeld(true);
           onConfirm();
           return;
         }
-        reset();
+        back();
       },
-      onPanResponderTerminate: reset,
+      onPanResponderTerminate: back,
     });
-  }, [disabled, maxOffset, offset, onConfirm, onSlidingChange]);
+  }, [disabled, maxOffset, offset, onConfirm]);
 
-  // A slider that goes away mid-swipe, e.g. when the scenario is stood down,
-  // gets no release, so it lets the screen scroll again here (#310).
-  useEffect(() => () => onSlidingChange?.(false), [onSlidingChange]);
-
-  return (
+  const slide = (
     <View
       accessible
       accessibilityRole="button"
@@ -276,78 +217,93 @@ export function SlideToConfirm({
       onLayout={(event: LayoutChangeEvent) =>
         setTrackWidth(event.nativeEvent.layout.width)
       }
-      style={[styles.track, { backgroundColor: shown.look.track }]}
+      style={[styles.track, { backgroundColor: look.track }]}
       testID="slide-to-confirm"
     >
-      {/* The old track colour, fading away after a new action arrived. */}
       <Animated.View
         pointerEvents="none"
         style={[
           styles.fill,
-          { backgroundColor: oldTrack, opacity: oldTrackOpacity },
+          { backgroundColor: track.old, opacity: oldTrackOpacity },
         ]}
       />
-      <Animated.View
-        style={[
-          styles.fill,
-          styles.content,
-          { opacity: contentOpacity, transform: [{ translateY: contentY }] },
-        ]}
-      >
-        <View style={styles.labels}>
-          <Text style={[styles.label, { color: shown.look.text }]}>
-            {shown.label}
-          </Text>
-          {shown.lockedReason !== null && (
-            <Text style={[styles.reason, { color: shown.look.text }]}>
-              {shown.lockedReason}
-            </Text>
-          )}
-        </View>
-        {/* Three of Metro's double arrows point the way the knob goes. */}
-        {shown.lockedReason === null && (
-          <View style={styles.chevrons} importantForAccessibility="no">
-            <DoubleArrow height={13} color={shown.look.text} />
-            <DoubleArrow height={13} color={shown.look.text} />
-            <DoubleArrow height={13} color={shown.look.text} />
+      {/* A new label is a new action: the content changes by the shared
+          axis, and the knob goes back to the start once it has. */}
+      <Swap swapKey={label} onSwap={() => offset.setValue(0)}>
+        <View style={styles.content}>
+          <View style={styles.labels}>
+            <Text style={[styles.label, { color: look.text }]}>{label}</Text>
+            {locked && (
+              <Text style={[styles.reason, { color: look.text }]}>
+                {lockedReason}
+              </Text>
+            )}
           </View>
-        )}
-        <Animated.View
-          {...responder.panHandlers}
-          style={[styles.knob, { transform: [{ translateX: offset }] }]}
-        >
-          {shown.lockedReason !== null ? (
-            <Svg
-              width={24}
-              height={24}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke={steward.black}
-              strokeWidth={2.2}
-              testID="slide-lock"
-            >
-              <Rect x={5} y={11} width={14} height={9} rx={2} />
-              <Path d="M8 11V8a4 4 0 0 1 8 0v3" />
-            </Svg>
-          ) : spinner ? (
-            <ActivityIndicator
-              color={shown.look.track}
-              testID="slide-spinner"
-            />
-          ) : (
-            <DoubleArrow height={20} color={shown.look.track} />
+          {/* Three of Metro's double arrows point the way the knob goes. */}
+          {!locked && cross === undefined && (
+            <View style={styles.arrows} importantForAccessibility="no">
+              <DoubleArrow height={13} color={look.text} />
+              <DoubleArrow height={13} color={look.text} />
+              <DoubleArrow height={13} color={look.text} />
+            </View>
           )}
-        </Animated.View>
-      </Animated.View>
+          <Animated.View
+            {...responder.panHandlers}
+            style={[styles.knob, { transform: [{ translateX: offset }] }]}
+          >
+            {locked ? (
+              <Svg
+                width={24}
+                height={24}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={steward.black}
+                strokeWidth={2.2}
+                testID="slide-lock"
+              >
+                <Rect x={5} y={11} width={14} height={9} rx={2} />
+                <Path d="M8 11V8a4 4 0 0 1 8 0v3" />
+              </Svg>
+            ) : spinner ? (
+              <ActivityIndicator color={look.track} testID="slide-spinner" />
+            ) : (
+              <DoubleArrow height={20} color={look.track} />
+            )}
+          </Animated.View>
+        </View>
+      </Swap>
+    </View>
+  );
+
+  // The same shape with and without the cross. A slide that gets a cross (from
+  // BEKRÆFT to CHECK IND) must stay the same slide: a different shape made
+  // React build the track again, and the new label then counted as the first,
+  // so the knob was not put back and stayed out of sight past the track's end.
+  return (
+    <View style={styles.row}>
+      <View style={styles.grow}>{slide}</View>
+      {cross !== undefined && (
+        <CardButton
+          kind="cross"
+          accessibilityLabel={cross.label}
+          onPress={cross.onPress}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    gap: GAP,
+  },
+  grow: {
+    flex: 1,
+  },
   track: {
     borderRadius: panelRadius,
     height: KNOB_SIZE + 2 * INSET,
-    marginTop: spacing.medium,
     // The content moves inside the track and is cut off at its edge.
     overflow: "hidden",
   },
@@ -359,6 +315,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   content: {
+    height: KNOB_SIZE + 2 * INSET,
     justifyContent: "center",
     padding: INSET,
   },
@@ -374,9 +331,9 @@ const styles = StyleSheet.create({
   reason: {
     fontSize: 12,
   },
-  chevrons: {
+  arrows: {
     flexDirection: "row",
-    gap: spacing.small * 2,
+    gap: GAP,
     opacity: 0.6,
     position: "absolute",
     right: spacing.large,

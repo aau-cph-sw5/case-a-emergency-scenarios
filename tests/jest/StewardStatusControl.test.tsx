@@ -1,6 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StewardStatusControl } from "../../mobile/src/components/StewardStatusControl";
+import { StyleSheet } from "react-native";
+import { steward } from "../../shared/Theme";
 
 const coverage = { arrived: 1, enRoute: 1, needed: 2 };
 
@@ -22,6 +24,11 @@ function renderControl(
     />,
   );
   return { onArrive, onCheckOut };
+}
+
+// TJEK UD checks out.
+async function checkOut() {
+  fireEvent.press(screen.getByText("TJEK UD"));
 }
 
 function confirmSlide() {
@@ -63,7 +70,7 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(onArrive).toHaveBeenCalledTimes(1);
   });
 
-  it("shows arrived and offers only Tjek ud", () => {
+  it("shows arrived and offers only Tjek ud", async () => {
     const { onCheckOut } = renderControl({
       own: { station: "Station B", status: "MANNED" },
       coverage: { arrived: 2, enRoute: 0, needed: 2 },
@@ -71,18 +78,18 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(screen.getByText("ANKOMMET 2/2")).toBeTruthy();
     expect(screen.getByText("2 på stationen")).toBeTruthy();
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
-    fireEvent.press(screen.getByText("TJEK UD"));
+    await checkOut();
     expect(onCheckOut).toHaveBeenCalledTimes(1);
   });
 
-  // Cancelling is the swipe on the own row in the list, not a button (#376).
+  // Cancelling is the cross next to CHECK IND, not a button of its own (#376).
   it("offers no FORTRYD button while on the way", () => {
     renderControl({ own: { station: "Station B", status: "PENDING" } });
     expect(screen.queryByText("FORTRYD")).toBeNull();
     expect(screen.queryByText("TJEK UD")).toBeNull();
   });
 
-  // Checked out is a 4 s note only; then the box is back at the start (#376).
+  // After checking out the card is back at the start (#376).
   it("is back at no station after checking out", () => {
     renderControl({ own: { station: "Station B", status: "CHECKED_OUT" } });
     expect(screen.getByText("IKKE VALGT")).toBeTruthy();
@@ -131,13 +138,41 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     expect(onArrive).not.toHaveBeenCalled();
   });
 
-  // The note turns the status box over after the steward's own change (#375).
-  it("shows the note on the status box", () => {
+  // The status card's colour is the status (#376): black without a station,
+  // yellow on the way, green once arrived. The scenario sits in the card.
+  it("colours the status card by the status", () => {
+    const cardColour = () =>
+      StyleSheet.flatten(screen.getByTestId("status-card").props.style)
+        ?.backgroundColor;
+    renderControl({ scenario: "DEMO-001" });
+    expect(cardColour()).toBe(steward.card.none.background);
+    expect(screen.getByText("DEMO-001")).toBeTruthy();
+    screen.unmount();
+    renderControl({ own: { station: "Station B", status: "PENDING" } });
+    expect(cardColour()).toBe(steward.card.onTheWay.background);
+    screen.unmount();
+    renderControl({ own: { station: "Station B", status: "MANNED" } });
+    expect(cardColour()).toBe(steward.card.arrived.background);
+  });
+
+  // Cancelling takes two steps, like checking out (#376): the cross next to
+  // CHECK IND, then the red slide; the second cross goes back.
+  it("cancels only after the cross and the red slide", async () => {
+    const onCancel = jest.fn();
     renderControl({
       own: { station: "Station B", status: "PENDING" },
-      note: { key: 1, text: "Tag til Station B", background: "y", color: "b" },
+      onCancel,
     });
-    expect(screen.getByText("Tag til Station B")).toBeTruthy();
+    expect(screen.queryByText("BEKRÆFT ANNULLÉR")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Annullér tildeling"));
+    await screen.findByText("BEKRÆFT ANNULLÉR");
+    fireEvent.press(screen.getByLabelText("Fortryd annullering"));
+    await screen.findByText("CHECK IND");
+    expect(onCancel).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByLabelText("Annullér tildeling"));
+    await screen.findByText("BEKRÆFT ANNULLÉR");
+    confirmSlide();
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it("locks the check in slide without a connection", () => {
@@ -151,12 +186,12 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
   });
 
   // After a reload the server can report the task as done (#310).
-  it("offers Tjek ud when the task is done", () => {
+  it("offers Tjek ud when the task is done", async () => {
     const { onCheckOut } = renderControl({
       own: { station: "Station B", status: "TASK_DONE" },
     });
-    fireEvent.press(screen.getByText("TJEK UD"));
-    expect(onCheckOut).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
+    await checkOut();
+    expect(onCheckOut).toHaveBeenCalledTimes(1);
   });
 });

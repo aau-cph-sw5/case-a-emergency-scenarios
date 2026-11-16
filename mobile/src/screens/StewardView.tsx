@@ -6,10 +6,9 @@ import { ERROR_CODES } from "../../../shared/error-codes";
 import { NO_COPY_MESSAGES } from "../../../shared/offline/copy-reason";
 import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
-import { colors, palette, steward, text } from "../../../shared/Theme";
+import { colors, palette, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
 import { reportErrorMessage } from "../api/position-report";
-import type { StatusNote } from "../components/StatusBox";
 import { StewardStatusControl } from "../components/StewardStatusControl";
 import { animateNextLayout } from "../motion";
 import {
@@ -29,7 +28,11 @@ import { ScenarioNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { withOwnStatus } from "./own-assignment";
 import { RoleView } from "./RoleView";
-import { oneRowPerStation, ScenarioOverview } from "./ScenarioOverview";
+import {
+  oneRowPerStation,
+  ScenarioMap,
+  ScenarioOverview,
+} from "./ScenarioOverview";
 
 // Shown on the saved copy, where only going on the way can be reported.
 const STATUS_BLOCKED_OFFLINE =
@@ -51,40 +54,6 @@ export function supersededMessage(
   return reports.length === 1
     ? `Din position ved ${stations} blev afvist, fordi scenariet blev stoppet eller skiftet, efter du sendte den.`
     : `${reports.length} positioner (${stations}) blev afvist, fordi scenariet blev stoppet eller skiftet, efter du sendte dem.`;
-}
-
-// The note that turns the status box over after the steward's own change
-// (#375): where to go, that the check in went through, or the check out.
-// Cancelling has none; the status box itself shows the change.
-export function statusNote(
-  own: OwnStatus | null,
-  key: number,
-): StatusNote | null {
-  switch (own?.status) {
-    case "PENDING":
-      return {
-        key,
-        text: `Tag til ${own.station}`,
-        background: steward.yellow,
-        color: colors.text,
-      };
-    case "MANNED":
-      return {
-        key,
-        text: `Checket ind på ${own.station}`,
-        background: steward.green,
-        color: colors.textInverse,
-      };
-    case "CHECKED_OUT":
-      return {
-        key,
-        text: "Du er checket ud",
-        background: steward.red,
-        color: colors.textInverse,
-      };
-    default:
-      return null;
-  }
 }
 
 // online is false when the phone has no connection or the session could not
@@ -120,12 +89,9 @@ export function StewardView({
   const [sendingStatus, setSendingStatus] = useState(false);
   // The station chosen in the list, assigned by the BEKRÆFT slide (#376).
   const [selected, setSelected] = useState<string | undefined>(undefined);
-  // Whether the map is shown above the list; kept until logout (#376).
-  const [mapShown, setMapShown] = useState(true);
-  // Nudges the own row once after each assignment, so the swipe is found.
-  const [peekKey, setPeekKey] = useState<number | undefined>(undefined);
-  // The note shown after the steward's own change, never after a reload.
-  const [note, setNote] = useState<StatusNote | null>(null);
+  // The station just cancelled keeps its place at the top of the list until
+  // the steward picks again, so it does not jump away (#376).
+  const [pinned, setPinned] = useState<string | undefined>(undefined);
 
   // Fetches again when the app returns to the foreground, when the socket
   // announces an activation or a stand-down, and when the socket reconnects,
@@ -369,15 +335,13 @@ export function StewardView({
         change.type === "assign" ? queueReport : undefined,
       );
       if (result.ok) {
-        // The blocks that change with the status open and close smoothly.
-        // Not on cancelling: the station list is not part of that change, and
-        // the cancelled row must simply stand in the list again, without any
-        // movement (the status box and the slide have their own changes).
-        if (change.type !== "cancel") animateNextLayout();
+        // The rows that change size with the status (the own row gives its
+        // room back, or takes it) ease to their new heights instead of
+        // jumping; the status card turns by itself (Swap).
+        animateNextLayout();
         setOwnStatus(result.own);
-        setNote((last) => statusNote(result.own, (last?.key ?? 0) + 1));
         setSelected(undefined);
-        if (change.type === "assign") setPeekKey((last) => (last ?? 0) + 1);
+        setPinned(change.type === "cancel" ? ownStation : undefined);
       } else setStatusError(result.message);
       // The server or the app's own check refused the change, so the app's
       // status is out of date (#310): a new copy brings the server's.
@@ -399,7 +363,8 @@ export function StewardView({
   const ownStation =
     own && own.status !== "CHECKED_OUT" ? own.station : undefined;
   // A station is chosen only while the steward has none: on the way they
-  // cancel first (the swipe), and after arriving they check out first.
+  // cancel first (the cross in the status card), and after arriving they
+  // check out first.
   // A chosen station that a new copy of the scenario no longer has is
   // dropped, so the slide cannot assign a station that is not there.
   const chosen =
@@ -461,15 +426,10 @@ export function StewardView({
   const retry = onRetry ?? (() => void refresh());
 
   return (
-    <RoleView
-      title="Steward"
-      scenario={shown?.scenario.name}
-      connected={online && isConnected}
-      onLogout={onLogout}
-    >
+    <RoleView title="Steward" onLogout={onLogout}>
       <ScenarioNotice view={view} onDismiss={dismissNotice} />
-      {/* The screen does not scroll (#376): the status box at the top, the
-          map and the list in the middle, and one control at the bottom. */}
+      {/* The screen does not scroll (#376): the status card at the top (the
+          status, the map and the one control), the station list under it. */}
       <View style={styles.content}>
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
@@ -521,9 +481,23 @@ export function StewardView({
             }
             selected={chosen}
             onCheckOut={() => void changeStatus({ type: "checkOut" })}
-            note={note}
+            onCancel={() => void changeStatus({ type: "cancel" })}
+            cancelDisabled={
+              sendingStatus || view.status !== "live" || waiting !== null
+            }
             offline={view.status === "copy"}
             ready={ownLoaded}
+            scenario={shown.scenario.name}
+            connected={online && isConnected}
+            map={
+              <ScenarioMap
+                snapshot={counted ?? shown}
+                assignedStation={ownStation}
+                checkedOutStation={
+                  own?.status === "CHECKED_OUT" ? own.station : undefined
+                }
+              />
+            }
           >
             {reportStatus && <Text style={styles.report}>{reportStatus}</Text>}
             <ScenarioOverview
@@ -539,21 +513,13 @@ export function StewardView({
                 canPick
                   ? (station) => {
                       animateNextLayout();
+                      setPinned(undefined);
                       setSelected(station);
                     }
                   : undefined
               }
               selected={chosen}
-              onCancel={() => void changeStatus({ type: "cancel" })}
-              cancelDisabled={
-                sendingStatus || view.status !== "live" || waiting !== null
-              }
-              peekKey={peekKey}
-              mapShown={mapShown}
-              onToggleMap={() => {
-                animateNextLayout();
-                setMapShown((shownNow) => !shownNow);
-              }}
+              pinnedStation={pinned}
             />
           </StewardStatusControl>
         )}

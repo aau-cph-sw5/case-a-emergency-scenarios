@@ -16,6 +16,7 @@ import {
 import { Profiler } from "react";
 import { sendPositionReport } from "../../mobile/src/api/position-report";
 import { ERROR_CODES } from "../../shared/error-codes";
+import { motion } from "../../shared/Theme";
 import { resetRememberedStatuses } from "../../mobile/src/data/steward-status";
 import { StewardView } from "../../mobile/src/screens/StewardView";
 import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
@@ -33,26 +34,47 @@ import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
 // Choosing a station is a tap on its row and the yellow BEKRÆFT slide, and
-// cancelling is the own row's swipe (or tap) and BEKRÆFT ANNULLÉR (#376).
-// Each step is its own act, so the screen has the new state before the next.
-async function chooseStation(station: string) {
+// cancelling is the cross next to CHECK IND and the red BEKRÆFT ANNULLÉR
+// slide (#376). Each step is its own act, so the screen has the new state
+// before the next. A new status turns the whole status card (Swap), which
+// shows the new content once it is on its edge, so the steps wait for the
+// turn to end (settle).
+async function settle() {
   await act(async () => {
-    fireEvent.press(screen.getByLabelText(`Vælg ${station}`));
+    await new Promise((resolve) => setTimeout(resolve, motion.flipMs + 100));
   });
+}
+
+async function slide() {
   await act(async () => {
     fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
       nativeEvent: { actionName: "activate" },
     });
   });
+  await settle();
 }
 
-async function cancelStation(station: string) {
+async function chooseStation(station: string) {
   await act(async () => {
-    fireEvent.press(screen.getByLabelText(`Annullér ${station}`));
+    fireEvent.press(screen.getByLabelText(`Vælg ${station}`));
   });
+  await slide();
+}
+
+// TJEK UD checks out.
+async function checkOut() {
   await act(async () => {
-    fireEvent.press(screen.getByText("BEKRÆFT ANNULLÉR"));
+    fireEvent.press(await screen.findByText("TJEK UD"));
   });
+  await settle();
+}
+
+async function cancelStation() {
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText("Annullér tildeling"));
+  });
+  await screen.findByText("BEKRÆFT ANNULLÉR");
+  await slide();
 }
 
 // The view is driven by a given scenario view and a mocked position report,
@@ -215,10 +237,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(report).toHaveBeenLastCalledWith("token", "Station B", 1, "ARRIVED");
     expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
 
-    const tjekUd = await screen.findByText("TJEK UD");
-    await act(async () => {
-      fireEvent.press(tjekUd);
-    });
+    await checkOut();
 
     expect(report).toHaveBeenLastCalledWith(
       "token",
@@ -235,7 +254,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     await renderView();
 
     await chooseStation("Station B");
-    await cancelStation("Station B");
+    await cancelStation();
 
     expect(report).toHaveBeenLastCalledWith(
       "token",
@@ -306,11 +325,21 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
         "Din position er ikke sendt endnu. Du kan ændre status, når den er modtaget.",
       ),
     ).toBeTruthy();
-    // The own row cannot be opened, so BEKRÆFT ANNULLÉR stays hidden (#376).
+    // The red BEKRÆFT ANNULLÉR slide shows, but it cannot be slid (#376).
     await act(async () => {
-      fireEvent.press(screen.getByLabelText("Annullér Station B"));
+      fireEvent.press(screen.getByLabelText("Annullér tildeling"));
     });
-    expect(screen.queryByText("BEKRÆFT ANNULLÉR")).toBeNull();
+    await screen.findByText("BEKRÆFT ANNULLÉR");
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+    expect(report).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Fortryd annullering"));
+    });
+    await screen.findByText("CHECK IND");
     await act(async () => {
       fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
         nativeEvent: { actionName: "activate" },
@@ -360,9 +389,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
     expect(await screen.findByText("TJEK UD")).toBeTruthy();
 
-    await act(async () => {
-      fireEvent.press(screen.getByText("TJEK UD"));
-    });
+    await checkOut();
     expect(report).toHaveBeenLastCalledWith(
       "token",
       "Station B",
@@ -523,10 +550,11 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       for (const t of last)
         if (!now.has(t) && seen.get(t) !== undefined)
           problems.push(`${action}: "${t}" showed and went again`);
+      // The control may be a slide or TJEK UD; there is always one of them.
       if (
-        !screen.queryByTestId("slide-to-confirm", {
+        screen.queryAllByTestId("slide-to-confirm", {
           includeHiddenElements: true,
-        }) &&
+        }).length === 0 &&
         !now.has("TJEK UD")
       )
         problems.push(`${action}: no control at the bottom (render ${commit})`);
@@ -561,12 +589,10 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       fireEvent.press(screen.getByLabelText("Vælg Station B")),
     );
     await step("assign", slide);
-    await step("open the row", () =>
-      fireEvent.press(screen.getByLabelText("Annullér Station B")),
+    await step("ask to cancel", () =>
+      fireEvent.press(screen.getByLabelText("Annullér tildeling")),
     );
-    await step("cancel", () =>
-      fireEvent.press(screen.getByText("BEKRÆFT ANNULLÉR")),
-    );
+    await step("cancel", slide);
     await step("choose again", () =>
       fireEvent.press(screen.getByLabelText("Vælg Station B")),
     );

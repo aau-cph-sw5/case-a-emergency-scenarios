@@ -13,8 +13,7 @@ import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
-// Choosing a station is a tap on its row and the yellow BEKRÆFT slide, and
-// cancelling is the own row's swipe (or tap) and BEKRÆFT ANNULLÉR (#376).
+// Choosing a station is a tap on its row and the yellow BEKRÆFT slide (#376).
 // Each step is its own act, so the screen has the new state before the next.
 async function chooseStation(station: string) {
   await act(async () => {

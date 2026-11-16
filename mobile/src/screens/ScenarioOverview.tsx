@@ -8,17 +8,10 @@ import {
   View,
 } from "react-native";
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
-import {
-  lineColors,
-  colors,
-  text,
-  palette,
-  panelRadius,
-  steward,
-} from "../../../shared/Theme";
+import { lineColors, colors, palette, steward } from "../../../shared/Theme";
 import { staffingWords } from "../components/StatusBox";
-import { AxisSwap } from "../components/AxisSwap";
-import { SwipeToCancel } from "../components/SwipeToCancel";
+import { ListCard, ListStrip, listStripTitle } from "../components/ListCard";
+import { Swap } from "../components/Swap";
 import MapRender from "../../../shared/MapRenderer";
 import { getLines } from "../../../mockData/data";
 import {
@@ -37,8 +30,11 @@ import { findOwnAssignment } from "./own-assignment";
 const STRETCH_COLOR = lineColors[0];
 // The colour of the steward's own station on the map.
 const OWN_COLOR = palette.metroSummerRed;
-// A station row, and the taller row of the own or the chosen station (#376).
+// A station row (#376). When the stations do not all fit, the ordinary rows
+// get lower, all by the same amount, down to ROW_MIN (name and line under it
+// still fit); the own or the chosen row keeps steward.ownRowHeight.
 const ROW_HEIGHT = 48;
+const ROW_MIN = 34;
 
 type StationRequirement = NonNullable<
   ScenarioSnapshot["scenario"]["versions"][number]["stationRequirements"]
@@ -68,66 +64,23 @@ export function oneRowPerStation(
   return [...merged.values()];
 }
 
-// The map and the affected stations in one card (#376). The map is shown in a
-// 21:9 frame from the start; the strip under it collapses it ("Vis alle") to
-// show the whole list, and brings it back ("Vis kort"). With the map shown,
-// the list holds as many stations as fit in full; without it, it scrolls.
-// The order is: the steward's own station, then stations nobody is assigned
-// to, then the rest.
-//
-// While the steward has no station, tapping a row selects it (onSelect); the
-// slide at the bottom of the screen then assigns exactly that station. While
-// on the way, the own row is swiped (or tapped) to cancel (onCancel).
-export function ScenarioOverview({
-  snapshot,
-  onSelect,
-  selected,
-  onCancel,
-  cancelDisabled = false,
-  peekKey,
-  mapShown = true,
-  onToggleMap,
-  assignedStation,
-  checkedOutStation,
-  ownArrived = false,
-}: {
-  snapshot: ScenarioSnapshot;
-  // Makes the rows selectable. Left out when the steward cannot choose.
-  onSelect?: (station: string) => void;
-  selected?: string;
-  // Offers the swipe on the own row while on the way.
-  onCancel?: () => void;
-  cancelDisabled?: boolean;
-  // Nudges the own row once each time it changes, after assignment.
-  peekKey?: number;
-  mapShown?: boolean;
-  onToggleMap?: () => void;
-  // The station the steward is on the way to or at.
-  assignedStation?: string;
-  // The station the steward has checked out from. It is no longer their own
-  // station, and its row says they left it (#310).
-  checkedOutStation?: string;
-  // The steward has checked in at their own station: its row turns green.
-  ownArrived?: boolean;
-}) {
-  const { scenario, state, userId } = snapshot;
-  // The map zooms in on the stretch until its station names are legible at
-  // the phone's font size (MET-A-010), so it needs the size of its box.
-  const { fontScale } = useWindowDimensions();
-  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
-  // Every requirement row, for the tasks of the own station.
-  const requirements = scenario.versions[0]?.stationRequirements ?? [];
-  // One row per station, for the map and the list.
-  const rows = oneRowPerStation(requirements);
-  // MET-A-010 criterion 2: the steward's own assignment stands out without
-  // interaction. userId comes from the offline copy, so this works offline.
-  // The station chosen with + comes first, since the server does not record
-  // it in the deployments yet (#263).
-  // A checked-out deployment keeps the steward as staff, so the control room
-  // sees who was there (#289). It is not the steward's own station any more.
-  // After checking out in the app, an older copy of the deployments may still
-  // show them at the station, so the app's own status decides (#310).
-  const ownAssignment = findOwnAssignment(state.deployments, userId);
+// The steward's own station and the one they checked out from (#310). The
+// own assignment stands out without interaction (MET-A-010 criterion 2);
+// userId comes from the offline copy, so this works offline. The station the
+// app just assigned comes first, since the server does not record it in the
+// deployments yet (#263). A checked-out deployment keeps the steward as staff,
+// so the control room sees who was there (#289); it is not the steward's own
+// station any more, and after checking out an older copy may still show them
+// there, so the app's own status decides (#310).
+function ownStations(
+  snapshot: ScenarioSnapshot,
+  assignedStation: string | undefined,
+  checkedOutStation: string | undefined,
+) {
+  const ownAssignment = findOwnAssignment(
+    snapshot.state.deployments,
+    snapshot.userId,
+  );
   const leftStation =
     checkedOutStation ??
     (ownAssignment?.status === "CHECKED_OUT"
@@ -138,26 +91,101 @@ export function ScenarioOverview({
     (checkedOutStation === undefined && ownAssignment?.status !== "CHECKED_OUT"
       ? ownAssignment?.fulfills
       : undefined);
+  return { ownStation, leftStation };
+}
+
+// The map of the affected stretch (#376). It sits in the status card under
+// the status and is always shown; its box sets its size, and it zooms in on
+// the stretch until the station names are legible at the phone's font size
+// (MET-A-010). The own station is marked on it.
+export function ScenarioMap({
+  snapshot,
+  assignedStation,
+  checkedOutStation,
+}: {
+  snapshot: ScenarioSnapshot;
+  assignedStation?: string;
+  checkedOutStation?: string;
+}) {
+  const { scenario, state } = snapshot;
+  const { fontScale } = useWindowDimensions();
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const rows = oneRowPerStation(
+    scenario.versions[0]?.stationRequirements ?? [],
+  );
+  const { ownStation } = ownStations(
+    snapshot,
+    assignedStation,
+    checkedOutStation,
+  );
+  // The map is drawn again only when what it shows changes (MapCard): the
+  // scenario, the coverage level of a station, the own station or its size.
+  const levels = stationCoverage(rows, state);
+  return (
+    <View
+      style={styles.fill}
+      onLayout={(event) => setSize(event.nativeEvent.layout)}
+    >
+      <MapCard
+        scenario={scenario}
+        scenarioKey={`${scenario.scenarioId}@${scenario.currentVersion}`}
+        levels={levels}
+        levelsKey={JSON.stringify(levels)}
+        ownStation={ownStation}
+        width={size.width}
+        height={size.height}
+        fontScale={fontScale}
+      />
+    </View>
+  );
+}
+
+// The affected stations in one card (#376), under the status card. Every
+// station is shown: when they do not all fit, the ordinary rows get lower
+// instead of scrolling. The order is: the steward's own station, then
+// stations nobody is assigned to, then the rest.
+//
+// While the steward has no station, tapping a row selects it (onSelect); the
+// slide in the status card then assigns exactly that station. Cancelling is
+// done in the status card, not here.
+export function ScenarioOverview({
+  snapshot,
+  onSelect,
+  selected,
+  pinnedStation,
+  assignedStation,
+  checkedOutStation,
+  ownArrived = false,
+}: {
+  snapshot: ScenarioSnapshot;
+  // Makes the rows selectable. Left out when the steward cannot choose.
+  onSelect?: (station: string) => void;
+  selected?: string;
+  // A station that keeps its place at the top: the one just cancelled, until
+  // the steward picks again, so it does not jump away (#376).
+  pinnedStation?: string;
+  // The station the steward is on the way to or at.
+  assignedStation?: string;
+  // The station the steward has checked out from. It is no longer their own
+  // station, and its row says they left it (#310).
+  checkedOutStation?: string;
+  // The steward has checked in at their own station: its row turns green.
+  ownArrived?: boolean;
+}) {
+  const { scenario, state } = snapshot;
+  // Every requirement row, for the tasks of the own station.
+  const requirements = scenario.versions[0]?.stationRequirements ?? [];
+  // One row per station, for the list.
+  const rows = oneRowPerStation(requirements);
+  const { ownStation, leftStation } = ownStations(
+    snapshot,
+    assignedStation,
+    checkedOutStation,
+  );
   const ownRow = requirements.find((row) => row.station === ownStation);
   const ownActions = sortedActions(ownRow);
   const [listHeight, setListHeight] = useState(0);
-
-  // The map is drawn again only when what it shows changes (MapCard): the
-  // scenario, the coverage level of a station, the own station or its size.
-  // A new copy of the scenario with the same content does not redraw it.
-  const levels = stationCoverage(rows, state);
-  const map = (
-    <MapCard
-      scenario={scenario}
-      scenarioKey={`${scenario.scenarioId}@${scenario.currentVersion}`}
-      levels={levels}
-      levelsKey={JSON.stringify(levels)}
-      ownStation={ownStation}
-      width={mapSize.width}
-      height={mapSize.height}
-      fontScale={fontScale}
-    />
-  );
+  const arrived = ownArrived && ownStation !== undefined;
 
   // The coverage of each row, counted once per render (the sort and the rows
   // both need it).
@@ -170,27 +198,33 @@ export function ScenarioOverview({
   const coverageOf = (row: StationRequirement) =>
     coverages.get(row) ??
     getStationState(state, row.station, row.minimumStaffing);
-  // Own station first, then stations nobody is at or on the way to, then the
-  // rest; the sort keeps the scenario's order within each group.
+  // Own station first (or the pinned one), then stations nobody is at or on
+  // the way to, then the rest; the sort keeps the scenario's order within
+  // each group.
   const group = (row: StationRequirement) => {
-    if (row.station === ownStation) return 0;
+    if (row.station === ownStation || row.station === pinnedStation) return 0;
     const coverage = coverageOf(row);
     return coverage.current + coverage.enRoute === 0 ? 1 : 2;
   };
   const sorted = [...rows].sort((a, b) => group(a) - group(b));
   const tall = (row: StationRequirement) =>
     row.station === ownStation || row.station === selected;
-  // With the map shown, only rows that fit in full. Before the list has been
-  // measured (and in tests) every row is shown.
-  const fitted: StationRequirement[] = [];
-  let used = 0;
-  for (const row of sorted) {
-    used += tall(row) ? steward.ownRowHeight : ROW_HEIGHT;
-    // The first row (the own station, when there is one) is always shown,
-    // also on a screen too small for it.
-    if (listHeight > 0 && used > listHeight && fitted.length > 0) break;
-    fitted.push(row);
-  }
+  // The ordinary rows share the room the tall row leaves. Before the list has
+  // been measured (and in tests) they are ROW_HEIGHT.
+  const tallCount = sorted.filter(tall).length;
+  const plainCount = sorted.length - tallCount;
+  const rowHeight =
+    listHeight > 0 && plainCount > 0
+      ? Math.max(
+          ROW_MIN,
+          Math.min(
+            ROW_HEIGHT,
+            Math.floor(
+              (listHeight - tallCount * steward.ownRowHeight) / plainCount,
+            ),
+          ),
+        )
+      : ROW_HEIGHT;
 
   const renderRow = (row: StationRequirement) => {
     const own = row.station === ownStation;
@@ -204,17 +238,24 @@ export function ScenarioOverview({
       : own || chosen || coverage.current + coverage.enRoute > 0
         ? colors.text
         : steward.nobody;
-    const swipe = own && !ownArrived && onCancel !== undefined;
     const sub =
       row.station === leftStation && !own
         ? "Tjekket ud herfra"
-        : swipe
-          ? "‹‹ Swipe for at annullere"
-          : staffingWords(coverage.current, coverage.enRoute);
-    const content = (
-      <View
+        : staffingWords(coverage.current, coverage.enRoute);
+    const selectable = onSelect !== undefined && !own;
+    // One row in every state, keyed by the station, so a chosen station that
+    // becomes the own station stays the same element (#376).
+    return (
+      <Pressable
+        key={row.station}
+        accessibilityRole={selectable ? "button" : undefined}
+        accessibilityLabel={selectable ? `Vælg ${row.station}` : undefined}
+        accessibilityState={selectable ? { selected: chosen } : undefined}
+        disabled={!selectable}
+        onPress={selectable ? () => onSelect(row.station) : undefined}
         style={[
           styles.row,
+          { height: rowHeight },
           (own || chosen) && styles.tallRow,
           (own || chosen) && {
             backgroundColor: onGreen ? steward.green : steward.yellow,
@@ -232,109 +273,78 @@ export function ScenarioOverview({
           >
             {row.station}
           </Text>
-          <AxisSwap swapKey={sub}>
-            <Text
-              style={[
-                styles.sub,
-                swipe && styles.hint,
-                onGreen && styles.inverse,
-              ]}
-            >
-              {sub}
-            </Text>
-          </AxisSwap>
+          <Swap swapKey={sub}>
+            <Text style={[styles.sub, onGreen && styles.inverse]}>{sub}</Text>
+          </Swap>
         </View>
         {chosen && <Text style={styles.chosenMark}>✓</Text>}
         <Text style={[styles.count, { color: countColor }]}>
           {coverage.current}/{row.minimumStaffing}
           {coverage.current >= row.minimumStaffing ? " ✓" : ""}
         </Text>
-      </View>
-    );
-    // One row component in every state, keyed by the station, so a chosen
-    // station that becomes the own station stays the same element (#376).
-    return (
-      <SwipeToCancel
-        key={row.station}
-        station={row.station}
-        onCancel={swipe ? onCancel : undefined}
-        onSelect={onSelect && !own ? () => onSelect(row.station) : undefined}
-        selected={chosen}
-        peekKey={swipe ? peekKey : undefined}
-        disabled={swipe && cancelDisabled}
-      >
-        {content}
-      </SwipeToCancel>
+      </Pressable>
     );
   };
 
-  return (
-    <View style={styles.root}>
-      <View style={styles.card}>
-        {mapShown && (
-          <View
-            style={styles.mapBox}
-            onLayout={(event) => setMapSize(event.nativeEvent.layout)}
-          >
-            {map}
-          </View>
-        )}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded: !mapShown }}
-          onPress={onToggleMap}
-          style={styles.strip}
-        >
-          {/* A new heading takes the old one's place with the shared-axis
-              change (AxisSwap), like every other replacement. */}
-          <AxisSwap swapKey={onSelect ? "choose" : "affected"}>
-            <Text style={styles.stripTitle}>
-              {onSelect ? "Vælg nærmeste station" : "Påvirkede stationer"}
-            </Text>
-          </AxisSwap>
-          <Text style={styles.stripAction}>
-            {mapShown ? `Vis alle ${rows.length}` : "Vis kort"}
-          </Text>
-        </Pressable>
-        {mapShown ? (
-          <View
-            style={styles.list}
-            onLayout={(event) => setListHeight(event.nativeEvent.layout.height)}
-          >
-            {fitted.map(renderRow)}
-          </View>
-        ) : (
-          <ScrollView style={styles.list}>{sorted.map(renderRow)}</ScrollView>
-        )}
-      </View>
+  // The station list, the same before and after check in.
+  const stationList = (
+    <View
+      style={styles.fill}
+      onLayout={(event) => setListHeight(event.nativeEvent.layout.height)}
+    >
+      {/* Scrolls only on a screen too small for every row at ROW_MIN. */}
+      <ScrollView style={styles.fill}>{sorted.map(renderRow)}</ScrollView>
+    </View>
+  );
 
-      {ownArrived && ownStation !== undefined && (
-        // Layout from the design group: a dark card with the station's
-        // actions as a numbered list. Sub-issue 3 (#377) gives it its new look.
-        <View style={styles.ownCard} accessibilityLabel="Din opgave">
-          <Text style={styles.ownCardTitle} accessibilityRole="header">
-            Opgaver på {ownStation}
-          </Text>
-          {ownRow && (
-            <Text style={styles.ownCardPlacement}>{ownRow.placement}</Text>
-          )}
+  // After check in only the own station matters: the card shows its tasks,
+  // in the same frame as the stations (ListCard).
+  if (arrived) {
+    return (
+      <ListCard>
+        <ListStrip first title={`Opgaver på ${ownStation}`} />
+        <ScrollView style={styles.fill} accessibilityLabel="Din opgave">
+          {ownRow && <Text style={styles.placement}>{ownRow.placement}</Text>}
           {ownActions.length > 0 ? (
-            ownActions.map((action, index) => (
-              <Text
-                key={action.sequence}
-                style={[styles.ownCardTask, index > 0 && styles.ownCardDivider]}
-              >
-                {action.sequence}. {action.instruction}
-              </Text>
+            ownActions.map((action) => (
+              <View key={action.sequence} style={styles.task}>
+                <Text style={styles.taskNumber}>{action.sequence}.</Text>
+                <Text style={styles.taskText}>{action.instruction}</Text>
+              </View>
             ))
           ) : (
-            <Text style={styles.ownCardTask}>
+            <Text style={styles.placement}>
               Ingen opgaver for denne station
             </Text>
           )}
-        </View>
-      )}
-    </View>
+        </ScrollView>
+      </ListCard>
+    );
+  }
+
+  return (
+    <ListCard>
+      <ListStrip
+        first
+        title={
+          // A new heading takes the old one's place with the shared-axis
+          // change (Swap), like every other replacement. "nærmeste" is the
+          // one word the steward must not overlook, so it is red.
+          <Swap swapKey={onSelect ? "choose" : "affected"}>
+            {onSelect ? (
+              <Text style={listStripTitle} accessibilityRole="header">
+                Vælg <Text style={styles.nearest}>nærmeste</Text> station
+              </Text>
+            ) : (
+              <Text style={listStripTitle} accessibilityRole="header">
+                Påvirkede stationer
+              </Text>
+            )}
+          </Swap>
+        }
+      />
+      {stationList}
+    </ListCard>
   );
 }
 
@@ -414,43 +424,16 @@ function sortedActions(row: StationRequirement | undefined) {
 }
 
 const styles = StyleSheet.create({
-  root: {
+  fill: {
     flex: 1,
   },
-  card: {
-    backgroundColor: colors.background,
-    borderColor: steward.line,
-    borderRadius: panelRadius,
-    borderWidth: 1,
-    flex: 1,
-    overflow: "hidden",
-  },
-  mapBox: {
-    aspectRatio: 21 / 9,
-    margin: 6,
-  },
-  strip: {
-    alignItems: "center",
-    backgroundColor: steward.strip,
-    borderTopColor: steward.line,
-    borderTopWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 40,
-    paddingHorizontal: 15,
-  },
-  stripTitle: { color: colors.text, fontSize: 14, fontWeight: "700" },
-  stripAction: { color: steward.muted, fontSize: 12, fontWeight: "700" },
-  list: {
-    flex: 1,
-  },
+  nearest: { color: steward.nobody },
   row: {
     alignItems: "center",
     borderTopColor: steward.line,
     borderTopWidth: 1,
     flexDirection: "row",
     gap: 10,
-    height: ROW_HEIGHT,
     paddingHorizontal: 15,
   },
   tallRow: {
@@ -463,7 +446,6 @@ const styles = StyleSheet.create({
   name: { color: colors.text, fontSize: 16, fontWeight: "700" },
   bigName: { fontSize: 22 },
   sub: { color: steward.muted, fontSize: 12 },
-  hint: { color: colors.text, fontWeight: "700" },
   inverse: {
     color: colors.textInverse,
   },
@@ -483,34 +465,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
-
-  // The steward's tasks after check in: a dark card plus text labels, so it
-  // does not rely on colour alone.
-  ownCard: {
-    backgroundColor: colors.active,
-    // Rounded as in the design group's sketch, like the status panels.
-    borderRadius: panelRadius,
-    padding: 12,
-    marginTop: 8,
+  // The tasks of the own station after check in.
+  placement: {
+    color: steward.muted,
+    fontSize: 14,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
-  ownCardTitle: {
-    ...text.title,
-    color: colors.textInverse,
-    marginBottom: 4,
-  },
-  ownCardPlacement: {
-    ...text.body,
-    color: colors.textInverse,
-    marginBottom: 6,
-  },
-  ownCardTask: {
-    ...text.body,
-    color: colors.textInverse,
-    paddingVertical: 8,
-    paddingLeft: 8,
-  },
-  ownCardDivider: {
+  task: {
+    borderTopColor: steward.line,
     borderTopWidth: 1,
-    borderTopColor: palette.networkGrey,
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  taskNumber: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+    minWidth: 20,
+  },
+  taskText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 21,
   },
 });

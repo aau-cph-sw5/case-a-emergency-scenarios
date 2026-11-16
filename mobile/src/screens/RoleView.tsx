@@ -1,66 +1,52 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import { colors, steward, surface, text } from "../../../shared/Theme";
+import { colors, surface, text } from "../../../shared/Theme";
+import { MetroLogo } from "../components/MetroLogo";
 
 // The header of a logged-in view (#376), one row as in the prototype: who is
-// logged in, a dot for the live connection with the active scenario's name,
-// and "Log ud". The view's own content goes in children.
+// logged in on the left, Metro's logo in the middle and "Log ud" on the
+// right. The scenario and the connection are shown in the status card, as the
+// context of the status. The view's own content goes in children.
 export function RoleView({
   title,
-  scenario,
-  connected = false,
   onLogout,
   children,
 }: {
   title: string;
-  // The active scenario's name, left out when there is none.
-  scenario?: string;
-  // Green dot when live updates arrive, red when they do not.
-  connected?: boolean;
   onLogout: () => void;
   children?: ReactNode;
 }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        {scenario !== undefined && (
-          <View
-            style={styles.scenario}
-            accessible
-            accessibilityLabel={`${scenario}, ${connected ? "forbundet" : "ingen forbindelse"}`}
+        {/* The two sides take the same width, so the logo stays in the middle
+            of the phone whatever the texts' widths. */}
+        <View style={styles.side}>
+          <Text style={styles.title}>{title}</Text>
+        </View>
+        <MetroLogo height={26} />
+        <View style={[styles.side, styles.end]}>
+          <Pressable
+            style={styles.button}
+            onPress={onLogout}
+            accessibilityRole="button"
           >
-            <View
-              style={[
-                styles.dot,
-                { backgroundColor: connected ? steward.green : steward.red },
-              ]}
-            />
-            <Text style={styles.scenarioName} numberOfLines={1}>
-              {scenario}
-            </Text>
-          </View>
-        )}
-        <Pressable
-          style={styles.button}
-          onPress={onLogout}
-          accessibilityRole="button"
-        >
-          <Svg
-            width={20}
-            height={20}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={colors.text}
-            strokeWidth={2.2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <Path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9" />
-          </Svg>
-          <Text style={styles.buttonText}>Log ud</Text>
-        </Pressable>
+            <Svg
+              width={20}
+              height={20}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={colors.text}
+              strokeWidth={2.2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <Path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9" />
+            </Svg>
+            <Text style={styles.buttonText}>Log ud</Text>
+          </Pressable>
+        </View>
       </View>
       {children}
     </View>
@@ -77,29 +63,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 10,
-    justifyContent: "space-between",
+  },
+  side: {
+    flex: 1,
+  },
+  end: {
+    alignItems: "flex-end",
   },
   title: {
     ...text.header,
     color: colors.text,
     fontSize: 18,
     fontWeight: "700",
-  },
-  scenario: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexShrink: 1,
-    gap: 6,
-  },
-  dot: {
-    borderRadius: 4,
-    height: 8,
-    width: 8,
-  },
-  scenarioName: {
-    color: steward.muted,
-    flexShrink: 1,
-    fontSize: 12,
   },
   button: {
     alignItems: "center",

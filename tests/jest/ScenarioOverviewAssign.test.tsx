@@ -64,36 +64,14 @@ describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
     expect(screen.getByText("Opgaver på Station B")).toBeTruthy();
   });
 
-  // The map in a 21:9 frame; the strip collapses it and brings it back.
-  it("collapses and brings back the map with the strip", () => {
-    const onToggleMap = jest.fn();
-    render(<ScenarioOverview snapshot={snapshot} onToggleMap={onToggleMap} />);
-    fireEvent.press(screen.getByText("Vis alle 1"));
-    expect(onToggleMap).toHaveBeenCalledTimes(1);
-    screen.unmount();
-    render(<ScenarioOverview snapshot={snapshot} mapShown={false} />);
-    expect(screen.getByText("Vis kort")).toBeTruthy();
-  });
-
-  // While on the way the own row is swiped or tapped to cancel; only
-  // BEKRÆFT ANNULLÉR cancels, BEHOLD closes the row again.
-  it("cancels from the own row only after BEKRÆFT ANNULLÉR", () => {
-    const onCancel = jest.fn();
+  // Cancelling is done in the status card, not in the list (#376): the own
+  // row is an ordinary row there, with its staffing under the name.
+  it("has no cancel in the list", () => {
     render(
-      <ScenarioOverview
-        snapshot={snapshot}
-        assignedStation="Station B"
-        onCancel={onCancel}
-      />,
+      <ScenarioOverview snapshot={snapshot} assignedStation="Station B" />,
     );
-    expect(screen.getByText("‹‹ Swipe for at annullere")).toBeTruthy();
-    expect(screen.queryByText("BEKRÆFT ANNULLÉR")).toBeNull();
-    fireEvent.press(screen.getByLabelText("Annullér Station B"));
-    fireEvent.press(screen.getByText("BEHOLD"));
-    expect(onCancel).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByLabelText("Annullér Station B"));
-    fireEvent.press(screen.getByText("BEKRÆFT ANNULLÉR"));
-    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("‹‹ Swipe for at annullere")).toBeNull();
+    expect(screen.queryByLabelText("Annullér Station B")).toBeNull();
   });
 
   // A station with two requirement rows is listed once, needing both (#376).
@@ -122,7 +100,6 @@ describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
     );
     render(<ScenarioOverview snapshot={twoRows} onSelect={jest.fn()} />);
     expect(screen.getAllByLabelText("Vælg Station B")).toHaveLength(1);
-    expect(screen.getByText("Vis alle 1")).toBeTruthy();
     expect(screen.getByText(`0/${row.minimumStaffing * 2}`)).toBeTruthy();
   });
 
@@ -164,7 +141,9 @@ describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
   });
 
   // The own row is filled yellow on the way and green after check in.
-  it("fills the own row in the colour of the steward's status", () => {
+  // On the way the own row is the yellow one; after check in the same card
+  // shows the tasks of the own station instead of the stations (#376).
+  it("shows the own row on the way and the tasks after check in", () => {
     render(
       <ScenarioOverview snapshot={snapshot} assignedStation="Station B" />,
     );
@@ -177,7 +156,8 @@ describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
         ownArrived
       />,
     );
-    expect(screen.getByText("0/1")).toHaveStyle({ color: colors.textInverse });
+    expect(screen.getByText("Opgaver på Station B")).toBeTruthy();
+    expect(screen.queryByText("0/1")).toBeNull();
   });
 
   // After checking out the steward has left the station; the row says so
