@@ -14,6 +14,7 @@ import type { Scenario } from "../../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
 import { fetchActiveActivations } from "../activations";
 import { userMessage } from "../get-json";
+import { sanitizeLogValue } from "../sanitize-log";
 import {
   fetchScenario,
   fetchScenarios,
@@ -109,7 +110,7 @@ export function LiveDataProvider({
         setActivationsError(null);
       } catch (e) {
         if (controller.signal.aborted || mine !== latest) return;
-        console.error(e);
+        console.error(sanitizeLogValue(e));
         setActivationsError(userMessage(e));
       } finally {
         if (mine === latest) setIsLoading(false);
@@ -142,7 +143,7 @@ export function LiveDataProvider({
       },
       (e: unknown) => {
         if (controller.signal.aborted) return;
-        console.error(e);
+        console.error(sanitizeLogValue(e));
         setScenariosError(userMessage(e));
       },
     );
