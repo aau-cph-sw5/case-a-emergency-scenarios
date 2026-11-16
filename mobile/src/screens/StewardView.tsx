@@ -370,7 +370,10 @@ export function StewardView({
       );
       if (result.ok) {
         // The blocks that change with the status open and close smoothly.
-        animateNextLayout();
+        // Not on cancelling: the station list is not part of that change, and
+        // the cancelled row must simply stand in the list again, without any
+        // movement (the status box and the slide have their own changes).
+        if (change.type !== "cancel") animateNextLayout();
         setOwnStatus(result.own);
         setNote((last) => statusNote(result.own, (last?.key ?? 0) + 1));
         setSelected(undefined);
