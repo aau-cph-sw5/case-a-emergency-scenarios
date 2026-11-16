@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   StationMessageEvent,
   StationThreadsClosed,
@@ -22,6 +22,8 @@ export function useStationThreads(
   const { socket } = useLiveContext();
   const [threads, setThreads] = useState<StationThread[] | null>(null);
   const [thread, setThread] = useState<StationThread | null>(null);
+  const [history, setHistory] = useState<Record<string, StationThread>>({});
+  const fetchedRef = useRef(new Map<string, StationThread>());
   const [listError, setListError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<{
     station: string;
@@ -43,16 +45,48 @@ export function useStationThreads(
       fetchStationThreads(token, controller.signal).then(
         (loaded) => {
           if (controller.signal.aborted) return;
-          setThreads(
-            loaded.filter((thread) => thread.activationId === activationId),
+          const current = loaded.filter(
+            (thread) => thread.activationId === activationId,
+          );
+          setThreads((previous) =>
+            current.length ? current : (previous ?? []),
           );
           setListError(null);
+          for (const summary of current) {
+            const cached = fetchedRef.current.get(summary.station);
+            if (
+              cached?.lastMessageAt === summary.lastMessageAt &&
+              cached?.state === summary.state
+            )
+              continue;
+            void fetchStationThread(token, summary.station, controller.signal)
+              .then((detail) => {
+                if (
+                  !controller.signal.aborted &&
+                  detail.activationId === activationId
+                ) {
+                  remember(detail);
+                }
+              })
+              .catch(() => {});
+          }
         },
         (error: unknown) => {
           if (!controller.signal.aborted)
             setListError(stationMessageError(error));
         },
       );
+    }
+
+    function remember(detail: StationThread) {
+      const previous = fetchedRef.current.get(detail.station);
+      if (
+        (previous?.messages?.at(-1)?.id ?? 0) >
+        (detail.messages?.at(-1)?.id ?? 0)
+      )
+        return;
+      fetchedRef.current.set(detail.station, detail);
+      setHistory((saved) => ({ ...saved, [detail.station]: detail }));
     }
 
     function refreshThread() {
@@ -63,6 +97,7 @@ export function useStationThreads(
       fetchStationThread(token, station, controller.signal).then(
         (loaded) => {
           if (controller.signal.aborted) return;
+          if (loaded.activationId === activationId) remember(loaded);
           setThread(loaded.activationId === activationId ? loaded : null);
           setDetailError(null);
         },
@@ -112,11 +147,21 @@ export function useStationThreads(
     return message;
   }
 
+  const readOnly = closed || activationId === null;
   return {
-    threads: closed ? [] : threads,
-    thread: !closed && thread?.station === station ? thread : null,
-    listError,
-    threadError: detailError?.station === station ? detailError.message : null,
+    threads: readOnly
+      ? Object.values(history).filter((detail) => detail.messages?.length)
+      : threads,
+    thread: readOnly
+      ? (station && history[station]) || null
+      : thread?.station === station
+        ? thread
+        : null,
+    listError: readOnly ? null : listError,
+    threadError:
+      !readOnly && detailError?.station === station
+        ? detailError.message
+        : null,
     closed,
     reload,
     send,

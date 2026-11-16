@@ -41,25 +41,18 @@ export function OperatorMessagePanel({
   const activation = activations.find(
     (active) => active.lineGroup === lineGroup,
   );
+  const [latest, setLatest] = useState(activation);
+  if (activation && activation !== latest) setLatest(activation);
+  const scenario = activation ?? latest;
 
   return (
     <div className="operator-messages" style={messageColors}>
-      {activation ? (
-        <ActiveMessages
-          key={activation.activationId}
-          token={token}
-          activation={activation}
-        />
-      ) : (
-        <button
-          type="button"
-          className="operator-message-button"
-          title="Beskeder er tilgængelige under et aktivt scenarie"
-          disabled
-        >
-          Beskeder
-        </button>
-      )}
+      <ActiveMessages
+        key={scenario?.activationId}
+        token={token}
+        activation={scenario}
+        active={activation !== undefined}
+      />
     </div>
   );
 }
@@ -67,9 +60,11 @@ export function OperatorMessagePanel({
 function ActiveMessages({
   token,
   activation,
+  active,
 }: {
   token: string;
-  activation: ScenarioState;
+  activation: ScenarioState | undefined;
+  active: boolean;
 }) {
   const { isConnected } = useLiveData();
   const [open, setOpen] = useState(false);
@@ -78,13 +73,19 @@ function ActiveMessages({
   const launcherRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { threads, thread, listError, threadError, closed, reload, send } =
-    useStationThreads(token, activation.activationId, station || null);
+    useStationThreads(
+      token,
+      active ? (activation?.activationId ?? null) : null,
+      station || null,
+    );
+  const readOnly = !active || closed;
   const stations = [
-    ...new Set(activation.deployments.map(({ fulfills }) => fulfills)),
+    ...new Set(activation?.deployments.map(({ fulfills }) => fulfills)),
   ];
-  const unanswered =
-    threads?.filter(({ state }) => state === "UNANSWERED").length ?? 0;
-  const visible = open && !closed;
+  const unanswered = readOnly
+    ? 0
+    : (threads?.filter(({ state }) => state === "UNANSWERED").length ?? 0);
+  const visible = open;
 
   useEffect(() => {
     if (visible) closeButtonRef.current?.focus();
@@ -103,7 +104,6 @@ function ActiveMessages({
         className="operator-message-button"
         aria-expanded={visible}
         aria-controls={panelId}
-        disabled={closed}
         onClick={() => (visible ? close() : setOpen(true))}
       >
         Beskeder
@@ -114,7 +114,7 @@ function ActiveMessages({
           </span>
         )}
       </button>
-      {!closed && (
+      {
         <section
           id={panelId}
           className="operator-message-panel"
@@ -130,24 +130,30 @@ function ActiveMessages({
               Luk
             </button>
           </header>
-          {!isConnected && (
+          {(readOnly || !isConnected) && (
             <p role="status">
-              Forbindelsen er afbrudt. Beskederne kan være forældede.
+              {readOnly
+                ? "Intet aktivt scenarie. Du kan læse tidligere hentede beskeder her."
+                : "Forbindelsen er afbrudt. Beskederne kan være forældede."}
             </p>
           )}
           <div className="operator-message-body">
             <div className="operator-thread-list">
-              <label htmlFor={`${panelId}-station`}>Vælg station</label>
-              <select
-                id={`${panelId}-station`}
-                value={station}
-                onChange={(event) => setStation(event.target.value)}
-              >
-                <option value="">Vælg en station</option>
-                {stations.map((name) => (
-                  <option key={name}>{name}</option>
-                ))}
-              </select>
+              {!readOnly && (
+                <>
+                  <label htmlFor={`${panelId}-station`}>Vælg station</label>
+                  <select
+                    id={`${panelId}-station`}
+                    value={station}
+                    onChange={(event) => setStation(event.target.value)}
+                  >
+                    <option value="">Vælg en station</option>
+                    {stations.map((name) => (
+                      <option key={name}>{name}</option>
+                    ))}
+                  </select>
+                </>
+              )}
               {listError ? (
                 <p role="alert">
                   Kunne ikke hente tråde. {listError}{" "}
@@ -193,27 +199,32 @@ function ActiveMessages({
                   </button>
                 </p>
               )}
-              {thread ? (
+              {thread && activation ? (
                 <StationConversation
                   key={station}
                   station={station}
                   activationId={activation.activationId}
                   messages={thread.messages ?? []}
                   canSend={isConnected}
+                  readOnly={readOnly}
                   visible={visible}
                   send={send}
                 />
               ) : (
                 <p>
                   {!station
-                    ? "Vælg en station for at skrive eller læse beskeder."
-                    : !threadError && "Henter beskeder…"}
+                    ? readOnly
+                      ? "Vælg en samtale for at læse beskeder."
+                      : "Vælg en station for at skrive eller læse beskeder."
+                    : readOnly
+                      ? "Beskederne er ikke hentet."
+                      : !threadError && "Henter beskeder…"}
                 </p>
               )}
             </div>
           </div>
         </section>
-      )}
+      }
     </>
   );
 }
@@ -223,6 +234,7 @@ function StationConversation({
   activationId,
   messages,
   canSend,
+  readOnly,
   visible,
   send,
 }: {
@@ -230,6 +242,7 @@ function StationConversation({
   activationId: number;
   messages: StationMessage[];
   canSend: boolean;
+  readOnly: boolean;
   visible: boolean;
   send: (
     station: string,
@@ -243,7 +256,8 @@ function StationConversation({
   const historyRef = useRef<HTMLOListElement>(null);
   const lastMessageId = messages.at(-1)?.id;
   const tooLong = [...draft].length > MAX_MESSAGE_LENGTH;
-  const ready = canSend && !sending && !tooLong && draft.trim() !== "";
+  const ready =
+    !readOnly && canSend && !sending && !tooLong && draft.trim() !== "";
 
   useEffect(() => {
     if (visible && historyRef.current) {
@@ -300,28 +314,32 @@ function StationConversation({
           ))}
         </ol>
       )}
-      <form onSubmit={(event) => void submit(event)}>
-        <textarea
-          aria-label={`Besked til ${station}`}
-          aria-invalid={tooLong}
-          placeholder={`Skriv til ${station}`}
-          rows={2}
-          value={draft}
-          disabled={sending}
-          onChange={(event) => {
-            lastRequestRef.current = null;
-            setError(null);
-            setDraft(event.target.value);
-          }}
-        />
-        {tooLong && (
-          <p role="alert">Beskeden må højst fylde {MAX_MESSAGE_LENGTH} tegn.</p>
-        )}
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={!ready}>
-          {sending ? "Sender…" : "Send besked"}
-        </button>
-      </form>
+      {!readOnly && (
+        <form onSubmit={(event) => void submit(event)}>
+          <textarea
+            aria-label={`Besked til ${station}`}
+            aria-invalid={tooLong}
+            placeholder={`Skriv til ${station}`}
+            rows={2}
+            value={draft}
+            disabled={sending}
+            onChange={(event) => {
+              lastRequestRef.current = null;
+              setError(null);
+              setDraft(event.target.value);
+            }}
+          />
+          {tooLong && (
+            <p role="alert">
+              Beskeden må højst fylde {MAX_MESSAGE_LENGTH} tegn.
+            </p>
+          )}
+          {error && <p role="alert">{error}</p>}
+          <button type="submit" disabled={!ready}>
+            {sending ? "Sender…" : "Send besked"}
+          </button>
+        </form>
+      )}
     </>
   );
 }
