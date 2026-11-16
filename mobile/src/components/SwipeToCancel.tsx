@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Animated,
   Easing,
@@ -60,9 +60,24 @@ export function SwipeToCancel({
   const [open, setOpen] = useState(false);
   // A row that can no longer be cancelled closes.
   if (!cancelable && open) setOpen(false);
+  // A row that can no longer be cancelled forgets its swipe: every slide
+  // that is running stops (also the hint that nudges it 3 s after the
+  // assignment), and the content stands in its place (translateX 0 below,
+  // not the stored value), so it never stays slid away or comes back late.
   useEffect(() => {
-    if (!cancelable) x.setValue(0);
+    if (cancelable) return;
+    x.stopAnimation();
+    x.setValue(0);
   }, [cancelable, x]);
+
+  // The hint that nudges the row a while after the assignment never runs on
+  // an open row, and any slide the steward starts stops it (a new animation
+  // on x stops the running one; a touch stops it too). Running on an open
+  // row it pulled the yellow row back into view after BEKRÆFT ANNULLÉR.
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  });
 
   const slideTo = (toOpen: boolean) => {
     setOpen(toOpen);
@@ -84,6 +99,7 @@ export function SwipeToCancel({
           !open &&
           Math.abs(g.dx) > 8 &&
           Math.abs(g.dx) > Math.abs(g.dy),
+        onPanResponderGrant: () => x.stopAnimation(),
         onPanResponderMove: (_event, g) => x.setValue(Math.min(0, g.dx)),
         onPanResponderRelease: (_event, g) => {
           const far = -g.dx > width * OPEN_SHARE;
@@ -104,23 +120,27 @@ export function SwipeToCancel({
   useEffect(() => {
     if (!cancelable || peekKey === undefined || peekKey === lastPeek) return;
     lastPeek = peekKey;
-    Animated.sequence([
-      // A while after the assignment (#376), when the steward has seen the
-      // new status, the row nudges to show that it can be swiped.
-      Animated.delay(PEEK_DELAY_MS),
-      Animated.timing(x, {
-        toValue: -PEEK,
-        duration: motion.flipMs,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(x, {
-        toValue: 0,
-        duration: motion.flipMs + 150,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // A while after the assignment (#376), when the steward has seen the new
+    // status, the row nudges to show that it can be swiped; never when the
+    // row is open or the steward is using it.
+    const timer = setTimeout(() => {
+      if (openRef.current) return;
+      Animated.sequence([
+        Animated.timing(x, {
+          toValue: -PEEK,
+          duration: motion.flipMs,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(x, {
+          toValue: 0,
+          duration: motion.flipMs + 150,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, PEEK_DELAY_MS);
+    return () => clearTimeout(timer);
   }, [cancelable, peekKey, x]);
 
   return (
@@ -145,14 +165,10 @@ export function SwipeToCancel({
           <Pressable
             accessibilityRole="button"
             disabled={disabled}
-            // The row closes first, then the cancel is sent: the row is shut
-            // before it stops being the own row. Cancelling from the open
-            // row left its content slid out of sight on the phone, so the
-            // station seemed to vanish from the list.
-            onPress={() => {
-              slideTo(false);
-              onCancel?.();
-            }}
+            // The row stays open while the cancel is sent; when it is done
+            // the row is no longer cancelable and simply stands in its place
+            // (see below), without sliding back.
+            onPress={onCancel}
             style={[styles.button, styles.cancel]}
           >
             <Text style={styles.cancelText}>BEKRÆFT ANNULLÉR</Text>
@@ -161,7 +177,7 @@ export function SwipeToCancel({
       )}
       <Animated.View
         {...responder.panHandlers}
-        style={{ transform: [{ translateX: x }] }}
+        style={{ transform: [{ translateX: cancelable ? x : 0 }] }}
         pointerEvents={open ? "none" : "auto"}
       >
         <Pressable
