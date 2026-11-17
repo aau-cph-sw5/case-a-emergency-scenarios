@@ -1,3 +1,5 @@
+import snowball from "snowball-stemmers";
+
 // A metro station as in docs/scenario-state/stations.json.
 export type Station = { code: string; name: string };
 
@@ -8,6 +10,21 @@ export type Tokenize = (text: string) => string[];
 // Codes that are also common Danish words ("for mange", "for længe"). They
 // only count as a station when written in capitals.
 const AMBIGUOUS_CODES = new Set(["FOR"]);
+
+// Words that carry no meaning for search: the Danish Snowball stopword list,
+// plus "mellem" and "ved", which say where but name no place.
+const STOPWORDS = new Set(
+  (
+    "og i jeg det at en den til er som på de med han af for ikke der var mig " +
+    "sig men et har om vi min havde ham hun nu over da fra du ud sin dem os " +
+    "op man hans hvor eller hvad skal selv her alle vil blev kunne ind når " +
+    "være dog noget ville jo deres efter ned skulle denne end dette mit også " +
+    "under have dig anden hende mine alt meget sit sine vor mod disse hvis " +
+    "din nogle hos blive mange ad bliver hendes været thi jer sådan mellem ved"
+  ).split(" "),
+);
+
+const stemmer = snowball.newStemmer("danish");
 
 // A found station is replaced by its position in the station list between
 // these marks, so the rest of the text can be split into words without
@@ -30,6 +47,8 @@ const AFTER = "(?![\\p{L}\\p{N}])";
 //    both a station's code and its name doesn't count it twice.
 // 2. The rest is lowercased and split into words. "spor 1" becomes "spor1",
 //    so the number can't match other numbers, such as one in a scenario name.
+// 3. Stopwords are removed, and the remaining words are stemmed with the
+//    Danish Snowball stemmer, so "togene" and "toget" both become "tog".
 // It depends only on its arguments, so the same text always gives the same
 // tokens.
 export function createDanishTokenize(stations: readonly Station[]): Tokenize {
@@ -82,9 +101,11 @@ export function createDanishTokenize(stations: readonly Station[]): Tokenize {
         continue;
       }
       // A lowercase "for" left here is the ordinary word. As a token it would
-      // look like the station, so it is dropped.
-      if (AMBIGUOUS_CODES.has(lower.toUpperCase())) continue;
-      tokens.push(lower);
+      // look like the station, so it is dropped like the stopwords.
+      if (STOPWORDS.has(lower) || AMBIGUOUS_CODES.has(lower.toUpperCase())) {
+        continue;
+      }
+      tokens.push(/^\p{L}+$/u.test(lower) ? stemmer.stem(lower) : lower);
     }
     return tokens;
   };
