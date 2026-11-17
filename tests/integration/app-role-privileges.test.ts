@@ -50,6 +50,7 @@ const expected: Record<string, string[]> = {
   staffing_windows: ["SELECT"],
   actions: ["SELECT"],
   passenger_information: ["SELECT"],
+  station_messages: ["SELECT", "INSERT"],
 };
 
 // The failing statement runs in a savepoint, so the transaction survives it.

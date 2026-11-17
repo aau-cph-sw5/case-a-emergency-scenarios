@@ -354,13 +354,21 @@ async function getStationId(client: pg.Client, code: string): Promise<number> {
   if (name === undefined) {
     throw new Error(`Station "${code}" is not in stations.json.`);
   }
-  const result = await client.query(
+  // The network seed owns existing station data. Scenarios may introduce a
+  // missing station, but must not replace a station's name or identity.
+  const inserted = await client.query(
     `INSERT INTO stations (code, name) VALUES ($1, $2)
-       ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
-       RETURNING id`,
+       ON CONFLICT (code) DO NOTHING RETURNING id`,
     [code, name],
   );
-  return result.rows[0].id;
+  if (inserted.rows.length > 0) return inserted.rows[0].id;
+  const existing = await client.query(
+    "SELECT id FROM stations WHERE code = $1",
+    [code],
+  );
+  if (existing.rows.length === 0)
+    throw new Error(`Station "${code}" could not be found after insertion.`);
+  return existing.rows[0].id;
 }
 async function getTrackSegmentId(
   client: pg.Client,

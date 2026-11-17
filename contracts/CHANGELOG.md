@@ -1,6 +1,6 @@
 # Scenario State Contract Changelog
 
-## 8.5.0 - 2026-11-16
+## 8.6.0 - 2026-11-16
 
 Additive. Admins create and edit user accounts (MET-A-030).
 
@@ -9,6 +9,12 @@ Additive. Admins create and edit user accounts (MET-A-030).
 - New `POST /api/v1/users` with `user-create.schema.json` (`username`, `password` of at least 12 characters including a digit, `role`, `lineGroup`). Answers 201 with the account, and 409 `E0007` when the username is taken, regardless of casing.
 - New `PATCH /api/v1/users/{userId}` with `user-update.schema.json`: changes `password` (same rule as on create), `role` and/or `lineGroup`, at least one of them. The username cannot be changed. Answers 200 with the account, and 404 `E0004` for an unknown id. An admin changing their own role gets 409 `E0007`.
 - Only `ADMIN` may use the three endpoints. Other roles get 403 `E0002`.
+Additive. The shared metro network is available to authenticated clients (#381).
+
+## 8.5.0 - 2026-11-16
+
+- New `GET /api/v1/network` returns stations and schematic positions, track segments, and normal-service patterns with their stops in sequence. Station positions can be null when not configured.
+- New `network.schema.json` describes the response. Empty network collections are returned as arrays. Crossovers are not included.
 - `info.version` in `openapi.yaml` is now 8.5.0.
 
 ## 8.4.0 - 2026-11-13
