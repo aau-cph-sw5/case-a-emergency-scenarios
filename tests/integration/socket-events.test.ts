@@ -22,6 +22,7 @@ import type {
   StationThreadsClosed,
 } from "../../shared/socket/events.js";
 import { response } from "express";
+import type { LineGroup } from "../../shared/auth/line-groups.js";
 
 let server: HttpServer;
 let baseUrl: string;
@@ -32,7 +33,6 @@ let otherStewardUsername: string;
 let stewardId: number;
 let secondStewardName: string;
 const sockets: Socket[] = [];
-
 
 before(async () => {
   const users = await seedTestUsers("socket-");
@@ -105,7 +105,7 @@ function nextEvent<T>(socket: Socket, event: string, ms = 2000) {
 }
 
 function record(socket: Socket, event: string) {
-  const got : unknown[] = [];
+  const got: unknown[] = [];
   socket.on(event, (payload: unknown) => got.push(payload));
   return got;
 }
@@ -113,21 +113,20 @@ async function activateScenario(
   token: string,
   scenarioId = "DEMO-002",
   replaces?: number,
-
 ) {
   const response = await fetch(
-    `${baseUrl}/api/v1/scenarios/${scenarioId}/activate`, 
+    `${baseUrl}/api/v1/scenarios/${scenarioId}/activate`,
     {
       method: "POST",
-      headers: { 
+      headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(replaces === undefined ? {} : { replaces }),
     },
   );
-assert.equal(response.status, 201);
-return ((await response.json()) as { activationId: number }).activationId;
+  assert.equal(response.status, 201);
+  return ((await response.json()) as { activationId: number }).activationId;
 }
 async function standDownScenario(token: string, activationId: number) {
   const response = await fetch(
@@ -136,7 +135,12 @@ async function standDownScenario(token: string, activationId: number) {
   );
   assert.equal(response.status, 200);
 }
-async function reportAtG(token: string, activationId: number, event?: string) {
+async function reportAtG(
+  token: string,
+  activationId: number,
+  event?: string,
+  station = "Station G",
+) {
   const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
     method: "POST",
     headers: {
@@ -146,7 +150,7 @@ async function reportAtG(token: string, activationId: number, event?: string) {
     body: JSON.stringify({
       activationId,
       staff: "",
-      station: "Station G",
+      station,
       event,
       reportedAt: new Date().toISOString(),
     }),
@@ -154,26 +158,34 @@ async function reportAtG(token: string, activationId: number, event?: string) {
   assert.equal(response.status, 202);
 }
 
-async function checkInAtG(token: string, activationId: number){
-  await reportAtG(token, activationId);
-  await reportAtG(token, activationId, "ARRIVED");
+async function checkInAtG(
+  token: string,
+  activationId: number,
+  station = "Station G",
+) {
+  await reportAtG(token, activationId, undefined, station);
+  await reportAtG(token, activationId, "ARRIVED", station);
 }
 
-function sendFakeMessage(activationId: number) {
+function sendFakeMessage(
+  activationId: number,
+  lineGroup: LineGroup = "M3_M4",
+  station = "Station G",
+) {
   const now = new Date().toISOString();
   const message: StationMessage = {
     id: 1,
     clientMessageId: randomUUID(),
     activationId,
-    station: "Station G",
+    station,
     sender: "CONTROL_ROOM",
     text: "Test message",
     writtenAt: now,
     receivedAt: now,
   };
-  emitStationMessage(app.locals.io as Server, "M3_M4", message, {
+  emitStationMessage(app.locals.io as Server, lineGroup, message, {
     activationId,
-    station: "Station G",
+    station,
     state: "ANSWERED",
     unansweredSince: null,
     lastMessageAt: now,
@@ -447,14 +459,12 @@ test("events for one line group never reach the other line group", async () => {
 });
 
 test("a station message reaches operators in its line group only", async () => {
-
   const operatorToken = await login(operatorUsername, "operator123", "web");
   const operator = await open(operatorToken);
   const otherOperator = await open(
     await login(otherOperatorUsername, "operator123", "web"),
   );
   const activationId = await activateScenario(operatorToken);
-
 
   const leaked = record(otherOperator, "station-message");
   const received = nextEvent<StationMessageEvent>(operator, "station-message");
@@ -470,4 +480,126 @@ test("a station message reaches operators in its line group only", async () => {
   assert.deepEqual(leaked, []);
 
   await standDownScenario(operatorToken, activationId);
+});
+
+test("a station message reaches stewards checked in at the station only", async () => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const arrivedToken = await login(stewardUsername, "steward123", "mobile");
+  const onTheWayToken = await login(secondStewardName, "steward123", "mobile");
+  const arrived = await open(arrivedToken);
+  const onTheWay = await open(onTheWayToken);
+  const activationId = await activateScenario(operatorToken);
+
+  await checkInAtG(arrivedToken, activationId);
+  await reportAtG(onTheWayToken, activationId);
+
+  const notCheckedIn = record(onTheWay, "station-message");
+  const received = nextEvent<StationMessageEvent>(arrived, "station-message");
+  const message = sendFakeMessage(activationId);
+
+  assert.deepEqual((await received).message, message);
+  await settle();
+  assert.deepEqual(notCheckedIn, []);
+
+  await standDownScenario(operatorToken, activationId);
+});
+
+test("a steward who checks out stops getting messages without reconnecting", async () => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const stewardToken = await login(stewardUsername, "steward123", "mobile");
+  const steward = await open(stewardToken);
+  const activationId = await activateScenario(operatorToken);
+  await checkInAtG(stewardToken, activationId);
+
+  const first = nextEvent(steward, "station-message");
+  sendFakeMessage(activationId);
+  await first;
+
+  await reportAtG(stewardToken, activationId, "CHECKED_OUT");
+  const afterCheckOut = record(steward, "station-message");
+  sendFakeMessage(activationId);
+  await settle();
+  assert.deepEqual(afterCheckOut, []);
+
+  await standDownScenario(operatorToken, activationId);
+});
+
+test("a steward who reconnects while checked in gets messages again", async () => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const stewardToken = await login(stewardUsername, "steward123", "mobile");
+  const firstSocket = await open(stewardToken);
+  const activationId = await activateScenario(operatorToken);
+  await checkInAtG(stewardToken, activationId);
+
+  firstSocket.disconnect();
+  const secondSocket = await open(stewardToken);
+
+  const received = nextEvent(secondSocket, "station-message");
+  sendFakeMessage(activationId);
+  await received;
+
+  await standDownScenario(operatorToken, activationId);
+});
+
+test("a stand-down closes the threads for both roles and empties the station rooms", async () => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const stewardToken = await login(stewardUsername, "steward123", "mobile");
+  const operator = await open(operatorToken);
+  const steward = await open(stewardToken);
+  const activationId = await activateScenario(operatorToken);
+  await checkInAtG(stewardToken, activationId);
+
+  const operatorClosed = nextEvent<StationThreadsClosed>(
+    operator,
+    "station-threads-closed",
+  );
+  const stewardClosed = nextEvent<StationThreadsClosed>(
+    steward,
+    "station-threads-closed",
+  );
+  await standDownScenario(operatorToken, activationId);
+
+  assert.equal((await operatorClosed).activationId, activationId);
+  assert.equal((await stewardClosed).activationId, activationId);
+
+  const late = record(steward, "station-message");
+  sendFakeMessage(activationId);
+  await settle();
+  assert.deepEqual(late, []);
+});
+test("a switch closes the replaced activation's threads", async () => {
+  const operatorToken = await login(
+    otherOperatorUsername,
+    "operator123",
+    "web",
+  );
+  const stewardToken = await login(
+    otherStewardUsername,
+    "steward123",
+    "mobile",
+  );
+  const operator = await open(operatorToken);
+  const steward = await open(stewardToken);
+  const oldId = await activateScenario(operatorToken, "DEMO-001");
+  await checkInAtG(stewardToken, oldId, "Station B");
+
+  const operatorClosed = nextEvent<StationThreadsClosed>(
+    operator,
+    "station-threads-closed",
+  );
+  const stewardClosed = nextEvent<StationThreadsClosed>(
+    steward,
+    "station-threads-closed",
+  );
+  const newId = await activateScenario(operatorToken, "DEMO-003", oldId);
+
+  assert.equal((await operatorClosed).activationId, oldId);
+  assert.equal((await stewardClosed).activationId, oldId);
+
+  const late = record(steward, "station-message");
+  sendFakeMessage(oldId, "M1_M2", "Station B");
+  await settle();
+  assert.deepEqual(late, []);
+
+  await standDownScenario(operatorToken, newId);
 });

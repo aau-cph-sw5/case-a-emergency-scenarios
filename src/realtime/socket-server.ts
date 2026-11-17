@@ -106,24 +106,30 @@ export function attachSocketHandlers(io: Server) {
           role,
           current.lineGroup,
         );
-     // The active scenario in the user's own line group.
+        // The active scenario in the user's own line group.
         const latest = await findActiveActivation(current.lineGroup);
         if (role === "STEWARD" && latest) {
-          try{
-            const report = await findLatestReport(getDatabase(), String(userId), latest.startedAt,
-          );
-          if (
-            report?.activationId === latest.activationId &&
-            report.event === "ARRIVED" && !report.taskDone && socket.connected
-          ){
-            await socket.join(stationRoom(latest.activationId, report.station));
-          }
+          try {
+            const report = await findLatestReport(
+              getDatabase(),
+              String(userId),
+              latest.startedAt,
+            );
+            if (
+              report?.activationId === latest.activationId &&
+              report.event === "ARRIVED" &&
+              !report.taskDone &&
+              socket.connected
+            ) {
+              await socket.join(
+                stationRoom(latest.activationId, report.station),
+              );
+            }
           } catch (error) {
             console.error("Could not rejoin the station room", error);
           }
         }
         socket.emit("welcome", "Connected to the emergency scenarios server.");
-   
 
         if (role === "STEWARD" && latest) {
           try {

@@ -114,8 +114,14 @@ export async function postPositionReport(request: Request, response: Response) {
     return response.status(202).json({ accepted: true });
   }
   const io = request.app.locals.io as Server | undefined;
-  if (io){
-    setCheckedIn(io, userId, activation.activationId, station, report.event === "ARRIVED");
+  if (io) {
+    setCheckedIn(
+      io,
+      userId,
+      activation.activationId,
+      station,
+      report.event === "ARRIVED",
+    );
   }
 
   io?.to(roleRoom("OPERATOR", activation.lineGroup)).emit("position-report", {
