@@ -13,6 +13,8 @@ Additive. The shared metro network is available to authenticated clients (#381).
 
 ## 8.5.0 - 2026-11-16
 
+Additive. The shared metro network is available to authenticated clients (#381).
+
 - New `GET /api/v1/network` returns stations and schematic positions, track segments, and normal-service patterns with their stops in sequence. Station positions can be null when not configured.
 - New `network.schema.json` describes the response. Empty network collections are returned as arrays. Crossovers are not included.
 - `info.version` in `openapi.yaml` is now 8.5.0.
