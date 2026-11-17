@@ -19,6 +19,9 @@ export function staffingWords(arrived: number, enRoute: number): string {
 }
 
 export type StatusChip = { label: string; background: string; color: string };
+// How a station is staffed: how many it needs, how many are there and how
+// many are on the way.
+export type Staffing = { needed: number; arrived: number; enRoute: number };
 // The colours of the status card the box sits in (steward.card).
 export type CardLook = { background: string; text: string; label: string };
 
@@ -33,6 +36,7 @@ export function StatusBox({
   station,
   chip,
   subLine,
+  staffing = null,
   scenario,
   connected = true,
   look,
@@ -40,7 +44,11 @@ export function StatusBox({
 }: {
   station: string;
   chip: StatusChip;
+  // The line under the name, for a steward without a station.
   subLine: string | null;
+  // The own station's staffing, shown as a bar under the name instead of the
+  // line: one segment per steward the station needs.
+  staffing?: Staffing | null;
   // The active scenario, between STATION and STATUS: the context of the card.
   scenario?: string;
   connected?: boolean;
@@ -110,9 +118,57 @@ export function StatusBox({
           {chip.label}
         </Text>
       </View>
-      {ready && subLine !== null && (
-        <Text style={[styles.subLine, { color: look.label }]}>{subLine}</Text>
+      {ready && staffing !== null && staffing.needed > 0 ? (
+        <StaffingBar staffing={staffing} look={look} />
+      ) : (
+        ready &&
+        subLine !== null && (
+          <Text style={[styles.subLine, { color: look.label }]}>{subLine}</Text>
+        )
       )}
+    </View>
+  );
+}
+
+// The station's staffing as a slim bar (#376): one segment per steward the
+// station needs, in the same colours everywhere: green for one who has
+// arrived, yellow for one on the way, red for a place nobody has taken, with
+// a small gap between segments. On a card of its own colour a segment takes
+// a shade of it that still shows (steward.yellowOnYellow, greenOnGreen).
+// Screen readers hear the same words as the station list.
+function StaffingBar({
+  staffing,
+  look,
+}: {
+  staffing: Staffing;
+  look: CardLook;
+}) {
+  const { needed, arrived, enRoute } = staffing;
+  const shade = (colour: string, onOwnCard: string) =>
+    colour === look.background ? onOwnCard : colour;
+  return (
+    <View
+      style={styles.bar}
+      accessible
+      accessibilityLabel={staffingWords(arrived, enRoute)}
+      testID="staffing-bar"
+    >
+      {Array.from({ length: needed }, (_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.segment,
+            {
+              backgroundColor:
+                index < arrived
+                  ? shade(steward.green, steward.greenOnGreen)
+                  : index < arrived + enRoute
+                    ? shade(steward.yellow, steward.yellowOnYellow)
+                    : steward.red,
+            },
+          ]}
+        />
+      ))}
     </View>
   );
 }
@@ -182,4 +238,14 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   subLine: { fontSize: 14 },
+  bar: {
+    flexDirection: "row",
+    gap: 4,
+    marginTop: 6,
+  },
+  segment: {
+    borderRadius: 2,
+    flex: 1,
+    height: 5,
+  },
 });

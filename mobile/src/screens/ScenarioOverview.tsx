@@ -17,7 +17,6 @@ import {
   listStripTitle,
 } from "../components/ListCard";
 import { Swap } from "../components/Swap";
-import { animateNextLayout } from "../motion";
 import MapRender from "../../../shared/MapRenderer";
 import { getLines } from "../../../mockData/data";
 import {
@@ -323,10 +322,8 @@ export function ScenarioOverview({
   // an accordion in the same frame: opening the stations closes the tasks to
   // their strip, and that strip opens them again.
   if (arrived) {
-    const toggle = () => {
-      animateNextLayout();
-      setRestOpen((open) => !open);
-    };
+    // The two parts move by themselves (ListSection).
+    const toggle = () => setRestOpen((open) => !open);
     return (
       <ListCard>
         <ListStrip

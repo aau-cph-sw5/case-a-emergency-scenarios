@@ -46,6 +46,13 @@ export const palette = {
   stewardLabelOnYellow: "rgba(30, 30, 30, 0.62)",
   stewardLabelOnGreen: "rgba(255, 255, 255, 0.78)",
   stewardOnline: "#3FBF7F",
+  // Shades for the staffing bar on a card of the same colour (#376): a pale
+  // yellow on the yellow card and a light green on the green card (3.1:1), so
+  // the segment still shows. The pale yellow was chosen by eye on the phone
+  // over a darker one, which read as brown; it stands out less from the card
+  // (1.3:1) than the 3:1 that WCAG 1.4.11 asks of graphics.
+  stewardYellowOnYellow: "#FFEAA6",
+  stewardGreenOnGreen: "#80D9B3",
 };
 
 export const colors = {
@@ -204,6 +211,8 @@ export const steward = {
   locked: palette.stewardLocked,
   lockedText: palette.stewardLockedText,
   online: palette.stewardOnline,
+  yellowOnYellow: palette.stewardYellowOnYellow,
+  greenOnGreen: palette.stewardGreenOnGreen,
   // The status card takes the colour of the status (#376): black without a
   // station, yellow on the way, green once arrived. text is the station name,
   // label the small labels and the line under the name.

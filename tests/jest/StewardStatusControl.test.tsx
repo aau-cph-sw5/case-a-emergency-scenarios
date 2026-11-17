@@ -67,7 +67,8 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     });
     expect(screen.getByText("PÅ VEJ")).toBeTruthy();
     expect(screen.getByText("Station B")).toBeTruthy();
-    expect(screen.getByText("1 på stationen · 1 på vej")).toBeTruthy();
+    // The staffing is a bar of segments, read out in words.
+    expect(screen.getByLabelText("1 på stationen · 1 på vej")).toBeTruthy();
     confirmSlide();
     expect(onArrive).toHaveBeenCalledTimes(1);
   });
@@ -77,8 +78,8 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
       own: { station: "Station B", status: "MANNED" },
       coverage: { arrived: 2, enRoute: 0, needed: 2 },
     });
-    expect(screen.getByText("ANKOMMET 2/2")).toBeTruthy();
-    expect(screen.getByText("2 på stationen")).toBeTruthy();
+    expect(screen.getByText("ANKOMMET")).toBeTruthy();
+    expect(screen.getByLabelText("2 på stationen")).toBeTruthy();
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
     await checkOut();
     expect(onCheckOut).toHaveBeenCalledTimes(1);

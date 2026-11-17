@@ -335,10 +335,8 @@ export function StewardView({
         change.type === "assign" ? queueReport : undefined,
       );
       if (result.ok) {
-        // The rows that change size with the status (the own row gives its
-        // room back, or takes it) ease to their new heights instead of
-        // jumping; the status card turns by itself (Swap).
-        animateNextLayout();
+        // The status card turns by itself, and the list under it takes the
+        // new status when the card shows its new face (StewardStatusControl).
         setOwnStatus(result.own);
         setSelected(undefined);
         setPinned(change.type === "cancel" ? ownStation : undefined);
@@ -400,25 +398,29 @@ export function StewardView({
       : shown;
 
   // The coverage of the steward's station, with the own status counted.
-  const ownRequirement =
-    ownStation && shown
+  // The station the status card shows the staffing of: the own station, or
+  // without one the station chosen in the list, so the steward sees how it
+  // is staffed before sliding BEKRÆFT (#376).
+  const cardStation = ownStation ?? chosen;
+  const cardRequirement =
+    cardStation && shown
       ? // All rows of the station together, as in the list (#376).
         oneRowPerStation(
           shown.scenario.versions[0]?.stationRequirements ?? [],
-        ).find((requirement) => requirement.station === ownStation)
+        ).find((requirement) => requirement.station === cardStation)
       : undefined;
-  const ownCoverage =
-    ownStation && shown && ownRequirement
+  const cardCoverage =
+    cardStation && shown && cardRequirement
       ? (() => {
           const state = getStationState(
             (counted ?? shown).state,
-            ownStation,
-            ownRequirement.minimumStaffing,
+            cardStation,
+            cardRequirement.minimumStaffing,
           );
           return {
             arrived: state.current,
             enRoute: state.enRoute,
-            needed: ownRequirement.minimumStaffing,
+            needed: cardRequirement.minimumStaffing,
           };
         })()
       : null;
@@ -461,7 +463,7 @@ export function StewardView({
         {shown && (
           <StewardStatusControl
             own={own}
-            coverage={ownCoverage}
+            coverage={cardCoverage}
             blockedReason={
               view.status === "copy"
                 ? STATUS_BLOCKED_OFFLINE
@@ -498,8 +500,10 @@ export function StewardView({
                 }
               />
             }
+            note={
+              reportStatus && <Text style={styles.report}>{reportStatus}</Text>
+            }
           >
-            {reportStatus && <Text style={styles.report}>{reportStatus}</Text>}
             <ScenarioOverview
               snapshot={counted ?? shown}
               assignedStation={ownStation}

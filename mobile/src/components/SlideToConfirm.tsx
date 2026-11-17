@@ -104,6 +104,11 @@ export function SlideToConfirm({
     if (held) setHeld(false);
     if (spinner) setSpinner(false);
   }
+  // A spinner shows only while the slide is held. The timer that turns it on
+  // can fire just after the slide has let go (React cancels the timer a
+  // moment after the screen changed), which left a spinner on a free knob
+  // for good.
+  if (spinner && !held) setSpinner(false);
   const disabled = busy || locked || held;
   const sawPendingRef = useRef(false);
   const spinnerAtRef = useRef(0);
@@ -264,7 +269,7 @@ export function SlideToConfirm({
                 <Rect x={5} y={11} width={14} height={9} rx={2} />
                 <Path d="M8 11V8a4 4 0 0 1 8 0v3" />
               </Svg>
-            ) : spinner ? (
+            ) : spinner && held ? (
               <ActivityIndicator color={look.track} testID="slide-spinner" />
             ) : (
               <DoubleArrow height={20} color={look.track} />

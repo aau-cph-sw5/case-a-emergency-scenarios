@@ -256,6 +256,22 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
   });
 
+  // Without a station the card asks for one; a chosen station shows its
+  // staffing bar there before BEKRÆFT (#376).
+  it("shows the chosen station's staffing on the card", async () => {
+    showView({ status: "live", snapshot });
+    await renderView();
+    expect(await screen.findByText("Vælg den nærmeste station")).toBeTruthy();
+    expect(screen.queryByTestId("staffing-bar")).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Vælg Station B"));
+    });
+
+    expect(screen.getByTestId("staffing-bar")).toBeTruthy();
+    expect(screen.queryByText("Vælg den nærmeste station")).toBeNull();
+  });
+
   it("cancels while on the way and offers + again", async () => {
     showView({ status: "live", snapshot });
     await renderView();
@@ -271,6 +287,55 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     );
     expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
     expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
+  });
+
+  it("checks in after cancelling and choosing a station again", async () => {
+    showView({ status: "live", snapshot });
+    await renderView();
+
+    await chooseStation("Station B");
+    await cancelStation();
+    await chooseStation("Station B");
+
+    // The CHECK IND slide is free: no spinner left from the slides before.
+    expect(await screen.findByText("CHECK IND")).toBeTruthy();
+    expect(screen.queryAllByTestId("slide-spinner")).toHaveLength(0);
+
+    await slide();
+    expect(report).toHaveBeenLastCalledWith("token", "Station B", 1, "ARRIVED");
+    expect(await screen.findByText(/ANKOMMET/)).toBeTruthy();
+  });
+
+  // A slow server (longer than the spinner's delay) and a second shift in
+  // the same session: the slides must not keep a spinner from the first.
+  it("checks in a second time in a session with a slow server", async () => {
+    showView({ status: "live", snapshot });
+    report.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ ok: true, message: "" }), 500),
+        ),
+    );
+    await renderView();
+    const wait = (ms: number) =>
+      act(async () => {
+        await new Promise((r) => setTimeout(r, ms));
+      });
+
+    for (const round of [1, 2]) {
+      await chooseStation("Station B");
+      await wait(900);
+      expect(await screen.findByText("CHECK IND")).toBeTruthy();
+      expect(screen.queryAllByTestId("slide-spinner")).toHaveLength(0);
+      await slide();
+      await wait(1500);
+      expect(screen.getByText(/ANKOMMET/)).toBeTruthy();
+      expect(screen.queryAllByTestId("slide-spinner")).toHaveLength(0);
+      await checkOut();
+      await wait(1500);
+      expect(screen.getByText("IKKE VALGT")).toBeTruthy();
+      expect(round).toBeGreaterThan(0);
+    }
   });
 
   it("shows the refusal and keeps the status when arriving is refused", async () => {
