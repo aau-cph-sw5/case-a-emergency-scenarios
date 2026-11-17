@@ -6,7 +6,12 @@
   "minProperties": 1,
   "additionalProperties": false,
   "properties": {
-    "password": { "type": "string", "minLength": 8 },
+    "password": {
+      "type": "string",
+      "description": "At least 12 characters, at least one of them a digit.",
+      "minLength": 12,
+      "pattern": "[0-9]"
+    },
     "role": { "enum": ["STEWARD", "OPERATOR", "ADMIN"] },
     "lineGroup": { "enum": ["M1_M2", "M3_M4"] }
   }

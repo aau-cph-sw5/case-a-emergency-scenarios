@@ -173,8 +173,10 @@ npm run db:down
 ```
 
 Delete the local database, including all its data, and rebuild it from the
-migrations and seed data. It asks for confirmation first; add `-- --yes` to
-skip the question, for example in a script:
+migrations and seed data. The configured network is seeded before scenarios;
+without `NETWORK_SEED_FILE`, both automatic seeds are skipped. See the [seed
+loader guide](scripts/README.md). It asks for confirmation first; add `-- --yes`
+to skip the question, for example in a script:
 
 ```bash
 npm run db:reset

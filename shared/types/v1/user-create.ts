@@ -7,6 +7,9 @@
 
 export interface UserCreate {
   username: string;
+  /**
+   * At least 12 characters, at least one of them a digit.
+   */
   password: string;
   role: "STEWARD" | "OPERATOR" | "ADMIN";
   lineGroup: "M1_M2" | "M3_M4";
