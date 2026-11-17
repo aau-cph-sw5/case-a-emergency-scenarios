@@ -95,7 +95,7 @@ async function createAccount(
 ) {
   const response = await request("POST", "/api/v1/users", token, {
     username,
-    password: "first-password",
+    password: "first-password-1",
     role,
     lineGroup,
   });
@@ -113,7 +113,7 @@ test("only an admin may list, create or edit users", async () => {
       await request("GET", "/api/v1/users", token),
       await request("POST", "/api/v1/users", token, {
         username: `${CREATED}-refused`,
-        password: "a-long-password",
+        password: "a-long-password-1",
         role: "ADMIN",
         lineGroup: "M1_M2",
       }),
@@ -158,7 +158,7 @@ test("the list has every account in the contract's shape, without passwords", as
 test("an admin creates a user who can then sign in", async () => {
   const response = await request("POST", "/api/v1/users", await adminToken(), {
     username: CREATED,
-    password: "first-password",
+    password: "first-password-1",
     role: "OPERATOR",
     lineGroup: "M3_M4",
   });
@@ -168,7 +168,7 @@ test("an admin creates a user who can then sign in", async () => {
   assert.equal(created.username, CREATED);
   assert.equal(created.lineGroup, "M3_M4");
 
-  const session = await login(CREATED, "first-password");
+  const session = await login(CREATED, "first-password-1");
   assert.equal(session.status, 200);
   const signedIn = await (await me(session.token)).json();
   assert.deepEqual(signedIn, {
@@ -181,7 +181,7 @@ test("an admin creates a user who can then sign in", async () => {
 test("a taken username is refused regardless of casing", async () => {
   const response = await request("POST", "/api/v1/users", await adminToken(), {
     username: `${PREFIX}OPERATOR`,
-    password: "a-long-password",
+    password: "a-long-password-1",
     role: "OPERATOR",
     lineGroup: "M1_M2",
   });
@@ -206,14 +206,38 @@ test("a body that does not match the contract is refused", async () => {
       "POST",
       "/api/v1/users",
       {
-        username: `${CREATED}-role`,
+        // 11 characters with a digit: one short of the minimum.
+        username: `${CREATED}-eleven`,
+        password: "abcdefghij1",
+        role: "OPERATOR",
+        lineGroup: "M1_M2",
+      },
+    ],
+    [
+      "POST",
+      "/api/v1/users",
+      {
+        username: `${CREATED}-no-digit`,
         password: "a-long-password",
+        role: "OPERATOR",
+        lineGroup: "M1_M2",
+      },
+    ],
+    [
+      "POST",
+      "/api/v1/users",
+      {
+        username: `${CREATED}-role`,
+        password: "a-long-password-1",
         role: "ROOT",
         lineGroup: "M1_M2",
       },
     ],
     ["PATCH", `/api/v1/users/${adminId}`, {}],
     ["PATCH", `/api/v1/users/${adminId}`, { username: "renamed" }],
+    // An edit may not set a weaker password than creating an account.
+    ["PATCH", `/api/v1/users/${adminId}`, { password: "abcdefghij1" }],
+    ["PATCH", `/api/v1/users/${adminId}`, { password: "a-long-password" }],
   ] as const) {
     const response = await request(method, path, token, body);
     assert.equal(response.status, 400, `${method} ${JSON.stringify(body)}`);
@@ -228,7 +252,7 @@ test("an edit takes effect and the new password signs in", async () => {
     "PATCH",
     `/api/v1/users/${user.userId}`,
     admin,
-    { lineGroup: "M3_M4", password: "second-password" },
+    { lineGroup: "M3_M4", password: "second-password-2" },
   );
   assert.equal(response.status, 200);
   const edited = await response.json();
@@ -237,8 +261,8 @@ test("an edit takes effect and the new password signs in", async () => {
   assert.equal(edited.role, "OPERATOR");
 
   // The old password no longer works; the new one signs in with the new values.
-  assert.equal((await login(user.username, "first-password")).status, 401);
-  const fresh = await tokenFor(user.username, "second-password");
+  assert.equal((await login(user.username, "first-password-1")).status, 401);
+  const fresh = await tokenFor(user.username, "second-password-2");
   assert.equal((await (await me(fresh)).json()).lineGroup, "M3_M4");
 });
 
@@ -254,7 +278,7 @@ test("an edit that changes only the role keeps the password", async () => {
   );
   assert.equal(response.status, 200);
   assert.equal((await response.json()).role, "ADMIN");
-  assert.equal((await login(user.username, "first-password")).status, 200);
+  assert.equal((await login(user.username, "first-password-1")).status, 200);
 });
 
 test("an unknown user cannot be edited", async () => {
