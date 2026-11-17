@@ -14,6 +14,14 @@ import {
 } from "../../src/realtime/socket-server.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
 import { seedTestScenarios, seededUser } from "./helpers.js";
+import { randomUUID } from "node:crypto";
+import { emitStationMessage } from "../../src/realtime/station-messages.js";
+import type { StationMessage } from "../../shared/types/v1/station-message.js";
+import type {
+  StationMessageEvent,
+  StationThreadsClosed,
+} from "../../shared/socket/events.js";
+import { response } from "express";
 
 let server: HttpServer;
 let baseUrl: string;
@@ -22,7 +30,9 @@ let stewardUsername: string;
 let otherOperatorUsername: string;
 let otherStewardUsername: string;
 let stewardId: number;
+let secondStewardName: string;
 const sockets: Socket[] = [];
+
 
 before(async () => {
   const users = await seedTestUsers("socket-");
@@ -32,6 +42,8 @@ before(async () => {
   otherOperatorUsername = seededUser(users, "OPERATOR", "M1_M2").username;
   otherStewardUsername = seededUser(users, "STEWARD", "M1_M2").username;
   stewardId = seededUser(users, "STEWARD", "M3_M4").id;
+  const moreUsers = await seedTestUsers("socket-b-");
+  secondStewardName = seededUser(moreUsers, "STEWARD", "M3_M4").username;
 
   server = createServer(app);
   const io = new Server(server);
@@ -77,6 +89,96 @@ function open(token?: string) {
     socket.once("welcome", () => resolve(socket));
     socket.once("connect_error", reject);
   });
+}
+const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
+function nextEvent<T>(socket: Socket, event: string, ms = 2000) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`Timeout waiting for event ${event}`)),
+      ms,
+    );
+    socket.once(event, (payload: T) => {
+      clearTimeout(timer);
+      resolve(payload);
+    });
+  });
+}
+
+function record(socket: Socket, event: string) {
+  const got : unknown[] = [];
+  socket.on(event, (payload: unknown) => got.push(payload));
+  return got;
+}
+async function activateScenario(
+  token: string,
+  scenarioId = "DEMO-002",
+  replaces?: number,
+
+) {
+  const response = await fetch(
+    `${baseUrl}/api/v1/scenarios/${scenarioId}/activate`, 
+    {
+      method: "POST",
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(replaces === undefined ? {} : { replaces }),
+    },
+  );
+assert.equal(response.status, 201);
+return ((await response.json()) as { activationId: number }).activationId;
+}
+async function standDownScenario(token: string, activationId: number) {
+  const response = await fetch(
+    `${baseUrl}/api/v1/activations/${activationId}/stand-down`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  assert.equal(response.status, 200);
+}
+async function reportAtG(token: string, activationId: number, event?: string) {
+  const response = await fetch(`${baseUrl}/api/v1/position-reports`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      activationId,
+      staff: "",
+      station: "Station G",
+      event,
+      reportedAt: new Date().toISOString(),
+    }),
+  });
+  assert.equal(response.status, 202);
+}
+
+async function checkInAtG(token: string, activationId: number){
+  await reportAtG(token, activationId);
+  await reportAtG(token, activationId, "ARRIVED");
+}
+
+function sendFakeMessage(activationId: number) {
+  const now = new Date().toISOString();
+  const message: StationMessage = {
+    id: 1,
+    clientMessageId: randomUUID(),
+    activationId,
+    station: "Station G",
+    sender: "CONTROL_ROOM",
+    text: "Test message",
+    writtenAt: now,
+    receivedAt: now,
+  };
+  emitStationMessage(app.locals.io as Server, "M3_M4", message, {
+    activationId,
+    station: "Station G",
+    state: "ANSWERED",
+    unansweredSince: null,
+    lastMessageAt: now,
+  });
+  return message;
 }
 
 test("a socket without a valid token is refused with E0001", async () => {
@@ -342,4 +444,30 @@ test("events for one line group never reach the other line group", async () => {
   // Give a wrongly sent event time to arrive before checking it did not.
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.deepEqual(leaked, []);
+});
+
+test("a station message reaches operators in its line group only", async () => {
+
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const operator = await open(operatorToken);
+  const otherOperator = await open(
+    await login(otherOperatorUsername, "operator123", "web"),
+  );
+  const activationId = await activateScenario(operatorToken);
+
+
+  const leaked = record(otherOperator, "station-message");
+  const received = nextEvent<StationMessageEvent>(operator, "station-message");
+  const message = sendFakeMessage(activationId);
+
+  const event = await received;
+  assert.deepEqual(event.message, message);
+  assert.equal(event.thread.station, "Station G");
+
+  assert.ok(Date.now() - Date.parse(event.sentAt) < 3000);
+
+  await settle();
+  assert.deepEqual(leaked, []);
+
+  await standDownScenario(operatorToken, activationId);
 });
