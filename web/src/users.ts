@@ -46,7 +46,7 @@ export function userAdminMessage(error: unknown): string {
     }
     if (error.status === 404) return "Brugeren findes ikke længere.";
     if (error.status === 400) {
-      return "Udfyld alle felter. Adgangskoden skal være mindst 8 tegn.";
+      return "Udfyld alle felter. Adgangskoden skal være mindst 12 tegn og indeholde mindst ét tal.";
     }
   }
   return userMessage(error);

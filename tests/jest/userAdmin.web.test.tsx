@@ -195,7 +195,7 @@ describe("the Brugere page (MET-A-030)", () => {
     expect(container.querySelector("form")).toBeNull();
   });
 
-  it("asks in Danish for a username and a password of at least 8 characters", async () => {
+  it("asks in Danish for a username and a password of 12 characters with a digit", async () => {
     await mount();
     await click("Ny bruger");
     await click("Opret bruger");
@@ -205,9 +205,13 @@ describe("the Brugere page (MET-A-030)", () => {
     await click("Opret bruger");
     expect(formAlert()).toBe("Udfyld adgangskoden.");
 
-    await type("Adgangskode", "1234567");
+    await type("Adgangskode", "abcdefghij1");
     await click("Opret bruger");
-    expect(formAlert()).toBe("Adgangskoden skal være mindst 8 tegn.");
+    expect(formAlert()).toBe("Adgangskoden skal være mindst 12 tegn.");
+
+    await type("Adgangskode", "a-long-password");
+    await click("Opret bruger");
+    expect(formAlert()).toBe("Adgangskoden skal indeholde mindst ét tal.");
     // Nothing is sent until the fields are valid.
     expect(requests("POST")).toHaveLength(0);
   });
@@ -216,14 +220,14 @@ describe("the Brugere page (MET-A-030)", () => {
     await mount();
     await click("Ny bruger");
     await type("Brugernavn", "new-steward");
-    await type("Adgangskode", "a-long-password");
+    await type("Adgangskode", "a-long-password-1");
     await choose("Rolle", "STEWARD");
     await choose("Linjegruppe", "M3_M4");
     await click("Opret bruger");
 
     expect(sentBody("POST")).toEqual({
       username: "new-steward",
-      password: "a-long-password",
+      password: "a-long-password-1",
       role: "STEWARD",
       lineGroup: "M3_M4",
     });
@@ -253,7 +257,7 @@ describe("the Brugere page (MET-A-030)", () => {
     await mount();
     await click("Ny bruger");
     await type("Brugernavn", "operator");
-    await type("Adgangskode", "a-long-password");
+    await type("Adgangskode", "a-long-password-1");
     await click("Opret bruger");
 
     expect(formAlert()).toBe("Brugernavnet findes allerede.");
@@ -276,12 +280,16 @@ describe("the Brugere page (MET-A-030)", () => {
     expect(field<HTMLSelectElement>("Linjegruppe").value).toBe("M1_M2");
   });
 
-  it("refuses a new password under 8 characters when editing", async () => {
+  it("refuses a new password that is too short or has no digit when editing", async () => {
     await mount();
     await editRow(1);
-    await type("Adgangskode", "short");
+    await type("Adgangskode", "short1");
     await click("Gem ændringer");
-    expect(formAlert()).toBe("Adgangskoden skal være mindst 8 tegn.");
+    expect(formAlert()).toBe("Adgangskoden skal være mindst 12 tegn.");
+
+    await type("Adgangskode", "a-new-password");
+    await click("Gem ændringer");
+    expect(formAlert()).toBe("Adgangskoden skal indeholde mindst ét tal.");
     expect(requests("PATCH")).toHaveLength(0);
   });
 

@@ -16,15 +16,21 @@ export type UserFormValues = {
   lineGroup: LineGroup;
 };
 
-const MIN_PASSWORD_LENGTH = 8;
+// The same rule as user-create.schema.json and user-update.schema.json.
+const MIN_PASSWORD_LENGTH = 12;
 
 function invalidReason(values: UserFormValues, creating: boolean) {
   if (creating && values.username.trim() === "") {
     return "Udfyld brugernavnet.";
   }
   if (creating && values.password === "") return "Udfyld adgangskoden.";
-  if (values.password !== "" && values.password.length < MIN_PASSWORD_LENGTH) {
+  // An empty password when editing keeps the current one.
+  if (values.password === "") return null;
+  if (values.password.length < MIN_PASSWORD_LENGTH) {
     return `Adgangskoden skal være mindst ${MIN_PASSWORD_LENGTH} tegn.`;
+  }
+  if (!/[0-9]/.test(values.password)) {
+    return "Adgangskoden skal indeholde mindst ét tal.";
   }
   return null;
 }
