@@ -6,8 +6,8 @@ Additive. Admins create and edit user accounts (MET-A-030).
 
 - New `user.schema.json`: `userId`, `username`, `role` and `lineGroup`.
 - New `GET /api/v1/users`: every account, ordered by username.
-- New `POST /api/v1/users` with `user-create.schema.json` (`username`, `password` of at least 8 characters, `role`, `lineGroup`). Answers 201 with the account, and 409 `E0007` when the username is taken, regardless of casing.
-- New `PATCH /api/v1/users/{userId}` with `user-update.schema.json`: changes `password`, `role` and/or `lineGroup`, at least one of them. The username cannot be changed. Answers 200 with the account, and 404 `E0004` for an unknown id. An admin changing their own role gets 409 `E0007`.
+- New `POST /api/v1/users` with `user-create.schema.json` (`username`, `password` of at least 12 characters including a digit, `role`, `lineGroup`). Answers 201 with the account, and 409 `E0007` when the username is taken, regardless of casing.
+- New `PATCH /api/v1/users/{userId}` with `user-update.schema.json`: changes `password` (same rule as on create), `role` and/or `lineGroup`, at least one of them. The username cannot be changed. Answers 200 with the account, and 404 `E0004` for an unknown id. An admin changing their own role gets 409 `E0007`.
 - Only `ADMIN` may use the three endpoints. Other roles get 403 `E0002`.
 - `info.version` in `openapi.yaml` is now 8.5.0.
 

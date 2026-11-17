@@ -9,6 +9,9 @@
  * The fields to change. A field that is left out stays as it is. The username cannot be changed.
  */
 export interface UserUpdate {
+  /**
+   * At least 12 characters, at least one of them a digit.
+   */
   password?: string;
   role?: "STEWARD" | "OPERATOR" | "ADMIN";
   lineGroup?: "M1_M2" | "M3_M4";

@@ -4,7 +4,7 @@ import { validate } from "../../src/validation/contract-validator.ts";
 
 const create = {
   username: "operator-2",
-  password: "a-long-password",
+  password: "a-long-password-2",
   role: "OPERATOR",
   lineGroup: "M1_M2",
 };
@@ -30,10 +30,17 @@ test("rejects a user to create without one of its fields", () => {
   }
 });
 
-test("rejects an empty username and a password under 8 characters", () => {
+test("rejects an empty username and a password under 12 characters", () => {
   assert.notDeepEqual(checkCreate({ ...create, username: "" }), []);
-  assert.notDeepEqual(checkCreate({ ...create, password: "1234567" }), []);
-  assert.deepEqual(checkCreate({ ...create, password: "12345678" }), []);
+  assert.notDeepEqual(checkCreate({ ...create, password: "abcdefghij1" }), []);
+  assert.deepEqual(checkCreate({ ...create, password: "abcdefghijk1" }), []);
+});
+
+test("rejects a password without a digit, wherever the digit is", () => {
+  assert.notDeepEqual(checkCreate({ ...create, password: "abcdefghijkl" }), []);
+  for (const password of ["1bcdefghijkl", "abcde1ghijkl", "abcdefghijk1"]) {
+    assert.deepEqual(checkCreate({ ...create, password }), [], password);
+  }
 });
 
 test("accepts every role and line group, and nothing else", () => {
@@ -52,15 +59,16 @@ test("rejects other fields on a user to create", () => {
 });
 
 test("accepts an edit of one field or several", () => {
-  assert.deepEqual(checkUpdate({ password: "a-new-password" }), []);
+  assert.deepEqual(checkUpdate({ password: "a-new-password-2" }), []);
   assert.deepEqual(checkUpdate({ role: "ADMIN" }), []);
   assert.deepEqual(checkUpdate({ lineGroup: "M3_M4" }), []);
   assert.deepEqual(checkUpdate({ role: "STEWARD", lineGroup: "M3_M4" }), []);
 });
 
-test("rejects an empty edit, a short password and a new username", () => {
+test("rejects an empty edit, a weak password and a new username", () => {
   assert.notDeepEqual(checkUpdate({}), []);
-  assert.notDeepEqual(checkUpdate({ password: "short" }), []);
+  assert.notDeepEqual(checkUpdate({ password: "short1" }), []);
+  assert.notDeepEqual(checkUpdate({ password: "a-new-password" }), []);
   // The username cannot be changed.
   assert.notDeepEqual(checkUpdate({ username: "renamed" }), []);
 });

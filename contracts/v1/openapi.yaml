@@ -879,7 +879,7 @@ paths:
               $ref: "./user-create.schema.json"
             example:
               username: "operator-2"
-              password: "a-long-password"
+              password: "a-long-password-2"
               role: "OPERATOR"
               lineGroup: "M1_M2"
       responses:
