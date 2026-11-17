@@ -1,7 +1,12 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import pg from "pg";
 import { seedNetwork, type NetworkSeed } from "../../scripts/seed-network.js";
+import { getNetwork } from "../../src/repositories/network-repository.js";
+import { getDatabase } from "../../src/db/client.js";
+import { validate } from "../../src/validation/contract-validator.js";
+
+after(() => getDatabase().end());
 
 test("network seeding is repeatable and keeps station and segment identities", async () => {
   const data: NetworkSeed = {
@@ -78,6 +83,24 @@ test("network seeding is repeatable and keeps station and segment identities", a
     assert.equal(position.rows[0].x, 15);
     await client.query(
       "DELETE FROM operating_patterns WHERE normal_line = 'M1' AND route_code = 'NETWORK-TEST' AND did = 'DUPLICATE'",
+    );
+    const response = await getNetwork();
+    assert.deepEqual(validate(response, "network.schema.json"), []);
+    assert.deepEqual(
+      response.normalPatterns.find(
+        (pattern) => pattern.routeCode === "NETWORK-TEST",
+      )?.stops,
+      ["NETWORK-TEST-A", "NETWORK-TEST-B"],
+    );
+    assert.equal(
+      response.stations.find((station) => station.code === "NETWORK-TEST-A")?.x,
+      15,
+    );
+    assert.equal(
+      response.segments.filter(
+        (segment) => segment.stationA === "NETWORK-TEST-A",
+      ).length,
+      2,
     );
   } finally {
     await client.query(
