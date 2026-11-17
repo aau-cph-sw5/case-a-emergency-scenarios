@@ -213,6 +213,14 @@ export const steward = {
   online: palette.stewardOnline,
   yellowOnYellow: palette.stewardYellowOnYellow,
   greenOnGreen: palette.stewardGreenOnGreen,
+  // The station's chat (MET-A-029, #335). Metro Deep Red is the control
+  // room's voice: its messages are filled with it and its name is written in
+  // it (9.2:1 against white). The station's own messages stay black, and the
+  // tab stays black, so no red reads as an alarm on the status card.
+  chat: {
+    controlRoom: palette.metroDeepRed,
+    onControlRoom: palette.metroWhite,
+  },
   // The status card takes the colour of the status (#376): black without a
   // station, yellow on the way, green once arrived. text is the station name,
   // label the small labels and the line under the name.

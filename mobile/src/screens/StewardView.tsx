@@ -28,6 +28,7 @@ import { ScenarioNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { withOwnStatus } from "./own-assignment";
 import { RoleView } from "./RoleView";
+import { StationChat } from "./StationChat";
 import {
   oneRowPerStation,
   ScenarioMap,
@@ -41,6 +42,10 @@ const STATUS_BLOCKED_OFFLINE =
 // Shown while a report waits on the phone, so a later change cannot overtake it.
 const STATUS_BLOCKED_WAITING =
   "Din position er ikke sendt endnu. Du kan ændre status, når den er modtaget.";
+
+// Why the chat is gone, shown in a chat that was open (MET-A-029, #335).
+const CHAT_CLOSED_STOOD_DOWN = "Scenariet er afsluttet.";
+const CHAT_CLOSED_CHECKED_OUT = "Du er ikke længere tjekket ind på stationen.";
 
 // Waits before each new try after a send failed while live
 export const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
@@ -427,12 +432,23 @@ export function StewardView({
 
   const retry = onRetry ?? (() => void refresh());
 
+  // The station's chat is there only while the steward is checked in
+  // (ARRIVED) at it, as the server requires (MET-A-029, #335).
+  const chatStation = own?.status === "MANNED" ? own.station : undefined;
+  const refreshScenario = useCallback(() => void refresh(), [refresh]);
+  // While the chat is open it covers the view, which a screen reader skips.
+  const [chatOpen, setChatOpen] = useState(false);
+
   return (
-    <RoleView title="Steward" onLogout={onLogout}>
+    <RoleView title="Steward" onLogout={onLogout} obscured={chatOpen}>
       <ScenarioNotice view={view} onDismiss={dismissNotice} />
       {/* The screen does not scroll (#376): the status card at the top (the
           status, the map and the one control), the station list under it. */}
-      <View style={styles.content}>
+      <View
+        style={styles.content}
+        accessibilityElementsHidden={chatOpen}
+        importantForAccessibility={chatOpen ? "no-hide-descendants" : "auto"}
+      >
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
         )}
@@ -501,7 +517,16 @@ export function StewardView({
               />
             }
             note={
-              reportStatus && <Text style={styles.report}>{reportStatus}</Text>
+              <>
+                {reportStatus && (
+                  <Text style={styles.report}>{reportStatus}</Text>
+                )}
+                {own?.status === "PENDING" && (
+                  <Text style={styles.report}>
+                    Tjek ind på stationen for at skrive til kontrolrummet.
+                  </Text>
+                )}
+              </>
             }
           >
             <ScenarioOverview
@@ -534,6 +559,19 @@ export function StewardView({
           <Text style={styles.report}>{reportStatus}</Text>
         )}
       </View>
+      {/* Over the whole view, header included, so it is the last child. */}
+      <StationChat
+        token={token}
+        station={chatStation}
+        activationId={activationId}
+        closedReason={
+          view.status === "stood-down" || view.status === "none"
+            ? CHAT_CLOSED_STOOD_DOWN
+            : CHAT_CLOSED_CHECKED_OUT
+        }
+        onClosedByServer={refreshScenario}
+        onOpenChange={setChatOpen}
+      />
     </RoleView>
   );
 }
