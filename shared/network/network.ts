@@ -64,6 +64,7 @@ export type MapNetwork = {
   }[];
   segments: Network["segments"];
   incomplete: boolean;
+  ringStations: string[];
 };
 
 export function buildMapNetwork(network: Network): MapNetwork {
@@ -153,11 +154,12 @@ export function buildMapNetwork(network: Network): MapNetwork {
     lines: [...lines.values()],
     segments: network.segments,
     incomplete,
+    ringStations:
+      lines.get("M3")?.connections.map(([station]) => station) ?? [],
   };
 }
 
-// Resolve stops through known normal-line edges. A missing connection is not
-// guessed when there is more than one possible route around the network.
+// Resolve stops through normal-line edges.
 export function resolveStops(
   stops: string[],
   lines: MapNetwork["lines"],
@@ -196,16 +198,13 @@ export function resolveStops(
       connections.push([start, end]);
       continue;
     }
-    // Find a path and then test each of its edges for an alternative. This
-    // stays bounded even when a disconnected network contains many loops.
-    const findPath = (excluded?: string): string[] | null => {
+    const findPath = (): string[] | null => {
       const queue = [start];
       const previous = new Map<string, string | null>([[start, null]]);
       for (let cursor = 0; cursor < queue.length; cursor++) {
         const station = queue[cursor];
         if (station === end) break;
         for (const [a, b] of edges) {
-          if (connectionKey(a, b) === excluded) continue;
           const next = a === station ? b : b === station ? a : undefined;
           if (next !== undefined && !previous.has(next)) {
             previous.set(next, station);
@@ -225,10 +224,6 @@ export function resolveStops(
     };
     const path = findPath();
     if (!path) return { connections: [], incomplete: true };
-    for (let step = 1; step < path.length; step++) {
-      if (findPath(connectionKey(path[step - 1], path[step])))
-        return { connections: [], incomplete: true };
-    }
     for (let step = 1; step < path.length; step++)
       connections.push([path[step - 1], path[step]]);
   }

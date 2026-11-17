@@ -40,6 +40,55 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
     expect(screen.getByText("Viser gemt metronetværk.")).toBeTruthy();
   });
 
+  it("draws the affected track from the scenario when the cached network lacks it", () => {
+    const network = buildMapNetwork(networkFixture as Network);
+    render(
+      <ScenarioOverview
+        snapshot={snapshot}
+        network={{ ...network, segments: [] }}
+        networkIsCached
+      />,
+    );
+    expect(
+      screen.queryByText(
+        "Den berørte strækning kan ikke vises fuldt ud på dette kort.",
+      ),
+    ).toBeNull();
+    expect(screen.UNSAFE_queryAllByType(Circle).length).toBeGreaterThan(0);
+  });
+
+  it("warns when the cached network cannot show the affected track", () => {
+    const network = buildMapNetwork(networkFixture as Network);
+    render(
+      <ScenarioOverview
+        snapshot={snapshot}
+        network={{ ...network, positions: {} }}
+        networkIsCached
+      />,
+    );
+    expect(
+      screen.getByText(
+        "Den berørte strækning kan ikke vises fuldt ud på dette kort.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("explains when no network is available offline", () => {
+    render(
+      <ScenarioOverview
+        snapshot={snapshot}
+        network={null}
+        networkStatus="offline"
+      />,
+    );
+    expect(
+      screen.getByText(
+        "Kortet er ikke tilgængeligt offline. Opret forbindelse for at hente metronetværket.",
+      ),
+    ).toBeTruthy();
+    expect(screen.UNSAFE_queryAllByType(Circle)).toHaveLength(0);
+  });
+
   it("offers + on each affected station and reports the pressed one", () => {
     const onAssign = jest.fn();
     render(<ScenarioOverview snapshot={snapshot} onAssign={onAssign} />);

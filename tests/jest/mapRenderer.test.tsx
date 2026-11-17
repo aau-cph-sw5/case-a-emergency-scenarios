@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react-native";
 import { describe, expect, it } from "@jest/globals";
-import { Circle, Line } from "react-native-svg";
+import { Circle, Line, Path } from "react-native-svg";
 import MapRender from "../../shared/MapRenderer";
 import { getLines } from "../../mockData/data";
 
@@ -34,6 +34,32 @@ describe("MapRender", () => {
       expect(drawnStations()).toContainEqual([565, 343]);
     },
   );
+
+  it("draws a circular ring with arcs between unevenly spaced stations", () => {
+    const stations = ["A", "B", "C", "D"];
+    render(
+      <MapRender
+        lines={[
+          {
+            name: "M3",
+            tracks: [1, 2],
+            connections: [
+              ["A", "B"],
+              ["B", "C"],
+              ["C", "D"],
+              ["D", "A"],
+            ],
+          },
+        ]}
+        colors={{ M3: "#f00" }}
+        positions={{ A: [100, 0], B: [60, 80], C: [-100, 0], D: [0, -100] }}
+        ringStations={stations}
+      />,
+    );
+    const paths = screen.UNSAFE_queryAllByType(Path);
+    expect(paths.length).toBeGreaterThan(0);
+    expect(paths.every((path) => / A /.test(path.props.d))).toBe(true);
+  });
 
   it("uses supplied network positions and only draws available tracks", () => {
     render(

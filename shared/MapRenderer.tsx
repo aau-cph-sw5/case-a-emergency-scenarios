@@ -41,6 +41,44 @@ const defaultRingStations = getLines()
   .find((line) => line.name === "M3")!
   .connections.map(([station]) => station);
 
+function circularRing(
+  stations: string[],
+  position: (station: string) => [number, number] | undefined,
+) {
+  if (stations.length < 3) return null;
+  const points = stations.map(position);
+  if (points.some((point) => !point)) return null;
+  const [a, b, c] = [
+    points[0]!,
+    points[Math.floor(points.length / 3)]!,
+    points[Math.floor((2 * points.length) / 3)]!,
+  ];
+  const determinant =
+    2 * (a[0] * (b[1] - c[1]) + b[0] * (c[1] - a[1]) + c[0] * (a[1] - b[1]));
+  if (Math.abs(determinant) < 0.000001) return null;
+  const square = ([x, y]: [number, number]) => x * x + y * y;
+  const x =
+    (square(a) * (b[1] - c[1]) +
+      square(b) * (c[1] - a[1]) +
+      square(c) * (a[1] - b[1])) /
+    determinant;
+  const y =
+    (square(a) * (c[0] - b[0]) +
+      square(b) * (a[0] - c[0]) +
+      square(c) * (b[0] - a[0])) /
+    determinant;
+  const r = Math.hypot(a[0] - x, a[1] - y);
+  if (
+    points.some(
+      (point) =>
+        Math.abs(Math.hypot(point![0] - x, point![1] - y) - r) >
+        Math.max(0.05, r * 0.001),
+    )
+  )
+    return null;
+  return { x, y, r };
+}
+
 function ringPath(
   stationA: string,
   stationB: string,
@@ -55,6 +93,27 @@ function ringPath(
     if (ringStations[(start - 1 + count) % count] === stationB)
       return ringPath(stationB, stationA, -offset, ringStations, position);
     return null;
+  }
+
+  const circle = circularRing(ringStations, position);
+  const a = position(stationA);
+  const b = position(stationB);
+  if (circle && a && b) {
+    const cross =
+      (a[0] - circle.x) * (b[1] - circle.y) -
+      (a[1] - circle.y) * (b[0] - circle.x);
+    const sweep = cross > 0 ? 1 : 0;
+    const radius = circle.r + (sweep ? -offset : offset);
+    const point = ([x, y]: [number, number]) => {
+      const distance = Math.hypot(x - circle.x, y - circle.y);
+      return [
+        circle.x + ((x - circle.x) / distance) * radius,
+        circle.y + ((y - circle.y) / distance) * radius,
+      ];
+    };
+    const [x1, y1] = point(a);
+    const [x2, y2] = point(b);
+    return `M ${x1} ${y1} A ${radius} ${radius} 0 0 ${sweep} ${x2} ${y2}`;
   }
 
   const shifted = (index: number) => {

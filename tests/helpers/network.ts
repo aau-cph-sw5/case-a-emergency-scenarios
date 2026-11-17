@@ -1,6 +1,5 @@
 import type { Network } from "../../shared/types/v1/network";
 
-// Small synthetic network for tests; production data is loaded from the database.
 export const network: Network = {
   stations: [
     { code: "Station A", name: "Station A", x: 100, y: 200 },

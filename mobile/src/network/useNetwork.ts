@@ -8,26 +8,46 @@ import {
 import { apiBaseUrl } from "../api-base-url";
 import { networkStore } from "./network-store";
 
-// Keep the last usable network for the steward's existing offline map.
-export function useNetwork(
-  token: string,
-  online: boolean,
-): { network: MapNetwork | null; usingCached: boolean } {
-  const [network, setNetwork] = useState<MapNetwork | null>(null);
-  const [usingCached, setUsingCached] = useState(false);
+export type NetworkStatus =
+  "loading" | "ready" | "offline" | "incomplete" | "error";
+
+type NetworkState = {
+  network: MapNetwork | null;
+  usingCached: boolean;
+  status: NetworkStatus;
+};
+
+export function useNetwork(token: string, online: boolean): NetworkState {
+  const [state, setState] = useState<NetworkState>({
+    network: null,
+    usingCached: false,
+    status: "loading",
+  });
   useEffect(() => {
     let wanted = true;
     async function load() {
       try {
         const cached = await networkStore.load();
         if (wanted && cached) {
-          setNetwork(buildMapNetwork(cached));
-          setUsingCached(true);
+          setState((current) =>
+            current.network
+              ? current
+              : {
+                  ...current,
+                  network: buildMapNetwork(cached),
+                  usingCached: true,
+                },
+          );
         }
       } catch {
         // Storage can be unavailable; still try to load the live network.
       }
-      if (!online || !wanted) return;
+      if (!wanted) return;
+      if (!online) {
+        setState((current) => ({ ...current, status: "offline" }));
+        return;
+      }
+      setState((current) => ({ ...current, status: "loading" }));
       try {
         const live = await getJson(
           apiBaseUrl,
@@ -37,12 +57,15 @@ export function useNetwork(
         );
         if (!wanted) return;
         const mapped = buildMapNetwork(live);
-        if (mapped.incomplete) return;
-        setNetwork(mapped);
-        setUsingCached(false);
-        await networkStore.save(live);
+        if (mapped.incomplete) {
+          setState((current) => ({ ...current, status: "incomplete" }));
+          return;
+        }
+        setState({ network: mapped, usingCached: false, status: "ready" });
+        // A storage failure should not hide a usable live network.
+        await networkStore.save(live).catch(() => undefined);
       } catch {
-        // Continue using the saved network when the server is unavailable.
+        if (wanted) setState((current) => ({ ...current, status: "error" }));
       }
     }
     void load();
@@ -50,5 +73,5 @@ export function useNetwork(
       wanted = false;
     };
   }, [token, online]);
-  return { network, usingCached };
+  return state;
 }

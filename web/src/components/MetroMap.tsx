@@ -25,7 +25,6 @@ import { useScenario } from "../data/useScenario";
 import { useNetwork } from "../data/useNetwork";
 import { resolveStops, type MapNetwork } from "../../../shared/network/network";
 
-// Each normal line keeps its colour when shown alone.
 const lineGroups = [
   ["M1", "M2"],
   ["M3", "M4"],
@@ -250,11 +249,7 @@ export function MetroMap({
           lines={groupLines}
           colors={routeColors}
           positions={mapNetwork.positions}
-          ringStations={
-            network
-              .find((line) => line.name === "M3")
-              ?.connections.map(([station]) => station) ?? []
-          }
+          ringStations={mapNetwork.ringStations}
           availableSegments={mapNetwork.segments}
           showLineButtons={false}
           viewBox={zoomedIn ? view.viewBox : groupViewBox}
@@ -275,8 +270,7 @@ export function MetroMap({
       )}
       {missingScenarioRoutes && (
         <Text role="alert" style={text.small}>
-          Kunne ikke vise destinations-ID&apos;er: scenariet mangler
-          destinationsruter.
+          En eller flere ruter kan ikke vises på kortet.
         </Text>
       )}
 

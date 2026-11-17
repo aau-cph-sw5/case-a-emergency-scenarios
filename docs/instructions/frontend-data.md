@@ -42,8 +42,11 @@ stations, schematic positions, track segments and normal patterns from
 data still supplies the selected operating pattern and station requirements.
 
 The mobile steward view loads the same network and saves a usable copy for
-offline use. If the server is unavailable it uses the cached network; without a
-cached copy it falls back to the bundled map. Crossovers are not loaded by this
+offline use. If the server is unavailable it uses the cached network. Without
+a cached copy, the map is unavailable until the device can fetch a complete
+network. Mobile
+rejects incomplete network responses to preserve a usable offline map, while web
+displays the partial network with a warning. Crossovers are not loaded by this
 endpoint.
 
 ## What things mean

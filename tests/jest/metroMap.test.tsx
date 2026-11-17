@@ -251,7 +251,7 @@ describe("MetroMap", () => {
     );
 
     expect(screen.getByRole("alert").props.children).toContain(
-      "scenariet mangler destinationsruter.",
+      "En eller flere ruter kan ikke vises på kortet.",
     );
     expect(screen.queryByText("M1")).toBeNull();
   });

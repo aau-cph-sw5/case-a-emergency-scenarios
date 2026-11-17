@@ -88,7 +88,7 @@ test("resolves a non-stop station without inventing a shortcut", () => {
   });
 });
 
-test("does not guess between different paths", () => {
+test("renders a path when multiple paths are possible", () => {
   const lines = [
     {
       name: "M3",
@@ -110,8 +110,11 @@ test("does not guess between different paths", () => {
     }),
   );
   assert.deepEqual(resolveStops(["A", "C"], lines, segments, [1]), {
-    connections: [],
-    incomplete: true,
+    connections: [
+      ["A", "B"],
+      ["B", "C"],
+    ],
+    incomplete: false,
   });
 });
 
