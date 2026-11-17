@@ -3,7 +3,7 @@ import type { Role } from "./roles.js";
 export type Client = "web" | "mobile";
 
 const CLIENT_ROLES: Record<Client, readonly Role[]> = {
-  web: ["OPERATOR", "ADMIN"],
+  web: ["OPERATOR", "ADMIN", "ANALYST"],
   mobile: ["STEWARD"],
 };
 

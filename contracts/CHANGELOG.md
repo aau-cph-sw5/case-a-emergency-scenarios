@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 8.5.0 - 2026-11-13
+
+Additive. Added a new `ANALYST` role, for the Operations Analyst who needs their own login and page to review past incidents (MET-A-024, #365).
+
+- `role` in `login-response.schema.json` and `me.schema.json` can now be `ANALYST`.
+- Like the other users, an analyst belongs to one line group and only sees that line group's data.
+- `info.version` in `openapi.yaml` is now 8.5.0.
+
 ## 8.4.0 - 2026-11-13
 
 Additive. Station messages between stewards and the control room (MET-A-029, #332). The server does not serve the endpoints or send the events yet.

@@ -5,9 +5,11 @@ import { useAuthenticatedSocket } from "../../shared/socket/useAuthenticatedSock
 import { LiveDataProvider } from "./data/liveData";
 import { OperatorDashboard } from "./OperatorDashboard";
 import { AdminDashboard } from "./AdminDashboard";
+import { AnalystDashboard } from "./AnalystDashboard";
 import { webSessionStore } from "./auth/session-store";
 import { socket } from "./socket";
 
+// The web app: Dashboards for operators, admins and analysts.
 // Stewards use the app in mobile/.
 export function App() {
   const {
@@ -91,6 +93,10 @@ export function App() {
 
   if (state.session.role === "ADMIN") {
     return <AdminDashboard onLogout={() => void signOut()} />;
+  }
+
+  if (state.session.role === "ANALYST") {
+    return <AnalystDashboard onLogout={() => void signOut()} />;
   }
 
   if (state.session.role === "OPERATOR") {

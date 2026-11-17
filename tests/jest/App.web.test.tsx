@@ -32,6 +32,7 @@ jest.mock("../../web/src/OperatorDashboard", () => ({
   ),
 }));
 jest.mock("../../web/src/socket", () => ({ socket: {} }));
+jest.mock("../../web/src/components/OperatorSections.css", () => ({}));
 
 const restore = jest.fn<() => Promise<void>>().mockResolvedValue();
 const signOut = jest.fn<() => Promise<void>>().mockResolvedValue();
@@ -142,5 +143,20 @@ describe("operator app session states", () => {
     );
     await act(async () => container.querySelector("button")?.click());
     expect(signOut).toHaveBeenCalled();
+  });
+});
+
+describe("analyst web app", () => {
+  it("test that an analyst see their own analyst-page after signing in", async () => {
+    setSession({
+      status: "signed-in",
+      session: { ...session, role: "ANALYST" },
+    });
+    await showApp();
+    expect(
+      container.querySelector(".operator-profile strong")?.textContent,
+    ).toBe("Analyst");
+    expect(container.textContent).not.toContain("Operator log ud");
+    expect(container.querySelector("h1")?.textContent).not.toBe("Admin");
   });
 });
