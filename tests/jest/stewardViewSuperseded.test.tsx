@@ -9,7 +9,10 @@ import {
 } from "../../mobile/src/screens/StewardView";
 import { queuePositionReport } from "../../mobile/src/offline/queue-position-report";
 import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
-import { stationMessageDelivery } from "../../mobile/src/offline/station-message-store";
+import {
+  stationMessageDelivery,
+  stationMessageQueueStore,
+} from "../../mobile/src/offline/station-message-store";
 import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
@@ -32,6 +35,7 @@ jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
 }));
 jest.mock("../../mobile/src/offline/station-message-store", () => ({
   stationMessageDelivery: { flush: jest.fn() },
+  stationMessageQueueStore: { discardEndedRejections: jest.fn() },
 }));
 jest.mock("../../mobile/src/offline/queue-position-report", () => ({
   queuePositionReport: jest.fn(),
@@ -45,6 +49,9 @@ const { useActiveScenario } = jest.requireMock(
 ) as { useActiveScenario: jest.Mock };
 const flush = jest.mocked(positionReportDelivery.flush);
 const flushMessages = jest.mocked(stationMessageDelivery.flush);
+const discardEnded = jest.mocked(
+  stationMessageQueueStore.discardEndedRejections,
+);
 const noMessagesSent = {
   delivered: [],
   rejected: 0,
@@ -72,6 +79,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   flush.mockResolvedValue(nothingSent);
   flushMessages.mockResolvedValue(noMessagesSent);
+  discardEnded.mockResolvedValue(undefined);
 });
 
 // Shows the live view and reports going on the way to Station B.
@@ -155,6 +163,33 @@ describe("StewardView station messages written offline (MET-A-029)", () => {
     rerender(stewardView(true));
 
     expect(await screen.findByText("Position sendt.")).toBeTruthy();
+  });
+
+  it("forgets refused messages of other activations while a scenario is live", async () => {
+    showView({ status: "live", snapshot });
+    render(stewardView(true));
+    await act(async () => {});
+
+    expect(discardEnded).toHaveBeenCalledWith(
+      "7",
+      (activeState as ScenarioState).activationId,
+    );
+  });
+
+  it("forgets all refused messages once no scenario is live", async () => {
+    showView({ status: "none" });
+    render(stewardView(true));
+    await act(async () => {});
+
+    expect(discardEnded).toHaveBeenCalledWith("7", null);
+  });
+
+  it("keeps refused messages while offline, since it cannot tell what ended", async () => {
+    showView({ status: "copy", reason: "offline", snapshot });
+    render(stewardView(false));
+    await act(async () => {});
+
+    expect(discardEnded).not.toHaveBeenCalled();
   });
 
   it("tries again later while messages are waiting for the connection", async () => {

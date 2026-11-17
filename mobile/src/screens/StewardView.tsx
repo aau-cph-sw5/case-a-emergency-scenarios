@@ -27,7 +27,10 @@ import type { FlushResult } from "../offline/position-report-delivery";
 import { positionReportDelivery } from "../offline/position-report-delivery-instance";
 import { queuePositionReport } from "../offline/queue-position-report";
 import { snapshotStore } from "../offline/snapshot-store";
-import { stationMessageDelivery } from "../offline/station-message-store";
+import {
+  stationMessageDelivery,
+  stationMessageQueueStore,
+} from "../offline/station-message-store";
 import { reportRejection, waitingReport } from "../offline/waiting-report";
 import { socket } from "../socket";
 import { ScenarioNotice } from "./Notice";
@@ -213,6 +216,24 @@ export function StewardView({
       };
     }
   }, [token, refresh]);
+
+  // The activation the server says is live, null when it says none is, and
+  // undefined while that is not known (loading or offline).
+  const liveActivationId =
+    view.status === "live"
+      ? view.snapshot.state.activationId
+      : view.status === "stood-down" || view.status === "none"
+        ? null
+        : undefined;
+  // A stood-down scenario's thread is removed, so the messages the server
+  // refused for it are forgotten on the phone instead of piling up (MET-A-029).
+  useEffect(() => {
+    const owner = userIdFromToken(token);
+    if (owner === null || liveActivationId === undefined) return;
+    void stationMessageQueueStore
+      .discardEndedRejections(owner, liveActivationId)
+      .catch(() => undefined);
+  }, [token, liveActivationId]);
 
   // Failed sends in a row while online; 0 means no retry is waiting.
   const [retries, setRetries] = useState(0);

@@ -4,6 +4,11 @@ import type {
 } from "../../../shared/offline/station-message-queue";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
 import type { MessageDeliveryResult } from "../api/station-message";
+import {
+  createFlushCoordinator,
+  isFinalRejection,
+  rejectionCode,
+} from "./queue-delivery";
 
 export type MessageSender = (
   token: string,
@@ -17,31 +22,14 @@ export type MessageFlushResult = {
   blocked: boolean; // stopped early, e.g. no connection; the rest waits for the next flush
 };
 
-// The same rule as position reports: a refusal about the message itself is
-// final, while authentication, timeouts and rate limiting keep it queued.
-const RETRYABLE_HTTP_STATUSES = new Set([401, 403, 408, 429]);
-
-function isFinal(
-  result: MessageDeliveryResult,
-): result is Extract<MessageDeliveryResult, { status: "rejected" }> {
-  return (
-    result.status === "rejected" &&
-    result.httpStatus >= 400 &&
-    result.httpStatus < 500 &&
-    !RETRYABLE_HTTP_STATUSES.has(result.httpStatus)
-  );
-}
-
-// Sends a steward's queued messages in the order they were written.
+// Sends a steward's queued messages in the order they were written. The same
+// rules as position reports: a refusal about the message itself is final,
+// while no connection, authentication and rate limiting keep it queued.
 export function createStationMessageDelivery(
   queue: StationMessageQueueStore,
   sender: MessageSender,
 ) {
-  // One flush per steward at a time, so a message is never sent twice in parallel.
-  const running = new Map<string, Promise<MessageFlushResult>>();
-  const following = new Map<string, Promise<MessageFlushResult>>();
-
-  async function sendAll(
+  async function flush(
     userId: string,
     token: string,
   ): Promise<MessageFlushResult> {
@@ -54,10 +42,11 @@ export function createStationMessageDelivery(
       if (result.status === "accepted") {
         await queue.acknowledge(userId, message.clientMessageId);
         delivered.push(result.message);
-      } else if (isFinal(result)) {
+      } else if (isFinalRejection(result)) {
+        const code = rejectionCode(result);
         await queue.reject(userId, message.clientMessageId, {
           httpStatus: result.httpStatus,
-          ...(result.code === undefined ? {} : { code: result.code }),
+          ...(code === undefined ? {} : { code }),
         });
         rejected++;
       } else {
@@ -75,32 +64,5 @@ export function createStationMessageDelivery(
     };
   }
 
-  function start(userId: string, token: string): Promise<MessageFlushResult> {
-    const flush = sendAll(userId, token);
-    running.set(userId, flush);
-    const forget = () => {
-      if (running.get(userId) === flush) running.delete(userId);
-    };
-    flush.then(forget, forget);
-    return flush;
-  }
-
-  return {
-    flush(userId: string, token: string): Promise<MessageFlushResult> {
-      const active = running.get(userId);
-      if (active === undefined) return start(userId, token);
-
-      // The running flush may have read the queue before this caller's message, so one more follows.
-      const queued = following.get(userId);
-      if (queued !== undefined) return queued;
-      const next = active
-        .catch(() => undefined)
-        .then(() => {
-          following.delete(userId);
-          return start(userId, token);
-        });
-      following.set(userId, next);
-      return next;
-    },
-  };
+  return { flush: createFlushCoordinator(flush) };
 }

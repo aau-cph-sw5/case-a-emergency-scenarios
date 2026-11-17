@@ -1,4 +1,12 @@
-import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from "@jest/globals";
+import * as Crypto from "expo-crypto";
 import {
   deliverStationMessage,
   messageErrorMessage,
@@ -7,6 +15,7 @@ import {
   MAX_MESSAGE_LENGTH,
   isSendableText,
   queueStationMessage,
+  writeStationMessage,
 } from "../../mobile/src/offline/queue-station-message";
 import { stationMessageQueueStore } from "../../mobile/src/offline/station-message-store";
 
@@ -56,6 +65,60 @@ describe("queueStationMessage", () => {
   it("counts characters, not UTF-16 units, like the server", () => {
     expect(isSendableText("😀".repeat(MAX_MESSAGE_LENGTH))).toBe(true);
     expect(isSendableText("😀".repeat(MAX_MESSAGE_LENGTH + 1))).toBe(false);
+  });
+});
+
+describe("writeStationMessage", () => {
+  // Each message gets its own id, so the tests do not see each other's messages.
+  let next = 0;
+  beforeEach(() => {
+    jest
+      .spyOn(Crypto, "randomUUID")
+      .mockImplementation(
+        () => `33333333-3333-4333-8333-${String(++next).padStart(12, "0")}`,
+      );
+  });
+
+  it("sends the message at once while the phone is online", async () => {
+    jest.spyOn(global, "fetch").mockImplementation(
+      async (_url, init) =>
+        ({
+          status: 201,
+          json: async () => ({
+            ...JSON.parse((init as RequestInit).body as string),
+            id: 1,
+            station: input.station,
+            sender: "STATION",
+            receivedAt: "2026-11-17T10:00:00.000Z",
+          }),
+        }) as Response,
+    );
+
+    const { message, sent } = await writeStationMessage(
+      { ...input, userId: "online" },
+      "token",
+    );
+
+    expect(sent?.delivered.map((item) => item.clientMessageId)).toEqual([
+      message.clientMessageId,
+    ]);
+    expect(await stationMessageQueueStore.getPending("online")).toEqual([]);
+  });
+
+  it("keeps the message queued when there is no connection", async () => {
+    jest
+      .spyOn(global, "fetch")
+      .mockRejectedValue(new TypeError("Network request failed"));
+
+    const { message, sent } = await writeStationMessage(
+      { ...input, userId: "offline" },
+      "token",
+    );
+
+    expect(sent?.blocked).toBe(true);
+    expect(await stationMessageQueueStore.getPending("offline")).toEqual([
+      message,
+    ]);
   });
 });
 

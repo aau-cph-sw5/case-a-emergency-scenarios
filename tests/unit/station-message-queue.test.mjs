@@ -167,3 +167,44 @@ test("skips broken entries and keeps the valid ones", async () => {
   );
   assert.deepEqual(ids, ["good"]);
 });
+
+test("forgets refused messages of an activation that has ended", async () => {
+  const queue = createStationMessageQueueStore(memoryStorage());
+  await queue.enqueue({ ...aMessage("old"), activationId: 1 });
+  await queue.enqueue({ ...aMessage("current"), activationId: 2 });
+  await queue.reject("steward-1", "old", { httpStatus: 409, code: "E1003" });
+  await queue.reject("steward-1", "current", {
+    httpStatus: 409,
+    code: "E1007",
+  });
+
+  await queue.discardEndedRejections("steward-1", 2);
+
+  const ids = (await queue.getRejected("steward-1")).map(
+    (message) => message.clientMessageId,
+  );
+  assert.deepEqual(ids, ["current"]);
+});
+
+test("forgets every refused message when no scenario is live", async () => {
+  const queue = createStationMessageQueueStore(memoryStorage());
+  await queue.enqueue(aMessage());
+  await queue.reject("steward-1", "message-1", { httpStatus: 409 });
+  await queue.discardEndedRejections("steward-1", null);
+  assert.deepEqual(await queue.getRejected("steward-1"), []);
+});
+
+test("never forgets a message that is still waiting to be sent", async () => {
+  const queue = createStationMessageQueueStore(memoryStorage());
+  await queue.enqueue({ ...aMessage(), activationId: 1 });
+  await queue.discardEndedRejections("steward-1", 2);
+  assert.equal((await queue.getPending("steward-1")).length, 1);
+});
+
+test("leaves another steward's refused messages alone", async () => {
+  const queue = createStationMessageQueueStore(memoryStorage());
+  await queue.enqueue(aMessage("theirs", "steward-2"));
+  await queue.reject("steward-2", "theirs", { httpStatus: 409 });
+  await queue.discardEndedRejections("steward-1", null);
+  assert.equal((await queue.getRejected("steward-2")).length, 1);
+});

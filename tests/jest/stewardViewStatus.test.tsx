@@ -52,6 +52,7 @@ jest.mock("../../mobile/src/offline/queue-position-report", () => ({
 }));
 // Station messages are sent with the reports; none are queued in these tests.
 jest.mock("../../mobile/src/offline/station-message-store", () => ({
+  stationMessageQueueStore: { discardEndedRejections: jest.fn(async () => {}) },
   stationMessageDelivery: {
     flush: jest.fn(async () => ({
       delivered: [],

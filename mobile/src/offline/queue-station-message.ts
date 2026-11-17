@@ -1,7 +1,11 @@
 import * as Crypto from "expo-crypto";
 
 import type { QueuedStationMessage } from "../../../shared/offline/station-message-queue";
-import { stationMessageQueueStore } from "./station-message-store";
+import type { MessageFlushResult } from "./station-message-delivery";
+import {
+  stationMessageDelivery,
+  stationMessageQueueStore,
+} from "./station-message-store";
 
 // The contract's limit, counted in Unicode code points.
 export const MAX_MESSAGE_LENGTH = 1000;
@@ -36,4 +40,18 @@ export async function queueStationMessage(
   };
   await stationMessageQueueStore.enqueue(message);
   return message;
+}
+
+// What the chat calls when the steward sends a message: it is saved on the
+// phone and sent at once. Without a connection it stays queued and goes out
+// when the phone is back online. sent is null when sending failed outright.
+export async function writeStationMessage(
+  input: WriteStationMessageInput,
+  token: string,
+): Promise<{ message: QueuedStationMessage; sent: MessageFlushResult | null }> {
+  const message = await queueStationMessage(input);
+  const sent = await stationMessageDelivery
+    .flush(input.userId, token)
+    .catch(() => null);
+  return { message, sent };
 }
