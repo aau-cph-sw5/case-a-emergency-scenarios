@@ -249,6 +249,13 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     );
     expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
     expect(screen.queryByLabelText("Vælg Station B")).toBeNull();
+    // The chat opens only once checked in, and the steward is told so (#335).
+    expect(screen.queryByLabelText("Åbn chat med kontrolrummet")).toBeNull();
+    expect(
+      screen.getByText(
+        "Tjek ind på stationen for at skrive til kontrolrummet.",
+      ),
+    ).toBeTruthy();
 
     await act(async () => {
       fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
@@ -258,6 +265,12 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
 
     expect(report).toHaveBeenLastCalledWith("token", "Station B", 1, "ARRIVED");
     expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
+    expect(screen.getByLabelText("Åbn chat med kontrolrummet")).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "Tjek ind på stationen for at skrive til kontrolrummet.",
+      ),
+    ).toBeNull();
 
     await checkOut();
 
@@ -269,6 +282,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     );
     expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
     expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
+    expect(screen.queryByLabelText("Åbn chat med kontrolrummet")).toBeNull();
   });
 
   // Without a station the card shows no bar; a chosen station shows its
