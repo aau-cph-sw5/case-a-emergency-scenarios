@@ -654,7 +654,6 @@ body {
   position: relative;
 }
 .operator-messages button,
-.operator-messages select,
 .operator-messages textarea {
   font: inherit;
 }
@@ -766,42 +765,54 @@ body {
 }
 .operator-message-body {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  max-height: min(430px, 66dvh);
-  overflow: auto;
+  grid-template-columns: minmax(90px, 2fr) minmax(0, 3fr);
+  height: min(400px, 63dvh);
 }
 .operator-thread-list,
 .operator-thread {
+  display: flex;
   min-width: 0;
-  padding: 12px;
+  min-height: 0;
+  flex-direction: column;
   overflow-wrap: anywhere;
 }
 .operator-thread-list {
-  border-right: 1px solid var(--message-divider);
+  border-inline-end: 1px solid var(--message-ink);
 }
-.operator-thread-list select,
-.operator-thread textarea {
-  width: 100%;
-  min-height: 40px;
-  padding: 8px;
+.operator-saved-toolbar,
+.operator-thread h3 {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: 53px;
+  border-bottom: 1px solid var(--message-ink);
+  background: var(--message-selected);
+}
+.operator-saved-toolbar {
+  padding: 8px 12px;
+}
+.operator-saved-toolbar button {
+  min-height: 36px;
+  padding: 4px 9px;
   border: 1px solid var(--message-ink);
   border-radius: 7px;
   background: var(--message-background);
-  color: inherit;
+  color: var(--message-ink);
+  font-weight: 700;
 }
-.operator-thread-list select {
-  margin-top: 4px;
+.operator-saved-toolbar button[aria-pressed="true"] {
+  background: var(--message-ink);
+  color: var(--message-background);
 }
 .operator-thread-list ul,
 .operator-thread ol {
-  max-height: 235px;
+  min-height: 0;
   overflow-y: auto;
   list-style: none;
-  margin: 8px 0;
+  margin: 0;
   padding: 0;
 }
-.operator-thread-list li,
-.operator-thread li {
+.operator-thread-list li {
   border-bottom: 1px solid var(--message-divider);
 }
 .operator-thread-list li button {
@@ -811,10 +822,10 @@ body {
   flex-wrap: wrap;
   gap: 4px 8px;
   width: 100%;
-  min-height: 42px;
-  padding: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
   border: 0;
-  background: none;
+  background: transparent;
   color: inherit;
   text-align: left;
 }
@@ -824,100 +835,133 @@ body {
 .operator-thread-list li button:focus-visible {
   outline-offset: -3px;
 }
-.operator-thread-list .station-thread-unanswered {
-  padding: 2px 6px;
+.station-thread-unread {
+  padding: 2px 7px;
   border-radius: 7px;
   background: var(--message-attention);
+  color: var(--message-ink);
+  white-space: nowrap;
+}
+.operator-thread h3 {
+  padding: 8px 14px;
+}
+.operator-thread > p,
+.operator-thread-list > p {
+  margin: 10px 12px;
+}
+.operator-thread ol {
+  flex: 1;
+  padding: 10px 12px;
 }
 .operator-thread li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-}
-.operator-thread .operator-message-read {
-  color: var(--operator-muted);
-}
-.operator-message-actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
 }
-.operator-message-actions .operator-message-reply {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--message-reply);
-  font:
-    700 22px/1 Arial,
-    sans-serif;
+.operator-thread li + li {
+  margin-top: 10px;
 }
-.operator-thread .operator-message-checkbox {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  margin: 0 12px 0 0;
-  border: 2px solid var(--message-ink);
-  border-radius: 5px;
-  background-color: var(--message-background);
-  cursor: pointer;
+.operator-chat-outgoing {
+  justify-content: flex-end;
+  text-align: right;
 }
-.operator-message-checkbox:checked {
-  background-image:
-    linear-gradient(
-      45deg,
-      transparent 44%,
-      var(--message-checkmark) 44% 56%,
-      transparent 56%
-    ),
-    linear-gradient(
-      -45deg,
-      transparent 44%,
-      var(--message-checkmark) 44% 56%,
-      transparent 56%
-    );
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 12px 12px;
+.operator-chat-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 94%;
+  min-width: 0;
+  gap: 3px;
 }
-.operator-message-checkbox:hover:not(:disabled),
-.operator-message-actions .operator-message-reply:is(:hover, :focus-visible) {
-  background-color: var(--message-selected);
-  box-shadow: 0 0 0 3px var(--message-divider);
+.operator-chat-outgoing .operator-chat-message {
+  align-items: flex-end;
 }
-.operator-message-checkbox:disabled {
-  cursor: default;
-}
-.operator-thread li time {
-  margin-left: 8px;
+.operator-chat-message strong,
+.operator-chat-message time {
+  padding-inline: 4px;
   font-size: 12px;
 }
-.operator-thread li p {
-  margin: 6px 0 0;
+.operator-chat-message time {
+  font-variant-numeric: tabular-nums;
+}
+.operator-chat-bubble {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.operator-chat-bubble p {
+  min-width: 0;
+  margin: 0;
+  padding: 8px 11px;
+  border-radius: 12px;
+  background: var(--message-station);
+  color: var(--message-background);
+  line-height: 1.45;
   white-space: pre-wrap;
+  text-align: left;
+}
+.operator-chat-outgoing .operator-chat-bubble p {
+  background: var(--message-ink);
+}
+.operator-message-pin {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+}
+.operator-message-pin:hover {
+  background: var(--message-selected);
+}
+.operator-message-pin[aria-pressed="true"] {
+  background: var(--message-action);
+  border-color: var(--message-ink);
+}
+.operator-thread form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px 8px;
+  margin-top: auto;
+  padding: 8px 12px;
+  border-top: 1px solid var(--message-ink);
+  background: var(--message-selected);
 }
 .operator-thread textarea {
+  width: 100%;
+  min-height: 44px;
+  max-height: 6rem;
+  padding: 10px 8px;
+  border: 1px solid var(--message-ink);
+  border-radius: 7px;
+  background: var(--message-background);
+  color: var(--message-ink);
   resize: vertical;
+}
+.operator-thread form button {
+  background: var(--message-action);
+  color: var(--message-ink);
+}
+.operator-thread form p {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 .operator-coverage-panel .operator-message-panel [role="alert"] {
   color: var(--message-error);
 }
 @media (max-width: 520px) {
   .operator-message-body {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(86px, 1fr) minmax(0, 2fr);
   }
-  .operator-thread-list {
-    border-right: 0;
-    border-bottom: 1px solid var(--message-divider);
+  .operator-thread-list li button,
+  .operator-saved-toolbar {
+    padding-inline: 7px;
   }
-  .operator-thread-list ul {
-    max-height: 105px;
+  .operator-thread ol,
+  .operator-thread form {
+    padding-inline: 7px;
   }
 }
 .scenario-preview h2 {

@@ -51,7 +51,7 @@ export const colors = {
   blockedTrack: palette.metroDeepRed, // darker than M3's red, and drawn dashed to tell them apart
 };
 
-export const replyArrow = "↩\uFE0E";
+export const messageSymbols = { pin: "📌" } as const;
 
 // How a steward's status looks, in the control room and the steward app. The
 // word carries the meaning; the symbol and colour only help. Yellow text
