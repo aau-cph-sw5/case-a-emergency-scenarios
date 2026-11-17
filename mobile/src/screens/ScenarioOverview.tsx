@@ -17,7 +17,8 @@ import {
   panelRadius,
 } from "../../../shared/Theme";
 import MapRender from "../../../shared/MapRenderer";
-import { getLines } from "../../../mockData/data";
+import type { MapNetwork } from "../../../shared/network/network";
+import type { NetworkStatus } from "../network/useNetwork";
 import {
   affectedStations,
   affectedStretchAsMapLine,
@@ -44,7 +45,13 @@ export function ScenarioOverview({
   onAssign,
   assignedStation,
   checkedOutStation,
+  network,
+  networkIsCached = false,
+  networkStatus = "loading",
 }: {
+  network?: MapNetwork | null;
+  networkIsCached?: boolean;
+  networkStatus?: NetworkStatus;
   snapshot: ScenarioSnapshot;
   // Offers + on each station, to report on the way there (MET-A-015, #263).
   // Left out when the steward cannot choose a station right now.
@@ -70,11 +77,23 @@ export function ScenarioOverview({
   const { fontScale } = useWindowDimensions();
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
   const rows = scenario.versions[0]?.stationRequirements ?? [];
-  const stretch = affectedStretchAsMapLine(scenario);
+  const position = (station: string) => network?.positions[station];
+  const stretch = affectedStretchAsMapLine(scenario, position);
   const networkLines = networkWithoutStretch(
-    getLines(),
+    network?.lines ?? [],
     stretch.connections,
-  ).map((line) => ({ ...line, tracks: [1, 2] }));
+  );
+  // The scenario carries its own affected tracks, even if an offline map is older.
+  const availableSegments = network
+    ? [...network.segments, ...(scenario.covers ?? [])]
+    : undefined;
+  const missingStretch =
+    network != null &&
+    (scenario.covers ?? []).some(
+      (segment) =>
+        !network.positions[segment.stationA] ||
+        !network.positions[segment.stationB],
+    );
   const mapLines = [...networkLines, stretch];
   // MET-A-010 criterion 2: the steward's own assignment stands out without
   // interaction. userId comes from the offline copy, so this works offline.
@@ -110,32 +129,62 @@ export function ScenarioOverview({
         <Text style={styles.where}>ingen berørte stationer</Text>
       )}
 
-      <View
-        style={styles.mapBox}
-        onLayout={(event) => setMapSize(event.nativeEvent.layout)}
-      >
-        <MapRender
-          viewBox={zoomedViewBox(
-            stations,
-            mapSize.width,
-            mapSize.height,
-            fontScale,
-          )}
-          lines={mapLines}
-          colors={mapColors}
-          showLineButtons={false}
-          highlightStation={ownStation}
-          highlightColor={OWN_COLOR}
-          // Every station the scenario needs staff at, coloured by how far it
-          // is covered right now, like the dashboard (MET-A-011, #310).
-          markedStations={rows.map((row) => row.station)}
-          requiredStaffing={Object.fromEntries(
-            rows.map((row) => [row.station, row.minimumStaffing]),
-          )}
-          stationCoverage={stationCoverage(rows, state)}
-        />
-      </View>
+      {network != null && (
+        <View
+          style={styles.mapBox}
+          onLayout={(event) => setMapSize(event.nativeEvent.layout)}
+        >
+          <MapRender
+            viewBox={zoomedViewBox(
+              stations,
+              mapSize.width,
+              mapSize.height,
+              fontScale,
+              position,
+            )}
+            lines={mapLines}
+            positions={network?.positions}
+            availableSegments={availableSegments}
+            ringStations={network?.ringStations}
+            colors={mapColors}
+            showLineButtons={false}
+            highlightStation={ownStation}
+            highlightColor={OWN_COLOR}
+            // Every station the scenario needs staff at, coloured by how far it
+            // is covered right now, like the dashboard (MET-A-011, #310).
+            markedStations={rows.map((row) => row.station)}
+            requiredStaffing={Object.fromEntries(
+              rows.map((row) => [row.station, row.minimumStaffing]),
+            )}
+            stationCoverage={stationCoverage(rows, state)}
+          />
+        </View>
+      )}
 
+      {network == null && (
+        <Text style={styles.body}>
+          {networkStatus === "loading" && "Indlæser metronetværk."}
+          {networkStatus === "offline" &&
+            "Kortet er ikke tilgængeligt offline. Opret forbindelse for at hente metronetværket."}
+          {networkStatus === "incomplete" &&
+            "Kortet kan ikke vises, fordi metronetværket er ufuldstændigt."}
+          {networkStatus === "error" &&
+            "Kortet kan ikke vises, fordi metronetværket ikke kunne hentes."}
+        </Text>
+      )}
+      {networkIsCached && (
+        <Text style={styles.body}>Viser gemt metronetværk.</Text>
+      )}
+      {network != null && networkStatus === "incomplete" && (
+        <Text style={styles.body}>
+          Det hentede metronetværk er ufuldstændigt.
+        </Text>
+      )}
+      {missingStretch && (
+        <Text accessibilityRole="alert" style={styles.body}>
+          Den berørte strækning kan ikke vises fuldt ud på dette kort.
+        </Text>
+      )}
       <View style={styles.legend}>
         <View style={styles.legendLine} />
         <Text style={styles.body}>Berørt strækning</Text>

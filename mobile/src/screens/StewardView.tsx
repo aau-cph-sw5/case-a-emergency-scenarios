@@ -33,6 +33,7 @@ import { ScenarioNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
 import { ScenarioOverview } from "./ScenarioOverview";
+import { useNetwork } from "../network/useNetwork";
 
 // Shown on the saved copy, where only going on the way can be reported.
 const STATUS_BLOCKED_OFFLINE =
@@ -74,6 +75,11 @@ export function StewardView({
 }) {
   // Data from the socketstate
   const { isConnected, messages } = useSocketState(socket);
+  const {
+    network,
+    usingCached,
+    status: networkStatus,
+  } = useNetwork(token, online);
   const { view, refresh, dismissNotice } = useActiveScenario({
     apiBaseUrl,
     token,
@@ -438,6 +444,9 @@ export function StewardView({
             />
             <ScenarioOverview
               snapshot={shown}
+              network={network}
+              networkIsCached={usingCached}
+              networkStatus={networkStatus}
               assignedStation={ownStation}
               checkedOutStation={
                 own?.status === "CHECKED_OUT" ? own.station : undefined
