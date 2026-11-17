@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import {
   colors,
@@ -16,28 +16,43 @@ function clock(iso: string): string {
 }
 
 // One message in the station's chat (MET-A-029, #335). The station's messages
-// are black on the right, the control room's Metro Deep Red on the left. Each
-// has a word for who wrote it, so colour is not the only sign.
+// are on the right: the steward's own black, a colleague's at the same
+// station light grey. The control room's are Metro Deep Red on the left. Each
+// has a word for who wrote it, so colour is not the only sign. A message that
+// was not sent is outlined and carries a warning sign, so it is not mistaken
+// for the control room.
 export function MessageBubble({
   fromStation,
+  colleague = false,
   showSender,
   text: body,
   writtenAt,
+  failed = null,
+  onRetry,
 }: {
   fromStation: boolean;
+  // Written by another steward checked in at the same station.
+  colleague?: boolean;
   // Only the first of several messages in a row from the same sender names
   // it; the screen reader name of each message always does.
   showSender: boolean;
   text: string;
   writtenAt: string;
+  // Why the message was not sent; null when it was sent or is on its way.
+  failed?: string | null;
+  onRetry?: () => void;
 }) {
   const time = clock(writtenAt);
-  const sender = fromStation ? "Station" : "Kontrolrum";
+  const sender = fromStation
+    ? colleague
+      ? "Station, en kollega"
+      : "Station, dig"
+    : "Kontrolrum";
   return (
     <View
       style={[styles.row, fromStation ? styles.right : styles.left]}
       accessible
-      accessibilityLabel={`${sender}, ${time}: ${body}`}
+      accessibilityLabel={`${sender}, ${time}: ${body}${failed ? `. ${failed}` : ""}`}
     >
       {showSender && (
         <Text style={[styles.who, !fromStation && styles.controlWho]}>
@@ -48,17 +63,37 @@ export function MessageBubble({
         style={[
           styles.bubble,
           fromStation ? styles.stationBubble : styles.controlBubble,
+          colleague && styles.colleagueBubble,
+          failed !== null && styles.failedBubble,
         ]}
       >
         <Text
           style={[
             styles.text,
-            fromStation ? styles.stationText : styles.controlText,
+            failed === null &&
+              (colleague
+                ? styles.colleagueText
+                : fromStation
+                  ? styles.stationText
+                  : styles.controlText),
           ]}
         >
           {body}
         </Text>
       </View>
+      {failed !== null && (
+        <>
+          <View style={styles.failedRow}>
+            <WarningIcon />
+            <Text style={styles.failedText}>{failed}</Text>
+          </View>
+          {onRetry && (
+            <Pressable accessibilityRole="button" onPress={onRetry}>
+              <Text style={styles.retry}>Send igen</Text>
+            </Pressable>
+          )}
+        </>
+      )}
       <Text style={styles.time}>{time}</Text>
     </View>
   );
@@ -107,9 +142,17 @@ const styles = StyleSheet.create({
     backgroundColor: steward.black,
     borderTopRightRadius: spacing.small,
   },
+  colleagueBubble: {
+    backgroundColor: steward.chat.colleague,
+  },
   controlBubble: {
     backgroundColor: steward.chat.controlRoom,
     borderTopLeftRadius: spacing.small,
+  },
+  failedBubble: {
+    backgroundColor: colors.background,
+    borderColor: steward.red,
+    borderWidth: 2,
   },
   text: {
     color: colors.text,
@@ -119,8 +162,31 @@ const styles = StyleSheet.create({
   stationText: {
     color: colors.textInverse,
   },
+  colleagueText: {
+    color: steward.chat.onColleague,
+  },
   controlText: {
     color: steward.chat.onControlRoom,
+  },
+  failedRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "flex-end",
+  },
+  failedText: {
+    color: steward.nobody,
+    flexShrink: 1,
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "right",
+  },
+  retry: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+    paddingVertical: 4,
+    textDecorationLine: "underline",
   },
   time: {
     color: steward.muted,

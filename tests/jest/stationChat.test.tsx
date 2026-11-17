@@ -6,7 +6,13 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
 import { ERROR_CODES } from "../../shared/error-codes";
 import type { StationMessage } from "../../shared/types/v1/station-message";
 import { StationChat } from "../../mobile/src/screens/StationChat";
@@ -22,6 +28,12 @@ jest.mock("../../mobile/src/socket", () => ({
     off: (name: string, listener: (event: unknown) => void) =>
       mockListeners.get(name)?.delete(listener),
   },
+}));
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);
+jest.mock("expo-crypto", () => ({
+  randomUUID: () => "11111111-1111-4111-8111-111111111111",
 }));
 
 function emit(name: string, event: unknown) {
@@ -115,7 +127,9 @@ describe("StationChat (MET-A-029, #335)", () => {
 
     expect(await screen.findByText("Modtaget.")).toBeTruthy();
     expect(
-      screen.getByLabelText("Station, 08:20: Elevatoren er ude af drift."),
+      screen.getByLabelText(
+        "Station, en kollega, 08:20: Elevatoren er ude af drift.",
+      ),
     ).toBeTruthy();
     expect(screen.getByLabelText("Kontrolrum, 08:25: Modtaget.")).toBeTruthy();
     // By the server's order (id), not by the order of the answer.
@@ -145,6 +159,141 @@ describe("StationChat (MET-A-029, #335)", () => {
     expect(
       screen.getByLabelText("Kontrolrum, 08:20: Vi sender en mere."),
     ).toBeTruthy();
+  });
+
+  it("shows a colleague's message from the same station apart from the steward's own", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        answer(200, thread([message(1, "STATION", "Fra en kollega.")])),
+      )
+      .mockResolvedValueOnce(
+        answer(201, {
+          ...message(2, "STATION", "Fra mig."),
+          clientMessageId: "11111111-1111-4111-8111-111111111111",
+        }),
+      );
+    renderChat("Station B");
+    await openChat();
+    await screen.findByText("Fra en kollega.");
+
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "Fra mig.",
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+
+    expect(
+      await screen.findByLabelText("Station, dig, 08:20: Fra mig."),
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText("Station, en kollega, 08:20: Fra en kollega."),
+    ).toBeTruthy();
+  });
+
+  it("sends free text and shows the stored message", async () => {
+    fetchMock
+      .mockResolvedValueOnce(answer(200, thread([])))
+      .mockResolvedValueOnce(
+        answer(201, {
+          ...message(5, "STATION", "Vi er på plads."),
+          clientMessageId: "11111111-1111-4111-8111-111111111111",
+        }),
+      );
+    renderChat("Station B");
+    await openChat();
+    expect(await screen.findByText(/Ingen beskeder endnu/)).toBeTruthy();
+
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "  Vi er på plads.  ",
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+
+    const [, options] = fetchMock.mock.calls[1];
+    expect(JSON.parse(options?.body as string)).toMatchObject({
+      clientMessageId: "11111111-1111-4111-8111-111111111111",
+      activationId: 1,
+      text: "Vi er på plads.",
+    });
+    expect(screen.getAllByText("Vi er på plads.")).toHaveLength(1);
+    expect(screen.queryByText(/Ikke sendt/)).toBeNull();
+  });
+
+  it("does not send empty text", async () => {
+    fetchMock.mockResolvedValue(answer(200, thread([])));
+    renderChat("Station B");
+    await openChat();
+
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "   ",
+    );
+    expect(
+      screen.getByLabelText("Send besked").props.accessibilityState,
+    ).toMatchObject({ disabled: true });
+  });
+
+  it("shows a refused message as not sent with the server's message in Danish", async () => {
+    fetchMock.mockResolvedValueOnce(answer(200, thread([]))).mockResolvedValue(
+      answer(409, {
+        error: {
+          code: ERROR_CODES.SCENARIO_STOOD_DOWN,
+          message: "'1' is already stood down",
+        },
+      }),
+    );
+    renderChat("Station B");
+    await openChat();
+    await screen.findByText(/Ingen beskeder endnu/);
+
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "Udgang B er ryddet.",
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+
+    expect(
+      await screen.findByText("Ikke sendt. Scenariet er afsluttet."),
+    ).toBeTruthy();
+    expect(screen.getByText("Udgang B er ryddet.")).toBeTruthy();
+    // The app's copy of the scenario is out of date, so it is fetched again.
+    expect(onClosedByServer).toHaveBeenCalled();
+  });
+
+  it("sends a message that did not get through again with the same id and time", async () => {
+    fetchMock
+      .mockResolvedValueOnce(answer(200, thread([])))
+      .mockRejectedValueOnce(new TypeError("offline"))
+      .mockResolvedValueOnce(answer(201, message(7, "STATION", "Hej.")));
+    renderChat("Station B");
+    await openChat();
+    await screen.findByText(/Ingen beskeder endnu/);
+
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "Hej.",
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+    expect(
+      await screen.findByText("Ikke sendt. Ingen forbindelse til serveren."),
+    ).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Send igen"));
+    });
+
+    const first = JSON.parse(fetchMock.mock.calls[1][1]?.body as string);
+    const second = JSON.parse(fetchMock.mock.calls[2][1]?.body as string);
+    expect(second).toEqual(first);
+    await waitFor(() => expect(screen.queryByText(/Ikke sendt/)).toBeNull());
   });
 
   it("says why the messages could not be read, and reads again", async () => {
@@ -247,6 +396,7 @@ describe("StationChat (MET-A-029, #335)", () => {
       screen.getByText("Du er ikke længere tjekket ind på stationen."),
     ).toBeTruthy();
     expect(screen.getByText("Station B")).toBeTruthy();
+    expect(screen.queryByLabelText("Besked til kontrolrummet")).toBeNull();
     expect(screen.queryByLabelText("Åbn chat med kontrolrummet")).toBeNull();
   });
 
