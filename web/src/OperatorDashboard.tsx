@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StewardPositions } from "./components/StewardPositions";
 import { ScenarioWorkspace } from "./components/ScenarioWorkspace";
 import { LiveStatusBar } from "./components/LiveStatusBar";
 import { OperatorMessagePanel } from "./components/OperatorMessagePanel";
-import { mockStewardPositions } from "./local-settings";
+import {
+  mockStewardPositions,
+  notificationTestShortcuts,
+} from "./local-settings";
 import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
 import type { LineGroup } from "../../shared/auth/line-groups";
 import { lineGroupFromToken } from "../../shared/auth/login";
@@ -26,6 +29,39 @@ export function OperatorDashboard({
   // The map and requirements preview share the selected scenario.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const ownLineGroup = lineGroupFromToken(token);
+  const [testNotifications, setTestNotifications] = useState<{
+    status?: number;
+    messages?: number;
+  }>();
+  useEffect(() => {
+    if (!notificationTestShortcuts) return;
+
+    function handleTestShortcut(event: KeyboardEvent) {
+      if (!event.ctrlKey || event.shiftKey || event.metaKey) return;
+      const key = event.key.toLowerCase();
+      if (event.altKey && key === "," && !event.repeat) {
+        setTestNotifications(
+          (counts) => counts && { ...counts, messages: undefined },
+        );
+        return;
+      }
+      if (key !== "n" && key !== "m") return;
+
+      event.preventDefault();
+      if (event.repeat) return;
+      setTestNotifications((counts) =>
+        key === "n"
+          ? {
+              status: (counts?.status ?? 0) + 1,
+              messages: (counts?.messages ?? 0) + 1,
+            }
+          : { status: 0, messages: 0 },
+      );
+    }
+
+    window.addEventListener("keydown", handleTestShortcut);
+    return () => window.removeEventListener("keydown", handleTestShortcut);
+  }, []);
   // The map starts on the operator's own line group.
   const [lineGroup, setLineGroup] = useState<"M1/M2" | "M3/M4">(
     ownLineGroup ? LINE_GROUP_LABELS[ownLineGroup] : "M1/M2",
@@ -80,9 +116,23 @@ export function OperatorDashboard({
         lineGroup={lineGroup}
         onSelect={setSelectedId}
         statusBar={<LiveStatusBar />}
-        statusPopup={<StewardPositions mock={mockStewardPositions} />}
+        statusPopup={
+          <StewardPositions
+            mock={mockStewardPositions}
+            testNotificationCount={testNotifications?.status}
+            onOpen={() =>
+              setTestNotifications(
+                (counts) => counts && { ...counts, status: 0 },
+              )
+            }
+          />
+        }
         messagePanel={
-          <OperatorMessagePanel token={token} lineGroup={ownLineGroup} />
+          <OperatorMessagePanel
+            token={token}
+            lineGroup={ownLineGroup}
+            testNotificationCount={testNotifications?.messages}
+          />
         }
       />
     </main>

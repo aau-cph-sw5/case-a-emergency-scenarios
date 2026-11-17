@@ -28,6 +28,7 @@ export const palette = {
   lineOrange: "#e67e22",
   signalOrange: "#FF6A00",
   darkYellow: "#8A6A00", // yellow dark enough to read as text on white
+  darkRed: "#7F1916",
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
 };
@@ -43,11 +44,14 @@ export const colors = {
   statusGreen: palette.metroLineOne,
   statusYellow: palette.metroLineTwo,
   statusRed: palette.metroLineThree,
+  statusRedBorder: palette.darkRed,
   statusYellowText: palette.darkYellow,
   subtleBorder: palette.lightGrey, // card outlines that should not compete with the status colour
   requiredStation: palette.signalOrange, // a station the scenario needs staff at; no line on the map uses it
   blockedTrack: palette.metroDeepRed, // darker than M3's red, and drawn dashed to tell them apart
 };
+
+export const replyArrow = "↩\uFE0E";
 
 // How a steward's status looks, in the control room and the steward app. The
 // word carries the meaning; the symbol and colour only help. Yellow text

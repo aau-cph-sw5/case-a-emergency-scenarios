@@ -149,6 +149,7 @@ export function useStationThreads(
 
   const readOnly = closed || activationId === null;
   return {
+    history,
     threads: readOnly
       ? Object.values(history).filter((detail) => detail.messages?.length)
       : threads,

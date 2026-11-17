@@ -6,7 +6,7 @@ import {
   type CSSProperties,
   type FormEvent,
 } from "react";
-import { colors, palette } from "../../../shared/Theme";
+import { colors, palette, replyArrow } from "../../../shared/Theme";
 import type { LineGroup } from "../../../shared/auth/line-groups";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
@@ -14,7 +14,9 @@ import type { StationMessageRequest } from "../../../shared/types/v1/station-mes
 import { useLiveData } from "../data/liveData";
 import { useStationThreads } from "../data/useStationThreads";
 import { ApiError } from "../get-json";
+import { notificationTestShortcuts } from "../local-settings";
 import { stationMessageError } from "../station-threads";
+import { NotificationBadge } from "./NotificationBadge";
 
 const MAX_MESSAGE_LENGTH = 1000;
 const messageColors = {
@@ -23,19 +25,51 @@ const messageColors = {
   "--message-divider": colors.subtleBorder,
   "--message-selected": colors.page,
   "--message-attention": colors.statusYellow,
-  "--message-error": palette.metroDeepRed,
+  "--message-error": colors.statusRed,
+  "--message-checkmark": colors.statusRed,
+  "--message-reply": palette.metroLineFour,
 } as CSSProperties;
 const writtenTime = new Intl.DateTimeFormat("da-DK", {
   dateStyle: "short",
   timeStyle: "short",
 });
 
+type ConversationMessage = Pick<
+  StationMessage,
+  "id" | "sender" | "text" | "writtenAt"
+>;
+
+function getUnreadIds(
+  messages: ConversationMessage[],
+  marks: ReadonlyMap<number, boolean> | undefined,
+) {
+  const lastReplyId = messages.reduce(
+    (replyId, message) =>
+      message.sender === "CONTROL_ROOM" ? message.id : replyId,
+    0,
+  );
+  return new Set(
+    messages
+      .filter(
+        (message) =>
+          message.sender === "STATION" &&
+          !(
+            marks?.get(message.id) ??
+            (lastReplyId !== 0 && message.id < lastReplyId)
+          ),
+      )
+      .map(({ id }) => id),
+  );
+}
+
 export function OperatorMessagePanel({
   token,
   lineGroup,
+  testNotificationCount,
 }: {
   token: string;
   lineGroup: LineGroup | null;
+  testNotificationCount?: number;
 }) {
   const { activations } = useLiveData();
   const activation = activations.find(
@@ -52,6 +86,7 @@ export function OperatorMessagePanel({
         token={token}
         activation={scenario}
         active={activation !== undefined}
+        testNotificationCount={testNotificationCount}
       />
     </div>
   );
@@ -61,31 +96,113 @@ function ActiveMessages({
   token,
   activation,
   active,
+  testNotificationCount,
 }: {
   token: string;
   activation: ScenarioState | undefined;
   active: boolean;
+  testNotificationCount?: number;
 }) {
   const { isConnected } = useLiveData();
   const [open, setOpen] = useState(false);
   const [station, setStation] = useState("");
+  const [testMessages, setTestMessages] = useState<string[]>([]);
+  const [readMarks, setReadMarks] = useState(
+    () => new Map<string, Map<number, boolean>>(),
+  );
+  const testingMessages = testMessages.length > 0;
+  const hasScenario = activation !== undefined;
+  useEffect(() => {
+    if (!notificationTestShortcuts || !hasScenario) return;
+
+    function addTestMessages(event: KeyboardEvent) {
+      if (
+        !event.ctrlKey ||
+        !event.altKey ||
+        event.shiftKey ||
+        event.metaKey ||
+        event.key !== ","
+      )
+        return;
+      event.preventDefault();
+      if (event.repeat) return;
+      const writtenAt = new Date().toISOString();
+      setTestMessages((messages) => [...messages, writtenAt]);
+    }
+
+    window.addEventListener("keydown", addTestMessages);
+    return () => window.removeEventListener("keydown", addTestMessages);
+  }, [hasScenario]);
   const panelId = useId();
   const launcherRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const { threads, thread, listError, threadError, closed, reload, send } =
-    useStationThreads(
-      token,
-      active ? (activation?.activationId ?? null) : null,
-      station || null,
-    );
+  const {
+    history,
+    threads,
+    thread,
+    listError,
+    threadError,
+    closed,
+    reload,
+    send,
+  } = useStationThreads(
+    token,
+    active && !testingMessages ? (activation?.activationId ?? null) : null,
+    station || null,
+  );
   const readOnly = !active || closed;
   const stations = [
     ...new Set(activation?.deployments.map(({ fulfills }) => fulfills)),
   ];
-  const unanswered = readOnly
-    ? 0
-    : (threads?.filter(({ state }) => state === "UNANSWERED").length ?? 0);
+  const testConversation = testMessages.map((writtenAt, index) => ({
+    id: -(index + 1),
+    sender: "STATION" as const,
+    text: "Hello World!",
+    writtenAt,
+  }));
+
+  function messagesFor(name: string) {
+    if (testingMessages) return testConversation;
+    return (
+      history[name]?.messages ??
+      (thread?.station === name ? thread.messages : undefined)
+    );
+  }
+
+  const names = testingMessages
+    ? stations
+    : threads?.map(({ station }) => station);
+  const shownThreads = names
+    ?.map((name) => {
+      const messages = messagesFor(name) ?? [];
+      const unreadIds = getUnreadIds(messages, readMarks.get(name));
+      const oldestUnread = messages.reduce(
+        (oldest, message) =>
+          unreadIds.has(message.id)
+            ? Math.min(oldest, Date.parse(message.writtenAt))
+            : oldest,
+        Infinity,
+      );
+      return { name, unreadIds, oldestUnread };
+    })
+    .sort((a, b) => a.oldestUnread - b.oldestUnread);
+  const shownMessages = messagesFor(station);
+  const unreadIds = getUnreadIds(shownMessages ?? [], readMarks.get(station));
+  const shownListError = testingMessages ? null : listError;
+  const shownThreadError = testingMessages ? null : threadError;
+  const unreadCount =
+    testNotificationCount ??
+    shownThreads?.reduce((total, entry) => total + entry.unreadIds.size, 0) ??
+    0;
   const visible = open;
+
+  function markRead(id: number, read: boolean) {
+    setReadMarks((current) => {
+      const marks = new Map(current.get(station));
+      marks.set(id, read);
+      return new Map(current).set(station, marks);
+    });
+  }
 
   useEffect(() => {
     if (visible) closeButtonRef.current?.focus();
@@ -104,15 +221,13 @@ function ActiveMessages({
         className="operator-message-button"
         aria-expanded={visible}
         aria-controls={panelId}
+        aria-label={
+          unreadCount ? `Beskeder, ${unreadCount} ulæste beskeder` : "Beskeder"
+        }
         onClick={() => (visible ? close() : setOpen(true))}
       >
         Beskeder
-        {unanswered > 0 && (
-          <span className="station-thread-unanswered">
-            {" "}
-            · {unanswered} ubesvaret
-          </span>
-        )}
+        <NotificationBadge count={unreadCount} />
       </button>
       {
         <section
@@ -130,11 +245,13 @@ function ActiveMessages({
               Luk
             </button>
           </header>
-          {(readOnly || !isConnected) && (
+          {(testingMessages || readOnly || !isConnected) && (
             <p role="status">
-              {readOnly
-                ? "Intet aktivt scenarie. Du kan læse tidligere hentede beskeder her."
-                : "Forbindelsen er afbrudt. Beskederne kan være forældede."}
+              {testingMessages
+                ? "Testbeskeder"
+                : readOnly
+                  ? "Intet aktivt scenarie. Du kan læse tidligere hentede beskeder her."
+                  : "Forbindelsen er afbrudt. Beskederne kan være forældede."}
             </p>
           )}
           <div className="operator-message-body">
@@ -154,20 +271,20 @@ function ActiveMessages({
                   </select>
                 </>
               )}
-              {listError ? (
+              {shownListError ? (
                 <p role="alert">
-                  Kunne ikke hente tråde. {listError}{" "}
+                  Kunne ikke hente tråde. {shownListError}{" "}
                   <button type="button" onClick={reload}>
                     Prøv igen
                   </button>
                 </p>
-              ) : threads === null ? (
+              ) : shownThreads === undefined ? (
                 <p>Henter tråde…</p>
-              ) : threads.length === 0 ? (
+              ) : shownThreads.length === 0 ? (
                 <p>Ingen samtaler endnu.</p>
               ) : null}
               <ul aria-label="Stationstråde">
-                {threads?.map(({ station: name, state }) => (
+                {shownThreads?.map(({ name, unreadIds }) => (
                   <li key={name}>
                     <button
                       type="button"
@@ -177,12 +294,14 @@ function ActiveMessages({
                       <strong>{name}</strong>
                       <span
                         className={
-                          state === "UNANSWERED"
+                          unreadIds.size > 0
                             ? "station-thread-unanswered"
                             : undefined
                         }
                       >
-                        {state === "UNANSWERED" ? "Ubesvaret" : "Besvaret"}
+                        {unreadIds.size > 0
+                          ? `${unreadIds.size} ulæst`
+                          : "Læst"}
                       </span>
                     </button>
                   </li>
@@ -191,23 +310,24 @@ function ActiveMessages({
             </div>
             <div className="operator-thread">
               {station && <h3>{station}</h3>}
-              {threadError && (
+              {shownThreadError && (
                 <p role="alert">
-                  Kunne ikke hente beskeder. {threadError}{" "}
+                  Kunne ikke hente beskeder. {shownThreadError}{" "}
                   <button type="button" onClick={reload}>
                     Prøv igen
                   </button>
                 </p>
               )}
-              {thread && activation ? (
+              {station && shownMessages && activation ? (
                 <StationConversation
                   key={station}
                   station={station}
                   activationId={activation.activationId}
-                  messages={thread.messages ?? []}
+                  messages={shownMessages}
+                  unreadIds={unreadIds}
+                  onMarkRead={markRead}
                   canSend={isConnected}
-                  readOnly={readOnly}
-                  visible={visible}
+                  readOnly={readOnly || testingMessages}
                   send={send}
                 />
               ) : (
@@ -218,7 +338,7 @@ function ActiveMessages({
                       : "Vælg en station for at skrive eller læse beskeder."
                     : readOnly
                       ? "Beskederne er ikke hentet."
-                      : !threadError && "Henter beskeder…"}
+                      : !shownThreadError && "Henter beskeder…"}
                 </p>
               )}
             </div>
@@ -233,17 +353,19 @@ function StationConversation({
   station,
   activationId,
   messages,
+  unreadIds,
+  onMarkRead,
   canSend,
   readOnly,
-  visible,
   send,
 }: {
   station: string;
   activationId: number;
-  messages: StationMessage[];
+  messages: ConversationMessage[];
+  unreadIds: ReadonlySet<number>;
+  onMarkRead: (id: number, read: boolean) => void;
   canSend: boolean;
   readOnly: boolean;
-  visible: boolean;
   send: (
     station: string,
     request: StationMessageRequest,
@@ -253,17 +375,15 @@ function StationConversation({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastRequestRef = useRef<StationMessageRequest | null>(null);
-  const historyRef = useRef<HTMLOListElement>(null);
-  const lastMessageId = messages.at(-1)?.id;
   const tooLong = [...draft].length > MAX_MESSAGE_LENGTH;
   const ready =
     !readOnly && canSend && !sending && !tooLong && draft.trim() !== "";
 
-  useEffect(() => {
-    if (visible && historyRef.current) {
-      historyRef.current.scrollTop = historyRef.current.scrollHeight;
-    }
-  }, [visible, lastMessageId]);
+  const ordered = [...messages].sort(
+    (a, b) =>
+      Number(unreadIds.has(b.id)) - Number(unreadIds.has(a.id)) ||
+      Date.parse(a.writtenAt) - Date.parse(b.writtenAt),
+  );
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -296,20 +416,44 @@ function StationConversation({
       {messages.length === 0 ? (
         <p>Ingen beskeder endnu.</p>
       ) : (
-        <ol
-          ref={historyRef}
-          aria-label={`Beskeder med ${station}`}
-          aria-live="polite"
-        >
-          {messages.map((message) => (
-            <li key={message.id}>
-              <strong>
-                {message.sender === "STATION" ? station : "Kontrolrum"}
-              </strong>
-              <time dateTime={message.writtenAt}>
-                {writtenTime.format(new Date(message.writtenAt))}
-              </time>
-              <p>{message.text}</p>
+        <ol aria-label={`Beskeder med ${station}`} aria-live="polite">
+          {ordered.map((message) => (
+            <li
+              key={message.id}
+              className={
+                unreadIds.has(message.id) ? undefined : "operator-message-read"
+              }
+            >
+              <div>
+                <strong>
+                  {message.sender === "STATION" ? station : "Kontrolrum"}
+                </strong>
+                <time dateTime={message.writtenAt}>
+                  {writtenTime.format(new Date(message.writtenAt))}
+                </time>
+                <p>{message.text}</p>
+              </div>
+              <div className="operator-message-actions">
+                {message.sender === "STATION" && (
+                  <button
+                    type="button"
+                    className="operator-message-reply"
+                    aria-label="Svar på besked"
+                  >
+                    <span aria-hidden="true">{replyArrow}</span>
+                  </button>
+                )}
+                <input
+                  type="checkbox"
+                  className="operator-message-checkbox"
+                  aria-label={`Marker besked fra ${message.sender === "STATION" ? station : "kontrolrummet"} kl. ${writtenTime.format(new Date(message.writtenAt))} som læst`}
+                  checked={!unreadIds.has(message.id)}
+                  disabled={message.sender === "CONTROL_ROOM"}
+                  onChange={(event) =>
+                    onMarkRead(message.id, event.target.checked)
+                  }
+                />
+              </div>
             </li>
           ))}
         </ol>

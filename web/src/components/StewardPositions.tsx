@@ -5,6 +5,7 @@ import type { ActiveDeployments } from "../../../shared/components/stationState"
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
 import { StewardStatus } from "./StewardStatus";
 import { useLiveData } from "../data/liveData";
+import { NotificationBadge } from "./NotificationBadge";
 
 // How often the ages are recomputed, so "for 2 min siden" counts up without a
 // new report.
@@ -110,14 +111,52 @@ function useNow(intervalMs: number) {
   return now;
 }
 
+function positionKey({ staff, station, status, time }: StewardPosition) {
+  return JSON.stringify([staff, station, status, time]);
+}
+
 // The status pop-up in the bottom right corner: a button that opens a list of
 // where each steward is. Stewards are shown by user id, because Metro avoids
 // identifying them by name.
-export function StewardPositions({ mock = false }: { mock?: boolean }) {
+export function StewardPositions({
+  mock = false,
+  testNotificationCount,
+  onOpen,
+}: {
+  mock?: boolean;
+  testNotificationCount?: number;
+  onOpen?: () => void;
+}) {
   const { activations, isConnected, error } = useLiveData();
   const [open, setOpen] = useState(mock);
   const now = useNow(TICK_MS);
   const positions = mock ? MOCK_LOG : stewardPositions(activations);
+  const [notifications, setNotifications] = useState(() => ({
+    activations,
+    reports: new Set(positions.map(positionKey)),
+    count: open ? 0 : positions.length,
+  }));
+  if (activations !== notifications.activations) {
+    const reports = new Set(positions.map(positionKey));
+    const arrivals = [...reports].filter(
+      (report) => !notifications.reports.has(report),
+    );
+    setNotifications({
+      activations,
+      reports,
+      count: open ? 0 : notifications.count + arrivals.length,
+    });
+  }
+
+  const notificationCount = testNotificationCount ?? notifications.count;
+
+  function toggle() {
+    if (!open) {
+      setNotifications({ ...notifications, count: 0 });
+      onOpen?.();
+    }
+    setOpen(!open);
+  }
 
   return (
     <View
@@ -149,7 +188,7 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
             }}
           >
             <Text style={[text.title, { color: colors.textInverse }]}>
-              Status ({positions.length})
+              Status
             </Text>
             <Pressable
               accessibilityRole="button"
@@ -176,7 +215,7 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
             ) : (
               positions.map((p) => (
                 <View
-                  key={`${p.staff}-${p.station}-${p.status}-${p.time}`}
+                  key={positionKey(p)}
                   testID="status-message"
                   style={{
                     flexDirection: "row",
@@ -226,8 +265,13 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
       <Pressable
         accessibilityRole="button"
         testID="status-launcher"
+        accessibilityLabel={
+          notificationCount
+            ? `Status, ${notificationCount} nye opdateringer`
+            : "Status"
+        }
         accessibilityState={{ expanded: open }}
-        onPress={() => setOpen((previous) => !previous)}
+        onPress={toggle}
         style={{
           paddingHorizontal: 20,
           paddingVertical: 12,
@@ -235,9 +279,8 @@ export function StewardPositions({ mock = false }: { mock?: boolean }) {
           backgroundColor: palette.metroLineFour,
         }}
       >
-        <Text style={[text.title, { color: colors.textInverse }]}>
-          Status ({positions.length})
-        </Text>
+        <Text style={[text.title, { color: colors.textInverse }]}>Status</Text>
+        <NotificationBadge count={notificationCount} />
       </Pressable>
     </View>
   );

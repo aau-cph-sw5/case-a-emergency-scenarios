@@ -671,8 +671,59 @@ body {
 .operator-message-button {
   width: 100%;
 }
-.operator-message-button .station-thread-unanswered {
-  color: var(--message-attention);
+.operator-message-button,
+.operator-status-footer [data-testid="status-launcher"] {
+  position: relative;
+}
+.operator-notification {
+  position: absolute;
+  z-index: 1;
+  top: -8px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding-inline: 4px;
+  border-radius: 999px;
+  font:
+    700 11px/1 Arial,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.operator-notification[data-motion="in"] {
+  animation: notification-pop 160ms ease-out both;
+}
+.operator-notification[data-motion="out"] {
+  animation: notification-pop 160ms ease-in reverse both;
+}
+.operator-notification[data-motion="wiggle"] {
+  animation: notification-wiggle 260ms ease-in-out;
+}
+@keyframes notification-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes notification-wiggle {
+  25% {
+    transform: rotate(-16deg) scale(1.14);
+  }
+  50% {
+    transform: rotate(13deg) scale(1.14);
+  }
+  75% {
+    transform: rotate(-8deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .operator-notification[data-motion="out"] {
+    visibility: hidden;
+  }
 }
 .operator-message-panel {
   position: absolute;
@@ -779,7 +830,69 @@ body {
   background: var(--message-attention);
 }
 .operator-thread li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
   padding: 8px 0;
+}
+.operator-thread .operator-message-read {
+  color: var(--operator-muted);
+}
+.operator-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.operator-message-actions .operator-message-reply {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--message-reply);
+  font:
+    700 22px/1 Arial,
+    sans-serif;
+}
+.operator-thread .operator-message-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin: 0 12px 0 0;
+  border: 2px solid var(--message-ink);
+  border-radius: 5px;
+  background-color: var(--message-background);
+  cursor: pointer;
+}
+.operator-message-checkbox:checked {
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent 44%,
+      var(--message-checkmark) 44% 56%,
+      transparent 56%
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 44%,
+      var(--message-checkmark) 44% 56%,
+      transparent 56%
+    );
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 12px 12px;
+}
+.operator-message-checkbox:hover:not(:disabled),
+.operator-message-actions .operator-message-reply:is(:hover, :focus-visible) {
+  background-color: var(--message-selected);
+  box-shadow: 0 0 0 3px var(--message-divider);
+}
+.operator-message-checkbox:disabled {
+  cursor: default;
 }
 .operator-thread li time {
   margin-left: 8px;
