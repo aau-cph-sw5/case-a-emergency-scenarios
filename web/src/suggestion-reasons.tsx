@@ -59,7 +59,10 @@ export function routeLabel(
 ): string {
   const pairs = new Map<string, [string, string]>();
   for (const { stationA, stationB } of covers ?? []) {
-    pairs.set([stationA, stationB].sort().join("|"), [stationA, stationB]);
+    pairs.set(
+      [stationA, stationB].sort((x, y) => x.localeCompare(y)).join("|"),
+      [stationA, stationB],
+    );
   }
   if (pairs.size === 0) return "";
   const count = new Map<string, number>();

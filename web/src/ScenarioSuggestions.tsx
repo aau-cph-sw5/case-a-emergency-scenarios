@@ -58,14 +58,24 @@ type State =
 const MAX_LENGTH = 2000; // contracts/v1/scenario-suggestion.schema.json
 const QUICK_PICKS = ["Signalfejl", "Togstop", "Strømsvigt", "Evakuering"];
 
+// The word as a whole word, so Togstop is not found inside "togstoppet".
+function wordPattern(word: string, flags: string) {
+  return new RegExp(`(?<![\\p{L}\\p{N}])${word}(?![\\p{L}\\p{N}])`, flags);
+}
+
+function hasWord(text: string, word: string) {
+  return wordPattern(word, "iu").test(text);
+}
+
 // Adds the word, or removes it again when it is already in the text.
 function toggleWord(text: string, word: string): string {
-  const pattern = new RegExp(word, "gi");
-  if (pattern.test(text)) {
+  if (hasWord(text, word)) {
     return text
-      .replace(pattern, "")
-      .replace(/\s*,(\s*,)+/g, ",")
-      .replace(/^[\s,]+|[\s,]+$/g, "");
+      .replace(wordPattern(word, "giu"), "")
+      .split(",")
+      .map((part) => part.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .join(", ");
   }
   const trimmed = text.trim();
   return trimmed ? `${trimmed}, ${word.toLowerCase()}` : word.toLowerCase();
@@ -297,7 +307,7 @@ function QuickPicks({
   return (
     <div className="suggest-chips" role="group" aria-label="Hyppige hændelser">
       {QUICK_PICKS.map((word) => {
-        const pressed = description.toLowerCase().includes(word.toLowerCase());
+        const pressed = hasWord(description, word);
         return (
           <button
             key={word}
