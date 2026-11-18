@@ -1,0 +1,779 @@
+.admin-dashboard {
+  min-height: 100dvh;
+  color: #1e1e1e;
+  background: #f3f5f5;
+  font:
+    14px "Metro",
+    Arial,
+    Helvetica,
+    sans-serif;
+}
+.admin-dashboard *,
+.admin-dashboard *::before,
+.admin-dashboard *::after {
+  box-sizing: border-box;
+}
+.admin-dashboard button {
+  font: inherit;
+  cursor: pointer;
+}
+.admin-dashboard button:focus-visible {
+  outline: 3px solid #00a0be;
+  outline-offset: 3px;
+}
+.admin-header {
+  min-height: 88px;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  color: white;
+  background: #1e1e1e;
+}
+.admin-brand,
+.admin-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.admin-brand {
+  font-size: 19px;
+}
+.admin-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e6140f;
+  font-size: 24px;
+  font-weight: 700;
+}
+.admin-logout {
+  padding: 8px 10px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  color: #ddd;
+  background: transparent;
+}
+.admin-logout:hover {
+  background: #ffffff15;
+  color: white;
+}
+.admin-content {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 32px;
+}
+.admin-home h1,
+.admin-scenario h1 {
+  margin: 0 0 20px;
+  font-size: 26px;
+}
+.admin-primary {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  background: #b42420;
+  font-weight: 700;
+}
+.admin-primary:hover {
+  background: #901a17;
+}
+.admin-back {
+  padding: 0;
+  border: 0;
+  color: #465155;
+  background: none;
+}
+.admin-map {
+  position: relative;
+  display: flex;
+  height: min(68vh, 720px);
+  min-height: 350px;
+  overflow: hidden;
+  border: 1px solid #1e1e1e;
+  border-radius: 15px;
+  background: white;
+}
+.admin-map > div {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.admin-map .admin-map-background {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.admin-map-background,
+.admin-map-foreground {
+  display: flex;
+}
+.admin-map-background > div,
+.admin-map-foreground > div {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.admin-map-foreground {
+  position: relative;
+}
+.admin-map-foreground [aria-label^="Vælg station"] {
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .admin-header {
+    padding: 16px;
+  }
+  .admin-content {
+    padding: 20px 16px;
+  }
+  .admin-map {
+    height: 55vh;
+  }
+}
+
+.admin-group h1 {
+  margin: 20px 0 8px;
+}
+.admin-group-choices {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+.admin-group-choices button {
+  min-width: 140px;
+  padding: 18px;
+  border: 1px solid #9aa5a6;
+  border-radius: 10px;
+  background: white;
+  font-weight: 700;
+}
+.admin-group-choices button:hover {
+  border-color: #b42420;
+}
+.admin-workspace {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(300px, 1fr) minmax(
+      380px,
+      420px
+    );
+  min-height: calc(100dvh - 88px);
+}
+.admin-sidebar,
+.admin-map-panel,
+.admin-form-panel {
+  padding: 24px;
+}
+.admin-sidebar,
+.admin-form-panel {
+  background: #fff;
+}
+.admin-sidebar {
+  border-right: 1px solid #d7dddd;
+}
+.admin-form-panel {
+  border-left: 1px solid #d7dddd;
+}
+.admin-sidebar h1 {
+  margin: 20px 0 8px;
+  font-size: 22px;
+}
+.admin-workspace h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.admin-map-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.admin-map-instruction {
+  margin: 0;
+  color: #465155;
+  line-height: 1.4;
+}
+.admin-map-panel .admin-map {
+  flex: 1;
+  height: auto;
+  max-height: max(350px, calc(100dvh - 200px));
+}
+.admin-muted {
+  color: #657174;
+  line-height: 1.5;
+}
+.admin-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 32px;
+}
+.admin-route-list {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0;
+}
+.admin-route-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e4e8e8;
+}
+.admin-route-list li > span:nth-child(2) {
+  flex: 1;
+}
+.admin-route-list small {
+  display: block;
+  margin-top: 4px;
+  color: #657174;
+}
+.admin-route-list button {
+  border: 0;
+  background: none;
+  color: #9c2420;
+}
+.admin-route-color {
+  width: 10px;
+  height: 30px;
+  border-radius: 4px;
+}
+.admin-line-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 14px 12px;
+  margin-top: 18px;
+}
+.admin-line-wide,
+.admin-line-form .admin-color-field {
+  grid-column: 1 / -1;
+}
+.admin-choice-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-weight: 700;
+}
+.admin-choice-field legend {
+  margin-bottom: 5px;
+  padding: 0;
+}
+.admin-choice {
+  display: flex;
+  gap: 3px;
+  min-height: 42px;
+  padding: 4px;
+  border: 1px solid #d7dddd;
+  border-radius: 10px;
+  background: #f3f5f5;
+}
+.admin-choice button {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #465155;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
+}
+.admin-choice button:not(:disabled):not([aria-pressed="true"]):hover {
+  background: #e4e9e9;
+  color: #1e1e1e;
+}
+.admin-choice button:disabled {
+  cursor: default;
+}
+.admin-choice button[aria-pressed="true"] {
+  background: #273435;
+  color: #fff;
+  box-shadow: 0 1px 3px #0003;
+}
+.admin-notice {
+  margin: 0;
+  padding: 12px;
+  border-left: 3px solid #b77a00;
+  background: #fff5da;
+  color: #604400;
+  line-height: 1.5;
+}
+.admin-line-form label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  font-weight: 700;
+}
+.admin-line-form select {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px;
+  border: 1px solid #bdc6c6;
+  border-radius: 7px;
+  background: #fff;
+  font: inherit;
+  font-weight: 400;
+}
+.admin-color-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-weight: 700;
+}
+.admin-color-field legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
+.admin-color-options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  justify-items: center;
+  gap: 10px 12px;
+  padding: 4px;
+}
+.admin-color-option {
+  width: min(30px, 100%);
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid #0003;
+  border-radius: 50%;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+.admin-color-option:hover {
+  transform: scale(1.08);
+}
+.admin-color-option[aria-pressed="true"] {
+  box-shadow:
+    0 0 0 3px white,
+    0 0 0 5px #333;
+}
+.admin-color-name {
+  display: block;
+  margin-top: 5px;
+  color: #657174;
+  font-size: 12px;
+  font-weight: 400;
+}
+.admin-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.admin-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.admin-secondary {
+  padding: 10px 14px;
+  border: 1px solid #9aa5a6;
+  border-radius: 8px;
+  background: #fff;
+}
+@media (max-width: 1000px) {
+  .admin-workspace {
+    grid-template-columns: 230px minmax(0, 1fr);
+  }
+  .admin-form-panel {
+    grid-column: 1 / -1;
+    border: 0;
+    border-top: 1px solid #d7dddd;
+  }
+  .admin-map-panel .admin-map {
+    min-height: 55vh;
+  }
+}
+@media (max-width: 600px) {
+  .admin-workspace {
+    display: flex;
+    flex-direction: column;
+  }
+  .admin-sidebar,
+  .admin-map-panel,
+  .admin-form-panel {
+    padding: 20px 16px;
+  }
+  .admin-sidebar {
+    border: 0;
+    border-bottom: 1px solid #d7dddd;
+  }
+}
+
+.admin-staffing {
+  max-width: 1500px;
+  padding-top: 28px;
+  padding-bottom: 64px;
+}
+.admin-staffing-review {
+  min-width: 0;
+}
+.admin-staffing-review {
+  position: sticky;
+  top: 20px;
+  display: grid;
+  gap: 16px;
+}
+.admin-staffing-card,
+.admin-staffing-station {
+  border: 1px solid #dce3e2;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 3px 12px #1e393509;
+}
+.admin-staffing-card {
+  padding: 24px;
+}
+.admin-staffing-card h2 {
+  margin: 6px 0;
+  font-size: 19px;
+  letter-spacing: -0.015em;
+}
+.admin-count-badge {
+  flex: none;
+  padding: 6px 10px;
+  border-radius: 20px;
+  background: #f0f4f3;
+  color: #465e59;
+  font-size: 12px;
+  font-weight: 700;
+}
+.admin-staffing-details input,
+.admin-staffing-details select,
+.admin-save-card input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #cbd5d3;
+  border-radius: 8px;
+  background: #fff;
+  color: #1e1e1e;
+  font: inherit;
+}
+.admin-staffing-details input:focus-visible,
+.admin-staffing-details select:focus-visible,
+.admin-save-card input:focus-visible {
+  outline: 2px solid #00a0be;
+  outline-offset: 2px;
+}
+.admin-staffing-marker {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border: 2px solid #718681;
+  border-radius: 50%;
+}
+.admin-staffing-station {
+  padding: 20px;
+}
+.admin-staffing-station-heading,
+.admin-staffing-station-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-staffing-station-heading {
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #edf1f0;
+  font-size: 16px;
+}
+.admin-staffing-marker {
+  width: 13px;
+  height: 13px;
+  border-color: #a42925;
+}
+.admin-staffing-remove,
+.admin-task-remove {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a42925;
+  font-weight: 700;
+}
+.admin-staffing-remove:hover,
+.admin-task-remove:hover {
+  text-decoration: underline;
+}
+.admin-staffing-details {
+  display: grid;
+  gap: 18px;
+  margin-top: 16px;
+}
+.admin-staffing-fields {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.45fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.admin-staffing-details label,
+.admin-save-card label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+.admin-staffing-details fieldset {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.admin-staffing-details legend {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.admin-optional {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 10px;
+  color: #788785;
+  font-weight: 400;
+}
+.admin-optional::before {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+.admin-save-card {
+  display: grid;
+  gap: 14px;
+}
+.admin-staffing-back {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #465155;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+.admin-staffing-back:hover {
+  color: #1e1e1e;
+}
+.admin-staffing-back:focus-visible {
+  outline: 2px solid #00a0be;
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+.admin-staffing-back svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.admin-save-error {
+  margin: 0;
+  color: #a42925;
+}
+.admin-save-button {
+  width: 100%;
+}
+@media (max-width: 900px) {
+  .admin-staffing-review {
+    position: static;
+  }
+}
+@media (max-width: 480px) {
+  .admin-staffing-card {
+    padding: 18px;
+  }
+  .admin-staffing-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-scenario-details {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+.admin-scenario-details label {
+  display: grid;
+  gap: 5px;
+  font-weight: 700;
+}
+.admin-scenario-details input,
+.admin-line-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #bdc6c6;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.admin-selected-stops {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: calc(100% - 24px);
+  padding: 8px 12px;
+  border: 1px solid #dce3e2;
+  border-radius: 8px;
+  background: #fff;
+}
+.admin-selected-stops summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.admin-selected-stops p {
+  margin: 8px 0 0;
+  color: #465155;
+}
+
+.admin-selected-stops button {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9c2925;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.admin-selected-stops p {
+  max-width: min(540px, 70vw);
+  max-height: 140px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+.admin-staffing-sidebar h2 {
+  margin-top: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.admin-staffing-nav {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 24px;
+}
+.admin-staffing-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d7dddd;
+  border-radius: 8px;
+  background: white;
+  text-align: left;
+}
+.admin-staffing-nav button[aria-pressed="true"] {
+  border-color: #b42420;
+  background: #fff6f5;
+}
+.admin-staffing-nav button > span:first-child {
+  display: grid;
+  gap: 2px;
+}
+.admin-staffing-nav small,
+.admin-staffing-nav button > span:last-child {
+  color: #657174;
+  font-size: 12px;
+}
+.admin-staffing-workspace .admin-staffing-review {
+  position: static;
+  margin-top: 24px;
+}
+.admin-staffing-workspace .admin-save-card {
+  padding: 0;
+  border: 0;
+}
+.admin-staffing-form {
+  min-width: 0;
+}
+.admin-staffing-form > h2 {
+  margin-bottom: 20px;
+}
+.admin-staffing-form .admin-staffing-station {
+  border: 0;
+  padding: 0;
+}
+.admin-staffing-form .admin-staffing-fields,
+.admin-staffing-form .admin-staffing-window {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.admin-staffing-form .admin-task-picker-panel {
+  position: relative;
+  width: 100%;
+}
+
+.admin-staffing-no-stop {
+  margin: 14px 0 0;
+  color: #657174;
+  line-height: 1.4;
+}
+.admin-staffing-window .admin-window-remove {
+  grid-column: 1 / -1;
+  justify-self: end;
+  padding: 0;
+}
+
+.admin-route-list .admin-route-edit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+.admin-route-list .admin-route-edit:hover strong {
+  text-decoration: underline;
+}
+.admin-route-list .admin-route-edit:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.admin-route-color {
+  flex: none;
+}
+.admin-map-legend {
+  position: absolute;
+  z-index: 2;
+  bottom: 12px;
+  left: 14px;
+  margin: 0;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #657174;
+  font-size: 12px;
+  pointer-events: none;
+}
+.admin-map-legend span {
+  color: #1e1e1e;
+}
