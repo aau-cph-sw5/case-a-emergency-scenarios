@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 8.8.0 - 2026-11-18
+
+Additive. Admins can create a scenario and its first version with operating patterns, staffing, tasks and covered track segments.
+
+- New `POST /api/v1/scenarios` validates the request and saves it atomically.
+- New `create-scenario-request.schema.json` describes the request; non-admins receive 403 and duplicate scenario IDs receive 409.
+- The server emits `scenarios-changed` to operators in the scenario's line group.
+
 ## 8.7.0 - 2026-11-18
 
 Additive. Operating patterns store a required display colour, and scenario responses include it. Clients accept responses from older servers without a colour.
