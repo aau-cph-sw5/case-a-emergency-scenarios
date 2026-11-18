@@ -3,6 +3,7 @@ import {
   closesThread,
   isSendableText,
   NO_CONNECTION,
+  SERVER_FAILED,
   stationThread,
 } from "../../mobile/src/data/station-thread";
 import { ERROR_CODES } from "../../shared/error-codes";
@@ -106,6 +107,67 @@ describe("stationThread", () => {
       code: ERROR_CODES.NOT_CHECKED_IN_AT_STATION,
       message: "Du er ikke tjekket ind på stationen.",
       offline: false,
+      retry: false,
+    });
+  });
+
+  it("drops a message the server finds invalid (400) without retrying", async () => {
+    jest.spyOn(global, "fetch").mockResolvedValue(
+      answer(400, {
+        error: { code: ERROR_CODES.MISSING_PARAMETER, message: "Bad text" },
+      }),
+    );
+
+    const result = await stationThread("token", "Station B", {
+      type: "send",
+      clientMessageId: stored.clientMessageId,
+      activationId: 1,
+      text: stored.text,
+      writtenAt: stored.writtenAt,
+    });
+
+    expect(result).toMatchObject({ ok: false, retry: false });
+  });
+
+  it("retries when the server fails (5xx)", async () => {
+    jest
+      .spyOn(global, "fetch")
+      .mockResolvedValue(answer(500, { error: { code: "E9999" } }));
+
+    const result = await stationThread("token", "Station B", {
+      type: "send",
+      clientMessageId: stored.clientMessageId,
+      activationId: 1,
+      text: stored.text,
+      writtenAt: stored.writtenAt,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "E9999",
+      message: SERVER_FAILED,
+      offline: false,
+      retry: true,
+    });
+  });
+
+  it("retries an expired session (401) once it is renewed", async () => {
+    jest.spyOn(global, "fetch").mockResolvedValue(
+      answer(401, {
+        error: { code: ERROR_CODES.AUTH_TOKEN_INVALID, message: "Expired" },
+      }),
+    );
+
+    const result = await stationThread("token", "Station B", {
+      type: "read",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: ERROR_CODES.AUTH_TOKEN_INVALID,
+      message: "Din session er udløbet. Log ind igen.",
+      offline: false,
+      retry: true,
     });
   });
 
@@ -120,6 +182,7 @@ describe("stationThread", () => {
       ok: false,
       message: NO_CONNECTION,
       offline: true,
+      retry: true,
     });
   });
 });

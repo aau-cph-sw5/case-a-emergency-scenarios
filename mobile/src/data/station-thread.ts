@@ -52,6 +52,14 @@ export function closesThread(code?: string): boolean {
 }
 
 export const NO_CONNECTION = "Ingen forbindelse til serveren.";
+export const SERVER_FAILED = "Serveren kunne ikke svare. Vi prøver igen.";
+
+// The contract's rule for a refusal: 400 and 409 are final, the client drops
+// the message and tells the steward. Every other answer is tried again; a 401
+// once the session is renewed.
+export function isFinal(httpStatus: number): boolean {
+  return httpStatus === 400 || httpStatus === 409;
+}
 
 // What the chat asks for: the station's thread with its messages, or to send
 // one message the steward has written.
@@ -61,9 +69,17 @@ export type ThreadRequest =
 type ThreadAnswer = { read: StationThread; send: StationMessage };
 
 // offline is true when the server was not reached, so nothing was refused.
+// retry is true when the request should be tried again: when offline, and for
+// every answer the contract does not call final (see isFinal).
 export type ThreadResult<T> =
   | { ok: true; value: T }
-  | { ok: false; code?: string; message: string; offline: boolean };
+  | {
+      ok: false;
+      code?: string;
+      message: string;
+      offline: boolean;
+      retry: boolean;
+    };
 
 // The station's thread, the one place the steward app reads or writes it
 // (MET-A-029, #335). The steward must be checked in (ARRIVED) at the station;
@@ -99,7 +115,7 @@ export async function stationThread<R extends ThreadRequest>(
       });
     }
   } catch {
-    return { ok: false, message: NO_CONNECTION, offline: true };
+    return { ok: false, message: NO_CONNECTION, offline: true, retry: true };
   }
 
   // 200 reads the thread; for a message 201 stores it and 200 means the
@@ -114,8 +130,12 @@ export async function stationThread<R extends ThreadRequest>(
   const code: unknown = error?.error?.code;
   return {
     ok: false,
-    message: threadErrorMessage(typeof code === "string" ? code : undefined),
+    message:
+      response.status >= 500
+        ? SERVER_FAILED
+        : threadErrorMessage(typeof code === "string" ? code : undefined),
     offline: false,
+    retry: !isFinal(response.status),
     ...(typeof code === "string" ? { code } : {}),
   };
 }
