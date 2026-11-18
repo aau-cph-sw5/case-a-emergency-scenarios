@@ -10,6 +10,7 @@ import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
 import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
+import { colors, steward } from "../../shared/Theme";
 
 // User 9 has no deployment in the fixture, so the steward has no status yet.
 const snapshot = buildSnapshot(
@@ -126,7 +127,43 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
 
   it("shows how many have arrived out of the stewards needed", () => {
     render(<ScenarioOverview snapshot={snapshot} />);
-    expect(screen.getByText("0 / 1")).toBeTruthy();
+    expect(screen.getByText("0/1")).toBeTruthy();
+  });
+
+  // Two colours only (#375): red when nobody is there or on the way, black
+  // otherwise. In the fixture a steward is on the way to Station B.
+  it("shows the count in black when someone is on the way, red when nobody is", () => {
+    render(<ScenarioOverview snapshot={snapshot} />);
+    expect(screen.getByText("0/1")).toHaveStyle({ color: colors.text });
+    screen.unmount();
+    const nobody = buildSnapshot(
+      {
+        active: true,
+        state: { ...(activeState as ScenarioState), deployments: [] },
+        scenario: scenario as Scenario,
+      },
+      "9",
+      new Date(),
+    );
+    render(<ScenarioOverview snapshot={nobody} />);
+    expect(screen.getByText("0/1")).toHaveStyle({ color: steward.nobody });
+  });
+
+  // The own row is filled yellow on the way and green after check in.
+  it("fills the own row in the colour of the steward's status", () => {
+    render(
+      <ScenarioOverview snapshot={snapshot} assignedStation="Station B" />,
+    );
+    expect(screen.getByText("0/1")).toHaveStyle({ color: colors.text });
+    screen.unmount();
+    render(
+      <ScenarioOverview
+        snapshot={snapshot}
+        assignedStation="Station B"
+        ownArrived
+      />,
+    );
+    expect(screen.getByText("0/1")).toHaveStyle({ color: colors.textInverse });
   });
 
   // After checking out the steward has left the station; the row says so
