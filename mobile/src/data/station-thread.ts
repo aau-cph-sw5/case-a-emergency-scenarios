@@ -119,12 +119,17 @@ export async function stationThread<R extends ThreadRequest>(
   }
 
   // 200 reads the thread; for a message 201 stores it and 200 means the
-  // server already had it, so both count as sent.
+  // server already had it, so both count as sent. A body that breaks off or
+  // is not JSON is tried again, like no connection.
   if (response.ok) {
-    return {
-      ok: true,
-      value: (await response.json()) as ThreadAnswer[R["type"]],
-    };
+    try {
+      return {
+        ok: true,
+        value: (await response.json()) as ThreadAnswer[R["type"]],
+      };
+    } catch {
+      return { ok: false, message: NO_CONNECTION, offline: true, retry: true };
+    }
   }
   const error = await response.json().catch(() => null);
   const code: unknown = error?.error?.code;

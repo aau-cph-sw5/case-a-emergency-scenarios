@@ -185,6 +185,31 @@ describe("stationThread", () => {
       retry: true,
     });
   });
+
+  it("retries when the answer's body cannot be read", async () => {
+    jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => {
+        throw new TypeError("Network request failed");
+      },
+    } as unknown as Response);
+
+    const result = await stationThread("token", "Station B", {
+      type: "send",
+      clientMessageId: stored.clientMessageId,
+      activationId: 1,
+      text: stored.text,
+      writtenAt: stored.writtenAt,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      message: NO_CONNECTION,
+      offline: true,
+      retry: true,
+    });
+  });
 });
 
 describe("closesThread", () => {
