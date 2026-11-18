@@ -26,6 +26,12 @@ the commands in [COMMANDS.md](COMMANDS.md). Don't copy them here.
    `contracts/v1/*.schema.json`. Run `npm run generate:types` to get the
    TypeScript type in `shared/types/v1/`, and import it from there. A type used
    only inside one app stays in that app.
+4. **Backend layers.** Routes → controllers → services → repositories, as described
+   in [src/BACKEND-README.md](src/BACKEND-README.md). SQL only lives in repositories,
+   services own transactions, and routes are protected with `requireRole`.
+5. **Migrations.** Versions use three digits (`V020__…`). Never edit a migration
+   that has already been applied; add a new one.
+6. **Language.** UI text is in Danish. Code, comments and commit messages are in English.
 
 ## Changing a contract
 
