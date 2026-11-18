@@ -1,6 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { ScenarioOverview } from "../../mobile/src/screens/ScenarioOverview";
+import {
+  oneRowPerStation,
+  ScenarioMap,
+  ScenarioOverview,
+} from "../../mobile/src/screens/ScenarioOverview";
 import { Circle } from "react-native-svg";
 import { network as networkFixture } from "../helpers/network";
 import { buildMapNetwork } from "../../shared/network/network";
@@ -23,15 +27,11 @@ const snapshot = buildSnapshot(
   new Date(),
 );
 
-describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
+describe("ScenarioMap network (MET-A-030)", () => {
   it("draws scenario stations at the provided network positions", () => {
     const network = buildMapNetwork(networkFixture as Network);
     render(
-      <ScenarioOverview
-        snapshot={snapshot}
-        network={network}
-        networkIsCached
-      />,
+      <ScenarioMap snapshot={snapshot} network={network} networkIsCached />,
     );
     const dots = screen
       .UNSAFE_queryAllByType(Circle)
@@ -44,7 +44,7 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
   it("draws the affected track from the scenario when the cached network lacks it", () => {
     const network = buildMapNetwork(networkFixture as Network);
     render(
-      <ScenarioOverview
+      <ScenarioMap
         snapshot={snapshot}
         network={{ ...network, segments: [] }}
         networkIsCached
@@ -61,7 +61,7 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
   it("warns when the cached network cannot show the affected track", () => {
     const network = buildMapNetwork(networkFixture as Network);
     render(
-      <ScenarioOverview
+      <ScenarioMap
         snapshot={snapshot}
         network={{ ...network, positions: {} }}
         networkIsCached
@@ -76,7 +76,7 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
 
   it("explains when no network is available offline", () => {
     render(
-      <ScenarioOverview
+      <ScenarioMap
         snapshot={snapshot}
         network={null}
         networkStatus="offline"
@@ -89,40 +89,100 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
     ).toBeTruthy();
     expect(screen.UNSAFE_queryAllByType(Circle)).toHaveLength(0);
   });
+});
 
-  it("offers + on each affected station and reports the pressed one", () => {
-    const onAssign = jest.fn();
-    render(<ScenarioOverview snapshot={snapshot} onAssign={onAssign} />);
-    fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
-    expect(onAssign).toHaveBeenCalledWith("Station B");
+describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
+  it("selects the tapped station while the steward has none (#376)", () => {
+    const onSelect = jest.fn();
+    render(<ScenarioOverview snapshot={snapshot} onSelect={onSelect} />);
+    expect(screen.getByText("Vælg nærmeste station")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Vælg Station B"));
+    expect(onSelect).toHaveBeenCalledWith("Station B");
   });
 
-  it("offers no + on the station the steward has already reported", () => {
+  it("marks the selected station", () => {
     render(
       <ScenarioOverview
         snapshot={snapshot}
-        onAssign={jest.fn()}
-        assignedStation="Station B"
+        onSelect={jest.fn()}
+        selected="Station B"
       />,
     );
-    expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
+    expect(screen.getByLabelText("Vælg Station B")).toBeSelected();
   });
 
-  it("shows the reported station as the steward's own, with its tasks", () => {
+  it("offers no selection when the steward cannot choose a station", () => {
+    render(<ScenarioOverview snapshot={snapshot} />);
+    expect(screen.queryByLabelText("Vælg Station B")).toBeNull();
+    expect(screen.getByText("Påvirkede stationer")).toBeTruthy();
+  });
+
+  it("shows the tasks only after check in", () => {
+    render(
+      <ScenarioOverview snapshot={snapshot} assignedStation="Station B" />,
+    );
+    expect(screen.queryByText("Opgaver på Station B")).toBeNull();
+    screen.unmount();
     render(
       <ScenarioOverview
         snapshot={snapshot}
-        onAssign={jest.fn()}
         assignedStation="Station B"
+        ownArrived
       />,
     );
     expect(screen.getByText("Opgaver på Station B")).toBeTruthy();
-    expect(screen.queryByText("Ingen opgave endnu")).toBeNull();
   });
 
-  it("offers no + when the steward cannot choose a station", () => {
-    render(<ScenarioOverview snapshot={snapshot} />);
-    expect(screen.queryByLabelText("Meld dig på vej til Station B")).toBeNull();
+  // Cancelling is done in the status card, not in the list (#376): the own
+  // row is an ordinary row there, with its staffing under the name.
+  it("has no cancel in the list", () => {
+    render(
+      <ScenarioOverview snapshot={snapshot} assignedStation="Station B" />,
+    );
+    expect(screen.queryByText("‹‹ Swipe for at annullere")).toBeNull();
+    expect(screen.queryByLabelText("Annullér Station B")).toBeNull();
+  });
+
+  // A station with two requirement rows is listed once, needing both (#376).
+  it("lists a station once, also when it has several requirement rows", () => {
+    const base = (scenario as Scenario).versions[0];
+    const row = base.stationRequirements![0];
+    const twoRows = buildSnapshot(
+      {
+        active: true,
+        state: { ...(activeState as ScenarioState), deployments: [] },
+        scenario: {
+          ...(scenario as Scenario),
+          versions: [
+            {
+              ...base,
+              stationRequirements: [
+                row,
+                { ...row, placement: "Second placement" },
+              ],
+            },
+          ],
+        },
+      },
+      "9",
+      new Date(),
+    );
+    render(<ScenarioOverview snapshot={twoRows} onSelect={jest.fn()} />);
+    expect(screen.getAllByLabelText("Vælg Station B")).toHaveLength(1);
+    expect(screen.getByText(`0/${row.minimumStaffing * 2}`)).toBeTruthy();
+  });
+
+  it("merges rows in the order each station first appears", () => {
+    const row = (scenario as Scenario).versions[0].stationRequirements![0];
+    const merged = oneRowPerStation([
+      { ...row, station: "A", minimumStaffing: 1 },
+      { ...row, station: "B", minimumStaffing: 1 },
+      { ...row, station: "A", minimumStaffing: 2 },
+    ]);
+    expect(merged.map((r) => [r.station, r.minimumStaffing])).toEqual([
+      ["A", 3],
+      ["B", 1],
+    ]);
   });
 
   it("shows how many have arrived out of the stewards needed", () => {
@@ -150,7 +210,9 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
   });
 
   // The own row is filled yellow on the way and green after check in.
-  it("fills the own row in the colour of the steward's status", () => {
+  // On the way the own row is the yellow one; after check in the same card
+  // shows the tasks of the own station instead of the stations (#376).
+  it("shows the own row on the way and the tasks after check in", () => {
     render(
       <ScenarioOverview snapshot={snapshot} assignedStation="Station B" />,
     );
@@ -163,7 +225,8 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
         ownArrived
       />,
     );
-    expect(screen.getByText("0/1")).toHaveStyle({ color: colors.textInverse });
+    expect(screen.getByText("Opgaver på Station B")).toBeTruthy();
+    expect(screen.queryByText("0/1")).toBeNull();
   });
 
   // After checking out the steward has left the station; the row says so
@@ -191,14 +254,10 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
       new Date(),
     );
 
-    it("says the steward checked out instead of Din station", () => {
-      render(<ScenarioOverview snapshot={checkedOut} onAssign={jest.fn()} />);
-      expect(screen.queryByText("Din station")).toBeNull();
+    it("says the steward checked out from the station, which can be chosen again", () => {
+      render(<ScenarioOverview snapshot={checkedOut} onSelect={jest.fn()} />);
       expect(screen.getByText("Tjekket ud herfra")).toBeTruthy();
-      expect(screen.getByText("Ingen opgave endnu")).toBeTruthy();
-      expect(
-        screen.getByLabelText("Meld dig på vej til Station B"),
-      ).toBeTruthy();
+      expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
     });
 
     it("follows the app's check-out while the deployments still say arrived", () => {
@@ -225,11 +284,10 @@ describe("ScenarioOverview + per station (MET-A-015, #263)", () => {
       render(
         <ScenarioOverview
           snapshot={stillArrived}
-          onAssign={jest.fn()}
+          onSelect={jest.fn()}
           checkedOutStation="Station B"
         />,
       );
-      expect(screen.queryByText("Din station")).toBeNull();
       expect(screen.getByText("Tjekket ud herfra")).toBeTruthy();
     });
   });

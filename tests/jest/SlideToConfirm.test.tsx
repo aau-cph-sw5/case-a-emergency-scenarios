@@ -11,7 +11,7 @@ import { colors, steward } from "../../shared/Theme";
 
 // The gesture itself comes from React Native, so the test drives the
 // callbacks the slider gives PanResponder, with the distance it was dragged.
-function renderSlider(disabled = false, onSlidingChange?: jest.Mock) {
+function renderSlider(disabled = false) {
   const created: PanResponderCallbacks[] = [];
   const create = PanResponder.create.bind(PanResponder);
   jest.spyOn(PanResponder, "create").mockImplementation((config) => {
@@ -25,7 +25,6 @@ function renderSlider(disabled = false, onSlidingChange?: jest.Mock) {
       tone="green"
       disabled={disabled}
       onConfirm={onConfirm}
-      onSlidingChange={onSlidingChange}
     />,
   );
   // Track 300 wide: the knob can travel 300 - 48 - 8 = 244.
@@ -42,7 +41,6 @@ function renderSlider(disabled = false, onSlidingChange?: jest.Mock) {
     moves: () => latest().onMoveShouldSetPanResponder?.(event, gesture(0)),
     keepsGesture: () =>
       latest().onPanResponderTerminationRequest?.(event, gesture(0)),
-    grant: () => act(() => latest().onPanResponderGrant?.(event, gesture(0))),
     drag: (dx: number) =>
       act(() => {
         latest().onPanResponderGrant?.(event, gesture(0));
@@ -104,31 +102,6 @@ describe("SlideToConfirm (MET-A-015, #263)", () => {
   it("keeps the gesture when the page asks for it", () => {
     const slider = renderSlider();
     expect(slider.keepsGesture()).toBe(false);
-  });
-
-  it("tells when a slide starts and ends, also on a cancel", () => {
-    const sliding = jest.fn();
-    const slider = renderSlider(false, sliding);
-
-    slider.grant();
-    expect(sliding).toHaveBeenLastCalledWith(true);
-    slider.cancel();
-    expect(sliding).toHaveBeenLastCalledWith(false);
-
-    slider.drag(230);
-    expect(sliding).toHaveBeenLastCalledWith(false);
-    expect(slider.onConfirm).toHaveBeenCalledTimes(1);
-  });
-
-  // E.g. the scenario is stood down mid-swipe: no release arrives (#310).
-  it("lets the screen scroll again when it goes away mid-swipe", () => {
-    const sliding = jest.fn();
-    const slider = renderSlider(false, sliding);
-
-    slider.grant();
-    expect(sliding).toHaveBeenLastCalledWith(true);
-    slider.unmount();
-    expect(sliding).toHaveBeenLastCalledWith(false);
   });
 
   // The looks from the prototype (#375): yellow with dark text, green and red
