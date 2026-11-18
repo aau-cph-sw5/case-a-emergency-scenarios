@@ -1,0 +1,96 @@
+{
+  "$id": "network.schema.json",
+  "title": "Network",
+  "type": "object",
+  "required": ["stations", "segments", "normalPatterns"],
+  "properties": {
+    "stations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "x", "y"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "x": {
+            "type": ["number", "null"]
+          },
+          "y": {
+            "type": ["number", "null"]
+          }
+        }
+      }
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "trackNumber", "stationA", "stationB"],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "trackNumber": {
+            "type": "integer",
+            "enum": [1, 2]
+          },
+          "stationA": {
+            "type": "string"
+          },
+          "stationB": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "normalPatterns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "line",
+          "routeCode",
+          "operationType",
+          "trackNumber",
+          "maximumTrains",
+          "did",
+          "stops"
+        ],
+        "properties": {
+          "line": {
+            "type": "string",
+            "enum": ["M1", "M2", "M3", "M4"]
+          },
+          "routeCode": {
+            "type": "string"
+          },
+          "trackNumber": {
+            "type": "integer",
+            "enum": [1, 2, 12]
+          },
+          "stops": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "operationType": {
+            "type": "string",
+            "enum": ["PENDULUM", "ROUNDTRIP"]
+          },
+          "maximumTrains": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "did": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

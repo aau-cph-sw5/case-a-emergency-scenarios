@@ -33,21 +33,24 @@ const ALL = ["SELECT", "INSERT", "UPDATE", "DELETE"];
 const expected: Record<string, string[]> = {
   incident_events: ["SELECT", "INSERT"],
   incident_activations: ["SELECT", "INSERT", "UPDATE"],
-  users: ["SELECT"],
+  users: ["SELECT", "INSERT", "UPDATE"],
   auth_sessions: ["SELECT", "INSERT", "UPDATE"],
   position_reports: ["SELECT", "INSERT"],
   scenarios: ["SELECT"],
   scenario_versions: ["SELECT"],
   stations: ["SELECT"],
   track_segments: ["SELECT"],
+  crossovers: ALL,
+  station_map_positions: ALL,
+  crossover_map_positions: ALL,
   scenario_covers: ["SELECT"],
-  operating_plans: ["SELECT"],
   operating_patterns: ["SELECT"],
   line_stops: ["SELECT"],
   station_requirements: ["SELECT"],
   staffing_windows: ["SELECT"],
   actions: ["SELECT"],
   passenger_information: ["SELECT"],
+  station_messages: ["SELECT", "INSERT"],
 };
 
 // The failing statement runs in a savepoint, so the transaction survives it.

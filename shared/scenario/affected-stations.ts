@@ -4,7 +4,10 @@ import type { SnapshotScenario } from "../offline/scenario-snapshot";
 //helper function as map draws "lines" made of station pairs
 //turns the affected stations (covers) into the maps "lines"
 //filter keeps only pairs where both stations have a position
-export function affectedStretchAsMapLine(scenario: SnapshotScenario) {
+export function affectedStretchAsMapLine(
+  scenario: SnapshotScenario,
+  position: (station: string) => [number, number] | undefined = getStation,
+) {
   return {
     name: scenario.name,
     tracks: [1, 2],
@@ -13,7 +16,7 @@ export function affectedStretchAsMapLine(scenario: SnapshotScenario) {
         (segment) => [segment.stationA, segment.stationB] as [string, string],
       )
       .filter(
-        ([stationA, stationB]) => getStation(stationA) && getStation(stationB),
+        ([stationA, stationB]) => position(stationA) && position(stationB),
       ),
   };
 }
@@ -33,10 +36,14 @@ export function affectedStations(scenario: SnapshotScenario) {
   ];
 }
 
-export function areaAroundStations(stations: string[], margin = MAP_MARGIN) {
+export function areaAroundStations(
+  stations: string[],
+  margin = MAP_MARGIN,
+  position: (station: string) => [number, number] | undefined = getStation,
+) {
   //positions from the stations from the map
   const positions = stations
-    .map((station) => getStation(station))
+    .map((station) => position(station))
     .filter((position) => position !== undefined);
 
   //none stations on view? then shows the whole canvas
@@ -64,10 +71,9 @@ function samePiece([a, b]: StationPair, [c, d]: StationPair) {
 
 // Luna's network without the pieces that are in the affected stretch,
 // so those pieces belong only to the stretch and are drawn fully in its colour.
-export function networkWithoutStretch(
-  networkLines: { name: string; connections: StationPair[] }[],
-  stretchPieces: StationPair[],
-) {
+export function networkWithoutStretch<
+  Line extends { name: string; connections: StationPair[] },
+>(networkLines: Line[], stretchPieces: StationPair[]) {
   return networkLines.map((line) => ({
     ...line,
     connections: line.connections.filter(

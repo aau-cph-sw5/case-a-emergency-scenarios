@@ -4,6 +4,11 @@ import type {
   QueuedPositionReport,
 } from "../../../shared/offline/position-report-queue";
 import type { ReportDeliveryResult } from "../api/position-report";
+import {
+  createFlushCoordinator,
+  isFinalRejection,
+  rejectionCode,
+} from "./queue-delivery";
 
 export type ReportSender = (
   token: string,
@@ -19,17 +24,10 @@ export type FlushResult = {
   superseded: QueuedPositionReport[];
 };
 
-// Only domain/validation 4xx failures are terminal. Authentication and rate
-// limiting failures must leave the queue intact for another attempt.
-const RETRYABLE_HTTP_STATUSES = new Set([401, 403, 408, 429]);
-
 export function createPositionReportDelivery(
   queue: PositionReportQueueStore,
   sender: ReportSender,
 ) {
-  const activeFlushes = new Map<string, Promise<FlushResult>>();
-  const nextFlushes = new Map<string, Promise<FlushResult>>();
-
   async function flush(userId: string, token: string): Promise<FlushResult> {
     const reports = await queue.getPending(userId);
     let acknowledged = 0;
@@ -43,16 +41,8 @@ export function createPositionReportDelivery(
       if (result.status === "accepted") {
         await queue.acknowledge(userId, report.id);
         acknowledged++;
-      } else if (
-        result.status === "rejected" &&
-        result.httpStatus >= 400 &&
-        result.httpStatus < 500 &&
-        !RETRYABLE_HTTP_STATUSES.has(result.httpStatus)
-      ) {
-        const code =
-          "code" in result && typeof result.code === "string"
-            ? result.code
-            : undefined;
+      } else if (isFinalRejection(result)) {
+        const code = rejectionCode(result);
         await queue.reject(userId, report.id, {
           httpStatus: result.httpStatus,
           ...(code === undefined ? {} : { code }),
@@ -74,37 +64,5 @@ export function createPositionReportDelivery(
     };
   }
 
-  // Runs one flush for the user and forgets it once it has finished.
-  function start(userId: string, token: string): Promise<FlushResult> {
-    const running = flush(userId, token);
-    activeFlushes.set(userId, running);
-    void running.then(
-      () => {
-        if (activeFlushes.get(userId) === running) activeFlushes.delete(userId);
-      },
-      () => {
-        if (activeFlushes.get(userId) === running) activeFlushes.delete(userId);
-      },
-    );
-    return running;
-  }
-
-  return {
-    flush(userId: string, token: string): Promise<FlushResult> {
-      const active = activeFlushes.get(userId);
-      if (active === undefined) return start(userId, token);
-
-      // The running flush may have missed this caller's report, so one more follows it.
-      const queued = nextFlushes.get(userId);
-      if (queued !== undefined) return queued;
-      const next = active
-        .catch(() => undefined)
-        .then(() => {
-          nextFlushes.delete(userId);
-          return start(userId, token);
-        });
-      nextFlushes.set(userId, next);
-      return next;
-    },
-  };
+  return { flush: createFlushCoordinator(flush) };
 }
