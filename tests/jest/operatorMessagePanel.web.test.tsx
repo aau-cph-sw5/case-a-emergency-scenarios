@@ -46,7 +46,7 @@ function stationMessage(
   };
 }
 
-function setup() {
+function setup(token = "test") {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   const container = document.createElement("div");
   document.body.append(container);
@@ -93,7 +93,7 @@ function setup() {
     click,
     render: () =>
       act(async () =>
-        root.render(<OperatorMessagePanel token="test" lineGroup="M3_M4" />),
+        root.render(<OperatorMessagePanel token={token} lineGroup="M3_M4" />),
       ),
     send: (text: string) =>
       act(async () => {
@@ -239,7 +239,8 @@ it("handles fake chats, pinning, and sending without touching the server", async
     reload: jest.fn(),
     send,
   });
-  const panel = setup();
+  const token = `header.${btoa(JSON.stringify({ userId: 10 }))}.signature`;
+  const panel = setup(token);
   const press = (key: string, altKey = false) =>
     act(async () => {
       window.dispatchEvent(
@@ -306,6 +307,9 @@ it("handles fake chats, pinning, and sending without touching the server", async
     await panel.click(panel.pin(0));
     await panel.click(panel.stationButton("SOT"));
     expect(panel.pin(0).getAttribute("aria-pressed")).toBe("false");
+    expect(
+      JSON.parse(sessionStorage.getItem("metro-station-messages:10:1")!),
+    ).toEqual({ readIds: [], pinned: [] });
   } finally {
     await panel.destroy();
   }

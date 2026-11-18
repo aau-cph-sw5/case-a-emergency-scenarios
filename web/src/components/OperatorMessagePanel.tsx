@@ -8,6 +8,11 @@ import {
 } from "react";
 import { colors, messageSymbols, palette } from "../../../shared/Theme";
 import type { LineGroup } from "../../../shared/auth/line-groups";
+import { userIdFromToken } from "../../../shared/auth/login";
+import {
+  loadMessageSession,
+  saveMessageSession,
+} from "../auth/message-session";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
 import type { StationMessageRequest } from "../../../shared/types/v1/station-message-request";
@@ -52,12 +57,18 @@ export function OperatorMessagePanel({
   const [latest, setLatest] = useState(activation);
   if (activation && activation !== latest) setLatest(activation);
   const scenario = activation ?? latest;
+  const userId = userIdFromToken(token);
+  const storageKey =
+    userId && scenario
+      ? `metro-station-messages:${encodeURIComponent(userId)}:${scenario.activationId}`
+      : null;
 
   return (
     <div className="operator-messages" style={messageColors}>
       <ActiveMessages
-        key={scenario?.activationId}
+        key={storageKey ?? `${token}:${scenario?.activationId}`}
         token={token}
+        storageKey={storageKey}
         activation={scenario}
         active={activation !== undefined}
         testNotificationCount={testNotificationCount}
@@ -68,11 +79,13 @@ export function OperatorMessagePanel({
 
 function ActiveMessages({
   token,
+  storageKey,
   activation,
   active,
   testNotificationCount,
 }: {
   token: string;
+  storageKey: string | null;
   activation: ScenarioState | undefined;
   active: boolean;
   testNotificationCount?: number;
@@ -81,8 +94,13 @@ function ActiveMessages({
   const [open, setOpen] = useState(false);
   const [station, setStation] = useState<string | null>(null);
   const [showSaved, setShowSaved] = useState(false);
-  const [readIds, setReadIds] = useState(() => new Set<number>());
-  const [pinned, setPinned] = useState(() => new Map<number, StationMessage>());
+  const [messageState, setMessageState] = useState(() =>
+    loadMessageSession(storageKey, activation?.activationId),
+  );
+  const { readIds, pinned } = messageState;
+  useEffect(() => {
+    saveMessageSession(storageKey, readIds, pinned);
+  }, [storageKey, readIds, pinned]);
   const [testThreads, setTestThreads] = useState<
     Record<string, StationMessage[]>
   >({});
@@ -174,14 +192,15 @@ function ActiveMessages({
       ({ id, sender }) => sender === "STATION" && !readIds.has(id),
     )
   ) {
-    setReadIds(
-      new Set([
-        ...readIds,
+    setMessageState((current) => ({
+      ...current,
+      readIds: new Set([
+        ...current.readIds,
         ...shownMessages
           .filter(({ sender }) => sender === "STATION")
           .map(({ id }) => id),
       ]),
-    );
+    }));
   }
 
   const stationChats = [
@@ -213,11 +232,11 @@ function ActiveMessages({
   const shownThreadError = testing || showSaved ? null : threadError;
 
   function togglePin(message: StationMessage) {
-    setPinned((current) => {
-      const next = new Map(current);
+    setMessageState((current) => {
+      const next = new Map(current.pinned);
       if (next.has(message.id)) next.delete(message.id);
       else next.set(message.id, message);
-      return next;
+      return { ...current, pinned: next };
     });
   }
 

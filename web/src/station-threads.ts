@@ -6,7 +6,7 @@ import { ApiError, getJson, postJson, userMessage } from "./get-json";
 
 const threadsPath = "/api/v1/station-threads";
 
-function isMessage(value: unknown): value is StationMessage {
+export function isMessage(value: unknown): value is StationMessage {
   const message = value as Partial<StationMessage> | null;
   return (
     typeof message?.id === "number" &&

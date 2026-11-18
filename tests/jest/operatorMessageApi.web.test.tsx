@@ -15,7 +15,7 @@ jest.mock("../../web/src/local-settings", () => ({
   notificationTestShortcuts: false,
 }));
 
-const token = "operator-token";
+const token = `header.${btoa(JSON.stringify({ userId: 1 }))}.signature`;
 const timestamp = "2026-11-17T08:36:00.000Z";
 const activation: ScenarioState = {
   activationId: 1,
@@ -79,7 +79,11 @@ function threadSummary(
   };
 }
 
-async function render(connected = true, activations = [activation]) {
+async function render(
+  connected = true,
+  activations = [activation],
+  sessionToken = token,
+) {
   await act(async () =>
     root.render(
       <LiveDataContext.Provider
@@ -98,7 +102,7 @@ async function render(connected = true, activations = [activation]) {
           socket: socket as unknown as AppSocket,
         }}
       >
-        <OperatorMessagePanel token={token} lineGroup="M3_M4" />
+        <OperatorMessagePanel token={sessionToken} lineGroup="M3_M4" />
       </LiveDataContext.Provider>,
     ),
   );
@@ -155,6 +159,7 @@ async function announceMessage(message: StationMessage) {
 }
 
 beforeEach(() => {
+  sessionStorage.clear();
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   originalFetch = globalThis.fetch;
   globalThis.fetch = fetchMock;
@@ -169,6 +174,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   globalThis.fetch = originalFetch;
+  sessionStorage.clear();
 });
 
 it("loads station threads, refreshes on live events and reconnect, and keeps fetched history after closure", async () => {
@@ -346,4 +352,108 @@ it("surfaces request errors and retries a failed send with the same message ID",
   );
   expect(history()).toContain("Teknikeren er sendt");
   expect(messageField().value).toBe("");
+});
+
+it("keeps read status and saved messages after remounting and isolates operators and activations", async () => {
+  const messages = [
+    stationMessage(1, "FOR", "Rulletrappen er stoppet"),
+    stationMessage(2, "ORE", "Mange passagerer"),
+  ];
+  fetchMock.mockImplementation(async (path) => {
+    if (path === threadsPath)
+      return response(
+        messages.map((message) => threadSummary(message.station, [message])),
+      );
+    const message = messages.find(
+      (entry) => path === `${threadsPath}/${entry.station}`,
+    )!;
+    return response({
+      ...threadSummary(message.station, [message]),
+      messages: [message],
+    });
+  });
+  const savedButton = () =>
+    container.querySelector<HTMLButtonElement>(
+      ".operator-saved-toolbar button",
+    )!;
+  const pinButton = () =>
+    container.querySelector<HTMLButtonElement>(".operator-message-pin")!;
+  const remount = async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await render();
+    await click(launcher());
+  };
+
+  await render();
+  await click(launcher());
+  await click(stationButton("FOR"));
+  await click(pinButton());
+  await remount();
+  expect(launcher().getAttribute("aria-label")).toContain("1 ulæste");
+  expect(stationButton("FOR").textContent).toBe("FOR");
+  expect(stationButton("ORE").textContent).toContain("1 ulæst");
+  await click(savedButton());
+  expect(history()).toContain(messages[0].text);
+  expect(container.querySelector("ol strong")?.textContent).toBe("FOR");
+  expect(container.querySelector("ol time")?.getAttribute("datetime")).toBe(
+    timestamp,
+  );
+  expect(container.querySelector("form")).toBeNull();
+
+  const otherToken = `header.${btoa(JSON.stringify({ userId: 2 }))}.signature`;
+  await render(true, [activation], otherToken);
+  expect(launcher().getAttribute("aria-label")).toContain("2 ulæste");
+  await click(launcher());
+  await click(savedButton());
+  expect(container.querySelector(".operator-thread")?.textContent).toContain(
+    "Ingen gemte beskeder",
+  );
+
+  await render(true, [{ ...activation, activationId: 2 }]);
+  await click(launcher());
+  await click(savedButton());
+  expect(container.querySelector(".operator-thread")?.textContent).toContain(
+    "Ingen gemte beskeder",
+  );
+
+  await render();
+  await click(launcher());
+  await click(savedButton());
+  expect(history()).toContain(messages[0].text);
+  expect(stationButton("FOR").textContent).toBe("FOR");
+  await click(pinButton());
+  await remount();
+  await click(savedButton());
+  expect(container.querySelector(".operator-thread")?.textContent).toContain(
+    "Ingen gemte beskeder",
+  );
+});
+
+it("allows messaging when saved session data is malformed or browser storage is unavailable", async () => {
+  fetchMock.mockImplementation(async () => response([]));
+  sessionStorage.setItem("metro-station-messages:1:1", "{broken");
+  await render();
+  expect(launcher().getAttribute("aria-label")).toBe("Beskeder");
+
+  const getItem = jest
+    .spyOn(Storage.prototype, "getItem")
+    .mockImplementation(() => {
+      throw new DOMException("Storage blocked", "SecurityError");
+    });
+  const setItem = jest
+    .spyOn(Storage.prototype, "setItem")
+    .mockImplementation(() => {
+      throw new DOMException("Storage full", "QuotaExceededError");
+    });
+  try {
+    await render(true, [{ ...activation, activationId: 2 }]);
+    await click(launcher());
+    expect(container.querySelector("h2")?.textContent).toBe("Stationsbeskeder");
+    expect(getItem).toHaveBeenCalled();
+    expect(setItem).toHaveBeenCalled();
+  } finally {
+    getItem.mockRestore();
+    setItem.mockRestore();
+  }
 });
