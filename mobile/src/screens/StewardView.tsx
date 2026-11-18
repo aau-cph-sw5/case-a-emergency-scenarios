@@ -576,18 +576,16 @@ export function StewardView({
               )
             }
             note={
-              <>
-                {reportStatus && (
-                  <Text style={styles.report}>{reportStatus}</Text>
-                )}
-                {own?.status === "PENDING" && (
-                  <Text style={styles.report}>
-                    Tjek ind på stationen for at skrive til kontrolrummet.
-                  </Text>
-                )}
-              </>
+              reportStatus && <Text style={styles.report}>{reportStatus}</Text>
             }
           >
+            {/* Part of the list, so it comes and goes with the card's
+                status, not a turn ahead of it (#335). */}
+            {own?.status === "PENDING" && (
+              <Text style={styles.report}>
+                Tjek ind på stationen for at skrive til kontrolrummet.
+              </Text>
+            )}
             {shown && (
               <ScenarioOverview
                 snapshot={counted ?? shown}
