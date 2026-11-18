@@ -668,6 +668,17 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       await act(async () => {
         await new Promise((r) => setTimeout(r, 900));
       });
+      // Under load the card's turn alone can take the 900 ms, and the list
+      // then changes after it. Every frame of a motion renders, so the step
+      // ends only once nothing has rendered for a while; otherwise the tail
+      // of this step is counted as a flash in the next.
+      for (let tries = 0; tries < 20; tries += 1) {
+        const before = commit;
+        await act(async () => {
+          await new Promise((r) => setTimeout(r, 250));
+        });
+        if (commit === before) break;
+      }
       action = "";
     };
     const slide = () =>
@@ -704,5 +715,51 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     );
     await step("check out", slide);
     expect(problems).toEqual([]);
-  }, 20000);
+  }, 40000);
+
+  // A chat open when the control room switches scenario says so (#335).
+  it("says the scenario was switched in a chat that was open", async () => {
+    const fetchMock = jest
+      .spyOn(global, "fetch")
+      .mockRejectedValue(new Error("offline"));
+    showView({ status: "live", notices: [], snapshot: arrivedOnServer });
+    const element = () => (
+      <StewardView
+        token="token"
+        online
+        onLogout={jest.fn()}
+        onUnauthorized={jest.fn()}
+      />
+    );
+    const view = render(element());
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.press(
+        await screen.findByLabelText("Åbn chat med kontrolrummet"),
+      );
+    });
+
+    const switched = buildSnapshot(
+      {
+        active: true,
+        state: {
+          ...(activeState as ScenarioState),
+          activationId: 2,
+          deployments: [],
+        },
+        scenario: { ...(scenario as Scenario), name: "Signalfejl" },
+      },
+      "9",
+      new Date(),
+    );
+    showView({ status: "live", notices: [], snapshot: switched });
+    view.rerender(element());
+    await act(async () => {});
+
+    expect(screen.getByText("Chatten er lukket")).toBeTruthy();
+    expect(
+      screen.getByText("Scenariet er skiftet til “Signalfejl”."),
+    ).toBeTruthy();
+    fetchMock.mockRestore();
+  });
 });

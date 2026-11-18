@@ -51,6 +51,8 @@ const STATUS_BLOCKED_WAITING =
 // Why the chat is gone, shown in a chat that was open (MET-A-029, #335).
 const CHAT_CLOSED_STOOD_DOWN = "Scenariet er afsluttet.";
 const CHAT_CLOSED_CHECKED_OUT = "Du er ikke længere tjekket ind på stationen.";
+const chatClosedSwitched = (name: string) =>
+  `Scenariet er skiftet til “${name}”.`;
 
 // Waits before each new try after a send failed while live
 export const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
@@ -472,6 +474,25 @@ export function StewardView({
   // The station's chat is there only while the steward is checked in
   // (ARRIVED) at it, as the server requires (MET-A-029, #335).
   const chatStation = own?.status === "MANNED" ? own.station : undefined;
+  // The activation the steward was last checked in for. When the control
+  // room switches scenario, the chat says so, not that the steward checked
+  // out.
+  const [chatActivation, setChatActivation] = useState(activationId);
+  // Only once the status is the new activation's: in the render that sees a
+  // new activation, own is still the old one's.
+  if (
+    chatStation !== undefined &&
+    statusKey === shownStatusKey &&
+    activationId !== chatActivation
+  ) {
+    setChatActivation(activationId);
+  }
+  const chatClosedReason =
+    view.status === "stood-down" || view.status === "none"
+      ? CHAT_CLOSED_STOOD_DOWN
+      : shown !== null && activationId !== chatActivation
+        ? chatClosedSwitched(shown.scenario.name)
+        : CHAT_CLOSED_CHECKED_OUT;
   const refreshScenario = useCallback(() => void refresh(), [refresh]);
   // While the chat is open it covers the view, which a screen reader skips.
   const [chatOpen, setChatOpen] = useState(false);
@@ -623,11 +644,7 @@ export function StewardView({
         token={token}
         station={chatStation}
         activationId={activationId}
-        closedReason={
-          view.status === "stood-down" || view.status === "none"
-            ? CHAT_CLOSED_STOOD_DOWN
-            : CHAT_CLOSED_CHECKED_OUT
-        }
+        closedReason={chatClosedReason}
         onClosedByServer={refreshScenario}
         onOpenChange={setChatOpen}
       />
