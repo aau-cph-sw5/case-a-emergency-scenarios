@@ -97,7 +97,7 @@ beforeEach(() => {
 
 // Shows the live view and reports going on the way to Station B.
 async function reportStationB() {
-  showView({ status: "live", snapshot: noStatus });
+  showView({ status: "live", notices: [], snapshot: noStatus });
   render(stewardView(true));
   await act(async () => {});
   await chooseStation("Station B");
@@ -157,7 +157,7 @@ describe("StewardView station messages written offline (MET-A-029)", () => {
     const { rerender } = render(stewardView(false));
     expect(flushMessages).not.toHaveBeenCalled();
 
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     rerender(stewardView(true));
     await act(async () => {});
 
@@ -172,7 +172,7 @@ describe("StewardView station messages written offline (MET-A-029)", () => {
     showView({ status: "copy", reason: "offline", snapshot });
     const { rerender } = render(stewardView(false));
 
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     rerender(stewardView(true));
 
     expect(
@@ -181,7 +181,7 @@ describe("StewardView station messages written offline (MET-A-029)", () => {
   });
 
   it("forgets refused messages of other activations while a scenario is live", async () => {
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     render(stewardView(true));
     await act(async () => {});
 
@@ -211,7 +211,7 @@ describe("StewardView station messages written offline (MET-A-029)", () => {
     jest.useFakeTimers();
     try {
       flushMessages.mockResolvedValue({ ...noMessagesSent, blocked: true });
-      showView({ status: "live", snapshot });
+      showView({ status: "live", notices: [], snapshot });
       render(stewardView(true));
       await act(async () => {});
       const sends = flushMessages.mock.calls.length;
@@ -239,7 +239,7 @@ describe("StewardView superseded reports", () => {
     const { rerender } = render(stewardView(false));
     expect(flush).not.toHaveBeenCalled();
 
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     rerender(stewardView(true));
 
     expect(
@@ -255,7 +255,7 @@ describe("StewardView superseded reports", () => {
     showView({ status: "copy", reason: "offline", snapshot });
     const { rerender } = render(stewardView(false));
 
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     rerender(stewardView(true));
 
     // A delivered report says nothing (#376); the copy is fetched again.
@@ -381,7 +381,7 @@ describe("StewardView superseded reports", () => {
       flush.mockResolvedValueOnce(blocked);
       flush.mockResolvedValueOnce(blocked);
       flush.mockResolvedValueOnce({ ...nothingSent, acknowledged: 1 });
-      showView({ status: "live", snapshot });
+      showView({ status: "live", notices: [], snapshot });
       render(stewardView(true));
       await act(async () => {});
       expect(flush).toHaveBeenCalledTimes(1);

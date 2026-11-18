@@ -34,7 +34,6 @@ export const palette = {
   // The steward app's look from the approved prototype (#375). Its status
   // colours are the metro colours above; these are the greys around them.
   // Only the steward app uses these; the web keeps the colours above.
-  stewardChipGrey: "#9AA0A6",
   stewardLabelGrey: "#C9CCD0",
   stewardLine: "#D9DCDF",
   stewardStrip: "#F6F7F8",
@@ -46,6 +45,12 @@ export const palette = {
   stewardLabelOnYellow: "rgba(30, 30, 30, 0.62)",
   stewardLabelOnGreen: "rgba(255, 255, 255, 0.78)",
   stewardOnline: "#3FBF7F",
+  // Shades for the staffing bar on a card of the same colour (#376): a pale
+  // yellow on the yellow card and a light green on the green card (3.1:1), so
+  // the segment still shows. The pale yellow was chosen by eye on the phone
+  // over a darker one, which read as brown; it stands out less from the card
+  // (1.3:1) than the 3:1 that WCAG 1.4.11 asks of graphics.
+  stewardYellowOnYellow: "#FFEAA6",
 };
 
 export const colors = {
@@ -194,8 +199,6 @@ export const steward = {
   green: palette.metroLineOne,
   red: palette.metroLineThree,
   black: palette.metroBlack,
-  chipGrey: palette.stewardChipGrey,
-  labelGrey: palette.stewardLabelGrey,
   line: palette.stewardLine,
   strip: palette.stewardStrip,
   muted: palette.stewardMuted,
@@ -204,6 +207,9 @@ export const steward = {
   locked: palette.stewardLocked,
   lockedText: palette.stewardLockedText,
   online: palette.stewardOnline,
+  yellowOnYellow: palette.stewardYellowOnYellow,
+  // The same green as the connection dot beside the scenario name.
+  greenOnGreen: palette.stewardOnline,
   // The status card takes the colour of the status (#376): black without a
   // station, yellow on the way, green once arrived. text is the station name,
   // label the small labels and the line under the name.
@@ -223,10 +229,14 @@ export const steward = {
       text: palette.metroWhite,
       label: palette.stewardLabelOnGreen,
     },
+    // The scenario was stood down: the card turns red and shows only the
+    // message (NoticeCard).
+    stoodDown: {
+      background: palette.metroDeepRed,
+      text: palette.metroWhite,
+      label: palette.metroWhite,
+    },
   },
-  // The status at the top of the status card is this high in every state,
-  // so nothing below it moves when the status changes.
-  statusBoxHeight: 112,
   ownRowHeight: 64,
   slideHeight: 56,
 };
@@ -237,6 +247,13 @@ export const steward = {
 // card turned over for a new status.
 export const motion = {
   layoutMs: 380,
+  // A row that changes place in a column (a station going to the top of the
+  // list) moves slowly enough to follow with the eye.
+  rowMoveMs: 700,
+  // The sheen over a text: one cycle, and the share of it spent sweeping (the
+  // rest is rest, so the eye is not tired by a loop that never stops).
+  shineMs: 3000,
+  shineSweepShare: 0.6,
   // The turn of the status card, 180 degrees like a playing card turned
   // over. A turn is a bigger change than a fade, so it is a little slower,
   // eased in and out: it starts softly, turns through the edge and lands

@@ -39,7 +39,7 @@ export function Swap({
 }: {
   swapKey: string;
   motion?: "axis" | "turn";
-  onSwap?: () => void;
+  onSwap?: (shownKey: string) => void;
   children: ReactNode;
 }) {
   const view =
@@ -55,10 +55,18 @@ export function Swap({
   return view;
 }
 
-type Props = { swapKey: string; onSwap?: () => void; children: ReactNode };
+type Props = {
+  swapKey: string;
+  onSwap?: (shownKey: string) => void;
+  children: ReactNode;
+};
 
-// Calls onSwap each time the content shown changes its key (not at first).
-function useOnSwap(shownKey: string, onSwap: (() => void) | undefined) {
+// Calls onSwap with the key now shown each time the content shown changes
+// its key (not at first).
+function useOnSwap(
+  shownKey: string,
+  onSwap: ((shownKey: string) => void) | undefined,
+) {
   const onSwapRef = useRef(onSwap);
   useEffect(() => {
     onSwapRef.current = onSwap;
@@ -69,7 +77,7 @@ function useOnSwap(shownKey: string, onSwap: (() => void) | undefined) {
       firstRef.current = false;
       return;
     }
-    onSwapRef.current?.();
+    onSwapRef.current?.(shownKey);
   }, [shownKey]);
 }
 
@@ -88,8 +96,10 @@ function Axis({ swapKey, onSwap, children }: Props) {
   const [progress] = useState(() => new Animated.Value(0));
   // The newest content, read when the old has gone.
   const latestRef = useRef({ key: swapKey, node: children });
+  const onSwapRef = useRef(onSwap);
   useEffect(() => {
     latestRef.current = { key: swapKey, node: children };
+    onSwapRef.current = onSwap;
   });
 
   const shownKey = shown.key;
@@ -163,8 +173,10 @@ function Turn({ swapKey, onSwap, children }: Props) {
   const [angle] = useState(() => new Animated.Value(0));
   // The newest content, read when the card is edge-on.
   const latestRef = useRef({ key: swapKey, node: children });
+  const onSwapRef = useRef(onSwap);
   useEffect(() => {
     latestRef.current = { key: swapKey, node: children };
+    onSwapRef.current = onSwap;
   });
 
   const shownKey = shown.key;
@@ -181,6 +193,9 @@ function Turn({ swapKey, onSwap, children }: Props) {
       setShown(latestRef.current);
       setSecondHalf(true);
       setEdges((count) => count + 1);
+      // Told in the same update as the new content, so what follows the
+      // card (the list under it) changes in the same frame.
+      onSwapRef.current?.(latestRef.current.key);
     });
   }, [swapKey, shownKey, angle]);
 
@@ -200,7 +215,6 @@ function Turn({ swapKey, onSwap, children }: Props) {
       if (finished) setSecondHalf(false);
     });
   }, [edges, angle]);
-  useOnSwap(shownKey, onSwap);
   useEffect(() => () => angle.stopAnimation(), [angle]);
 
   return (

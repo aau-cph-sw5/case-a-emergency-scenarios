@@ -28,7 +28,7 @@ import {
 } from "../offline/station-message-store";
 import { reportRejection, waitingReport } from "../offline/waiting-report";
 import { socket } from "../socket";
-import { ScenarioNotice } from "./Notice";
+import { liveNotices, NoticeStack, stoodDownNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { withOwnStatus } from "./own-assignment";
 import { RoleView } from "./RoleView";
@@ -370,10 +370,8 @@ export function StewardView({
         change.type === "assign" ? queueReport : undefined,
       );
       if (result.ok) {
-        // The rows that change size with the status (the own row gives its
-        // room back, or takes it) ease to their new heights instead of
-        // jumping; the status card turns by itself (Swap).
-        animateNextLayout();
+        // The status card turns by itself, and the list under it takes the
+        // new status when the card shows its new face (StewardStatusControl).
         setOwnStatus(result.own);
         setSelected(undefined);
         setPinned(change.type === "cancel" ? ownStation : undefined);
@@ -435,34 +433,48 @@ export function StewardView({
       : shown;
 
   // The coverage of the steward's station, with the own status counted.
-  const ownRequirement =
-    ownStation && shown
+  // The station the status card shows the staffing of: the own station, or
+  // without one the station chosen in the list, so the steward sees how it
+  // is staffed before sliding BEKRÆFT (#376).
+  const cardStation = ownStation ?? chosen;
+  const cardRequirement =
+    cardStation && shown
       ? // All rows of the station together, as in the list (#376).
         oneRowPerStation(
           shown.scenario.versions[0]?.stationRequirements ?? [],
-        ).find((requirement) => requirement.station === ownStation)
+        ).find((requirement) => requirement.station === cardStation)
       : undefined;
-  const ownCoverage =
-    ownStation && shown && ownRequirement
+  const cardCoverage =
+    cardStation && shown && cardRequirement
       ? (() => {
           const state = getStationState(
             (counted ?? shown).state,
-            ownStation,
-            ownRequirement.minimumStaffing,
+            cardStation,
+            cardRequirement.minimumStaffing,
           );
           return {
             arrived: state.current,
             enRoute: state.enRoute,
-            needed: ownRequirement.minimumStaffing,
+            needed: cardRequirement.minimumStaffing,
           };
         })()
       : null;
+
+  const stoodDown = stoodDownNotice(view);
 
   const retry = onRetry ?? (() => void refresh());
 
   return (
     <RoleView title="Steward" onLogout={onLogout}>
-      <ScenarioNotice view={view} onDismiss={dismissNotice} />
+      {/* Activated and switched show over the screen and move nothing;
+          stood down turns the status card (closed, below). */}
+      <NoticeStack
+        notices={liveNotices(view)}
+        onDismiss={(id) => {
+          animateNextLayout();
+          dismissNotice(id);
+        }}
+      />
       {/* The screen does not scroll (#376): the status card at the top (the
           status, the map and the one control), the station list under it. */}
       <View style={styles.content}>
@@ -493,10 +505,19 @@ export function StewardView({
             onRetry={retry}
           />
         )}
-        {shown && (
+        {(shown || stoodDown) && (
           <StewardStatusControl
+            closed={
+              stoodDown
+                ? {
+                    title: stoodDown.title,
+                    text: stoodDown.text,
+                    onDismiss: () => dismissNotice(),
+                  }
+                : undefined
+            }
             own={own}
-            coverage={ownCoverage}
+            coverage={cardCoverage}
             blockedReason={
               view.status === "copy"
                 ? STATUS_BLOCKED_OFFLINE
@@ -522,49 +543,55 @@ export function StewardView({
             }
             offline={view.status === "copy"}
             ready={ownLoaded}
-            scenario={shown.scenario.name}
+            scenario={shown?.scenario.name}
             connected={online && isConnected}
             map={
-              <ScenarioMap
+              shown && (
+                <ScenarioMap
+                  snapshot={counted ?? shown}
+                  network={network}
+                  networkIsCached={usingCached}
+                  networkStatus={networkStatus}
+                  assignedStation={ownStation}
+                  checkedOutStation={
+                    own?.status === "CHECKED_OUT" ? own.station : undefined
+                  }
+                />
+              )
+            }
+            note={
+              reportStatus && <Text style={styles.report}>{reportStatus}</Text>
+            }
+          >
+            {shown && (
+              <ScenarioOverview
                 snapshot={counted ?? shown}
-                network={network}
-                networkIsCached={usingCached}
-                networkStatus={networkStatus}
                 assignedStation={ownStation}
                 checkedOutStation={
                   own?.status === "CHECKED_OUT" ? own.station : undefined
                 }
+                ownArrived={
+                  own?.status === "MANNED" || own?.status === "TASK_DONE"
+                }
+                onSelect={
+                  canPick
+                    ? (station) => {
+                        animateNextLayout();
+                        setPinned(undefined);
+                        setSelected(station);
+                      }
+                    : undefined
+                }
+                selected={chosen}
+                pinnedStation={pinned}
               />
-            }
-          >
-            {reportStatus && <Text style={styles.report}>{reportStatus}</Text>}
-            <ScenarioOverview
-              snapshot={counted ?? shown}
-              assignedStation={ownStation}
-              checkedOutStation={
-                own?.status === "CHECKED_OUT" ? own.station : undefined
-              }
-              ownArrived={
-                own?.status === "MANNED" || own?.status === "TASK_DONE"
-              }
-              onSelect={
-                canPick
-                  ? (station) => {
-                      animateNextLayout();
-                      setPinned(undefined);
-                      setSelected(station);
-                    }
-                  : undefined
-              }
-              selected={chosen}
-              pinnedStation={pinned}
-            />
+            )}
           </StewardStatusControl>
         )}
 
         {/* Without a scenario (for example after a stop) the answer about
             the reports still shows; with one, it sits above the list. */}
-        {!shown && reportStatus && (
+        {!shown && !stoodDown && reportStatus && (
           <Text style={styles.report}>{reportStatus}</Text>
         )}
       </View>

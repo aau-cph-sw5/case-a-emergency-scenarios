@@ -8,14 +8,11 @@ import {
   text,
 } from "../../../shared/Theme";
 import type { OwnStatus } from "../data/steward-status";
+import { animateNextLayout } from "../motion";
 import { CardButton } from "./CardButton";
+import { NoticeCard } from "./NoticeCard";
 import { SlideToConfirm } from "./SlideToConfirm";
-import {
-  StatusBox,
-  staffingWords,
-  type CardLook,
-  type StatusChip,
-} from "./StatusBox";
+import { StatusBox, type CardLook, type StatusChip } from "./StatusBox";
 import { Swap } from "./Swap";
 
 export type StationCoverage = {
@@ -55,9 +52,17 @@ export function StewardStatusControl({
   scenario,
   connected = true,
   map,
+  note,
+  closed,
   children,
 }: {
   own: OwnStatus | null;
+  // The scenario was stood down: the card turns red and shows this message
+  // instead of the status, the map and the control (NoticeCard).
+  closed?: { title: string; text: string; onDismiss: () => void };
+  // The staffing shown as a bar under the name: of the own station, or
+  // without one of the station chosen in the list. Without either, the card
+  // asks the steward to choose the nearest station instead.
   coverage: StationCoverage | null;
   // Why the status cannot be changed right now, e.g. the saved offline copy.
   blockedReason: string | null;
@@ -80,6 +85,9 @@ export function StewardStatusControl({
   connected?: boolean;
   // The map of the affected stretch, shown in the card under the status.
   map?: ReactNode;
+  // A note above the list (how the last position report went). It is not
+  // part of the list, so it shows at once, also while the card turns.
+  note?: ReactNode;
   children?: ReactNode;
 }) {
   // After checking out the steward is free again, like with no status.
@@ -94,13 +102,19 @@ export function StewardStatusControl({
   // BEKRÆFT ANNULLÉR slide is showing. It starts over on every new status.
   const [confirmCancel, setConfirmCancel] = useState(false);
   if (!onTheWay && confirmCancel) setConfirmCancel(false);
+  // Whether TJEK UD has been pressed and the red BEKRÆFT TJEK UD slide is
+  // showing. It starts over each time the steward is at a station again.
+  const [confirmOut, setConfirmOut] = useState(false);
+  if (!atStation && confirmOut) setConfirmOut(false);
 
   // What the bottom control is. Empty until the steward's status is read, so
   // no control shows that is not the steward's.
   const bottomKind = !ready
     ? ""
     : atStation
-      ? "check-out"
+      ? confirmOut
+        ? "confirm-check-out"
+        : "check-out"
       : onTheWay && confirmCancel
         ? "confirm-cancel"
         : "slide";
@@ -114,7 +128,7 @@ export function StewardStatusControl({
   const slideLock =
     slide === "check-in"
       ? offline
-        ? "Ingen forbindelse"
+        ? OFFLINE_REASON
         : blockedReason !== null
           ? "Din position sendes"
           : null
@@ -122,16 +136,59 @@ export function StewardStatusControl({
         ? "Vælg en station"
         : null;
 
-  const look: CardLook = atStation
-    ? steward.card.arrived
-    : onTheWay
-      ? steward.card.onTheWay
-      : steward.card.none;
-  // A new station or status turns the card; nothing turns before the status
-  // has been read.
-  const turnKey = ready
-    ? `${active?.station ?? ""}|${active?.status ?? ""}`
-    : "";
+  const look: CardLook = closed
+    ? steward.card.stoodDown
+    : atStation
+      ? steward.card.arrived
+      : onTheWay
+        ? steward.card.onTheWay
+        : steward.card.none;
+  // A new station or status turns the card, and so does the scenario being
+  // stood down; nothing turns before the status has been read.
+  const turnKey = closed
+    ? "closed"
+    : ready
+      ? `${active?.station ?? ""}|${active?.status ?? ""}`
+      : "";
+
+  // The list under the card changes together with the card: while the card
+  // turns, the list stays as it was, and it takes the new status in the
+  // moment the card shows its new face (onSwap gives the status it shows).
+  // Before, the list changed at once and the card only half a turn later.
+  // Changes that are not a new status (a count, a chosen row) show at once.
+  const [cardKey, setCardKey] = useState(turnKey);
+  // The first status shows at once, like on the card.
+  if (cardKey === "" && turnKey !== "") setCardKey(turnKey);
+  const holding = cardKey !== turnKey;
+  // The list as it was while the card shows the same status as the list.
+  const [heldList, setHeldList] = useState(children);
+  if (!holding && heldList !== children) setHeldList(children);
+  const showNewList = (shownKey: string) => {
+    // The rows that change size with the status (the own row, the tasks
+    // after check in) ease to their new place instead of jumping.
+    animateNextLayout();
+    setCardKey(shownKey);
+  };
+
+  // The red slide of the second step (cancel, check out): the same slide
+  // with a cross that steps back.
+  const redSlide = (red: {
+    label: string;
+    disabled: boolean;
+    crossLabel: string;
+    onCross: () => void;
+    onConfirm: () => void;
+  }) => (
+    <SlideToConfirm
+      label={red.label}
+      tone="red"
+      lockedReason={offline ? OFFLINE_REASON : null}
+      disabled={red.disabled}
+      pending={sending}
+      cross={{ label: red.crossLabel, onPress: red.onCross }}
+      onConfirm={red.onConfirm}
+    />
+  );
 
   return (
     <View style={styles.container}>
@@ -147,101 +204,116 @@ export function StewardStatusControl({
       )}
 
       {/* A new status turns the whole card (Swap, "turn"). */}
-      <Swap swapKey={turnKey} motion="turn">
+      <Swap swapKey={turnKey} motion="turn" onSwap={showNewList}>
         <View
           style={[styles.card, { backgroundColor: look.background }]}
           testID="status-card"
         >
-          <StatusBox
-            // After checking out the card is back at the start (#376): no
-            // station chosen.
-            station={active?.station ?? "Ingen station"}
-            chip={statusChip(active, coverage)}
-            subLine={
-              active === null
-                ? "Vælg den nærmeste station"
-                : coverage && coverage.needed > 0
-                  ? staffingWords(coverage.arrived, coverage.enRoute)
-                  : null
-            }
-            scenario={scenario}
-            connected={connected}
-            look={look}
-            ready={ready}
-          />
-          {map !== undefined && <View style={styles.map}>{map}</View>}
+          {closed ? (
+            <NoticeCard
+              title={closed.title}
+              text={closed.text}
+              onDismiss={closed.onDismiss}
+            />
+          ) : (
+            <>
+              <StatusBox
+                // After checking out the card is back at the start (#376): no
+                // station chosen.
+                station={active?.station ?? "Ingen station"}
+                chip={statusChip(active)}
+                staffing={coverage}
+                scenario={scenario}
+                connected={connected}
+                look={look}
+                ready={ready}
+              />
+              {map !== undefined && <View style={styles.map}>{map}</View>}
 
-          {/* The ONE control. Its kind changes by the shared axis (Swap);
-              the slide changes its action the same way inside itself. */}
-          <View style={styles.slot}>
-            <Swap swapKey={bottomKind}>
-              {/* Keeps the place of the control while the status is read. */}
-              {!ready && <View style={styles.placeholder} />}
-              {/* ONE slide in one place: from BEKRÆFT to CHECK IND it is the
-                  same element, held at the end while the change is sent. On
-                  the way, its cross cancels in two steps, like checking out:
-                  the cross, then the red slide. */}
-              {bottomKind === "slide" && slide !== null && (
-                <SlideToConfirm
-                  label={slide === "check-in" ? "CHECK IND" : "BEKRÆFT"}
-                  tone={slide === "check-in" ? "green" : "yellow"}
-                  lockedReason={slideLock}
-                  disabled={slide === "check-in" ? disabled : sending}
-                  pending={sending}
-                  actionKey={slide}
-                  cross={
-                    slide === "check-in" && onCancel !== undefined
-                      ? {
-                          label: "Annullér tildeling",
-                          onPress: () => setConfirmCancel(true),
-                        }
-                      : undefined
-                  }
-                  onConfirm={
-                    slide === "check-in" ? onArrive : (onAssign ?? noop)
-                  }
-                />
-              )}
-              {bottomKind === "confirm-cancel" && (
-                <SlideToConfirm
-                  label="BEKRÆFT ANNULLÉR"
-                  tone="red"
-                  lockedReason={offline ? "Ingen forbindelse" : null}
-                  disabled={cancelDisabled}
-                  pending={sending}
-                  cross={{
-                    label: "Fortryd annullering",
-                    onPress: () => setConfirmCancel(false),
-                  }}
-                  onConfirm={onCancel ?? noop}
-                />
-              )}
-              {bottomKind === "check-out" && (
-                <CardButton
-                  kind="wide"
-                  label="TJEK UD"
-                  disabled={disabled}
-                  onPress={onCheckOut}
-                />
-              )}
-            </Swap>
-          </View>
+              {/* The ONE control. Its kind changes by the shared axis (Swap);
+                the slide changes its action the same way inside itself. */}
+              <View style={styles.slot}>
+                <Swap swapKey={bottomKind}>
+                  {/* Keeps the place of the control while the status is read. */}
+                  {!ready && <View style={styles.placeholder} />}
+                  {/* ONE slide in one place: from BEKRÆFT to CHECK IND it is the
+                    same element, held at the end while the change is sent. On
+                    the way, its cross cancels in two steps, like checking out:
+                    the cross, then the red slide. */}
+                  {bottomKind === "slide" && slide !== null && (
+                    <SlideToConfirm
+                      label={slide === "check-in" ? "TJEK IND" : "BEKRÆFT"}
+                      tone={slide === "check-in" ? "green" : "yellow"}
+                      lockedReason={slideLock}
+                      disabled={slide === "check-in" ? disabled : sending}
+                      pending={sending}
+                      actionKey={slide}
+                      cross={
+                        slide === "check-in" && onCancel !== undefined
+                          ? {
+                              label: "Annullér tildeling",
+                              onPress: () => setConfirmCancel(true),
+                            }
+                          : undefined
+                      }
+                      onConfirm={
+                        slide === "check-in" ? onArrive : (onAssign ?? noop)
+                      }
+                    />
+                  )}
+                  {bottomKind === "confirm-cancel" &&
+                    redSlide({
+                      label: "BEKRÆFT ANNULLÉR",
+                      disabled: cancelDisabled,
+                      crossLabel: "Fortryd annullering",
+                      onCross: () => setConfirmCancel(false),
+                      onConfirm: onCancel ?? noop,
+                    })}
+                  {/* Checking out takes two steps, like cancelling, so a stray
+                    tap cannot check anyone out: TJEK UD, then the red slide
+                    with a cross that steps back. No approval from the control
+                    room. */}
+                  {bottomKind === "check-out" && (
+                    <CardButton
+                      kind="wide"
+                      label="TJEK UD"
+                      disabled={disabled}
+                      onPress={() => setConfirmOut(true)}
+                    />
+                  )}
+                  {bottomKind === "confirm-check-out" &&
+                    redSlide({
+                      label: "BEKRÆFT TJEK UD",
+                      disabled,
+                      crossLabel: "Fortryd tjek ud",
+                      onCross: () => setConfirmOut(false),
+                      onConfirm: onCheckOut,
+                    })}
+                </Swap>
+              </View>
+            </>
+          )}
         </View>
       </Swap>
 
-      <View style={styles.middle}>{children}</View>
+      <View style={styles.middle}>
+        {note}
+        {holding ? heldList : children}
+      </View>
     </View>
   );
 }
 
 function noop() {}
 
-// The chip in the status box: what the status is. It stands out from its own
-// card colour: black on the yellow card, white on the green one.
-function statusChip(
-  own: OwnStatus | null,
-  coverage: StationCoverage | null,
-): StatusChip {
+// Why a slide is locked without a connection.
+const OFFLINE_REASON = "Ingen forbindelse";
+
+// The chip in the status box: what the status is, in a word (how many are
+// there shows in the staffing bar under the name). Black with yellow on the
+// yellow card, white with green on the green card, red when no station is
+// chosen.
+function statusChip(own: OwnStatus | null): StatusChip {
   switch (own?.status) {
     case "PENDING":
       return {
@@ -252,17 +324,15 @@ function statusChip(
     case "MANNED":
     case "TASK_DONE":
       return {
-        label: coverage
-          ? `ANKOMMET ${coverage.arrived}/${coverage.needed}`
-          : "ANKOMMET",
+        label: "ANKOMMET",
         background: colors.background,
         color: steward.green,
       };
     default:
       return {
         label: "IKKE VALGT",
-        background: steward.chipGrey,
-        color: colors.text,
+        background: steward.red,
+        color: colors.textInverse,
       };
   }
 }

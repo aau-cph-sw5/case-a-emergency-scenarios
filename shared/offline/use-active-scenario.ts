@@ -13,33 +13,47 @@ export type ActiveScenarioView =
   | { status: "loading" }
   | { status: "none" }
   | { status: "stood-down"; scenarioName: string }
-  | { status: "live"; snapshot: ScenarioSnapshot; notice?: LiveNotice }
+  | { status: "live"; snapshot: ScenarioSnapshot; notices: LiveNotice[] }
   | { status: "copy"; snapshot: ScenarioSnapshot; reason: CopyReason }
   | { status: "no-copy"; reason: CopyReason };
 
-export type LiveNotice =
-  { kind: "activated" } | { kind: "switched"; from: string };
+// What happened to the scenario while the steward was looking, one entry
+// each. They pile up until the steward dismisses them one by one, so a second
+// switch does not replace the first. The id tells them apart.
+// at is when the control room activated the scenario the notice is about
+// (the activation's startedAt), so a steward who opens the app later can
+// follow the changes on the timeline.
+export type LiveNotice = { id: number; at: string } & (
+  { kind: "activated" } | { kind: "switched"; from: string }
+);
 
-// A different scenario than the one shown was switched to.
-// or one that arrives after this session saw no scenario was activated.
-function noticeFor(
+// The notices after a refresh: those already waiting stay, and a different
+// scenario than the one shown (switched), or one that arrives after this
+// session saw none (activated), adds one.
+function noticesFor(
   shown: ActiveScenarioView,
   previous: { scenarioId: string; name: string } | null,
   scenarioId: string,
-): LiveNotice | undefined {
+  startedAt: string,
+  newId: () => number,
+): LiveNotice[] {
+  const waiting = shown.status === "live" ? shown.notices : [];
   if (previous !== null && previous.scenarioId !== scenarioId) {
-    return { kind: "switched", from: previous.name };
+    return [
+      ...waiting,
+      { id: newId(), at: startedAt, kind: "switched", from: previous.name },
+    ];
   }
   if (shown.status === "none" || shown.status === "stood-down") {
-    return { kind: "activated" };
+    return [{ id: newId(), at: startedAt, kind: "activated" }];
   }
   if (
     shown.status === "live" &&
     shown.snapshot.scenario.scenarioId === scenarioId
   ) {
-    return shown.notice;
+    return waiting;
   }
-  return undefined;
+  return [];
 }
 
 type UseActiveScenarioOptions = {
@@ -70,6 +84,7 @@ export function useActiveScenario({
   const shownSequenceRef = useRef(0);
   // The scenario last shown
   const shownRef = useRef<{ scenarioId: string; name: string } | null>(null);
+  const noticeIdRef = useRef(0);
   const onUnauthorizedRef = useRef(onUnauthorized);
 
   useEffect(() => {
@@ -148,7 +163,13 @@ export function useActiveScenario({
       setView((shown) => ({
         status: "live",
         snapshot,
-        notice: noticeFor(shown, previous, scenarioId),
+        notices: noticesFor(
+          shown,
+          previous,
+          scenarioId,
+          active.state.startedAt,
+          () => ++noticeIdRef.current,
+        ),
       }));
       // A failing save keeps the live view; the next refresh tries again.
       if (userId !== null) await store.save(snapshot).catch(() => undefined);
@@ -170,13 +191,21 @@ export function useActiveScenario({
     };
   }, [refresh]);
 
-  // Hides the stood-down, activated or switched notice once the steward has seen it.
-  const dismissNotice = useCallback(() => {
+  // Hides one notice once the steward has seen it: the one with this id, or
+  // the stood-down one (which has no id).
+  const dismissNotice = useCallback((id?: number) => {
     setView((shown) =>
       shown.status === "stood-down"
-        ? { status: "none" }
+        ? // A swipe on a notice that ends after the stand-down has an id and
+          // must not close the stood-down card.
+          id === undefined
+          ? { status: "none" }
+          : shown
         : shown.status === "live"
-          ? { ...shown, notice: undefined }
+          ? {
+              ...shown,
+              notices: shown.notices.filter((notice) => notice.id !== id),
+            }
           : shown,
     );
   }, []);

@@ -26,9 +26,11 @@ function renderControl(
   return { onArrive, onCheckOut };
 }
 
-// TJEK UD checks out.
+// TJEK UD, then the red BEKRÆFT TJEK UD slide (#377).
 async function checkOut() {
   fireEvent.press(screen.getByText("TJEK UD"));
+  await screen.findByText("BEKRÆFT TJEK UD");
+  confirmSlide();
 }
 
 function confirmSlide() {
@@ -41,7 +43,6 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
   it("shows no status, and no slide when the steward cannot choose", () => {
     renderControl();
     expect(screen.getByText("IKKE VALGT")).toBeTruthy();
-    expect(screen.getByText("Vælg den nærmeste station")).toBeTruthy();
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
   });
 
@@ -65,7 +66,8 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     });
     expect(screen.getByText("PÅ VEJ")).toBeTruthy();
     expect(screen.getByText("Station B")).toBeTruthy();
-    expect(screen.getByText("1 på stationen · 1 på vej")).toBeTruthy();
+    // The staffing is a bar of segments, read out in words.
+    expect(screen.getByLabelText("1 på stationen · 1 på vej")).toBeTruthy();
     confirmSlide();
     expect(onArrive).toHaveBeenCalledTimes(1);
   });
@@ -75,11 +77,25 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
       own: { station: "Station B", status: "MANNED" },
       coverage: { arrived: 2, enRoute: 0, needed: 2 },
     });
-    expect(screen.getByText("ANKOMMET 2/2")).toBeTruthy();
-    expect(screen.getByText("2 på stationen")).toBeTruthy();
+    expect(screen.getByText("ANKOMMET")).toBeTruthy();
+    expect(screen.getByLabelText("2 på stationen")).toBeTruthy();
     expect(screen.queryByTestId("slide-to-confirm")).toBeNull();
     await checkOut();
     expect(onCheckOut).toHaveBeenCalledTimes(1);
+  });
+
+  // Checking out takes two steps (#377): TJEK UD, then the red slide; its
+  // cross steps back without checking out.
+  it("checks out only after TJEK UD and the red slide", async () => {
+    const { onCheckOut } = renderControl({
+      own: { station: "Station B", status: "MANNED" },
+    });
+    fireEvent.press(screen.getByText("TJEK UD"));
+    await screen.findByText("BEKRÆFT TJEK UD");
+    expect(onCheckOut).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByLabelText("Fortryd tjek ud"));
+    await screen.findByText("TJEK UD");
+    expect(onCheckOut).not.toHaveBeenCalled();
   });
 
   // Cancelling is the cross next to CHECK IND, not a button of its own (#376).
@@ -104,6 +120,7 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
       sending: true,
     });
     fireEvent.press(screen.getByText("TJEK UD"));
+    expect(screen.queryByText("BEKRÆFT TJEK UD")).toBeNull();
     expect(manned.onCheckOut).not.toHaveBeenCalled();
   });
 
@@ -167,7 +184,7 @@ describe("StewardStatusControl (MET-A-015, #263, #305)", () => {
     fireEvent.press(screen.getByLabelText("Annullér tildeling"));
     await screen.findByText("BEKRÆFT ANNULLÉR");
     fireEvent.press(screen.getByLabelText("Fortryd annullering"));
-    await screen.findByText("CHECK IND");
+    await screen.findByText("TJEK IND");
     expect(onCancel).not.toHaveBeenCalled();
     fireEvent.press(screen.getByLabelText("Annullér tildeling"));
     await screen.findByText("BEKRÆFT ANNULLÉR");

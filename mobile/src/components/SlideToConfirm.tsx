@@ -12,6 +12,7 @@ import {
 import Svg, { Path, Rect } from "react-native-svg";
 import { CardButton } from "./CardButton";
 import { DoubleArrow } from "./DoubleArrow";
+import { DARK_DIM, LIGHT_DIM, ShineText } from "./ShineText";
 import { Swap } from "./Swap";
 import {
   colors,
@@ -45,11 +46,29 @@ const NO_ANSWER_MS = 600;
 // leads to: yellow to confirm a station, green to check in, red to check out
 // or cancel. Text is dark on the yellow track and white on the others.
 export type SlideTone = "yellow" | "green" | "red";
-const TONES: Record<SlideTone, { track: string; text: string }> = {
-  yellow: { track: steward.yellow, text: colors.text },
-  green: { track: steward.green, text: colors.textInverse },
-  red: { track: steward.red, text: colors.textInverse },
+// dim is the text between sweeps of the shine (see ShineText): the text
+// colour, faint. The band takes the text colour itself.
+type Look = { track: string; text: string; dim: string };
+const TONES: Record<SlideTone, Look> = {
+  yellow: { track: steward.yellow, text: colors.text, dim: DARK_DIM },
+  green: { track: steward.green, text: colors.textInverse, dim: LIGHT_DIM },
+  red: { track: steward.red, text: colors.textInverse, dim: LIGHT_DIM },
 };
+// The grey look of a slide that cannot be used right now.
+const LOCKED_LOOK: Look = {
+  track: steward.locked,
+  text: steward.lockedText,
+  dim: steward.lockedText,
+};
+// Every slide ends the same way: the track and the label fade into white, and
+// the white knob disappears into it, before the card turns.
+const END_LOOK: Look = {
+  track: colors.background,
+  text: colors.text,
+  dim: DARK_DIM,
+};
+// From this share of the way, the track starts to fade into white.
+const FADE_FROM = 0.75;
 
 // THE slide (#375, #376): the steward pushes the knob to the right to
 // confirm, where a single tap would be too easy to make by mistake. Screen
@@ -65,13 +84,15 @@ const TONES: Record<SlideTone, { track: string; text: string }> = {
 // screen works on it (pending), a spinner shows in the knob if it takes long.
 // The slide lets go when the work is done.
 //
+// Past FADE_FROM of the way, the track and the label fade into white, so every
+// slide ends the same way: the knob has gone into the track and the card turns.
+//
 // A new action in the same place (a new label) keeps the frame: the content
 // changes with the shared-axis change (Swap), the knob starts from the left,
 // and the track's colour fades from the old to the new.
 //
 // cross puts the ✕ button next to the slide (CardButton), for the slides
-// the steward can step away from. The track's arrows then make room for the
-// label.
+// the steward can step away from.
 export function SlideToConfirm({
   label,
   tone,
@@ -104,26 +125,52 @@ export function SlideToConfirm({
     if (held) setHeld(false);
     if (spinner) setSpinner(false);
   }
+  // A spinner shows only while the slide is held. The timer that turns it on
+  // can fire just after the slide has let go (React cancels the timer a
+  // moment after the screen changed), which left a spinner on a free knob
+  // for good.
+  if (spinner && !held) setSpinner(false);
   const disabled = busy || locked || held;
   const sawPendingRef = useRef(false);
   const spinnerAtRef = useRef(0);
-  const look = locked
-    ? { track: steward.locked, text: steward.lockedText }
-    : TONES[tone];
+  const look = locked ? LOCKED_LOOK : TONES[tone];
+  // A locked slide cannot be slid, so it does not fade.
+  const endLook = locked ? null : END_LOOK;
   const [trackWidth, setTrackWidth] = useState(0);
   const [offset] = useState(() => new Animated.Value(0));
   const maxOffset = Math.max(trackWidth - KNOB_SIZE - 2 * INSET, 0);
+  // 0 until FADE_FROM of the way, then 1 at the end.
+  const fadeInput = [0, maxOffset * FADE_FROM, maxOffset];
+  const fading = endLook !== null && maxOffset > 0;
+  const endOpacity = fading
+    ? offset.interpolate({ inputRange: fadeInput, outputRange: [0, 0, 1] })
+    : 0;
+  const fadeColour = (now: string, later: string) =>
+    fading
+      ? offset.interpolate({
+          inputRange: fadeInput,
+          outputRange: [now, now, later],
+        })
+      : now;
+  const labelColor = fadeColour(look.text, endLook?.text ?? look.text);
+  const dimColor = fadeColour(look.dim, endLook?.dim ?? look.dim);
 
   // The old track colour on top of the new one, fading away when the slide
   // takes a new colour, at the pace of the shared-axis change. The colours
-  // are set while rendering; the fade starts once they are on screen.
+  // are set while rendering; the fade starts once they are on screen. A slide
+  // that was completed has the card turn after it, and the next slide is in
+  // its own colour from the first moment, so it does not fade.
   const [track, setTrack] = useState({
     now: look.track,
     old: look.track,
     n: 0,
   });
   if (look.track !== track.now) {
-    setTrack({ now: look.track, old: track.now, n: track.n + 1 });
+    setTrack({
+      now: look.track,
+      old: held ? look.track : track.now,
+      n: track.n + 1,
+    });
   }
   const [oldTrackOpacity] = useState(() => new Animated.Value(0));
   useEffect(() => {
@@ -227,26 +274,35 @@ export function SlideToConfirm({
           { backgroundColor: track.old, opacity: oldTrackOpacity },
         ]}
       />
+      {/* White, fading in at the end of the slide. */}
+      {fading && endLook && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.fill,
+            { backgroundColor: endLook.track, opacity: endOpacity },
+          ]}
+        />
+      )}
       {/* A new label is a new action: the content changes by the shared
           axis, and the knob goes back to the start once it has. */}
       <Swap swapKey={label} onSwap={() => offset.setValue(0)}>
         <View style={styles.content}>
           <View style={styles.labels}>
-            <Text style={[styles.label, { color: look.text }]}>{label}</Text>
+            <ShineText
+              style={styles.label}
+              dim={dimColor}
+              bright={labelColor}
+              still={locked}
+            >
+              {label}
+            </ShineText>
             {locked && (
               <Text style={[styles.reason, { color: look.text }]}>
                 {lockedReason}
               </Text>
             )}
           </View>
-          {/* Three of Metro's double arrows point the way the knob goes. */}
-          {!locked && cross === undefined && (
-            <View style={styles.arrows} importantForAccessibility="no">
-              <DoubleArrow height={13} color={look.text} />
-              <DoubleArrow height={13} color={look.text} />
-              <DoubleArrow height={13} color={look.text} />
-            </View>
-          )}
           <Animated.View
             {...responder.panHandlers}
             style={[styles.knob, { transform: [{ translateX: offset }] }]}
@@ -264,7 +320,7 @@ export function SlideToConfirm({
                 <Rect x={5} y={11} width={14} height={9} rx={2} />
                 <Path d="M8 11V8a4 4 0 0 1 8 0v3" />
               </Svg>
-            ) : spinner ? (
+            ) : spinner && held ? (
               <ActivityIndicator color={look.track} testID="slide-spinner" />
             ) : (
               <DoubleArrow height={20} color={look.track} />
@@ -319,8 +375,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: INSET,
   },
+  // The text is centred in the track. The same room on both sides, as wide
+  // as the knob, so a long text never runs under the knob.
   labels: {
-    paddingLeft: KNOB_SIZE + spacing.large,
+    alignItems: "center",
+    paddingHorizontal: KNOB_SIZE + spacing.small,
   },
   label: {
     ...text.button,
@@ -330,13 +389,7 @@ const styles = StyleSheet.create({
   },
   reason: {
     fontSize: 12,
-  },
-  arrows: {
-    flexDirection: "row",
-    gap: GAP,
-    opacity: 0.6,
-    position: "absolute",
-    right: spacing.large,
+    textAlign: "center",
   },
   knob: {
     alignItems: "center",

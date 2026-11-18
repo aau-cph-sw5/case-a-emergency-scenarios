@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import {
   PanResponder,
+  StyleSheet,
   type GestureResponderEvent,
   type PanResponderCallbacks,
   type PanResponderGestureState,
@@ -117,7 +118,15 @@ describe("SlideToConfirm (MET-A-015, #263)", () => {
     expect(screen.getByTestId("slide-to-confirm")).toHaveStyle({
       backgroundColor: track,
     });
-    expect(screen.getByText("BEKRÆFT")).toHaveStyle({ color: label });
+    // The text is drawn dim with the bright band over it (the shine), once
+    // the text has been measured: one of the copies has the text colour.
+    fireEvent(screen.getByText("BEKRÆFT"), "layout", {
+      nativeEvent: { layout: { width: 80, height: 20, x: 0, y: 0 } },
+    });
+    const colours = screen
+      .getAllByText("BEKRÆFT", { includeHiddenElements: true })
+      .map((node) => StyleSheet.flatten(node.props.style).color);
+    expect(colours).toContain(label);
   });
 
   it("is grey, shows why and confirms nothing while locked", () => {
