@@ -15,7 +15,7 @@ The code is in `src/services/scenario-suggestion/`:
 | `to-document.ts`     | `toDocument`: turns a scenario into the text that is searched     |
 | `bm25ranker.ts`      | `BM25Ranker`: ranks the texts against a description               |
 | `shortlist.ts`       | `shortlist`: keeps the best five of a ranked list                 |
-| `simple-tokenize.ts` | A stand-in tokenizer, to be replaced by the Danish one from #354 |
+| `danish-tokenize.ts` | `createDanishTokenize`: splits Danish text into words (#354) |
 
 ## The interface
 
@@ -37,8 +37,11 @@ constructor and uses it for both the description and the documents, so they
 are always split into words the same way:
 
 ```ts
-const ranker = new BM25Ranker(simpleTokenize);
+const ranker = new BM25Ranker(createDanishTokenize(stations));
 ```
+
+How the tokenizer splits Danish text is described in
+[scenario-suggestion-tokenization.md](scenario-suggestion-tokenization.md).
 
 ## What is searched
 
@@ -128,8 +131,8 @@ towards the best score:
 - `false`: unknown words are ignored, as if they were not in the description.
 
 The default is `true` because a wrong suggestion with a high score is worse
-than falling back to the full list. Filler words such as "der" and "er" count
-as unknown until the tokenizer from #354 removes them.
+than falling back to the full list. The tokenizer removes filler words such as
+"der" and "er", so they don't count as unknown.
 
 ## Assumptions
 
@@ -146,12 +149,13 @@ as unknown until the tokenizer from #354 removes them.
   scenario's text adds nothing.
 - **Numbers have no meaning.** A track number, a switch number and a time are
   all just words.
-- **Compound words aren't split** until the tokenizer from #354 is in place.
+- **Compound words aren't split**, so "signalfejl" doesn't match "fejl". See
+  the tokenization doc for its other limits.
 - **Neighbouring segments share stations.** A description that names one
   station matches every scenario that covers it, with similar scores.
 - **IDF is weak with few scenarios.** With a few scenarios, most words are in
-  one or all of them. How well the ranking works can't be judged before there
-  are more scenarios and the evaluation set from MET-A-020.
+  one or all of them. How well the ranking works can't be judged before it is
+  measured on more scenarios, which the evaluation under MET-A-019 will do.
 - **Scores are relative to the description.** They compare candidates for one
   description. They are not probabilities, and a score for one description
   can't be compared with a score for another.
@@ -161,9 +165,7 @@ as unknown until the tokenizer from #354 removes them.
 
 ## Open questions
 
-- The default for `includeUnknownTerms`, and whether the threshold in #356
-  works with these scores (Oskar).
-- Whether the tokenizer from #354 removes filler words, which makes
-  `includeUnknownTerms: true` less strict.
-- The fields that are left out can be tried again once MET-A-020 can measure
-  the difference.
+- Whether the threshold in #356 still fits these scores with the Danish
+  tokenizer. It was chosen with a simpler stand-in.
+- The fields that are left out can be tried again once the evaluation under
+  MET-A-019 can measure the difference.
