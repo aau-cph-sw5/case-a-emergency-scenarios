@@ -112,7 +112,9 @@ export function routesBetween(
       routes.push(path);
       continue;
     }
-    for (const next of [...(neighbours.get(station) ?? [])].sort()) {
+    for (const next of [...(neighbours.get(station) ?? [])].sort((a, b) =>
+      a.localeCompare(b, "da"),
+    )) {
       if (!path.includes(next)) pending.push([...path, next]);
     }
   }
