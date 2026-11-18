@@ -10,6 +10,8 @@ the commands in [COMMANDS.md](COMMANDS.md). Don't copy them here.
 - Don't read, copy, quote or commit the Metro scenario seed data. It is confidential
   Metro material and is kept outside the repository, in the folder
   that `SEED_SCENARIOS_DIR` in `.env` points to.
+- Don't read `.env`. It holds secrets such as the JWT secret and the
+  database credentials. Use `.env.example` to see which variables exist.
 - Don't put anything from Metro Service in `fixtures/`. Fixtures are invented.
 - Don't hand-edit `shared/types/v1/`. It is generated.
 
