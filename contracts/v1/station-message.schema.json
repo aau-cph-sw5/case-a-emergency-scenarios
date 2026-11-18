@@ -1,0 +1,59 @@
+{
+  "$id": "station-message.schema.json",
+  "title": "Station Message",
+  "description": "One message in a station's thread (MET-A-029). A message never carries the identity of the steward who wrote it: a steward message comes from the station. No other fields are allowed.",
+  "type": "object",
+  "required": [
+    "id",
+    "clientMessageId",
+    "activationId",
+    "station",
+    "sender",
+    "text",
+    "writtenAt",
+    "receivedAt"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Set by the server. A higher id was received later, and a thread's messages are ordered by it."
+    },
+    "clientMessageId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The UUID the writing client generated. A client uses it to recognise its own pending message. It is random, says nothing about the writer and is never written to the incident log."
+    },
+    "activationId": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The activation the thread belongs to."
+    },
+    "station": {
+      "type": "string",
+      "description": "The station the thread belongs to, the same value as station in a position report."
+    },
+    "sender": {
+      "type": "string",
+      "enum": ["STATION", "CONTROL_ROOM"],
+      "description": "STATION: written by a steward checked in at the station. CONTROL_ROOM: written by an operator. Set by the server from the role in the token."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "description": "Free text. Plain text, never HTML or markup."
+    },
+    "writtenAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the message was written, from the writing device's clock. Kept as sent, also for a message delivered late from an offline queue. Shown to users, but never used for ordering or for the thread state, because the device's clock is not trusted."
+    },
+    "receivedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the server received the message. Set by the server."
+    }
+  }
+}

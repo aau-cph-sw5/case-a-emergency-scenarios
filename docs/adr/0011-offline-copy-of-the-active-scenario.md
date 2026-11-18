@@ -61,8 +61,11 @@ minutes is a placeholder until Metro answers how long a copy can be trusted;
 it lives in `STALE_AFTER_MS` in `shared/offline/scenario-snapshot.ts`.
 A copy saved more than 2 minutes in the future means the phone's clock has
 been turned back; its age is unknown, so the banner is red and says so.
-Position reports and the socket controls are hidden while the copy is shown,
-since they need the server.
+Going on the way to a station can still be reported while the copy is shown.
+The report is saved on the phone and sent once the server can be reached.
+Until then the steward sees the status from the saved report and cannot
+arrive, cancel or check out, so those changes cannot overtake it. The socket
+controls are hidden while the copy is shown, since they need the server.
 
 The app follows the connection with `@react-native-community/netinfo` and
 shows an Android toast, "Du er offline" and "Du er online igen". The copy is

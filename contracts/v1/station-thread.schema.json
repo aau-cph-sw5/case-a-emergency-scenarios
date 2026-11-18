@@ -1,0 +1,53 @@
+{
+  "$id": "station-thread.schema.json",
+  "title": "Station Thread",
+  "description": "A station's thread in one activation (MET-A-029). It belongs to the station, not to a person, and lives until the activation is stood down. No other fields are allowed.",
+  "type": "object",
+  "additionalProperties": false,
+  "if": {
+    "properties": { "state": { "const": "UNANSWERED" } }
+  },
+  "then": {
+    "properties": { "unansweredSince": { "type": "string" } }
+  },
+  "else": {
+    "properties": { "unansweredSince": { "type": "null" } }
+  },
+  "required": [
+    "activationId",
+    "station",
+    "state",
+    "unansweredSince",
+    "lastMessageAt"
+  ],
+  "properties": {
+    "activationId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "station": {
+      "type": "string",
+      "description": "The same value as station in a position report."
+    },
+    "state": {
+      "type": "string",
+      "enum": ["UNANSWERED", "ANSWERED"],
+      "description": "UNANSWERED: the message the server received last is from the station. ANSWERED: it is from the control room, or the thread has no messages. The state follows the order the server received the messages, never writtenAt. Reading a thread does not change it."
+    },
+    "unansweredSince": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "While UNANSWERED: receivedAt of the first station message after the latest control room message. The operator's list is ordered by it, oldest first. Null while ANSWERED."
+    },
+    "lastMessageAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "receivedAt of the message the server received last. Null when the thread has no messages."
+    },
+    "messages": {
+      "type": "array",
+      "items": { "$ref": "station-message.schema.json" },
+      "description": "The thread's messages in the order the server received them (by id). Always present when one thread is read, left out in the list of threads and in socket events."
+    }
+  }
+}

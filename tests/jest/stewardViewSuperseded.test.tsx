@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { act, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
 import {
@@ -7,6 +7,7 @@ import {
   StewardView,
   supersededMessage,
 } from "../../mobile/src/screens/StewardView";
+import { queuePositionReport } from "../../mobile/src/offline/queue-position-report";
 import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
 import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
 import type { Scenario } from "../../shared/types/v1/scenario";
@@ -28,6 +29,9 @@ jest.mock("../../shared/socket/useSocketState", () => ({
 jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
   positionReportDelivery: { flush: jest.fn() },
 }));
+jest.mock("../../mobile/src/offline/queue-position-report", () => ({
+  queuePositionReport: jest.fn(),
+}));
 jest.mock("../../shared/offline/use-active-scenario", () => ({
   useActiveScenario: jest.fn(),
 }));
@@ -36,6 +40,7 @@ const { useActiveScenario } = jest.requireMock(
   "../../shared/offline/use-active-scenario",
 ) as { useActiveScenario: jest.Mock };
 const flush = jest.mocked(positionReportDelivery.flush);
+const queue = jest.mocked(queuePositionReport);
 const nothingSent = {
   acknowledged: 0,
   rejected: 0,
@@ -57,10 +62,35 @@ beforeEach(() => {
   flush.mockResolvedValue(nothingSent);
 });
 
+// Shows the live view and reports going on the way to Station B.
+async function reportStationB() {
+  showView({ status: "live", snapshot: noStatus });
+  render(stewardView(true));
+  await act(async () => {});
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
+  });
+}
+
 const snapshot = buildSnapshot(
   {
     active: true,
     state: activeState as ScenarioState,
+    scenario: scenario as Scenario,
+  },
+  "7",
+  new Date("2026-11-06T07:00:00Z"),
+);
+// Steward 7 without a status, so Station B can be chosen.
+const noStatus = buildSnapshot(
+  {
+    active: true,
+    state: {
+      ...(activeState as ScenarioState),
+      deployments: (activeState as ScenarioState).deployments.filter(
+        (deployment) => deployment.staff !== "7",
+      ),
+    },
     scenario: scenario as Scenario,
   },
   "7",
@@ -113,6 +143,22 @@ describe("StewardView superseded reports", () => {
     expect(flush).toHaveBeenCalledWith("7", token);
   });
 
+  it("fetches the server's copy once a report saved offline is delivered", async () => {
+    flush.mockResolvedValue({ ...nothingSent, acknowledged: 1 });
+    showView({ status: "copy", reason: "offline", snapshot });
+    const { rerender } = render(stewardView(false));
+
+    showView({ status: "live", snapshot });
+    rerender(stewardView(true));
+
+    expect(await screen.findByText("Position sendt.")).toBeTruthy();
+    const { results } = useActiveScenario.mock;
+    const { refresh } = results[results.length - 1].value as {
+      refresh: jest.Mock;
+    };
+    expect(refresh).toHaveBeenCalled();
+  });
+
   it("tells the steward why a queued report was rejected when the scenario was stopped while offline", async () => {
     flush.mockResolvedValue({
       acknowledged: 0,
@@ -134,6 +180,76 @@ describe("StewardView superseded reports", () => {
       ),
     ).toBeTruthy();
     expect(flush).toHaveBeenCalledWith("7", token);
+  });
+
+  it("queues the chosen station with its activation and sends it", async () => {
+    queue.mockResolvedValue(queued);
+    flush.mockResolvedValueOnce(nothingSent);
+    flush.mockResolvedValueOnce({ ...nothingSent, acknowledged: 1 });
+
+    await reportStationB();
+
+    expect(queue).toHaveBeenCalledWith({
+      userId: "7",
+      station: "Station B",
+      scenarioId: noStatus.state.scenarioId,
+      activationId: noStatus.state.activationId,
+      event: "EN_ROUTE",
+    });
+    expect(screen.getByText("Position sendt.")).toBeTruthy();
+  });
+
+  it("says a refused report was not received and others are waiting", async () => {
+    queue.mockResolvedValue(queued);
+    flush.mockResolvedValueOnce(nothingSent);
+    flush.mockResolvedValueOnce({ ...nothingSent, rejected: 1, pending: 1 });
+
+    await reportStationB();
+
+    expect(
+      screen.getByText(
+        "Positionen blev ikke modtaget.\nPosition gemt. Afventer levering.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("fetches the server's status when a report was refused", async () => {
+    queue.mockResolvedValue(queued);
+    flush.mockResolvedValueOnce(nothingSent);
+    flush.mockResolvedValueOnce({ ...nothingSent, rejected: 1 });
+
+    await reportStationB();
+
+    const { refresh } = useActiveScenario.mock.results[0].value as {
+      refresh: jest.Mock;
+    };
+    expect(screen.getByText("Positionen blev ikke modtaget.")).toBeTruthy();
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("keeps the report on the phone when it cannot be sent", async () => {
+    queue.mockResolvedValue(queued);
+    flush.mockResolvedValueOnce(nothingSent);
+    flush.mockRejectedValueOnce(new Error("offline"));
+
+    await reportStationB();
+
+    expect(
+      screen.getByText(
+        "Position gemt på telefonen, men kunne ikke sendes endnu.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("says so when the report cannot be saved on the phone", async () => {
+    queue.mockRejectedValue(new Error("storage full"));
+
+    await reportStationB();
+
+    expect(
+      screen.getByText("Positionen kunne ikke gemmes på telefonen."),
+    ).toBeTruthy();
+    expect(flush).toHaveBeenCalledTimes(1);
   });
 
   it("names every station when several reports were rejected", () => {
@@ -176,6 +292,26 @@ describe("StewardView superseded reports", () => {
       expect(flush).toHaveBeenCalledTimes(2);
       await act(async () => {
         jest.advanceTimersByTime(RETRY_DELAYS_MS[1] - RETRY_DELAYS_MS[0]);
+      });
+      expect(flush).toHaveBeenCalledTimes(3);
+      expect(screen.getByText("Position sendt.")).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+  it("tries a report again later when it could not be sent at once", async () => {
+    jest.useFakeTimers();
+    try {
+      queue.mockResolvedValue(queued);
+      flush.mockResolvedValueOnce(nothingSent);
+      flush.mockRejectedValueOnce(new Error("offline"));
+      flush.mockResolvedValueOnce({ ...nothingSent, acknowledged: 1 });
+
+      await reportStationB();
+      expect(flush).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        jest.advanceTimersByTime(RETRY_DELAYS_MS[0]);
       });
       expect(flush).toHaveBeenCalledTimes(3);
       expect(screen.getByText("Position sendt.")).toBeTruthy();

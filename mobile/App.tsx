@@ -16,6 +16,7 @@ import { useAuthenticatedSocket } from "../shared/socket/useAuthenticatedSocket"
 import { apiBaseUrl } from "./src/api-base-url";
 import { mobileSessionStore } from "./src/auth/session-store";
 import { snapshotStore } from "./src/offline/snapshot-store";
+import { networkStore } from "./src/network/network-store";
 import { useConnectivity } from "./src/offline/useConnectivity";
 import { StewardView } from "./src/screens/StewardView";
 import { socket } from "./src/socket";
@@ -69,6 +70,7 @@ export default function App() {
   useEffect(() => {
     if (state.status === "signed-out") {
       void snapshotStore.clear().catch(() => undefined);
+      void networkStore.clear().catch(() => undefined);
     }
   }, [state.status]);
 

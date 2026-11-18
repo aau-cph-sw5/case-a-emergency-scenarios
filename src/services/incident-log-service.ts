@@ -15,7 +15,7 @@ export type NewIncidentEvent = {
   subject: { type: string; id: string };
   activationId?: string;
   line?: string;
-  payload?: EventPayload; // ids and fixed codes only, never names or free text
+  payload?: EventPayload; // Data for this event, as allowed by its contract.
   clientTime?: Date; // the device's own time, e.g. for queued steward reports
 };
 
@@ -46,4 +46,43 @@ export function listIncidentEvents(
   activationId: string,
 ): Promise<IncidentEvent[]> {
   return listEventsForActivation(db, activationId);
+}
+
+// Log the message without identifying the steward who sent it.
+export async function appendStationMessageEvent(
+  db: Db,
+  input: {
+    message: {
+      id: number;
+      activationId: number;
+      station: string;
+      text: string;
+      writtenAt: string;
+      receivedAt: string;
+    };
+    lineGroup: string;
+  },
+): Promise<IncidentEvent> {
+  const { message } = input;
+
+  return insertEvent(db, {
+    type: "STATION_MESSAGE_WRITTEN",
+    schemaVersion: 1,
+    // Use a fixed system actor instead of the steward's user ID, so it doesn't reveal the sender's identity.
+    actorType: "SYSTEM",
+    actorId: "station-thread",
+    actorRole: null,
+    subjectType: "station-message",
+    subjectId: String(message.id),
+    activationId: String(message.activationId),
+    line: input.lineGroup,
+    payload: {
+      station: message.station,
+      text: message.text,
+      writtenAt: message.writtenAt,
+      receivedAt: message.receivedAt,
+    },
+    // Keep the sender's written time; the database records the event's server time.
+    clientTime: new Date(message.writtenAt),
+  });
 }

@@ -2,7 +2,10 @@ import { ERROR_CODES } from "../../../shared/error-codes";
 import type { PositionReport } from "../../../shared/types/v1/position-report";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
 import type { Deployment } from "../../../shared/scenario/active-scenario";
-import { sendPositionReport } from "../api/position-report";
+import {
+  sendPositionReport,
+  type PositionReportResult,
+} from "../api/position-report";
 import { findOwnAssignment } from "../screens/own-assignment";
 
 // A steward's status, as the contract names it (scenario-state.schema.json).
@@ -22,6 +25,12 @@ export type StatusRequest =
   | { type: "arrive" }
   | { type: "cancel" }
   | { type: "checkOut" };
+
+// Sends or queues the report behind a status change; the default sends it at once.
+export type ReportSend = (
+  station: string,
+  event: NonNullable<PositionReport["event"]>,
+) => Promise<PositionReportResult>;
 
 export type StatusResult =
   | { ok: true; own: OwnStatus | null }
@@ -76,6 +85,8 @@ export async function stewardStatus(
   // The active scenario's deployments from the server. With "current" they
   // are a new copy and replace what the app remembers (#310).
   deployments?: Deployment[],
+  send: ReportSend = (station, event) =>
+    sendPositionReport(token, station, activationId, event),
 ): Promise<StatusResult> {
   const key = `${activationId}/${userId}`;
   if (request.type === "current" && deployments !== undefined) {
@@ -99,12 +110,7 @@ export async function stewardStatus(
     };
   }
 
-  const report = await sendPositionReport(
-    token,
-    change.station,
-    activationId,
-    change.event,
-  );
+  const report = await send(change.station, change.event);
   if (!report.ok) {
     return {
       ok: false,
