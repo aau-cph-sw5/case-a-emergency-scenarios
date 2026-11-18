@@ -92,6 +92,12 @@ test("network seeding is repeatable and keeps station and segment identities", a
       "DELETE FROM operating_patterns WHERE normal_line = 'M1' AND route_code = 'NETWORK-TEST' AND did = 'DUPLICATE'",
     );
     const response = await getNetwork();
+    assert.equal(
+      response.normalPatterns.find(
+        (pattern) => pattern.routeCode === "NETWORK-TEST",
+      )?.color,
+      "#123ABC",
+    );
     assert.deepEqual(validate(response, "network.schema.json"), []);
     assert.deepEqual(
       response.normalPatterns.find(

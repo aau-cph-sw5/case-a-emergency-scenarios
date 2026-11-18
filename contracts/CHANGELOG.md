@@ -1,5 +1,9 @@
 # Scenario State Contract Changelog
 
+## 8.9.0 - 2026-11-18
+
+Additive. Normal network patterns include their stored display color.
+
 ## 8.8.0 - 2026-11-18
 
 Additive. Admins can create a scenario and its first version with operating patterns, staffing, tasks and covered track segments.

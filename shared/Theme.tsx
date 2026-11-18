@@ -6,10 +6,10 @@ import type { ScenarioState } from "./types/v1/scenario-state";
 export const palette = {
   metroBlack: "#1E1E1E",
   metroDeepRed: "#940024",
-  metroLineOne: "#007D55",
-  metroLineTwo: "#FFC82D",
-  metroLineThree: "#E6140F",
-  metroLineFour: "#00A0BE",
+  metroLineOne: "#008D40",
+  metroLineTwo: "#FFC600",
+  metroLineThree: "#FF080B",
+  metroLineFour: "#019CD3",
   metroSummerRed: "#E40037",
   metroWhite: "#FFFFFF",
   DIDLineOne: "#1F4E79",
@@ -135,7 +135,7 @@ export const text = {
   small: { fontSize: 12, color: colors.text },
   // A CSS font list only works on web; Android and iOS use the system font.
   header: {
-    fontFamily: Platform.select({ web: "Arial, sans-serif" }),
+    fontFamily: Platform.select({ web: '"Metro", Arial, sans-serif' }),
     fontSize: 16,
   },
   button: {

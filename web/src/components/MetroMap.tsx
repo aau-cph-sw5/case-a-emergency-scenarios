@@ -4,7 +4,6 @@ import MapRender from "../../../shared/MapRenderer";
 import {
   colors as theme,
   DIDLineColors,
-  lineColors,
   palette,
   radius,
   text,
@@ -29,9 +28,6 @@ const lineGroups = [
   ["M1", "M2"],
   ["M3", "M4"],
 ] as const;
-const lineColor = Object.fromEntries(
-  ["M1", "M2", "M3", "M4"].map((line, index) => [line, lineColors[index]]),
-);
 
 function scenarioLines(
   scenario: Scenario,
@@ -186,7 +182,12 @@ export function MetroMap({
   const missingScenarioRoutes = scenarioLineResult?.missingRoutes ?? false;
   const routeColors =
     scenarioId === null
-      ? lineColor
+      ? Object.fromEntries(
+          groupNetwork.map((line) => [
+            line.name,
+            line.color ?? palette.networkGrey,
+          ]),
+        )
       : Object.fromEntries(
           (scenarioLineResult?.lines ?? []).map((line, index) => [
             line.name,
