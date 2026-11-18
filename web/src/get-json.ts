@@ -38,67 +38,102 @@ async function fetchWithTimeout(
   }
 }
 
-// vite.config forwards /api to the server
-export async function getJson<T>(
+function buildHeaders(token: string, hasBody: boolean): HeadersInit {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+  };
+  if (hasBody) headers["Content-Type"] = "application/json";
+  return headers;
+}
+
+// The server's error body is { error: { code, message } }; both are optional.
+function parseApiError(
+  method: string,
+  path: string,
+  status: number,
+  data: unknown,
+): ApiError {
+  const body = (
+    data as { error?: { code?: unknown; message?: unknown } } | null
+  )?.error;
+  return new ApiError(
+    typeof body?.message === "string"
+      ? body.message
+      : `${method} ${path} failed with ${status}`,
+    status,
+    typeof body?.code === "string" ? body.code : undefined,
+  );
+}
+
+type RequestOptions = { body?: unknown; signals?: AbortSignal[] };
+
+// vite.config forwards /api to the server. A failed request or an unreadable
+// body is reported the same way for GET and POST.
+async function requestJson<T>(
+  method: "GET" | "POST",
+  path: string,
+  token: string,
+  isValid: (data: unknown) => data is T,
+  { body, signals = [] }: RequestOptions = {},
+): Promise<T> {
+  const response = await fetchWithTimeout(path, signals, {
+    method,
+    headers: buildHeaders(token, body !== undefined),
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw parseApiError(method, path, response.status, data);
+  }
+  if (!isValid(data)) {
+    throw new Error(`${method} ${path} answered in an unexpected format`);
+  }
+  return data;
+}
+
+export function getJson<T>(
   path: string,
   token: string,
   isValid: (data: unknown) => data is T,
   ...signals: AbortSignal[]
 ): Promise<T> {
-  const response = await fetchWithTimeout(path, signals, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) {
-    throw new ApiError(
-      `GET ${path} failed with ${response.status}`,
-      response.status,
-    );
-  }
-  const data: unknown = await response.json();
-  if (!isValid(data)) {
-    throw new Error(`GET ${path} answered in an unexpected format`);
-  }
-  return data;
+  return requestJson("GET", path, token, isValid, { signals });
 }
 
 // body is sent as JSON when given; without it the request has no body.
 // signal aborts the request, e.g. when the component unmounts.
-export async function postJson<T>(
+export function postJson<T>(
   path: string,
   token: string,
   isValid: (data: unknown) => data is T,
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<T> {
-  const response = await fetchWithTimeout(path, signal ? [signal] : [], {
-    method: "POST",
-    headers:
-      body === undefined
-        ? { Authorization: `Bearer ${token}` }
-        : {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-    body: body === undefined ? undefined : JSON.stringify(body),
+  return requestJson("POST", path, token, isValid, {
+    body,
+    signals: signal ? [signal] : [],
   });
-  const data: unknown = await response.json().catch(() => null);
-  if (!response.ok) {
-    const body = (
-      data as { error?: { code?: unknown; message?: unknown } } | null
-    )?.error;
-    throw new ApiError(
-      typeof body?.message === "string"
-        ? body.message
-        : `POST ${path} failed with ${response.status}`,
-      response.status,
-      typeof body?.code === "string" ? body.code : undefined,
-    );
-  }
-  if (!isValid(data)) {
-    throw new Error(`POST ${path} answered in an unexpected format`);
-  }
-  return data;
 }
+
+const SESSION_EXPIRED = "Din session er udløbet. Log ind igen.";
+const NOT_PERMITTED = "Du har ikke adgang til denne handling.";
+const NOT_FOUND = "Scenariet findes ikke længere.";
+const ALREADY_ACTIVE = "Scenariet er allerede aktivt.";
+
+const MESSAGE_BY_CODE: Record<string, string> = {
+  [ERROR_CODES.AUTH_TOKEN_INVALID]: SESSION_EXPIRED,
+  [ERROR_CODES.ROLE_NOT_PERMITTED]: NOT_PERMITTED,
+  [ERROR_CODES.NOT_FOUND]: NOT_FOUND,
+  [ERROR_CODES.CONFLICT]: ALREADY_ACTIVE,
+  [ERROR_CODES.SCENARIO_STOOD_DOWN]: "Scenariet er allerede deaktiveret.",
+};
+
+const MESSAGE_BY_STATUS: Record<number, string> = {
+  401: SESSION_EXPIRED,
+  403: NOT_PERMITTED,
+  404: NOT_FOUND,
+  409: ALREADY_ACTIVE,
+};
 
 // The code decides the text; an unknown or missing code falls back on the
 // status, so a new server code still gets a sensible text.
@@ -106,22 +141,10 @@ export function userMessage(error: unknown): string {
   if (!(error instanceof ApiError)) {
     return "Ingen forbindelse til serveren. Prøv igen.";
   }
-  switch (error.code) {
-    case ERROR_CODES.AUTH_TOKEN_INVALID:
-      return "Din session er udløbet. Log ind igen.";
-    case ERROR_CODES.ROLE_NOT_PERMITTED:
-      return "Du har ikke adgang til denne handling.";
-    case ERROR_CODES.NOT_FOUND:
-      return "Scenariet findes ikke længere.";
-    case ERROR_CODES.CONFLICT:
-      return "Scenariet er allerede aktivt.";
-    case ERROR_CODES.SCENARIO_STOOD_DOWN:
-      return "Scenariet er allerede deaktiveret.";
-  }
-  if (error.status === 401) return "Din session er udløbet. Log ind igen.";
-  if (error.status === 403) return "Du har ikke adgang til denne handling.";
-  if (error.status === 404) return "Scenariet findes ikke længere.";
-  if (error.status === 409) return "Scenariet er allerede aktivt.";
+  const known =
+    (error.code === undefined ? undefined : MESSAGE_BY_CODE[error.code]) ??
+    MESSAGE_BY_STATUS[error.status];
+  if (known) return known;
   if (error.status >= 500) return "Serveren har et problem. Prøv igen om lidt.";
   return "Handlingen kunne ikke gennemføres.";
 }
