@@ -13,6 +13,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ERROR_CODES } from "../../shared/error-codes";
 import type { StationMessage } from "../../shared/types/v1/station-message";
 import { StationChat } from "../../mobile/src/screens/StationChat";
@@ -77,10 +78,16 @@ const thread = (messages: StationMessage[]) => ({
 
 const onClosedByServer = jest.fn();
 
+// A token with a user id, so the chat can remember the steward's own messages.
+const payload = Buffer.from(JSON.stringify({ userId: 7 })).toString(
+  "base64url",
+);
+const token = `header.${payload}.signature`;
+
 function renderChat(station: string | undefined) {
   return render(
     <StationChat
-      token="token"
+      token={token}
       station={station}
       activationId={1}
       closedReason="Du er ikke længere tjekket ind på stationen."
@@ -97,7 +104,8 @@ async function openChat() {
 
 let fetchMock: jest.SpiedFunction<typeof fetch>;
 
-beforeEach(() => {
+beforeEach(async () => {
+  await AsyncStorage.clear();
   mockListeners.clear();
   onClosedByServer.mockReset();
   fetchMock = jest.spyOn(global, "fetch");
@@ -183,6 +191,47 @@ describe("StationChat (MET-A-029, #335)", () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Send besked"));
     });
+
+    expect(
+      await screen.findByLabelText("Station, dig, 08:20: Fra mig."),
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText("Station, en kollega, 08:20: Fra en kollega."),
+    ).toBeTruthy();
+  });
+
+  it("still knows the steward's own message after the app starts again", async () => {
+    const sent = {
+      ...message(2, "STATION", "Fra mig."),
+      clientMessageId: "11111111-1111-4111-8111-111111111111",
+    };
+    fetchMock
+      .mockResolvedValueOnce(answer(200, thread([])))
+      .mockResolvedValueOnce(answer(201, sent));
+    const first = renderChat("Station B");
+    await openChat();
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "Fra mig.",
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+    await screen.findByLabelText("Station, dig, 08:20: Fra mig.");
+    first.unmount();
+
+    // The server stores the id in upper or lower case; both are the same.
+    fetchMock.mockResolvedValue(
+      answer(
+        200,
+        thread([
+          message(1, "STATION", "Fra en kollega."),
+          { ...sent, clientMessageId: sent.clientMessageId.toUpperCase() },
+        ]),
+      ),
+    );
+    renderChat("Station B");
+    await openChat();
 
     expect(
       await screen.findByLabelText("Station, dig, 08:20: Fra mig."),
@@ -383,7 +432,7 @@ describe("StationChat (MET-A-029, #335)", () => {
 
     view.rerender(
       <StationChat
-        token="token"
+        token={token}
         station={undefined}
         activationId={1}
         closedReason="Du er ikke længere tjekket ind på stationen."
