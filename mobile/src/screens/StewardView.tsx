@@ -27,6 +27,10 @@ import type { FlushResult } from "../offline/position-report-delivery";
 import { positionReportDelivery } from "../offline/position-report-delivery-instance";
 import { queuePositionReport } from "../offline/queue-position-report";
 import { snapshotStore } from "../offline/snapshot-store";
+import {
+  stationMessageDelivery,
+  stationMessageQueueStore,
+} from "../offline/station-message-store";
 import { reportRejection, waitingReport } from "../offline/waiting-report";
 import { socket } from "../socket";
 import { ScenarioNotice } from "./Notice";
@@ -181,6 +185,13 @@ export function StewardView({
     // From the token, since a stopped scenario leaves no snapshot.
     const owner = userIdFromToken(token);
     if (owner === null) return { message: null, blocked: false };
+    // Station messages written offline go out at the same time (MET-A-029).
+    // The chat shows how each one went; here a stopped send only makes the
+    // retry below try again.
+    const messagesBlocked = stationMessageDelivery.flush(owner, token).then(
+      (result) => result.blocked,
+      () => true,
+    );
     try {
       const result = await positionReportDelivery.flush(owner, token);
       const sent =
@@ -202,7 +213,7 @@ export function StewardView({
       ].filter((line) => line !== null);
       return {
         message: lines.length > 0 ? lines.join("\n") : null,
-        blocked: result.blockedBy !== undefined,
+        blocked: result.blockedBy !== undefined || (await messagesBlocked),
       };
     } catch {
       return {
@@ -211,6 +222,24 @@ export function StewardView({
       };
     }
   }, [token, refresh]);
+
+  // The activation the server says is live, null when it says none is, and
+  // undefined while that is not known (loading or offline).
+  const liveActivationId =
+    view.status === "live"
+      ? view.snapshot.state.activationId
+      : view.status === "stood-down" || view.status === "none"
+        ? null
+        : undefined;
+  // A stood-down scenario's thread is removed, so the messages the server
+  // refused for it are forgotten on the phone instead of piling up (MET-A-029).
+  useEffect(() => {
+    const owner = userIdFromToken(token);
+    if (owner === null || liveActivationId === undefined) return;
+    void stationMessageQueueStore
+      .discardEndedRejections(owner, liveActivationId)
+      .catch(() => undefined);
+  }, [token, liveActivationId]);
 
   // Failed sends in a row while online; 0 means no retry is waiting.
   const [retries, setRetries] = useState(0);

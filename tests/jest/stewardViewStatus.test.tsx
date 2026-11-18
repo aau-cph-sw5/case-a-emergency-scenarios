@@ -53,6 +53,18 @@ jest.mock("../../mobile/src/offline/waiting-report", () => ({
 jest.mock("../../mobile/src/offline/queue-position-report", () => ({
   queuePositionReport: jest.fn(),
 }));
+// Station messages are sent with the reports; none are queued in these tests.
+jest.mock("../../mobile/src/offline/station-message-store", () => ({
+  stationMessageQueueStore: { discardEndedRejections: jest.fn(async () => {}) },
+  stationMessageDelivery: {
+    flush: jest.fn(async () => ({
+      delivered: [],
+      rejected: 0,
+      pending: 0,
+      blocked: false,
+    })),
+  },
+}));
 jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
   positionReportDelivery: {
     flush: jest.fn(async () => ({
