@@ -168,18 +168,14 @@ export const operatorCssVars = {
   "--operator-option-border": palette.optionGrey,
   "--operator-well": palette.wellGrey,
   "--operator-focus": palette.focusTeal,
-  // Two corner sizes only: small for things you press or type in, larger for
-  // things that hold content. Circles use 50% directly.
-  "--operator-radius-control": "8px",
+  // Two corner sizes only (design guide: outer = inner x 3): 4px for things you
+  // press or type in, 12px for things that hold content. Circles use 50%.
+  "--operator-radius-control": "4px",
   "--operator-radius-card": "12px",
   // Pressed toggles are a light tint of ink, not yellow: yellow read as an
   // alarm next to the map's warning colours (design review, #357).
   "--operator-pressed": `${palette.metroBlack}1a`,
   "--operator-pressed-border": `${palette.metroBlack}59`,
-  // Depth: action buttons sit on a 3px ledge, the selected item on 2px, and
-  // everything else is flat, so depth shows what matters most.
-  "--operator-ledge-action": "3px",
-  "--operator-ledge-selected": "2px",
 } as const;
 
 // A required station on the map by its live coverage (MET-A-011, #310): the

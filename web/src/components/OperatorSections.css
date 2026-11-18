@@ -127,7 +127,7 @@ body {
   height: 36px;
   border: 1px solid #666;
   border-radius: 50%;
-  font-size: 11px;
+  font-size: 12px;
 }
 .logout-button {
   margin-left: 8px;
@@ -148,7 +148,7 @@ body {
   align-items: center;
   gap: 16px;
   color: #c8c8c8;
-  font-size: 12px;
+  font-size: 14px;
 }
 .active-scenario-banner p {
   margin: 0;
@@ -185,7 +185,7 @@ body {
   flex-direction: column;
   gap: 4px;
   text-align: right;
-  font-size: 11px;
+  font-size: 12px;
   color: #aaa;
   font-variant-numeric: tabular-nums;
 }
@@ -269,7 +269,7 @@ body {
   margin: 0;
   /* 11px is the smallest text in the column; it is all caps, so it stays
      readable. */
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   letter-spacing: 1px;
   font-weight: 700;
@@ -325,38 +325,49 @@ body {
   padding: 0;
   margin: 0;
   flex-shrink: 0;
+  /* Design guide: a 3px rule on top, a 1px rule under every row. */
+  border-top: 3px solid var(--operator-ink);
 }
 .scenario-list li {
   display: flex;
   align-items: center;
   position: relative;
-  margin-bottom: 7px;
+  border-bottom: 1px solid var(--operator-ink);
 }
 .scenario-option {
   width: 100%;
   text-align: left;
-  padding: 13px 30px 13px 10px;
+  padding: 12px 36px 12px 16px;
   line-height: 1.4;
-  border: 1px solid #e0e0e0;
-  border-radius: var(--operator-radius-control);
+  border: 0;
+  border-radius: 0;
   color: var(--operator-ink);
-  background: white;
+  background: transparent;
+  font-weight: 700;
+  font-size: 16px;
   overflow-wrap: anywhere;
   transition:
     background 0.15s,
     border-color 0.15s;
 }
-.scenario-option:not(:disabled):hover {
-  border-color: var(--operator-ink);
+/* Names are bold and 16px so a scenario is recognised at a glance. The longer
+   selector wins over ".operator-dashboard button { font: inherit }". */
+.scenario-picker .scenario-option {
+  font-size: 16px;
+  font-weight: 700;
 }
-/* The selected scenario stays yellow, as before (Jakob's law), and is lifted
-   onto a 2px ledge: one step less depth than the action buttons. */
+.scenario-picker .scenario-option.suggest-result {
+  font-weight: normal;
+}
+.scenario-option:not(:disabled):hover {
+  background: var(--operator-well);
+}
+/* Selected row: a 6px black bar and a grey ground, like a highlighted line in
+   a timetable (design guide, Scenarieliste). Yellow is kept for status. */
 .scenario-option[aria-pressed="true"] {
-  background: var(--operator-yellow);
-  border-color: var(--operator-ink);
-  box-shadow: 0 var(--operator-ledge-selected) 0 var(--operator-ink);
+  background: var(--operator-well);
+  box-shadow: inset 6px 0 0 var(--operator-ink);
   color: var(--operator-ink);
-  font-weight: bold;
 }
 .scenario-dot {
   position: absolute;
@@ -366,6 +377,19 @@ body {
   border: 1.5px solid #aaa;
   border-radius: 50%;
   pointer-events: none;
+}
+/* The dot of the selected row fills with ink together with the black bar, so
+   both say "this one". Live (green) keeps its own colour. */
+.scenario-dot {
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.scenario-list
+  li:has(.scenario-option[aria-pressed="true"])
+  .scenario-dot:not(.scenario-dot--live) {
+  background: var(--operator-ink);
+  border-color: var(--operator-ink);
 }
 .scenario-dot--live {
   background: var(--operator-green);
@@ -387,13 +411,13 @@ body {
   height: 44px;
   padding: 0 8px;
   color: white;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
 }
 .scenario-actions .scenario-switch {
   flex: 0 0 26%;
   max-width: 76px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .scenario-start {
   background: var(--operator-green);
@@ -403,7 +427,7 @@ body {
 }
 /* Red and yellow are kept for stop/errors and selection, so a harmless
    cancel or switch doesn't look like an alarm. White with an ink edge, still
-   on the same ledge as the other buttons. */
+   flat like the other buttons. */
 .scenario-actions .scenario-cancel,
 .scenario-actions .scenario-switch {
   background: white;
@@ -412,10 +436,7 @@ body {
 .scenario-actions button:not(:disabled):hover {
   filter: brightness(0.9);
 }
-/* Action buttons sit on a solid 3px ledge and drop onto it when pressed, so
-   they read as pressable and the press is felt at once. No blur: it matches
-   the crisp 1px outlines on the cards. A disabled button loses its ledge.
-   .scenario-picker raises the two suggestion buttons above
+/* Buttons are flat with a 4px corner. .scenario-picker raises the two suggestion buttons above
    ".operator-dashboard button { font: inherit }", which would reset bold. */
 .scenario-actions button,
 .scenario-picker .suggest-submit,
@@ -423,20 +444,8 @@ body {
   border: 1px solid var(--operator-ink);
   border-radius: var(--operator-radius-control);
   font-weight: bold;
-  box-shadow: 0 var(--operator-ledge-action) 0 var(--operator-ink);
-  transition:
-    transform 70ms ease-out,
-    box-shadow 70ms ease-out,
-    filter 120ms ease-out;
-}
-:is(.scenario-actions button, .suggest-submit, .suggest-goto):not(
-    :disabled
-  ):active {
-  transform: translateY(var(--operator-ledge-action));
-  box-shadow: none;
-}
-:is(.scenario-actions button, .suggest-submit, .suggest-goto):disabled {
-  box-shadow: none;
+  /* Design guide: no shadows, no gradients. */
+  transition: filter 120ms ease-out;
 }
 .operator-summaries:empty {
   display: none;
@@ -483,7 +492,7 @@ body {
 }
 .metric-value > span,
 .metric-note {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--operator-muted);
 }
 .metric-note {
@@ -522,7 +531,7 @@ body {
 .scenario-information dl {
   margin: 12px 0;
   color: var(--operator-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .scenario-information dl > div {
   display: flex;
@@ -537,7 +546,7 @@ body {
   overflow-wrap: anywhere;
 }
 .connection-state {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--operator-green);
   margin: 10px 0 0;
@@ -564,7 +573,7 @@ body {
   gap: 14px;
   margin: 14px 0 12px;
   color: var(--operator-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 12px;
   min-height: 12px;
 }
@@ -636,7 +645,7 @@ body {
   [data-testid="metro-line-controls"]
   [role="button"]
   > div {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 .operator-map-panel [data-testid="map-zoom-toggle"] {
@@ -652,7 +661,7 @@ body {
 }
 .operator-map-panel [data-testid="map-zoom-toggle"] > :is(div, span) {
   color: white !important;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
 }
 .operator-map-caption {
@@ -660,10 +669,11 @@ body {
   background: #f5f5f5;
   border-top: 1px solid #e5e5e5;
   color: var(--operator-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .operator-coverage-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -678,6 +688,25 @@ body {
 }
 .coverage-heading {
   margin-bottom: 38px;
+}
+/* The start/stop card is drawn here by ScenarioList (see ActionsSlotContext).
+   With it, the column is one box: the content above and the buttons below share
+   the frame, split by a 1px rule. */
+.operator-actions-slot:empty {
+  display: none;
+}
+.operator-coverage-panel {
+  gap: 0;
+}
+.operator-coverage-content:has(+ .operator-actions-slot:not(:empty)) {
+  border-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.operator-actions-slot .scenario-actions {
+  border-top: 1px solid var(--operator-ink);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 .operator-status-footer {
   flex-shrink: 0;
@@ -703,21 +732,195 @@ body {
   opacity: 1;
   cursor: default;
 }
-.scenario-preview h2 {
-  font-size: 18px;
-  letter-spacing: -0.4px;
-  margin: 5px 0 20px;
+/* Scenario preview (right column). Design notes are in ScenarioPreview.tsx. */
+.scenario-preview > p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--operator-muted);
 }
-.scenario-preview h3 {
-  font-size: 13px;
-  line-height: 1.6;
-  margin: 0;
+.preview-title {
+  margin: 0 0 16px;
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: -1px;
   overflow-wrap: anywhere;
 }
-.scenario-preview > p {
-  font-size: 11px;
-  line-height: 1.7;
+/* Label left, number right: every number ends in the same column. */
+.preview-stats {
+  margin: 0;
+  border-top: 3px solid var(--operator-ink);
+}
+.preview-stats > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--operator-ink);
+  font-size: 15px;
+}
+.preview-stats dt {
+  white-space: pre-wrap;
+}
+.preview-stats dd {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* The scenario name above replaces the column heading; it stays for screen
+   readers. When live coverage is shown it is still there, as before. */
+.coverage-heading:has(+ .scenario-preview) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* Section subtitles are black bars with white capitals, like the guide's
+   topbar. Colour and shape set them apart from the bold content under them,
+   so they do not have to compete in size. */
+.preview-heading {
+  margin: 24px 0 0;
+  padding: 8px 12px;
+  background: var(--operator-ink);
+  color: white;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+/* The route is why a scenario matters, so it is the second-loudest text: the
+   guide's 22px bold heading size, with the 4px bar of the Begrundelse block. */
+.scenario-preview .preview-route {
+  margin: 12px 0 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--operator-option-border);
+  border-bottom: 1px solid var(--operator-option-border);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+  text-align: center;
+  color: var(--operator-ink);
+}
+.preview-stations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.preview-stations > li {
+  border-bottom: 1px solid var(--operator-option-border);
+}
+/* Header and rows share three columns (name | stewards needed | chevron), so
+   the "Kræver" cells always sit in the same place whatever the name length. */
+.preview-heading--stations,
+.scenario-preview .preview-station {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px 16px;
+  column-gap: 8px;
+}
+.preview-heading--stations {
+  padding: 8px 8px 8px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.preview-heading--stations > span + span {
+  padding-left: 12px;
+  border-left: 1px solid rgb(255 255 255 / 0.35);
+}
+.scenario-preview .preview-station {
+  box-sizing: border-box;
+  align-items: stretch;
+  width: 100%;
+  padding: 0 8px 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--operator-ink);
+  font-size: 15px;
+  text-align: left;
+}
+.preview-station::after {
+  align-self: center;
+}
+.preview-station:hover {
+  background: var(--operator-well);
+}
+.preview-station-name {
+  align-self: center;
+  min-width: 0;
+  padding: 12px 0;
+  font-size: 17px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+/* Red is the guide's "missing" colour; the text uses the darker #B3100C. */
+.preview-station-need {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 1px solid var(--operator-option-border);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #b3100c;
+}
+.preview-station-need i {
+  width: 12px;
+  height: 12px;
+  background: var(--operator-red);
+}
+/* A chevron that turns when the row is open, so rows read as pressable. */
+.preview-station::after {
+  content: "";
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  border-right: 2px solid var(--operator-ink);
+  border-bottom: 2px solid var(--operator-ink);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 150ms ease-out;
+}
+.preview-station[aria-expanded="true"]::after {
+  transform: rotate(-135deg);
+}
+/* Open row: the guide's selected-row mark, a black bar and a grey ground. */
+.preview-stations > li.is-open {
+  background: var(--operator-well);
+  box-shadow: inset 6px 0 0 var(--operator-ink);
+}
+.preview-stations > li.is-open .preview-station {
+  padding-left: 16px;
+}
+/* Room on the right so the turned chevron stays inside the row. */
+.preview-stations > li.is-open .preview-station,
+.preview-stations .preview-station {
+  padding-right: 8px;
+}
+.preview-station-details {
+  padding: 0 0 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--operator-ink);
+}
+.preview-station-details p {
+  margin: 0 0 8px;
   color: var(--operator-muted);
+}
+.preview-station-details h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.preview-station-details ol {
+  margin: 0;
+  padding-left: 20px;
+}
+.preview-station-details li {
+  margin-bottom: 4px;
 }
 .operator-coverage-panel [role="button"] {
   padding: 14px 11px;
@@ -734,7 +937,7 @@ body {
 }
 .operator-coverage-content > div + .scenario-preview {
   margin-top: 22px;
-  border-top: 1px solid #ddd;
+  border-top: 3px solid var(--operator-ink);
   padding-top: 18px;
 }
 .scenario-picker [role="alert"],
@@ -824,12 +1027,15 @@ body {
   pointer-events: none;
 }
 .operator-status-footer .status-popup {
-  position: relative;
+  position: static;
   inset: auto;
   width: 100%;
   height: 100%;
 }
 .operator-status-footer [data-testid="steward-status"] {
+  /* React Native Web views are position: relative; the status window is placed
+     against the column panel instead, so this wrapper must not be the anchor. */
+  position: static !important;
   height: 100%;
   gap: 0 !important;
   justify-content: center !important;
@@ -845,10 +1051,19 @@ body {
   width: 100%;
   justify-content: center;
 }
+/* The status window floats above the footer as before. OperatorSections measures
+   it into --status-window-h, and the footer's top margin grows by that much, so
+   the content and the start/stop card above move up instead of being covered. */
+.operator-status-footer {
+  margin-top: calc(12px + var(--status-window-h, 0px));
+}
 .operator-status-footer [data-testid="status-window"] {
   position: absolute !important;
   right: 0;
-  bottom: calc(100% + 12px);
+  /* Footer height (68px) plus the 12px gap: it sits in the room the column
+     made, flush with the column's right edge. Same width as before, so it
+     reaches out over the map's corner. */
+  bottom: 80px;
   margin-bottom: 0 !important;
   width: min(420px, calc(100vw - 48px)) !important;
 }
@@ -897,7 +1112,7 @@ body {
   [data-testid="status-message"]
   > div:first-child
   > div:last-child {
-  font-size: 12px;
+  font-size: 14px;
   flex-shrink: 1;
   line-height: 1.8;
 }
@@ -1141,7 +1356,7 @@ body {
   align-items: flex-start;
   gap: 6px;
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: bold;
   line-height: 1.4;
   color: var(--operator-ink);
@@ -1156,7 +1371,7 @@ body {
 }
 .suggest-help {
   margin: 6px 0 12px;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--operator-muted);
 }
@@ -1176,7 +1391,7 @@ body {
   border-radius: var(--operator-radius-control);
   background: white;
   color: var(--operator-ink);
-  font-size: 12px;
+  font-size: 14px;
   /* 600: chips are options, not headings, so they sit a step below names. */
   font-weight: 600;
   transition:
@@ -1232,7 +1447,7 @@ body {
 }
 .suggest-status {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--operator-muted);
 }
 .suggest-status:empty {
@@ -1250,13 +1465,16 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  border-top: 3px solid var(--operator-ink);
+}
+.suggest-results > li {
+  border-bottom: 1px solid var(--operator-ink);
 }
 .scenario-option.suggest-result {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 11px 10px;
+  padding: 12px 16px;
   font-weight: normal;
 }
 .suggest-result-head {
@@ -1270,6 +1488,7 @@ body {
    always stays on one line. */
 .suggest-result-head strong {
   min-width: 0;
+  font-size: 16px;
   overflow-wrap: break-word;
 }
 .suggest-result-head > span {
@@ -1283,11 +1502,11 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.5;
-  color: var(--operator-muted);
+  color: var(--operator-ink);
 }
-/* Dark text on the selected (yellow) card, where grey would lose contrast. */
+/* Dark text on the selected row, where grey would lose contrast. */
 .suggest-result[aria-pressed="true"] .suggest-reason {
   color: var(--operator-ink);
 }
@@ -1297,24 +1516,6 @@ body {
   background: var(--operator-pressed);
   color: var(--operator-ink);
   font-weight: 600;
-}
-/* TEMPORARY until #371: marks example suggestions as not real. One quiet
-   line with a dark badge, so it doesn't compete with the real controls. */
-.suggest-example {
-  margin: 12px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--operator-muted);
-}
-.suggest-example strong {
-  margin-right: 4px;
-  padding: 1px 6px;
-  border-radius: var(--operator-radius-control);
-  background: var(--operator-ink);
-  color: white;
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
 }
 /* Message box for "no confident candidate" and errors: white ground, dark
    text, bold title. The tone is in the icon and the edge only. */
@@ -1345,7 +1546,7 @@ body {
 }
 .suggest-notice p {
   margin: 4px 0 10px;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--operator-ink);
 }
@@ -1354,25 +1555,16 @@ body {
   padding: 0 12px;
   background: white;
   color: var(--operator-ink);
-  font-size: 12px;
+  font-size: 14px;
 }
-/* "Or pick it yourself": the two routes are separate and both visible. */
-.scenario-divider {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 20px 0 14px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: var(--operator-muted);
+/* Two-way switch under the heading. It reuses the M1 / M2 line switcher's look
+   (.operator-line-switcher); this only makes it fill the column. */
+.scenario-mode {
+  margin-bottom: 16px;
 }
-.scenario-divider::before,
-.scenario-divider::after {
-  content: "";
+.scenario-mode button {
   flex: 1;
-  height: 1px;
-  background: var(--operator-option-border);
+  font-size: 14px;
 }
 .scenario-search {
   position: relative;
@@ -1395,30 +1587,20 @@ body {
 .scenario-route {
   display: block;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: normal;
-  color: var(--operator-muted);
-}
-.scenario-option[aria-pressed="true"] .scenario-route {
   color: var(--operator-ink);
 }
 .scenario-count {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--operator-muted);
-}
-.scenario-picked {
-  flex-basis: 100%;
-  margin: 0;
-  font-size: 12px;
-  color: var(--operator-muted);
-  overflow-wrap: anywhere;
 }
 .scenario-notice {
   margin: 8px 0 0;
   padding: 10px 12px;
   border-radius: var(--operator-radius-card);
   background: var(--operator-well);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--operator-muted);
 }
