@@ -332,10 +332,11 @@ describe("scenario preview and activation", () => {
     ).toBe(false);
   });
 
-  it("puts requirements in the right column and the existing activation control on the left", async () => {
+  it("puts requirements and the start/stop control in the right column", async () => {
     await renderList(first.scenarioId);
     const columns = container.querySelectorAll(".operator-sections > section");
-    expect(columns[0].contains(button("START scenarie"))).toBe(true);
+    expect(columns[2].contains(button("START scenarie"))).toBe(true);
+    expect(columns[0].contains(button("START scenarie"))).toBe(false);
     expect(columns[2].textContent).toContain("Station A");
     expect(columns[2].textContent).toContain("Nødvendige stewards: 2");
     expect(columns[2].textContent).not.toContain("Placering:");

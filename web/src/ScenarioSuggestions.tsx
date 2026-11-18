@@ -11,41 +11,40 @@ import type { ScenarioSummary } from "./scenarios";
 import { exampleSuggestions } from "./example-suggestions";
 import { matchedStations, routeLabel } from "./suggestion-reasons";
 import { fetchSuggestions, type Suggestions } from "./suggestions";
+import {
+  CheckIcon,
+  ClearIcon,
+  InfoIcon,
+  TriangleIcon,
+} from "./components/Icon";
 
 /*
  * Scenario suggestion box (#357, MET-A-019). Design decisions:
  *
  * - Describe first, search second: the box sits above the full list, so when
- *   no candidate is confident (#357 AC2) the full list is directly below and
- *   "Gå til listen" only has to move focus there.
+ *   no candidate is confident (#357 AC2) "Gå til listen" only moves focus.
  * - A suggestion only selects the scenario. Activation still goes through
  *   "Aktivér valgt scenarie" and its confirmation dialog (MET-A-007, #357 AC1).
- * - Each suggestion is two lines, so several fit in the narrow column: name
- *   and score, then its route (the same text as in the full list) and the
- *   stations from the description it matched. That shows why it was
+ * - Each suggestion is two lines (name and score, then route and matched
+ *   stations) so several fit the narrow column and show why they were
  *   suggested. No score bar: it repeated the number in the green that means
  *   "start". Example scores (until #371) read "Eksempel", not a number.
- * - The submit button stays enabled when the text is empty: pressing it shows
- *   an inline message and moves focus to the field, rather than a greyed-out
- *   button that does not say why. It is disabled only while a request runs,
- *   so it cannot be sent twice.
- * - Loading shows a spinner, a new label and a role=status line straight away
+ * - Submit stays enabled on empty text: it shows an inline message and moves
+ *   focus to the field. It is disabled only while a request runs.
+ * - Loading shows a spinner, a new label and a role=status line at once
  *   (Doherty threshold); the spinner stops under prefers-reduced-motion.
- * - Enter sends, like a search field, since descriptions are short; Shift +
- *   Enter still adds a line. Keeps hands on the keyboard (Jakob's law).
- * - Editing the text clears the old suggestions, so an answer is never shown
- *   for text that has since changed.
- * - Quick-pick buttons for common incidents (Hick's law: four choices;
- *   frequency of use: one click instead of typing). They are real toggles:
- *   pressing again removes the word. Pressed is a light grey tint with a
- *   check that scales in, not yellow, which read as an alarm. The ranking
- *   (#355) searches station names and track segments, so the help text still
- *   asks for a station; the incident word mainly helps the operator log it.
- * - Messages are dark text with a red icon, not red text: red on the grey
- *   well is only 4.2:1. The empty-text alert is rendered only when needed,
- *   since role=alert is announced on insertion.
- * - The clear ✕ has its own column inside the field, so it never covers the
- *   scrollbar.
+ * - Enter sends, Shift + Enter adds a line (Jakob's law).
+ * - Editing the text clears old suggestions, so an answer never shows for
+ *   text that has since changed.
+ * - Quick picks are real toggles (Hick's law: four choices). Pressed is a
+ *   light grey tint with a check, not yellow, which read as an alarm. The
+ *   ranking (#355) searches station names and track segments, so the help
+ *   text still asks for a station.
+ * - Messages are dark text with a red icon, not red text (4.2:1 on the grey
+ *   well). The empty-text alert renders only when needed, since role=alert is
+ *   announced on insertion.
+ * - The clear button has its own column inside the field, so it never covers
+ *   the scrollbar.
  * Styling: .scenario-suggestions in OperatorSections.css, colours from Theme.tsx.
  */
 
@@ -70,6 +69,25 @@ function toggleWord(text: string, word: string): string {
   }
   const trimmed = text.trim();
   return trimmed ? `${trimmed}, ${word.toLowerCase()}` : word.toLowerCase();
+}
+
+async function suggest(
+  token: string,
+  text: string,
+  scenarios: readonly ScenarioSummary[],
+  signal: AbortSignal,
+): Promise<{ result: Suggestions; example?: boolean }> {
+  try {
+    return { result: await fetchSuggestions(token, text, signal) };
+  } catch (error) {
+    // TEMPORARY until #371: a 404 means the API has no suggestion endpoint
+    // yet, so show labelled examples instead. Remove this branch, and
+    // example-suggestions.tsx, when the endpoint answers.
+    if (error instanceof ApiError && error.status === 404) {
+      return { result: exampleSuggestions(text, scenarios), example: true };
+    }
+    throw error;
+  }
 }
 
 export function ScenarioSuggestions({
@@ -101,7 +119,6 @@ export function ScenarioSuggestions({
   const abortRef = useRef<AbortController | null>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const loading = state.status === "loading";
-  const byId = new Map(scenarios.map((s) => [s.scenarioId, s]));
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -120,21 +137,17 @@ export function ScenarioSuggestions({
     abortRef.current = controller;
     setState({ status: "loading" });
     try {
-      const result = await fetchSuggestions(token, text, controller.signal);
+      const { result, example } = await suggest(
+        token,
+        text,
+        scenarios,
+        controller.signal,
+      );
       if (controller.signal.aborted) return;
       if (result.status === "NO_CONFIDENT_CANDIDATE") onNoCandidate();
-      setState({ status: "done", result });
+      setState({ status: "done", result, example });
     } catch (error) {
       if (controller.signal.aborted) return;
-      // TEMPORARY until #371: a 404 means the API has no suggestion endpoint
-      // yet, so show labelled examples instead. Remove this branch, and
-      // example-suggestions.tsx, when the endpoint answers.
-      if (error instanceof ApiError && error.status === 404) {
-        const result = exampleSuggestions(text, scenarios);
-        if (result.status === "NO_CONFIDENT_CANDIDATE") onNoCandidate();
-        setState({ status: "done", result, example: true });
-        return;
-      }
       console.error(error);
       setState({
         status: "error",
@@ -154,8 +167,6 @@ export function ScenarioSuggestions({
     state.status === "done" && state.result.status === "CONFIDENT"
       ? state.result.candidates
       : [];
-  // TEMPORARY until #371: true while the cards are browser-made examples.
-  const isExample = state.status === "done" && state.example === true;
 
   return (
     <form className="scenario-suggestions" onSubmit={submit} noValidate>
@@ -197,24 +208,14 @@ export function ScenarioSuggestions({
             }}
           >
             <span aria-hidden="true">
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 12 12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              >
-                <path d="M2 2l8 8M10 2l-8 8" />
-              </svg>
+              <ClearIcon />
             </span>
           </button>
         )}
       </div>
       {empty && (
         <p id={errorId} role="alert" className="suggest-error">
-          <Icon>{TRIANGLE}</Icon>
+          <TriangleIcon />
           Skriv en kort beskrivelse af hændelsen først.
         </p>
       )}
@@ -222,45 +223,11 @@ export function ScenarioSuggestions({
         Nævn gerne station eller strækning. Enter for forslag.
       </p>
 
-      <div
-        className="suggest-chips"
-        role="group"
-        aria-label="Hyppige hændelser"
-      >
-        {QUICK_PICKS.map((word) => {
-          const pressed = description
-            .toLowerCase()
-            .includes(word.toLowerCase());
-          return (
-            <button
-              key={word}
-              type="button"
-              className="suggest-chip"
-              aria-pressed={pressed}
-              disabled={loading}
-              onClick={() => edit(toggleWord(description, word))}
-            >
-              {pressed && (
-                <svg
-                  className="suggest-chip-check"
-                  aria-hidden="true"
-                  width="10"
-                  height="10"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M2.5 6.2l2.3 2.3 4.7-5" />
-                </svg>
-              )}
-              {word}
-            </button>
-          );
-        })}
-      </div>
+      <QuickPicks
+        description={description}
+        disabled={loading}
+        onChange={edit}
+      />
 
       <button
         type="submit"
@@ -288,58 +255,20 @@ export function ScenarioSuggestions({
         </Notice>
       )}
 
-      {isExample && (
-        <p className="suggest-example" role="note">
-          <strong>Eksempel</strong> Forslagstjenesten er ikke koblet på endnu.
-        </p>
-      )}
-
       {candidates.length > 0 && (
-        <section aria-labelledby={`${id}-results`}>
-          <h3 id={`${id}-results`} className="operator-eyebrow">
-            FORSLAG
-          </h3>
-          <ul className="suggest-results">
-            {candidates.map((candidate) => {
-              const scenario = byId.get(candidate.scenarioId);
-              const percent = Math.round(candidate.score * 100);
-              // Editing clears the suggestions, so the current text is the
-              // description they were made for.
-              const matches = matchedStations(description, scenario?.covers);
-              const route = routeLabel(scenario?.covers);
-              const isSelected = candidate.scenarioId === selectedId;
-              return (
-                <li key={candidate.scenarioId}>
-                  <button
-                    type="button"
-                    className="scenario-option suggest-result"
-                    aria-pressed={isSelected}
-                    disabled={disabled}
-                    onClick={() => onSelect(candidate.scenarioId)}
-                  >
-                    <span className="suggest-result-head">
-                      <strong>{scenario?.name ?? candidate.scenarioId}</strong>
-                      <span>{isExample ? "Eksempel" : `${percent} %`}</span>
-                    </span>
-                    <span className="suggest-reason">
-                      {route}
-                      {matches.length > 0 && (
-                        <>
-                          <span className="visually-hidden">. Matcher:</span>
-                          {matches.map((name) => (
-                            <span key={name} className="suggest-tag">
-                              {name}
-                            </span>
-                          ))}
-                        </>
-                      )}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+        <SuggestionResults
+          id={`${id}-results`}
+          candidates={candidates}
+          scenarios={scenarios}
+          // Editing clears the suggestions, so the current text is the
+          // description they were made for.
+          description={description}
+          selectedId={selectedId}
+          // TEMPORARY until #371: true while the cards are browser-made examples.
+          isExample={state.status === "done" && state.example === true}
+          disabled={disabled}
+          onSelect={onSelect}
+        />
       )}
 
       {state.status === "done" &&
@@ -356,29 +285,107 @@ export function ScenarioSuggestions({
   );
 }
 
-const TRIANGLE = (
-  <>
-    <path d="M10 2.5 18.5 17h-17z" />
-    <path d="M10 8v4M10 14.5h.01" />
-  </>
-);
-
-function Icon({ children }: { children: ReactNode }) {
+function QuickPicks({
+  description,
+  disabled,
+  onChange,
+}: {
+  description: string;
+  disabled: boolean;
+  onChange: (text: string) => void;
+}) {
   return (
-    <svg
-      className="suggest-icon"
-      aria-hidden="true"
-      width="16"
-      height="16"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {children}
-    </svg>
+    <div className="suggest-chips" role="group" aria-label="Hyppige hændelser">
+      {QUICK_PICKS.map((word) => {
+        const pressed = description.toLowerCase().includes(word.toLowerCase());
+        return (
+          <button
+            key={word}
+            type="button"
+            className="suggest-chip"
+            aria-pressed={pressed}
+            disabled={disabled}
+            onClick={() => onChange(toggleWord(description, word))}
+          >
+            {pressed && <CheckIcon />}
+            {word}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type Candidate = Extract<
+  Suggestions,
+  { status: "CONFIDENT" }
+>["candidates"][number];
+
+function SuggestionResults({
+  id,
+  candidates,
+  scenarios,
+  description,
+  selectedId,
+  isExample,
+  disabled,
+  onSelect,
+}: {
+  id: string;
+  candidates: readonly Candidate[];
+  scenarios: readonly ScenarioSummary[];
+  description: string;
+  selectedId: string | null;
+  isExample: boolean;
+  disabled: boolean;
+  onSelect: (scenarioId: string) => void;
+}) {
+  const byId = new Map(scenarios.map((s) => [s.scenarioId, s]));
+  return (
+    <section aria-labelledby={id}>
+      <h3 id={id} className="operator-eyebrow">
+        FORSLAG
+      </h3>
+      <ul className="suggest-results">
+        {candidates.map((candidate) => {
+          const scenario = byId.get(candidate.scenarioId);
+          const matches = matchedStations(description, scenario?.covers);
+          return (
+            <li key={candidate.scenarioId}>
+              <button
+                type="button"
+                className="scenario-option suggest-result"
+                aria-pressed={candidate.scenarioId === selectedId}
+                disabled={disabled}
+                onClick={() => onSelect(candidate.scenarioId)}
+              >
+                <span className="suggest-result-head">
+                  <strong>{scenario?.name ?? candidate.scenarioId}</strong>
+                  <span>
+                    {isExample
+                      ? "Eksempel"
+                      : `${Math.round(candidate.score * 100)} %`}
+                  </span>
+                </span>
+                <span className="suggest-reason">
+                  {routeLabel(scenario?.covers)}
+                  {matches.length > 0 && (
+                    <>
+                      <span className="visually-hidden">. Matcher:</span>
+                      {matches.map((name) => (
+                        <span key={name} className="suggest-tag">
+                          {name}
+                        </span>
+                      ))}
+                    </>
+                  )}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
@@ -402,16 +409,7 @@ function Notice({
       className={`suggest-notice suggest-notice--${tone}`}
       role={tone === "error" ? "alert" : "status"}
     >
-      <Icon>
-        {tone === "error" ? (
-          TRIANGLE
-        ) : (
-          <>
-            <circle cx="10" cy="10" r="8" />
-            <path d="M10 6v5M10 14h.01" />
-          </>
-        )}
-      </Icon>
+      {tone === "error" ? <TriangleIcon /> : <InfoIcon />}
       <div>
         <strong>{title}</strong>
         <p>{children}</p>
