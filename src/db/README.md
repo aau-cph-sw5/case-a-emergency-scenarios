@@ -1,4 +1,3 @@
-
 # Local database migrations
 
 This folder contains versioned Flyway migrations for the application's
@@ -33,15 +32,15 @@ production credentials here.
    npm run db:info
    ```
 
-
 Run `npm run db:validate` before committing a new migration. Stop the local
 database with `npm run db:down`; its Docker volume is retained, so your local
 schema history remains intact.
 
 If your local database already contains scenarios when applying the line-group
-migration, reset it with `npm run db:reset` and reseed it. The reset deletes local
-database data. A reset is also needed if you applied an earlier version of a
-migration that has since changed.
+migration, reset it with `npm run db:reset` and reseed it. V016 also requires a
+fresh or cleared database: it does not migrate existing operating plans or
+patterns. The reset deletes local database data. A reset is also needed if you
+applied an earlier version of a migration that has since changed.
 
 ## Commands
 
@@ -98,9 +97,13 @@ npm run db:reset
 It asks for confirmation before deleting anything. Run
 `npm run db:reset -- --yes` to skip the question, for example in a script.
 
-This recreates the database from every migration in `src/db/migrations` and
-seeds it again. Changing `POSTGRES_PASSWORD` in `.env` only takes effect on a
-fresh volume, so run `npm run db:reset` after changing it.
+This recreates the database from every migration in `src/db/migrations`, then
+seeds the configured network before scenarios. Configure `NETWORK_SEED_FILE`
+and `SEED_SCENARIOS_DIR` in `.env`; see [the seed loader guide](../../scripts/README.md).
+If no network file is configured, both automatic seeds are skipped. If
+`SEED_DATABASE_URL` is set, setup and reset skip both seeds so they never seed
+another database automatically. Changing `POSTGRES_PASSWORD` in `.env` only
+takes effect on a fresh volume, so run `npm run db:reset` after changing it.
 
 ## Adding a migration
 

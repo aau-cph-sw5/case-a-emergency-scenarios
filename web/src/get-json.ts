@@ -62,14 +62,15 @@ export async function getJson<T>(
 }
 
 // body is sent as JSON when given; without it the request has no body.
-export async function postJson<T>(
+export async function sendJson<T>(
+  method: "POST" | "PATCH",
   path: string,
   token: string,
   isValid: (data: unknown) => data is T,
   body?: unknown,
 ): Promise<T> {
   const response = await fetchWithTimeout(path, [], {
-    method: "POST",
+    method,
     headers:
       body === undefined
         ? { Authorization: `Bearer ${token}` }
@@ -87,15 +88,24 @@ export async function postJson<T>(
     throw new ApiError(
       typeof body?.message === "string"
         ? body.message
-        : `POST ${path} failed with ${response.status}`,
+        : `${method} ${path} failed with ${response.status}`,
       response.status,
       typeof body?.code === "string" ? body.code : undefined,
     );
   }
   if (!isValid(data)) {
-    throw new Error(`POST ${path} answered in an unexpected format`);
+    throw new Error(`${method} ${path} answered in an unexpected format`);
   }
   return data;
+}
+
+export function postJson<T>(
+  path: string,
+  token: string,
+  isValid: (data: unknown) => data is T,
+  body?: unknown,
+): Promise<T> {
+  return sendJson("POST", path, token, isValid, body);
 }
 
 // The code decides the text; an unknown or missing code falls back on the
