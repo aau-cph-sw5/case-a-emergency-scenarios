@@ -3,7 +3,6 @@ import { Pressable, Text, View } from "react-native";
 import MapRender from "../../../shared/MapRenderer";
 import {
   colors as theme,
-  DIDLineColors,
   lineColors,
   palette,
   radius,
@@ -23,7 +22,11 @@ import {
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import { useScenario } from "../data/useScenario";
 import { useNetwork } from "../data/useNetwork";
-import { resolveStops, type MapNetwork } from "../../../shared/network/network";
+import {
+  connectionKey,
+  resolveStops,
+  type MapNetwork,
+} from "../../../shared/network/network";
 
 const lineGroups = [
   ["M1", "M2"],
@@ -69,6 +72,60 @@ function scenarioLines(
         return { name: pattern.did, tracks, connections: result.connections };
       }) ?? [];
   return { lines: routes, missingRoutes: missingRoutes || routes.length === 0 };
+}
+
+const CLOSED_LINE = "Spærret";
+
+// A route has the colour of the Metro line it runs on (design guide: M1-M4
+// for lines). A route that fits more than one line, or none, is Metro Black.
+function routeColor(
+  route: MapNetwork["lines"][number],
+  lines: MapNetwork["lines"],
+) {
+  const same = ([a, b]: [string, string], [x, y]: [string, string]) =>
+    (a === x && b === y) || (a === y && b === x);
+  const fits = lines.filter((line) =>
+    route.connections.every((connection) =>
+      line.connections.some((other) => same(connection, other)),
+    ),
+  );
+  return fits.length === 1 && lineColor[fits[0].name]
+    ? lineColor[fits[0].name]
+    : theme.text;
+}
+
+// The covered segments that no running route already draws, as one line.
+export function closedStretchLine(
+  covers: Scenario["covers"],
+  running: MapNetwork["lines"],
+): MapNetwork["lines"][number] | null {
+  const drawn = (a: string, b: string) =>
+    running.some((line) =>
+      line.connections.some(
+        ([x, y]) => (x === a && y === b) || (x === b && y === a),
+      ),
+    );
+  const open = (covers ?? []).filter(
+    (cover) => !drawn(cover.stationA, cover.stationB),
+  );
+  if (open.length === 0) return null;
+  const connectionTracks: Record<string, number[]> = {};
+  const connections: [string, string][] = [];
+  for (const { stationA, stationB, trackNumber } of open) {
+    const key = connectionKey(stationA, stationB);
+    if (!connectionTracks[key]) {
+      connectionTracks[key] = [];
+      connections.push([stationA, stationB]);
+    }
+    if (!connectionTracks[key].includes(trackNumber))
+      connectionTracks[key].push(trackNumber);
+  }
+  return {
+    name: CLOSED_LINE,
+    tracks: [...new Set(open.map((cover) => cover.trackNumber))],
+    connections,
+    connectionTracks,
+  };
 }
 
 // Scenario data determines staffing markers and the optional close-up view.
@@ -167,22 +224,36 @@ export function MetroMap({
     scenarioId === null || scenario === null
       ? null
       : scenarioLines(scenario, groupNetwork, mapNetwork.segments);
-  const groupLines =
+  const runningLines =
     scenarioId === null
       ? groupNetwork
       : scenario === null
         ? []
         : (scenarioLineResult?.lines ?? []);
+  // The operating plan only holds the routes that still run, so the stretch
+  // the scenario closes is on no route and would not be drawn at all, leaving
+  // its staffed stations floating. It is drawn as its own line, dashed by
+  // blockedTracks.
+  const closedLine =
+    scenarioId === null ||
+    scenario === null ||
+    scenario.lineGroup.replace("_", "/") !== lineGroup
+      ? null
+      : closedStretchLine(scenario.covers, runningLines);
+  const groupLines = closedLine ? [...runningLines, closedLine] : runningLines;
   const missingScenarioRoutes = scenarioLineResult?.missingRoutes ?? false;
   const routeColors =
     scenarioId === null
       ? lineColor
-      : Object.fromEntries(
-          groupLines.map((line, index) => [
-            line.name,
-            DIDLineColors[index % DIDLineColors.length],
-          ]),
-        );
+      : {
+          ...Object.fromEntries(
+            runningLines.map((route) => [
+              route.name,
+              routeColor(route, groupNetwork),
+            ]),
+          ),
+          [CLOSED_LINE]: theme.blockedTrack,
+        };
   const groupStations = new Set([
     ...groupNetwork.flatMap((line) => line.connections.flat()),
     ...groupLines.flatMap((line) => line.connections.flat()),
@@ -274,14 +345,14 @@ export function MetroMap({
         </Text>
       )}
 
-      {scenarioId !== null && groupLines.length > 0 && (
+      {scenarioId !== null && runningLines.length > 0 && (
         <View
           accessibilityLabel="Destination IDs"
           style={{ marginLeft: 8, flexDirection: "column", gap: 6 }}
         >
           <Text style={text.small}>Destination IDs:</Text>
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-            {groupLines.map((line) => (
+            {runningLines.map((line) => (
               <View
                 key={line.name}
                 style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
