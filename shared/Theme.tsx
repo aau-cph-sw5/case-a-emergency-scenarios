@@ -31,6 +31,17 @@ export const palette = {
   darkRed: "#7F1916",
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
+
+  // The steward app's look from the approved prototype (#375). Its status
+  // colours are the metro colours above; these are the greys around them.
+  // Only the steward app uses these; the web keeps the colours above.
+  stewardChipGrey: "#9AA0A6",
+  stewardLabelGrey: "#C9CCD0",
+  stewardLine: "#D9DCDF",
+  stewardStrip: "#F6F7F8",
+  stewardMuted: "#5B6168",
+  stewardLocked: "#C9CDD2",
+  stewardLockedText: "#3D4249",
 };
 
 export const colors = {
@@ -167,6 +178,49 @@ export const badge = {
 export const page = {
   backgroundColor: colors.page,
   flex: 1,
+};
+
+// The steward app's colours and sizes (#375). The status colours match the
+// slide that leads to the status: yellow on the way, green arrived, red
+// checked out. They are the exact line colours from Metro's brand guide (M2
+// yellow, M1 green, M3 red), and the neutral colour is Metro Black. M4 blue is
+// not used: as a neutral colour it would read as the M4 line. A station row
+// uses two colours only: red when nobody is assigned and black otherwise, with
+// a check mark when it is fully staffed. Red text is Metro Deep Red, the
+// darker brand red, which stays legible on white at small sizes.
+export const steward = {
+  yellow: palette.metroLineTwo,
+  green: palette.metroLineOne,
+  red: palette.metroLineThree,
+  black: palette.metroBlack,
+  chipGrey: palette.stewardChipGrey,
+  labelGrey: palette.stewardLabelGrey,
+  line: palette.stewardLine,
+  strip: palette.stewardStrip,
+  muted: palette.stewardMuted,
+  nobody: palette.metroDeepRed,
+  // A slide that cannot be used right now, for example without a connection.
+  locked: palette.stewardLocked,
+  lockedText: palette.stewardLockedText,
+  // The black status box is this high in every state, so nothing below it
+  // moves when the status changes.
+  statusBoxHeight: 112,
+  ownRowHeight: 64,
+  slideHeight: 56,
+};
+
+// How things move in the steward app (#375). Every block that opens or closes
+// uses the same duration and an ease-in-out curve; text in a block that grows
+// fades in once the block is past half way, and text in a block that shrinks
+// fades out first. A notification shows on the back of the status box for
+// notificationMs, or until it is tapped.
+export const motion = {
+  layoutMs: 380,
+  fadeInDelayMs: 140,
+  fadeInMs: 200,
+  fadeOutMs: 120,
+  flipMs: 300,
+  notificationMs: 4000,
 };
 
 // A required station on the map by its live coverage (MET-A-011, #310): the

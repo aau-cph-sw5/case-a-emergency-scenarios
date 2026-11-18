@@ -4,6 +4,12 @@ The seed loader (`scripts/seed-scenarios.ts`) reads the scenario seed data files
 
 The scenario files are private Metro material. They are not in git and must never be added to the repository.
 
+The shared network must be loaded before scenarios. Set `NETWORK_SEED_FILE` to
+an external network JSON file and `SEED_SCENARIOS_DIR` to the external scenario
+folder in `.env`. `npm run setup` and `npm run db:reset` load the network first,
+then the scenarios. If no network file is configured, both automatic seeds are
+skipped. If the network seed fails, scenario seeding does not run.
+
 ## Prerequisites
 
 - The local setup has run (`npm run setup`), so `.env` exists and the database is running in Docker. See [src/db/README.md](../src/db/README.md).
@@ -11,7 +17,7 @@ The scenario files are private Metro material. They are not in git and must neve
 
 ## 1. Get the seed data
 
-1. Open the project OneDrive and download the folder **Current Seed data to use (up to date)**. It downloads as a zip file.
+1. Open the project OneDrive and download the folder **Current Seed data to use (up to date)**. It downloads as a zip file. Must also download the metro_network.json file from SeedData folder.
 2. Unzip it.
 
 Only use the files from that folder. Do not mix in older versions of a scenario.
@@ -29,19 +35,24 @@ The loader reads every file in the folder whose name starts with `SeedDataScenar
 
 ## 3. Point `.env` to the folder
 
-In `.env`, set `SEED_SCENARIOS_DIR` to the full path of the folder. Use forward slashes, also on Windows:
+In `.env`, set `NETWORK_SEED_FILE` to the full path of the network JSON and
+`SEED_SCENARIOS_DIR` to the scenario folder. Both must be outside the
+repository:
 
-```
+```env
+NETWORK_SEED_FILE=/Users/you/metro-network.json
 SEED_SCENARIOS_DIR=/Users/you/metro-seed-data
 ```
 
 ## 4. Run the seed loader
 
 ```bash
+npm run seed:network
 npm run seed
 ```
 
-When it works, the last line is:
+Alternatively, run `npm run setup` to load the configured network and
+scenarios in that order. When scenario seeding works, the last line is:
 
 ```
 Seeded 3 scenario(s) into localhost:5432/metro.
@@ -53,17 +64,18 @@ The loader checks all files before it writes anything. If one file is invalid, i
 
 The error messages can contain station codes and other values from the private files. Do not paste the output into a pull request, an issue or Discord.
 
-Reseeding updates the scenarios and versions in the supplied files, including versions referenced by activation history. Other scenarios and versions are left in place. The `currentVersion` in each file becomes that scenario's current version. Changing a scenario's line group can fail if an activation references it.
+Reseeding updates the scenarios and versions in the supplied files, including versions referenced by activation history. Existing station IDs, names and map positions are preserved; a station absent from the network is created using the scenario station list. Other scenarios and versions are left in place. The `currentVersion` in each file becomes that scenario's current version. Changing a scenario's line group can fail if an activation references it.
 
-## Demo data without the private files
+## Demo scenarios without the private files
 
-To try the app without the Metro seed data, load the three public, synthetic scenarios `DEMO-001` to `DEMO-003` from `fixtures/v1/scenarios/`:
+To load the three synthetic scenarios `DEMO-001` to `DEMO-003`:
 
 ```bash
 npm run seed:demo
 ```
 
-It needs no `SEED_SCENARIOS_DIR`. The stations `Station A` to `Station G` come from `fixtures/v1/demo-stations.json`, which the integration tests also use.
+`seed:demo` needs neither `NETWORK_SEED_FILE` nor `SEED_SCENARIOS_DIR`. It loads
+demo scenarios and their stations, but does not load a network or map positions.
 
 The demo scenarios are added next to any real scenarios already in the database, so the app then lists both. To start again with only the real data, run `npm run db:reset` and then `npm run seed`.
 
@@ -75,7 +87,7 @@ By default the seed writes to the local Docker database. To write to another one
 SEED_DATABASE_URL=postgresql://user:password@host:5432/database
 ```
 
-Then `npm run seed` and `npm run seed:demo` write there, and the last line names that host. Remove the line again to go back to the local database. `npm run setup` never seeds while `SEED_DATABASE_URL` is set.
+Then `npm run seed:network`, `npm run seed` and `npm run seed:demo` write there, and the last line names that host. Remove the line again to go back to the local database. `npm run setup` and `npm run db:reset` skip both automatic seeds while `SEED_DATABASE_URL` is set, including when it is set in the shell environment.
 
 - The address contains a password. Keep it only in your own `.env`, never in a file in git.
 - Real Metro scenarios may not be seeded into an online database without the Product Owner's approval. Use `npm run seed:demo` for staging until then.
@@ -128,3 +140,26 @@ Stop the database:
 ```bash
 npm run db:down
 ```
+
+## Load the shared network
+
+`npm run seed:network` loads shared stations, schematic positions, physical
+track segments and normal-service patterns independently of scenarios. Set
+`NETWORK_SEED_FILE` in `.env` to the full path of a JSON file **outside the
+repository**. The file contains `stations`, `segments` and `normalPatterns`
+arrays. Stations have `code`, `name`, `x`, and `y`; segments have `trackNumber`,
+`stationA`, and `stationB`; and normal patterns have `line`, `routeCode`,
+`operationType`, `trackNumber`, `maximumTrains`, `did`, and ordered `stops`.
+Supply the actual DID and maximum train count for each normal pattern.
+Crossovers are outside this loader's scope.
+
+The complete input is validated before writing. The database write is one
+transaction. Reseeding updates the supplied stations, positions and normal
+patterns, while preserving existing track-segment IDs and endpoint order. It
+leaves other network and scenario records in place. List every adjacent normal
+stop in route order; for a loop, repeat the first stop at the end so the closing
+connection is included. Run the network seed before
+seeding scenarios that reference its stations and tracks.
+
+The command uses the same connection settings and production guard as `npm run
+seed`.

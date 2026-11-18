@@ -22,9 +22,10 @@ export function zoomedViewBox(
   boxWidth: number,
   boxHeight: number,
   fontScale: number,
+  position: (station: string) => [number, number] | undefined = getStation,
 ): string | undefined {
   const positions = stations
-    .map((station) => getStation(station))
+    .map((station) => position(station))
     .filter((position) => position !== undefined);
   if (positions.length === 0 || boxWidth <= 0 || boxHeight <= 0) {
     return undefined;

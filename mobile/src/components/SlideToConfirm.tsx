@@ -7,14 +7,33 @@ import {
   View,
   type LayoutChangeEvent,
 } from "react-native";
-import { colors, panelRadius, spacing, text } from "../../../shared/Theme";
+import Svg, { Path, Rect } from "react-native-svg";
+import { DoubleArrow } from "./DoubleArrow";
+import {
+  colors,
+  panelRadius,
+  spacing,
+  steward,
+  text,
+} from "../../../shared/Theme";
 
-const KNOB_SIZE = 52;
+// The track is steward.slideHeight high (#375): the knob plus the gap above and below it.
+const KNOB_SIZE = steward.slideHeight - 2 * spacing.small;
 // The gap between the knob and the edge of the track.
 const INSET = spacing.small;
 // How far the knob must travel before the action counts, so a brush with a
 // thumb while walking does not confirm anything.
 const CONFIRM_SHARE = 0.85;
+
+// The three looks of a slide (#375), each in the colour of the status it
+// leads to: yellow to confirm a station, green to check in, red to check out.
+// Text is dark on the light yellow track and white on the others.
+export type SlideTone = "yellow" | "green" | "red";
+const TONES: Record<SlideTone, { track: string; text: string }> = {
+  yellow: { track: steward.yellow, text: colors.text },
+  green: { track: steward.green, text: colors.textInverse },
+  red: { track: steward.red, text: colors.textInverse },
+};
 
 // A slider the steward pushes to the right to confirm. Used where a single
 // tap would be too easy to make by mistake, such as confirming arrival.
@@ -24,19 +43,30 @@ const CONFIRM_SHARE = 0.85;
 // down while sliding would otherwise hand it to the surrounding ScrollView, so
 // the page scrolled and the knob sprang back. onSlidingChange tells the
 // screen when a slide starts and ends, so it can stop scrolling meanwhile.
+//
+// A locked slide (lockedReason set, for example without a connection) is grey,
+// shows a padlock instead of the arrow and the reason under the label, and
+// cannot be slid. disabled is the short pause while a change is being sent.
 export function SlideToConfirm({
   label,
-  color,
-  disabled = false,
+  tone,
+  lockedReason = null,
+  disabled: busy = false,
   onConfirm,
   onSlidingChange,
 }: {
   label: string;
-  color: string;
+  tone: SlideTone;
+  lockedReason?: string | null;
   disabled?: boolean;
   onConfirm: () => void;
   onSlidingChange?: (sliding: boolean) => void;
 }) {
+  const locked = lockedReason !== null;
+  const disabled = busy || locked;
+  const look = locked
+    ? { track: steward.locked, text: steward.lockedText }
+    : TONES[tone];
   const [trackWidth, setTrackWidth] = useState(0);
   const [offset] = useState(() => new Animated.Value(0));
   const maxOffset = Math.max(trackWidth - KNOB_SIZE - 2 * INSET, 0);
@@ -77,7 +107,7 @@ export function SlideToConfirm({
     <View
       accessible
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={locked ? `${label}. ${lockedReason}` : label}
       accessibilityHint="Skub til højre for at bekræfte"
       accessibilityState={{ disabled }}
       accessibilityActions={[{ name: "activate" }]}
@@ -91,17 +121,47 @@ export function SlideToConfirm({
       }
       style={[
         styles.track,
-        { backgroundColor: color },
-        disabled && styles.disabled,
+        { backgroundColor: look.track },
+        busy && !locked && styles.disabled,
       ]}
       testID="slide-to-confirm"
     >
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labels}>
+        <Text style={[styles.label, { color: look.text }]}>{label}</Text>
+        {locked && (
+          <Text style={[styles.reason, { color: look.text }]}>
+            {lockedReason}
+          </Text>
+        )}
+      </View>
+      {/* Three of Metro's double arrows point the way the knob goes. */}
+      {!locked && (
+        <View style={styles.chevrons} importantForAccessibility="no">
+          <DoubleArrow height={13} color={look.text} />
+          <DoubleArrow height={13} color={look.text} />
+          <DoubleArrow height={13} color={look.text} />
+        </View>
+      )}
       <Animated.View
         {...responder.panHandlers}
         style={[styles.knob, { transform: [{ translateX: offset }] }]}
       >
-        <Text style={[styles.arrow, { color }]}>→</Text>
+        {locked ? (
+          <Svg
+            width={24}
+            height={24}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={steward.black}
+            strokeWidth={2.2}
+            testID="slide-lock"
+          >
+            <Rect x={5} y={11} width={14} height={9} rx={2} />
+            <Path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </Svg>
+        ) : (
+          <DoubleArrow height={20} color={look.track} />
+        )}
       </Animated.View>
     </View>
   );
@@ -118,25 +178,35 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.4,
   },
+  labels: {
+    paddingLeft: KNOB_SIZE + spacing.large,
+  },
   label: {
     ...text.button,
-    color: colors.textInverse,
-    letterSpacing: 1,
-    paddingLeft: KNOB_SIZE + spacing.large,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 1.6,
+  },
+  reason: {
+    fontSize: 12,
+  },
+  chevrons: {
+    flexDirection: "row",
+    gap: spacing.small * 2,
+    opacity: 0.6,
+    position: "absolute",
+    right: spacing.large,
   },
   knob: {
     alignItems: "center",
     backgroundColor: colors.background,
-    // Follows the track's corner, inset by the gap.
+    // Follows the track's corner: the track's radius minus the gap around
+    // the knob, so the two corners run parallel.
     borderRadius: panelRadius - INSET,
     height: KNOB_SIZE,
     justifyContent: "center",
     left: INSET,
     position: "absolute",
     width: KNOB_SIZE,
-  },
-  arrow: {
-    fontSize: 26,
-    fontWeight: "700",
   },
 });
