@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { BM25Ranker } from "../../src/services/scenario-suggestion/bm25ranker.ts";
 
-// A fake tokenizer, so these tests don't depend on simpleTokenize
+// A fake tokenizer, so these tests don't depend on the real one
 const splitOnSpace = (text) => text.split(" ").filter(Boolean);
 
 const docs = [
