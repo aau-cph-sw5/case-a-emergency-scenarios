@@ -15,13 +15,10 @@ export function ScenarioBuilder({
   onLogout: () => void;
   onUsers: () => void;
 }) {
+  const builder = useScenarioBuilder(token);
+  const { network, networkError, retryNetwork, view, setView, lineGroup } =
+    builder;
   const {
-    network,
-    networkError,
-    retryNetwork,
-    view,
-    setView,
-    lineGroup,
     scenarioId,
     setScenarioId,
     scenarioName,
@@ -33,6 +30,8 @@ export function ScenarioBuilder({
     saving,
     saveError,
     createdId,
+  } = builder;
+  const {
     editingLine,
     editingRouteId,
     from,
@@ -52,6 +51,8 @@ export function ScenarioBuilder({
     setMaximumTrains,
     pathIndex,
     setPathIndex,
+  } = builder;
+  const {
     baseLines,
     stationPositions,
     stations,
@@ -70,6 +71,8 @@ export function ScenarioBuilder({
     mapCrossovers,
     mapStops,
     turnbacks,
+  } = builder;
+  const {
     discardDraft,
     navigate,
     selectGroup,
@@ -81,7 +84,7 @@ export function ScenarioBuilder({
     addLine,
     saveScenario,
     createAnother,
-  } = useScenarioBuilder(token);
+  } = builder;
   return (
     <main className="admin-dashboard">
       <header className="admin-header">
