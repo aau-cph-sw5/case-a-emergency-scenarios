@@ -96,6 +96,7 @@ before(async () => {
         trackNumber: 12,
         maximumTrains: 2,
         did: "TEST",
+        color: "#008D40",
         stops: ["CREATE-A", "CREATE-B", "CREATE-C"],
       },
     ],
