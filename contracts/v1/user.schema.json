@@ -1,0 +1,13 @@
+{
+  "$id": "user.schema.json",
+  "title": "User",
+  "type": "object",
+  "required": ["userId", "username", "role", "lineGroup"],
+  "additionalProperties": false,
+  "properties": {
+    "userId": { "type": "integer" },
+    "username": { "type": "string" },
+    "role": { "enum": ["STEWARD", "OPERATOR", "ADMIN"] },
+    "lineGroup": { "enum": ["M1_M2", "M3_M4"] }
+  }
+}

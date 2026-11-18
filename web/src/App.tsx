@@ -90,7 +90,12 @@ export function App() {
   }
 
   if (state.session.role === "ADMIN") {
-    return <AdminDashboard onLogout={() => void signOut()} />;
+    return (
+      <AdminDashboard
+        token={state.session.token}
+        onLogout={() => void signOut()}
+      />
+    );
   }
 
   if (state.session.role === "OPERATOR") {

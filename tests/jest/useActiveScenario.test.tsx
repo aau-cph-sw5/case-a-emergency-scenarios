@@ -132,6 +132,10 @@ describe("useActiveScenario", () => {
     await act(() => result.current.refresh());
     expect(result.current.view.status).toBe("stood-down");
 
+    // A swipe that ends after the stand-down has an id and leaves the card.
+    act(() => result.current.dismissNotice(1));
+    expect(result.current.view.status).toBe("stood-down");
+
     act(() => result.current.dismissNotice());
     expect(result.current.view.status).toBe("none");
   });
@@ -150,18 +154,75 @@ describe("useActiveScenario", () => {
     });
     const { result } = render({ online: true, store });
 
-    const switched = { kind: "switched", from: "Gammelt" };
+    // The notice carries when the control room activated the new scenario.
+    const switched = {
+      kind: "switched",
+      from: "Gammelt",
+      at: state.startedAt,
+    };
     await waitFor(() => expect(result.current.view.status).toBe("live"));
-    expect(result.current.view).toMatchObject({ notice: switched });
+    expect(result.current.view).toMatchObject({ notices: [switched] });
 
     // A later refresh of the same scenario keeps the notice.
     await act(() => result.current.refresh());
-    expect(result.current.view).toMatchObject({ notice: switched });
+    expect(result.current.view).toMatchObject({ notices: [switched] });
 
-    act(() => result.current.dismissNotice());
+    const { notices } = result.current.view as { notices: { id: number }[] };
+    act(() => result.current.dismissNotice(notices[0].id));
     expect(result.current.view).toMatchObject({
       status: "live",
-      notice: undefined,
+      notices: [],
+    });
+  });
+
+  it("stacks a second switch on the first and dismisses them one by one", async () => {
+    serverAnswers();
+    const store = memoryStore();
+    const old = buildSnapshot(
+      { active: true, state, scenario: definition },
+      "7",
+      savedEarlier,
+    );
+    await store.save({
+      ...old,
+      scenario: { ...old.scenario, scenarioId: "DEMO-000", name: "Gammelt" },
+    });
+    const { result } = render({ online: true, store });
+    await waitFor(() =>
+      expect(result.current.view).toMatchObject({
+        notices: [{ kind: "switched", from: "Gammelt" }],
+      }),
+    );
+
+    // The control room switches again, to a third scenario.
+    const next = { ...definition, scenarioId: "DEMO-002", name: "Tredje" };
+    jest.restoreAllMocks();
+    jest.spyOn(global, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/scenario-state")) {
+        return response(200, {
+          ...state,
+          scenarioId: next.scenarioId,
+          sequence: state.sequence + 1,
+        });
+      }
+      return new URL(url).pathname === `/api/v1/scenarios/${next.scenarioId}`
+        ? response(200, next)
+        : response(404);
+    });
+    await act(() => result.current.refresh());
+
+    const { notices } = result.current.view as { notices: { id: number }[] };
+    expect(notices).toHaveLength(2);
+    expect(notices[0]).toMatchObject({ kind: "switched", from: "Gammelt" });
+    expect(notices[1]).toMatchObject({
+      kind: "switched",
+      from: definition.name,
+    });
+
+    act(() => result.current.dismissNotice(notices[0].id));
+    expect(result.current.view).toMatchObject({
+      notices: [{ kind: "switched", from: definition.name }],
     });
   });
 
@@ -175,21 +236,22 @@ describe("useActiveScenario", () => {
     await act(() => result.current.refresh());
     expect(result.current.view).toMatchObject({
       status: "live",
-      notice: { kind: "activated" },
+      notices: [{ kind: "activated", at: state.startedAt }],
     });
 
-    act(() => result.current.dismissNotice());
-    expect(result.current.view).toMatchObject({ notice: undefined });
+    const { notices } = result.current.view as { notices: { id: number }[] };
+    act(() => result.current.dismissNotice(notices[0].id));
+    expect(result.current.view).toMatchObject({ notices: [] });
   });
 
   it("shows no notice for a scenario that was already active at login", async () => {
     serverAnswers();
     const { result } = render({ online: true });
     await waitFor(() => expect(result.current.view.status).toBe("live"));
-    expect(result.current.view).toMatchObject({ notice: undefined });
+    expect(result.current.view).toMatchObject({ notices: [] });
 
     await act(() => result.current.refresh());
-    expect(result.current.view).toMatchObject({ notice: undefined });
+    expect(result.current.view).toMatchObject({ notices: [] });
   });
 
   it("shows the saved copy offline without a request", async () => {
