@@ -1,3 +1,9 @@
+import {
+  createOfflineQueue,
+  isRejectionReason,
+  type Rejected,
+  type Stored,
+} from "./offline-queue";
 import type { SnapshotStorage } from "./scenario-snapshot";
 
 export const POSITION_REPORT_QUEUE_KEY = "metro-pending-position-reports"; //stores the reports that have been queued for delivery to the server
@@ -16,29 +22,13 @@ export type QueuedPositionReport = {
   taskDone?: boolean;
 };
 
-export type RejectionReason = { httpStatus: number; code?: string };
-export type RejectedPositionReport = QueuedPositionReport & {
-  rejection: RejectionReason;
-};
-type StoredPositionReport = QueuedPositionReport & {
-  rejection?: RejectionReason;
-};
+export type { RejectionReason } from "./offline-queue";
+export type RejectedPositionReport = Rejected<QueuedPositionReport>;
+type StoredPositionReport = Stored<QueuedPositionReport>;
 
 export type PositionReportQueueStore = ReturnType<
   typeof createPositionReportQueueStore
 >;
-
-function isRejectionReason(value: unknown): value is RejectionReason {
-  if (typeof value !== "object" || value === null) return false;
-  const reason = value as Record<string, unknown>;
-  return (
-    typeof reason.httpStatus === "number" &&
-    Number.isInteger(reason.httpStatus) &&
-    reason.httpStatus >= 400 &&
-    reason.httpStatus < 500 &&
-    (reason.code === undefined || typeof reason.code === "string")
-  );
-}
 
 function isQueuedReport(value: unknown): value is StoredPositionReport {
   //unknown type guard to check if the value is a QueuedPositionReport
@@ -69,109 +59,11 @@ function isQueuedReport(value: unknown): value is StoredPositionReport {
 
 export function createPositionReportQueueStore(storage: SnapshotStorage) {
   //creates a store for queued position reports using storage mechanism
-  let lastOperation: Promise<void> = Promise.resolve(); //keeps track of the last operation to ensure that operations are serialized
-
-  // Operations run in order evenn when callers dont await eachother
-  function serialize<T>(operation: () => Promise<T>): Promise<T> {
-    //T is a generic type parameter that represents the type of the value that the operation returns
-    const next = lastOperation.then(operation, operation); //operation runs twice because there are two possible callbacks, success and failure
-    lastOperation = next.then(
-      () => undefined,
-      () => undefined,
-    );
-    return next;
-  }
-
-  async function readQueue(): Promise<StoredPositionReport[]> {
-    const raw = await storage.getItem(POSITION_REPORT_QUEUE_KEY);
-    if (raw === null) return [];
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return []; // unreadable text: start over instead of blocking new reports
-    }
-
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isQueuedReport); // keep valid reports, skip broken ones
-  }
-
-  async function saveQueue(reports: StoredPositionReport[]): Promise<void> {
-    //saves the queue of position reports to storage
-    await storage.setItem(
-      //store the reports in storage under the key POSITION_REPORT_QUEUE_KEY
-      POSITION_REPORT_QUEUE_KEY,
-      JSON.stringify(reports),
-    );
-  }
-
-  return {
-    enqueue(report: QueuedPositionReport): Promise<void> {
-      //adds a new report to the queue
-      return serialize(async () => {
-        const reports = await readQueue();
-
-        const existing = reports.find((item) => item.id === report.id);
-
-        if (existing) {
-          //if a report with the same id already exists in the queue, check if it is the same as the new report
-          const existingReport = { ...existing };
-          delete existingReport.rejection;
-          if (JSON.stringify(existingReport) !== JSON.stringify(report)) {
-            throw new Error("Report ID already used for different data");
-          }
-          return;
-        }
-
-        await saveQueue([...reports, report]);
-      });
-    },
-
-    getPending(userId: string): Promise<QueuedPositionReport[]> {
-      //retrieves all pending reports for a specific user from the queue
-      return serialize(async () => {
-        const reports = await readQueue();
-        return reports.filter(
-          (report) =>
-            report.userId === userId && report.rejection === undefined,
-        );
-      });
-    },
-
-    getRejected(userId: string): Promise<RejectedPositionReport[]> {
-      return serialize(async () =>
-        (await readQueue()).filter(
-          (report): report is RejectedPositionReport =>
-            report.userId === userId && report.rejection !== undefined,
-        ),
-      );
-    },
-
-    reject(userId: string, id: string, reason: RejectionReason): Promise<void> {
-      return serialize(async () => {
-        const reports = await readQueue();
-        const index = reports.findIndex(
-          (report) => report.userId === userId && report.id === id,
-        );
-        if (index < 0) throw new Error("Queued report not found");
-        if (reports[index].rejection !== undefined) return;
-        reports[index] = { ...reports[index], rejection: reason };
-        await saveQueue(reports);
-      });
-    },
-
-    acknowledge(userId: string, id: string): Promise<void> {
-      //removes a report from the queue after it has been successfully delivered to the server
-      return serialize(async () => {
-        const reports = await readQueue();
-
-        await saveQueue(
-          reports.filter(
-            (report) => !(report.userId === userId && report.id === id),
-          ),
-        );
-      });
-    },
-  };
+  return createOfflineQueue<QueuedPositionReport>(storage, {
+    key: POSITION_REPORT_QUEUE_KEY,
+    idOf: (report) => report.id,
+    isItem: isQueuedReport,
+    reusedIdError: "Report ID already used for different data",
+    notFoundError: "Queued report not found",
+  });
 }

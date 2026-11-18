@@ -653,6 +653,16 @@ test("GET /api/v1/me rejects a missing or invalid token with 401", async () => {
   assert.equal((await invalid.json()).error.code, "E0001");
 });
 
+test("GET /api/v1/network requires authentication and matches its contract", async () => {
+  const missing = await fetch(`${baseUrl}/api/v1/network`);
+  assert.equal(missing.status, 401);
+  const response = await fetch(`${baseUrl}/api/v1/network`, {
+    headers: await operatorHeaders(),
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(validate(await response.json(), "network.schema.json"), []);
+});
+
 test("GET /api/v1/scenarios returns the scenario list", async () => {
   const response = await fetch(`${baseUrl}/api/v1/scenarios`, {
     headers: await operatorHeaders(),

@@ -1,0 +1,18 @@
+{
+  "$id": "user-update.schema.json",
+  "title": "User Update",
+  "description": "The fields to change. A field that is left out stays as it is. The username cannot be changed.",
+  "type": "object",
+  "minProperties": 1,
+  "additionalProperties": false,
+  "properties": {
+    "password": {
+      "type": "string",
+      "description": "At least 12 characters, at least one of them a digit.",
+      "minLength": 12,
+      "pattern": "[0-9]"
+    },
+    "role": { "enum": ["STEWARD", "OPERATOR", "ADMIN"] },
+    "lineGroup": { "enum": ["M1_M2", "M3_M4"] }
+  }
+}

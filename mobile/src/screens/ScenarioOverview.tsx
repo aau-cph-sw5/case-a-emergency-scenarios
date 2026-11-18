@@ -15,9 +15,12 @@ import {
   text,
   palette,
   panelRadius,
+  spacing,
+  steward,
 } from "../../../shared/Theme";
 import MapRender from "../../../shared/MapRenderer";
-import { getLines } from "../../../mockData/data";
+import type { MapNetwork } from "../../../shared/network/network";
+import type { NetworkStatus } from "../network/useNetwork";
 import {
   affectedStations,
   affectedStretchAsMapLine,
@@ -44,7 +47,14 @@ export function ScenarioOverview({
   onAssign,
   assignedStation,
   checkedOutStation,
+  ownArrived = false,
+  network,
+  networkIsCached = false,
+  networkStatus = "loading",
 }: {
+  network?: MapNetwork | null;
+  networkIsCached?: boolean;
+  networkStatus?: NetworkStatus;
   snapshot: ScenarioSnapshot;
   // Offers + on each station, to report on the way there (MET-A-015, #263).
   // Left out when the steward cannot choose a station right now.
@@ -55,6 +65,8 @@ export function ScenarioOverview({
   // The station the steward has checked out from. It is no longer their own
   // station, and its row says they left it (#310).
   checkedOutStation?: string;
+  // The steward has checked in at their own station: its row turns green.
+  ownArrived?: boolean;
 }) {
   const { scenario, state, userId } = snapshot;
   const mapColors = {
@@ -70,11 +82,23 @@ export function ScenarioOverview({
   const { fontScale } = useWindowDimensions();
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
   const rows = scenario.versions[0]?.stationRequirements ?? [];
-  const stretch = affectedStretchAsMapLine(scenario);
+  const position = (station: string) => network?.positions[station];
+  const stretch = affectedStretchAsMapLine(scenario, position);
   const networkLines = networkWithoutStretch(
-    getLines(),
+    network?.lines ?? [],
     stretch.connections,
-  ).map((line) => ({ ...line, tracks: [1, 2] }));
+  );
+  // The scenario carries its own affected tracks, even if an offline map is older.
+  const availableSegments = network
+    ? [...network.segments, ...(scenario.covers ?? [])]
+    : undefined;
+  const missingStretch =
+    network != null &&
+    (scenario.covers ?? []).some(
+      (segment) =>
+        !network.positions[segment.stationA] ||
+        !network.positions[segment.stationB],
+    );
   const mapLines = [...networkLines, stretch];
   // MET-A-010 criterion 2: the steward's own assignment stands out without
   // interaction. userId comes from the offline copy, so this works offline.
@@ -110,32 +134,62 @@ export function ScenarioOverview({
         <Text style={styles.where}>ingen berørte stationer</Text>
       )}
 
-      <View
-        style={styles.mapBox}
-        onLayout={(event) => setMapSize(event.nativeEvent.layout)}
-      >
-        <MapRender
-          viewBox={zoomedViewBox(
-            stations,
-            mapSize.width,
-            mapSize.height,
-            fontScale,
-          )}
-          lines={mapLines}
-          colors={mapColors}
-          showLineButtons={false}
-          highlightStation={ownStation}
-          highlightColor={OWN_COLOR}
-          // Every station the scenario needs staff at, coloured by how far it
-          // is covered right now, like the dashboard (MET-A-011, #310).
-          markedStations={rows.map((row) => row.station)}
-          requiredStaffing={Object.fromEntries(
-            rows.map((row) => [row.station, row.minimumStaffing]),
-          )}
-          stationCoverage={stationCoverage(rows, state)}
-        />
-      </View>
+      {network != null && (
+        <View
+          style={styles.mapBox}
+          onLayout={(event) => setMapSize(event.nativeEvent.layout)}
+        >
+          <MapRender
+            viewBox={zoomedViewBox(
+              stations,
+              mapSize.width,
+              mapSize.height,
+              fontScale,
+              position,
+            )}
+            lines={mapLines}
+            positions={network?.positions}
+            availableSegments={availableSegments}
+            ringStations={network?.ringStations}
+            colors={mapColors}
+            showLineButtons={false}
+            highlightStation={ownStation}
+            highlightColor={OWN_COLOR}
+            // Every station the scenario needs staff at, coloured by how far it
+            // is covered right now, like the dashboard (MET-A-011, #310).
+            markedStations={rows.map((row) => row.station)}
+            requiredStaffing={Object.fromEntries(
+              rows.map((row) => [row.station, row.minimumStaffing]),
+            )}
+            stationCoverage={stationCoverage(rows, state)}
+          />
+        </View>
+      )}
 
+      {network == null && (
+        <Text style={styles.body}>
+          {networkStatus === "loading" && "Indlæser metronetværk."}
+          {networkStatus === "offline" &&
+            "Kortet er ikke tilgængeligt offline. Opret forbindelse for at hente metronetværket."}
+          {networkStatus === "incomplete" &&
+            "Kortet kan ikke vises, fordi metronetværket er ufuldstændigt."}
+          {networkStatus === "error" &&
+            "Kortet kan ikke vises, fordi metronetværket ikke kunne hentes."}
+        </Text>
+      )}
+      {networkIsCached && (
+        <Text style={styles.body}>Viser gemt metronetværk.</Text>
+      )}
+      {network != null && networkStatus === "incomplete" && (
+        <Text style={styles.body}>
+          Det hentede metronetværk er ufuldstændigt.
+        </Text>
+      )}
+      {missingStretch && (
+        <Text accessibilityRole="alert" style={styles.body}>
+          Den berørte strækning kan ikke vises fuldt ud på dette kort.
+        </Text>
+      )}
       <View style={styles.legend}>
         <View style={styles.legendLine} />
         <Text style={styles.body}>Berørt strækning</Text>
@@ -186,64 +240,91 @@ export function ScenarioOverview({
       )}
 
       <Text style={styles.heading}>Påvirkede stationer</Text>
-      {rows.map((row) => (
-        <View
-          key={`${row.station}-${row.placement}`}
-          style={[
-            styles.station,
-            row.station === ownStation && styles.ownStationRow,
-          ]}
-        >
-          {/* The own station is kept short: its placement and actions are
+      {rows.map((row) => {
+        const own = row.station === ownStation;
+        const coverage = getStationState(
+          state,
+          row.station,
+          row.minimumStaffing,
+        );
+        // Two colours only (#375): red when nobody is there or on the way,
+        // black otherwise, and a check mark when the station is fully staffed.
+        // The own row is filled in the status colour instead.
+        const countColor = own
+          ? ownArrived
+            ? colors.textInverse
+            : colors.text
+          : coverage.current + coverage.enRoute === 0
+            ? steward.nobody
+            : colors.text;
+        return (
+          <View
+            key={`${row.station}-${row.placement}`}
+            style={[
+              styles.station,
+              own && styles.ownStationRow,
+              own && {
+                backgroundColor: ownArrived ? steward.green : steward.yellow,
+              },
+            ]}
+          >
+            {/* The own station is kept short: its placement and actions are
               already in the "Opgaver på" card above. */}
-          {row.station === ownStation && (
-            <Text style={styles.ownLabel}>Din station</Text>
-          )}
-          {row.station === leftStation && row.station !== ownStation && (
-            <Text style={styles.leftLabel}>Tjekket ud herfra</Text>
-          )}
-          <View style={styles.stationHeader}>
-            <Text style={[styles.stationName, styles.grow]}>
-              {row.station} · {row.minimumStaffing} påkrævet
-            </Text>
-            <Text style={styles.coverageCount}>
-              {getStationState(state, row.station, row.minimumStaffing).current}{" "}
-              / {row.minimumStaffing}
-            </Text>
-            {onAssign && row.station !== assignedStation && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Meld dig på vej til ${row.station}`}
-                onPress={() => onAssign(row.station)}
-                style={styles.assignButton}
+            {row.station === ownStation && (
+              <Text style={styles.ownLabel}>Din station</Text>
+            )}
+            {row.station === leftStation && row.station !== ownStation && (
+              <Text style={styles.leftLabel}>Tjekket ud herfra</Text>
+            )}
+            <View style={styles.stationHeader}>
+              <Text
+                style={[
+                  styles.stationName,
+                  styles.grow,
+                  own && ownArrived && styles.inverse,
+                ]}
               >
-                <Text style={styles.assignText}>+</Text>
-              </Pressable>
+                {row.station} · {row.minimumStaffing} påkrævet
+              </Text>
+              <Text style={[styles.coverageCount, { color: countColor }]}>
+                {coverage.current}/{row.minimumStaffing}
+                {coverage.current >= row.minimumStaffing ? " ✓" : ""}
+              </Text>
+              {onAssign && row.station !== assignedStation && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Meld dig på vej til ${row.station}`}
+                  onPress={() => onAssign(row.station)}
+                  style={styles.assignButton}
+                >
+                  <Text style={styles.assignText}>+</Text>
+                </Pressable>
+              )}
+            </View>
+            {row.station !== ownStation && (
+              <Text style={styles.body}>{row.placement}</Text>
+            )}
+            <Text style={styles.body}>
+              {row.activeDuring && row.activeDuring.length > 0
+                ? `Bemandes: ${row.activeDuring
+                    .map(
+                      (window) =>
+                        `${window.dayPattern} ${window.startTime.slice(0, 5)}-${window.endTime.slice(0, 5)}`,
+                    )
+                    .join(", ")}`
+                : "Bemandes hele tiden"}
+            </Text>
+            {row.station !== ownStation && (row.actions ?? []).length > 0 && (
+              <Text style={styles.body}>
+                {[...(row.actions ?? [])]
+                  .sort((a, b) => a.sequence - b.sequence)
+                  .map((action) => `${action.sequence}. ${action.instruction}`)
+                  .join("\n")}
+              </Text>
             )}
           </View>
-          {row.station !== ownStation && (
-            <Text style={styles.body}>{row.placement}</Text>
-          )}
-          <Text style={styles.body}>
-            {row.activeDuring && row.activeDuring.length > 0
-              ? `Bemandes: ${row.activeDuring
-                  .map(
-                    (window) =>
-                      `${window.dayPattern} ${window.startTime.slice(0, 5)}-${window.endTime.slice(0, 5)}`,
-                  )
-                  .join(", ")}`
-              : "Bemandes hele tiden"}
-          </Text>
-          {row.station !== ownStation && (row.actions ?? []).length > 0 && (
-            <Text style={styles.body}>
-              {[...(row.actions ?? [])]
-                .sort((a, b) => a.sequence - b.sequence)
-                .map((action) => `${action.sequence}. ${action.instruction}`)
-                .join("\n")}
-            </Text>
-          )}
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }
@@ -280,8 +361,8 @@ const styles = StyleSheet.create({
   },
   coverageCount: {
     ...text.body,
-    color: colors.text,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
   },
   assignButton: {
     alignItems: "center",
@@ -314,8 +395,14 @@ const styles = StyleSheet.create({
   },
   station: {
     ...surface,
-    ...box,
+    borderColor: steward.line,
+    borderRadius: panelRadius,
+    borderWidth: 1,
     marginBottom: 6,
+    padding: spacing.medium,
+  },
+  inverse: {
+    color: colors.textInverse,
   },
 
   legend: {
@@ -369,7 +456,7 @@ const styles = StyleSheet.create({
   },
   ownLabel: {
     ...text.body,
-    color: OWN_COLOR,
+    color: colors.text,
     fontWeight: "700",
   },
   leftLabel: {
@@ -377,9 +464,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: "700",
   },
+  // The own row is taller and filled in the status colour (#375): yellow on
+  // the way, green after check in, like the slide that led there.
   ownStationRow: {
-    borderWidth: 3,
-    borderColor: OWN_COLOR,
+    borderWidth: 0,
+    minHeight: steward.ownRowHeight,
   },
   noAssignmentBox: {
     ...surface,

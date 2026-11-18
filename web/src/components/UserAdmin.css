@@ -1,0 +1,80 @@
+/* Admin styling. */
+.admin-dashboard {
+  --admin-red: #e6140f;
+  --admin-ink: #1e1e1e;
+  --admin-line: #d0d0d0;
+  box-sizing: border-box;
+  min-height: 100dvh;
+  padding: 24px;
+  background: #fff;
+  color: var(--admin-ink);
+  font:
+    14px Arial,
+    sans-serif;
+}
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.admin-menu {
+  display: flex;
+  gap: 12px;
+  margin: 24px 0;
+}
+.admin-menu button {
+  border: 1px solid var(--admin-line);
+  border-left: 4px solid var(--admin-red);
+  padding: 16px 24px;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-back {
+  margin: 16px 0;
+}
+.user-form [role="alert"] {
+  margin: 0;
+  color: var(--admin-red);
+}
+.user-admin table {
+  border-collapse: collapse;
+  margin-bottom: 24px;
+}
+.user-admin th,
+.user-admin td {
+  border-bottom: 1px solid var(--admin-line);
+  padding: 8px 12px;
+  text-align: left;
+}
+.user-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 320px;
+}
+.user-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 700;
+}
+.user-form input,
+.user-form select {
+  padding: 6px 8px;
+  font: inherit;
+  font-weight: 400;
+}
+.user-form-actions {
+  display: flex;
+  gap: 8px;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

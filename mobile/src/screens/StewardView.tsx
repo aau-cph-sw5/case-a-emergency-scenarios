@@ -12,10 +12,12 @@ import { ERROR_CODES } from "../../../shared/error-codes";
 import { NO_COPY_MESSAGES } from "../../../shared/offline/copy-reason";
 import { useActiveScenario } from "../../../shared/offline/use-active-scenario";
 import { useSocketState } from "../../../shared/socket/useSocketState";
-import { colors, palette, text } from "../../../shared/Theme";
+import { colors, palette, steward, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
 import { reportErrorMessage } from "../api/position-report";
+import type { StatusNote } from "../components/StatusBox";
 import { StewardStatusControl } from "../components/StewardStatusControl";
+import { animateNextLayout } from "../motion";
 import {
   stewardStatus,
   type OwnStatus,
@@ -27,12 +29,17 @@ import type { FlushResult } from "../offline/position-report-delivery";
 import { positionReportDelivery } from "../offline/position-report-delivery-instance";
 import { queuePositionReport } from "../offline/queue-position-report";
 import { snapshotStore } from "../offline/snapshot-store";
+import {
+  stationMessageDelivery,
+  stationMessageQueueStore,
+} from "../offline/station-message-store";
 import { reportRejection, waitingReport } from "../offline/waiting-report";
 import { socket } from "../socket";
 import { ScenarioNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { RoleView } from "./RoleView";
 import { ScenarioOverview } from "./ScenarioOverview";
+import { useNetwork } from "../network/useNetwork";
 
 // Shown on the saved copy, where only going on the way can be reported.
 const STATUS_BLOCKED_OFFLINE =
@@ -56,6 +63,40 @@ export function supersededMessage(
     : `${reports.length} positioner (${stations}) blev afvist, fordi scenariet blev stoppet eller skiftet, efter du sendte dem.`;
 }
 
+// The note that turns the status box over after the steward's own change
+// (#375): where to go, that the check in went through, or the check out.
+// Cancelling has none; the status box itself shows the change.
+export function statusNote(
+  own: OwnStatus | null,
+  key: number,
+): StatusNote | null {
+  switch (own?.status) {
+    case "PENDING":
+      return {
+        key,
+        text: `Tag til ${own.station}`,
+        background: steward.yellow,
+        color: colors.text,
+      };
+    case "MANNED":
+      return {
+        key,
+        text: `Checket ind på ${own.station}`,
+        background: steward.green,
+        color: colors.textInverse,
+      };
+    case "CHECKED_OUT":
+      return {
+        key,
+        text: "Du er checket ud",
+        background: steward.red,
+        color: colors.textInverse,
+      };
+    default:
+      return null;
+  }
+}
+
 // online is false when the phone has no connection or the session could not
 // be confirmed; the saved copy is shown then, and nothing is sent.
 export function StewardView({
@@ -74,6 +115,11 @@ export function StewardView({
 }) {
   // Data from the socketstate
   const { isConnected, messages } = useSocketState(socket);
+  const {
+    network,
+    usingCached,
+    status: networkStatus,
+  } = useNetwork(token, online);
   const { view, refresh, dismissNotice } = useActiveScenario({
     apiBaseUrl,
     token,
@@ -89,6 +135,8 @@ export function StewardView({
   const [sendingStatus, setSendingStatus] = useState(false);
   // The page does not scroll while the arrival slide is being slid.
   const [sliding, setSliding] = useState(false);
+  // The note shown after the steward's own change, never after a reload.
+  const [note, setNote] = useState<StatusNote | null>(null);
 
   // Fetches again when the app returns to the foreground, when the socket
   // announces an activation or a stand-down, and when the socket reconnects,
@@ -175,6 +223,13 @@ export function StewardView({
     // From the token, since a stopped scenario leaves no snapshot.
     const owner = userIdFromToken(token);
     if (owner === null) return { message: null, blocked: false };
+    // Station messages written offline go out at the same time (MET-A-029).
+    // The chat shows how each one went; here a stopped send only makes the
+    // retry below try again.
+    const messagesBlocked = stationMessageDelivery.flush(owner, token).then(
+      (result) => result.blocked,
+      () => true,
+    );
     try {
       const result = await positionReportDelivery.flush(owner, token);
       const sent =
@@ -196,7 +251,7 @@ export function StewardView({
       ].filter((line) => line !== null);
       return {
         message: lines.length > 0 ? lines.join("\n") : null,
-        blocked: result.blockedBy !== undefined,
+        blocked: result.blockedBy !== undefined || (await messagesBlocked),
       };
     } catch {
       return {
@@ -205,6 +260,24 @@ export function StewardView({
       };
     }
   }, [token, refresh]);
+
+  // The activation the server says is live, null when it says none is, and
+  // undefined while that is not known (loading or offline).
+  const liveActivationId =
+    view.status === "live"
+      ? view.snapshot.state.activationId
+      : view.status === "stood-down" || view.status === "none"
+        ? null
+        : undefined;
+  // A stood-down scenario's thread is removed, so the messages the server
+  // refused for it are forgotten on the phone instead of piling up (MET-A-029).
+  useEffect(() => {
+    const owner = userIdFromToken(token);
+    if (owner === null || liveActivationId === undefined) return;
+    void stationMessageQueueStore
+      .discardEndedRejections(owner, liveActivationId)
+      .catch(() => undefined);
+  }, [token, liveActivationId]);
 
   // Failed sends in a row while online; 0 means no retry is waiting.
   const [retries, setRetries] = useState(0);
@@ -325,8 +398,12 @@ export function StewardView({
         deployments,
         change.type === "assign" ? queueReport : undefined,
       );
-      if (result.ok) setOwnStatus(result.own);
-      else setStatusError(result.message);
+      if (result.ok) {
+        // The blocks that change with the status open and close smoothly.
+        animateNextLayout();
+        setOwnStatus(result.own);
+        setNote((last) => statusNote(result.own, (last?.key ?? 0) + 1));
+      } else setStatusError(result.message);
       // The server or the app's own check refused the change, so the app's
       // status is out of date (#310): a new copy brings the server's.
       if (!result.ok && result.code === ERROR_CODES.INVALID_STATUS_TRANSITION) {
@@ -435,12 +512,20 @@ export function StewardView({
               onCancel={() => void changeStatus({ type: "cancel" })}
               onCheckOut={() => void changeStatus({ type: "checkOut" })}
               onSlidingChange={setSliding}
+              note={note}
+              offline={view.status === "copy"}
             />
             <ScenarioOverview
               snapshot={shown}
+              network={network}
+              networkIsCached={usingCached}
+              networkStatus={networkStatus}
               assignedStation={ownStation}
               checkedOutStation={
                 own?.status === "CHECKED_OUT" ? own.station : undefined
+              }
+              ownArrived={
+                own?.status === "MANNED" || own?.status === "TASK_DONE"
               }
               onAssign={
                 canAssign

@@ -7,6 +7,7 @@ import {
   type PanResponderGestureState,
 } from "react-native";
 import { SlideToConfirm } from "../../mobile/src/components/SlideToConfirm";
+import { colors, steward } from "../../shared/Theme";
 
 // The gesture itself comes from React Native, so the test drives the
 // callbacks the slider gives PanResponder, with the distance it was dragged.
@@ -20,14 +21,14 @@ function renderSlider(disabled = false, onSlidingChange?: jest.Mock) {
   const onConfirm = jest.fn();
   const view = render(
     <SlideToConfirm
-      label="GODKEND ANKOMST"
-      color="green"
+      label="CHECK IND"
+      tone="green"
       disabled={disabled}
       onConfirm={onConfirm}
       onSlidingChange={onSlidingChange}
     />,
   );
-  // Track 300 wide: the knob can travel 300 - 52 - 8 = 240.
+  // Track 300 wide: the knob can travel 300 - 48 - 8 = 244.
   fireEvent(screen.getByTestId("slide-to-confirm"), "layout", {
     nativeEvent: { layout: { width: 300, height: 60 } },
   });
@@ -128,5 +129,42 @@ describe("SlideToConfirm (MET-A-015, #263)", () => {
     expect(sliding).toHaveBeenLastCalledWith(true);
     slider.unmount();
     expect(sliding).toHaveBeenLastCalledWith(false);
+  });
+
+  // The looks from the prototype (#375): yellow with dark text, green and red
+  // with white text, and grey with a padlock when it cannot be used.
+  it.each([
+    ["yellow", steward.yellow, colors.text],
+    ["green", steward.green, colors.textInverse],
+    ["red", steward.red, colors.textInverse],
+  ] as const)("has the %s look", (tone, track, label) => {
+    render(
+      <SlideToConfirm label="BEKRÆFT" tone={tone} onConfirm={jest.fn()} />,
+    );
+    expect(screen.getByTestId("slide-to-confirm")).toHaveStyle({
+      backgroundColor: track,
+    });
+    expect(screen.getByText("BEKRÆFT")).toHaveStyle({ color: label });
+  });
+
+  it("is grey, shows why and confirms nothing while locked", () => {
+    const onConfirm = jest.fn();
+    render(
+      <SlideToConfirm
+        label="CHECK IND"
+        tone="green"
+        lockedReason="Ingen forbindelse"
+        onConfirm={onConfirm}
+      />,
+    );
+    expect(screen.getByTestId("slide-to-confirm")).toHaveStyle({
+      backgroundColor: steward.locked,
+    });
+    expect(screen.getByText("Ingen forbindelse")).toBeTruthy();
+    expect(screen.getByTestId("slide-lock")).toBeTruthy();
+    fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+      nativeEvent: { actionName: "activate" },
+    });
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 });
