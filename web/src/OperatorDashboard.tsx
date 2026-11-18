@@ -5,14 +5,8 @@ import { ScenarioWorkspace } from "./components/ScenarioWorkspace";
 import { LiveStatusBar } from "./components/LiveStatusBar";
 import { mockStewardPositions } from "./local-settings";
 import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
-import type { LineGroup } from "../../shared/auth/line-groups";
+import { LINE_GROUP_LABELS } from "../../shared/auth/line-groups";
 import { lineGroupFromToken } from "../../shared/auth/login";
-
-// The line group as operators know it, e.g. "M1/M2".
-const LINE_GROUP_LABELS: Record<LineGroup, "M1/M2" | "M3/M4"> = {
-  M1_M2: "M1/M2",
-  M3_M4: "M3/M4",
-};
 
 // The control-room dashboard. App opens the socket. Each section is filled by
 // its own sub-issue of MET-A-011, so the dashboard keeps working until then.

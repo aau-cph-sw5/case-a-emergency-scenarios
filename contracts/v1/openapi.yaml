@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.5.0
+  version: 8.6.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -928,7 +928,167 @@ paths:
                       code: "E0007"
                       message: "The request conflicts with the current state of the resource"
 
+  /api/v1/users:
+    get:
+      summary: List the user accounts
+      description: >
+        Requires the ADMIN role (MET-A-030). Returns every account, ordered
+        by username. A password or its hash is never returned.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./user.schema.json"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    post:
+      summary: Create a user account
+      description: >
+        Requires the ADMIN role (MET-A-030). The password is stored as a
+        hash. Usernames are unique regardless of casing, so "Operator" is
+        taken when "operator" exists.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./user-create.schema.json"
+            example:
+              username: "operator-2"
+              password: "a-long-password-2"
+              role: "OPERATOR"
+              lineGroup: "M1_M2"
+      responses:
+        "201":
+          description: The created account
+          content:
+            application/json:
+              schema:
+                $ref: "./user.schema.json"
+        "400":
+          description: The body does not match user-create.schema.json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0006"
+                  message: "Request body does not match contract schema"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: The username is taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0007"
+                  message: "The username is already taken"
+
+  /api/v1/users/{userId}:
+    patch:
+      summary: Edit a user account
+      description: >
+        Requires the ADMIN role (MET-A-030). Changes the password, the role
+        and/or the line group; a field that is left out stays as it is. The
+        username cannot be changed. An admin cannot change their own role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./user-update.schema.json"
+            example:
+              lineGroup: "M3_M4"
+      responses:
+        "200":
+          description: The edited account
+          content:
+            application/json:
+              schema:
+                $ref: "./user.schema.json"
+        "400":
+          description: The body does not match user-update.schema.json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0006"
+                  message: "Request body does not match contract schema"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: No account with this id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0004"
+                  message: "No user with id '42' exists"
+        "409":
+          description: An admin tried to change their own role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0007"
+                  message: "An admin cannot change their own role"
+
 components:
+  responses:
+    Unauthorized:
+      description: Missing, invalid or expired bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: "E0001"
+              message: "Invalid or expired token"
+    AdminOnly:
+      description: The signed-in role is not ADMIN
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: "E0002"
+              message: "The authenticated user's role does not permit this action"
+
   parameters:
     Station:
       name: station

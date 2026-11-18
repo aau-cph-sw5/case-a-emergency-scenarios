@@ -2,15 +2,17 @@ import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import {
   PanResponder,
+  StyleSheet,
   type GestureResponderEvent,
   type PanResponderCallbacks,
   type PanResponderGestureState,
 } from "react-native";
 import { SlideToConfirm } from "../../mobile/src/components/SlideToConfirm";
+import { colors, steward } from "../../shared/Theme";
 
 // The gesture itself comes from React Native, so the test drives the
 // callbacks the slider gives PanResponder, with the distance it was dragged.
-function renderSlider(disabled = false, onSlidingChange?: jest.Mock) {
+function renderSlider(disabled = false) {
   const created: PanResponderCallbacks[] = [];
   const create = PanResponder.create.bind(PanResponder);
   jest.spyOn(PanResponder, "create").mockImplementation((config) => {
@@ -20,14 +22,13 @@ function renderSlider(disabled = false, onSlidingChange?: jest.Mock) {
   const onConfirm = jest.fn();
   const view = render(
     <SlideToConfirm
-      label="GODKEND ANKOMST"
-      color="green"
+      label="CHECK IND"
+      tone="green"
       disabled={disabled}
       onConfirm={onConfirm}
-      onSlidingChange={onSlidingChange}
     />,
   );
-  // Track 300 wide: the knob can travel 300 - 52 - 8 = 240.
+  // Track 300 wide: the knob can travel 300 - 48 - 8 = 244.
   fireEvent(screen.getByTestId("slide-to-confirm"), "layout", {
     nativeEvent: { layout: { width: 300, height: 60 } },
   });
@@ -41,7 +42,6 @@ function renderSlider(disabled = false, onSlidingChange?: jest.Mock) {
     moves: () => latest().onMoveShouldSetPanResponder?.(event, gesture(0)),
     keepsGesture: () =>
       latest().onPanResponderTerminationRequest?.(event, gesture(0)),
-    grant: () => act(() => latest().onPanResponderGrant?.(event, gesture(0))),
     drag: (dx: number) =>
       act(() => {
         latest().onPanResponderGrant?.(event, gesture(0));
@@ -105,28 +105,48 @@ describe("SlideToConfirm (MET-A-015, #263)", () => {
     expect(slider.keepsGesture()).toBe(false);
   });
 
-  it("tells when a slide starts and ends, also on a cancel", () => {
-    const sliding = jest.fn();
-    const slider = renderSlider(false, sliding);
-
-    slider.grant();
-    expect(sliding).toHaveBeenLastCalledWith(true);
-    slider.cancel();
-    expect(sliding).toHaveBeenLastCalledWith(false);
-
-    slider.drag(230);
-    expect(sliding).toHaveBeenLastCalledWith(false);
-    expect(slider.onConfirm).toHaveBeenCalledTimes(1);
+  // The looks from the prototype (#375): yellow with dark text, green and red
+  // with white text, and grey with a padlock when it cannot be used.
+  it.each([
+    ["yellow", steward.yellow, colors.text],
+    ["green", steward.green, colors.textInverse],
+    ["red", steward.red, colors.textInverse],
+  ] as const)("has the %s look", (tone, track, label) => {
+    render(
+      <SlideToConfirm label="BEKRÆFT" tone={tone} onConfirm={jest.fn()} />,
+    );
+    expect(screen.getByTestId("slide-to-confirm")).toHaveStyle({
+      backgroundColor: track,
+    });
+    // The text is drawn dim with the bright band over it (the shine), once
+    // the text has been measured: one of the copies has the text colour.
+    fireEvent(screen.getByText("BEKRÆFT"), "layout", {
+      nativeEvent: { layout: { width: 80, height: 20, x: 0, y: 0 } },
+    });
+    const colours = screen
+      .getAllByText("BEKRÆFT", { includeHiddenElements: true })
+      .map((node) => StyleSheet.flatten(node.props.style).color);
+    expect(colours).toContain(label);
   });
 
-  // E.g. the scenario is stood down mid-swipe: no release arrives (#310).
-  it("lets the screen scroll again when it goes away mid-swipe", () => {
-    const sliding = jest.fn();
-    const slider = renderSlider(false, sliding);
-
-    slider.grant();
-    expect(sliding).toHaveBeenLastCalledWith(true);
-    slider.unmount();
-    expect(sliding).toHaveBeenLastCalledWith(false);
+  it("is grey, shows why and confirms nothing while locked", () => {
+    const onConfirm = jest.fn();
+    render(
+      <SlideToConfirm
+        label="CHECK IND"
+        tone="green"
+        lockedReason="Ingen forbindelse"
+        onConfirm={onConfirm}
+      />,
+    );
+    expect(screen.getByTestId("slide-to-confirm")).toHaveStyle({
+      backgroundColor: steward.locked,
+    });
+    expect(screen.getByText("Ingen forbindelse")).toBeTruthy();
+    expect(screen.getByTestId("slide-lock")).toBeTruthy();
+    fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+      nativeEvent: { actionName: "activate" },
+    });
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 });

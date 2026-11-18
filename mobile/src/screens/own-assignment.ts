@@ -39,3 +39,43 @@ export function findOwnAssignment(
     )
   );
 }
+
+// The deployments as the app knows them (#376): the server's copy with the
+// steward's OWN status from the app put in its place. After the steward's own
+// change the server's copy lags behind for a moment (until the next copy
+// arrives), and counting from it showed old numbers that then jumped, for
+// example "ANKOMMET 0/1" just after checking in. With this the screen shows
+// the right numbers at once, and the next copy from the server changes
+// nothing. own is the app's status (null: no station); the station is the
+// one the steward is on the way to, at, or checked out from.
+export function withOwnStatus(
+  deployments: Deployment[],
+  userId: string | number | null | undefined,
+  own: { station: string; status: Deployment["status"] } | null,
+): Deployment[] {
+  if (userId === null || userId === undefined || userId === "") {
+    return deployments;
+  }
+  const id = String(userId);
+  const others = deployments.filter(
+    (deployment) =>
+      deployment.staff === null ||
+      deployment.staff === undefined ||
+      String(deployment.staff) !== id,
+  );
+  if (own === null) return others;
+  const server = findOwnAssignment(deployments, userId);
+  if (server?.fulfills === own.station && server.status === own.status) {
+    return deployments;
+  }
+  return [
+    ...others,
+    {
+      status: own.status,
+      staff: id,
+      fulfills: own.station,
+      reportedAt: server?.reportedAt ?? new Date().toISOString(),
+      arrivedAt: own.status === "MANNED" ? new Date().toISOString() : null,
+    },
+  ];
+}

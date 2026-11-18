@@ -68,9 +68,9 @@ function parseApiError(
 type RequestOptions = { body?: unknown; signals?: AbortSignal[] };
 
 // vite.config forwards /api to the server. A failed request or an unreadable
-// body is reported the same way for GET and POST.
+// body is reported the same way for every method.
 async function requestJson<T>(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH",
   path: string,
   token: string,
   isValid: (data: unknown) => data is T,
@@ -102,6 +102,20 @@ export function getJson<T>(
 
 // body is sent as JSON when given; without it the request has no body.
 // signal aborts the request, e.g. when the component unmounts.
+export function sendJson<T>(
+  method: "POST" | "PATCH",
+  path: string,
+  token: string,
+  isValid: (data: unknown) => data is T,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  return requestJson(method, path, token, isValid, {
+    body,
+    signals: signal ? [signal] : [],
+  });
+}
+
 export function postJson<T>(
   path: string,
   token: string,
@@ -109,10 +123,7 @@ export function postJson<T>(
   body?: unknown,
   signal?: AbortSignal,
 ): Promise<T> {
-  return requestJson("POST", path, token, isValid, {
-    body,
-    signals: signal ? [signal] : [],
-  });
+  return sendJson("POST", path, token, isValid, body, signal);
 }
 
 const SESSION_EXPIRED = "Din session er udløbet. Log ind igen.";
