@@ -15,6 +15,17 @@ test("ignores case and surrounding spaces", () => {
   assert.deepEqual(filterScenarios(scenarios, "  FALLBACK "), [scenarios[0]]);
 });
 
+test("finds a scenario by a station it covers", () => {
+  const withCovers = [
+    {
+      name: "Scenarie 1",
+      covers: [{ trackNumber: 1, stationA: "forum", stationB: "nørreport" }],
+    },
+    { name: "Scenarie 2" },
+  ];
+  assert.deepEqual(filterScenarios(withCovers, "Nørreport"), [withCovers[0]]);
+});
+
 test("returns an empty list when nothing matches", () => {
   assert.deepEqual(filterScenarios(scenarios, "flood"), []);
 });
