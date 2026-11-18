@@ -191,6 +191,39 @@ describe("StationChat (MET-A-029, #335)", () => {
     expect(screen.queryByText("Andet.")).toBeNull();
   });
 
+  it("does not show an answer for the station before in the new station's chat", async () => {
+    let answerOld: (response: Response) => void = () => {};
+    fetchMock
+      .mockImplementationOnce(
+        () => new Promise<Response>((resolve) => (answerOld = resolve)),
+      )
+      .mockResolvedValue(
+        answer(200, {
+          ...thread([]),
+          station: "Station C",
+        }),
+      );
+    const view = renderChat("Station B");
+    await openChat();
+
+    view.rerender(
+      <StationChat
+        token="token"
+        station="Station C"
+        activationId={1}
+        closedReason="Du er ikke længere tjekket ind på stationen."
+        onClosedByServer={onClosedByServer}
+      />,
+    );
+    await screen.findByText(/^Ingen beskeder endnu\./);
+    await act(async () => {
+      answerOld(answer(200, thread([message(1, "CONTROL_ROOM", "Til B.")])));
+    });
+
+    expect(screen.queryByText("Til B.")).toBeNull();
+    expect(screen.getByText(/^Ingen beskeder endnu\./)).toBeTruthy();
+  });
+
   it("says why when the steward is checked out while the chat is open", async () => {
     fetchMock.mockResolvedValue(
       answer(200, thread([message(1, "STATION", "Hej.")])),

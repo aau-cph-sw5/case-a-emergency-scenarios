@@ -107,6 +107,14 @@ export function StationChat({
     [onClosedByServer],
   );
 
+  // The thread the chat shows now. An answer that comes back after the
+  // station or activation changed belongs to the thread before, and is
+  // dropped, so it cannot fill or close the new thread's chat.
+  const currentThreadRef = useRef(threadKey);
+  useEffect(() => {
+    currentThreadRef.current = threadKey;
+  }, [threadKey]);
+
   // Shows the thread read from the server: the earlier messages too, also
   // those written before the steward checked in.
   const showRead = useCallback(
@@ -121,9 +129,11 @@ export function StationChat({
     [closeByServer],
   );
   const load = useCallback(() => {
-    if (station === undefined) return;
-    void stationThread(token, station, { type: "read" }).then(showRead);
-  }, [token, station, showRead]);
+    if (station === undefined || threadKey === undefined) return;
+    void stationThread(token, station, { type: "read" }).then((result) => {
+      if (currentThreadRef.current === threadKey) showRead(result);
+    });
+  }, [token, station, threadKey, showRead]);
 
   // Read when the chat opens, and again when the socket reconnects or the
   // app returns to the foreground, so a message missed meanwhile shows.
