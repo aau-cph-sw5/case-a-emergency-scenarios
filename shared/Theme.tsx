@@ -35,13 +35,23 @@ export const palette = {
   // The steward app's look from the approved prototype (#375). Its status
   // colours are the metro colours above; these are the greys around them.
   // Only the steward app uses these; the web keeps the colours above.
-  stewardChipGrey: "#9AA0A6",
   stewardLabelGrey: "#C9CCD0",
   stewardLine: "#D9DCDF",
   stewardStrip: "#F6F7F8",
   stewardMuted: "#5B6168",
   stewardLocked: "#C9CDD2",
   stewardLockedText: "#3D4249",
+  // Labels on the yellow and the green status card, and the connection dot,
+  // bright enough to show on every card colour.
+  stewardLabelOnYellow: "rgba(30, 30, 30, 0.62)",
+  stewardLabelOnGreen: "rgba(255, 255, 255, 0.78)",
+  stewardOnline: "#3FBF7F",
+  // Shades for the staffing bar on a card of the same colour (#376): a pale
+  // yellow on the yellow card and a light green on the green card (3.1:1), so
+  // the segment still shows. The pale yellow was chosen by eye on the phone
+  // over a darker one, which read as brown; it stands out less from the card
+  // (1.3:1) than the 3:1 that WCAG 1.4.11 asks of graphics.
+  stewardYellowOnYellow: "#FFEAA6",
 };
 
 export const colors = {
@@ -193,8 +203,6 @@ export const steward = {
   green: palette.metroLineOne,
   red: palette.metroLineThree,
   black: palette.metroBlack,
-  chipGrey: palette.stewardChipGrey,
-  labelGrey: palette.stewardLabelGrey,
   line: palette.stewardLine,
   strip: palette.stewardStrip,
   muted: palette.stewardMuted,
@@ -202,25 +210,67 @@ export const steward = {
   // A slide that cannot be used right now, for example without a connection.
   locked: palette.stewardLocked,
   lockedText: palette.stewardLockedText,
-  // The black status box is this high in every state, so nothing below it
-  // moves when the status changes.
-  statusBoxHeight: 112,
+  online: palette.stewardOnline,
+  yellowOnYellow: palette.stewardYellowOnYellow,
+  // The same green as the connection dot beside the scenario name.
+  greenOnGreen: palette.stewardOnline,
+  // The status card takes the colour of the status (#376): black without a
+  // station, yellow on the way, green once arrived. text is the station name,
+  // label the small labels and the line under the name.
+  card: {
+    none: {
+      background: palette.metroBlack,
+      text: palette.metroWhite,
+      label: palette.stewardLabelGrey,
+    },
+    onTheWay: {
+      background: palette.metroLineTwo,
+      text: palette.metroBlack,
+      label: palette.stewardLabelOnYellow,
+    },
+    arrived: {
+      background: palette.metroLineOne,
+      text: palette.metroWhite,
+      label: palette.stewardLabelOnGreen,
+    },
+    // The scenario was stood down: the card turns red and shows only the
+    // message (NoticeCard).
+    stoodDown: {
+      background: palette.metroDeepRed,
+      text: palette.metroWhite,
+      label: palette.metroWhite,
+    },
+  },
   ownRowHeight: 64,
   slideHeight: 56,
 };
 
 // How things move in the steward app (#375). Every block that opens or closes
-// uses the same duration and an ease-in-out curve; text in a block that grows
-// fades in once the block is past half way, and text in a block that shrinks
-// fades out first. A notification shows on the back of the status box for
-// notificationMs, or until it is tapped.
+// uses the same duration and an ease-in-out curve (animateNextLayout).
+// Replacing one thing by another (Swap) is a shared-axis change, or the status
+// card turned over for a new status.
 export const motion = {
   layoutMs: 380,
-  fadeInDelayMs: 140,
-  fadeInMs: 200,
-  fadeOutMs: 120,
-  flipMs: 300,
-  notificationMs: 4000,
+  // A row that changes place in a column (a station going to the top of the
+  // list) moves slowly enough to follow with the eye.
+  rowMoveMs: 700,
+  // The sheen over a text: one cycle, and the share of it spent sweeping (the
+  // rest is rest, so the eye is not tired by a loop that never stops).
+  shineMs: 3000,
+  shineSweepShare: 0.6,
+  // The turn of the status card, 180 degrees like a playing card turned
+  // over. A turn is a bigger change than a fade, so it is a little slower,
+  // eased in and out: it starts softly, turns through the edge and lands
+  // softly.
+  flipMs: 400,
+  // Shared axis: how one thing replaces another in the same place (the slide
+  // taking its next action, a control replacing another). The old moves a
+  // little up while fading out, then the new moves up into place from a
+  // little below while fading in. Material moves 30 dp; the slide is only 56
+  // high, so this moves less.
+  axisDistance: 16,
+  axisOutMs: 100,
+  axisInMs: 220,
 };
 
 // A required station on the map by its live coverage (MET-A-011, #310): the
