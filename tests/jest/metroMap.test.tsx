@@ -200,6 +200,35 @@ describe("MetroMap", () => {
     expect(viewBox()).toBe(fullView);
   });
 
+  it("draws scenario lines using their saved colors", () => {
+    const savedColors = ["#D65A00", "#019CD3"];
+    const coloredScenario = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        operatingPlan: {
+          ...version.operatingPlan,
+          patterns: version.operatingPlan.patterns.map((pattern, index) => ({
+            ...pattern,
+            color: savedColors[index],
+          })),
+        },
+      })),
+    };
+    render(
+      withScenario(
+        scenario.scenarioId,
+        async () => coloredScenario,
+        coloredScenario,
+      ),
+    );
+    const strokes = [
+      ...screen.UNSAFE_queryAllByType(Line),
+      ...screen.UNSAFE_queryAllByType(Path),
+    ].map((strip) => strip.props.stroke);
+    expect(strokes).toEqual(expect.arrayContaining(savedColors));
+  });
+
   it("uses a separate palette for destination IDs", () => {
     const patterns = Array.from({ length: DIDLineColors.length }, (_, i) => ({
       ...scenario.versions[0].operatingPlan.patterns[0],

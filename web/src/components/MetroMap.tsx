@@ -62,11 +62,21 @@ function scenarioLines(
           : [];
         if (stopList.length < 2 || stops.length !== pattern.route.length - 1) {
           missingRoutes = true;
-          return { name: pattern.did, tracks, connections: [] };
+          return {
+            name: pattern.did,
+            color: pattern.color,
+            tracks,
+            connections: [],
+          };
         }
         const result = resolveStops(stopList, groupLines, segments, tracks);
         if (result.incomplete) missingRoutes = true;
-        return { name: pattern.did, tracks, connections: result.connections };
+        return {
+          name: pattern.did,
+          color: pattern.color,
+          tracks,
+          connections: result.connections,
+        };
       }) ?? [];
   return { lines: routes, missingRoutes: missingRoutes || routes.length === 0 };
 }
@@ -178,9 +188,9 @@ export function MetroMap({
     scenarioId === null
       ? lineColor
       : Object.fromEntries(
-          groupLines.map((line, index) => [
+          (scenarioLineResult?.lines ?? []).map((line, index) => [
             line.name,
-            DIDLineColors[index % DIDLineColors.length],
+            line.color ?? DIDLineColors[index % DIDLineColors.length],
           ]),
         );
   const groupStations = new Set([
