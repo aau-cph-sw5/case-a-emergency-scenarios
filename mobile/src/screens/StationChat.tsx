@@ -243,6 +243,8 @@ export function StationChat({
         text: message.text,
         writtenAt: message.writtenAt,
       });
+      // Sent for the thread before: its own list has gone with it.
+      if (currentThreadRef.current !== threadKey) return;
       if (result.ok) {
         setMessages((current) => merge(current, [result.value]));
         setOwn((current) =>
@@ -261,7 +263,7 @@ export function StationChat({
       );
       if (closesThread(result.code)) onClosedByServer();
     },
-    [token, station, activationId, onClosedByServer],
+    [token, station, activationId, threadKey, onClosedByServer],
   );
 
   const send = () => {

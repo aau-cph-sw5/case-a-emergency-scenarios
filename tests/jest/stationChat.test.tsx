@@ -406,7 +406,7 @@ describe("StationChat (MET-A-029, #335)", () => {
 
     view.rerender(
       <StationChat
-        token="token"
+        token={token}
         station="Station C"
         activationId={1}
         closedReason="Du er ikke længere tjekket ind på stationen."
@@ -420,6 +420,41 @@ describe("StationChat (MET-A-029, #335)", () => {
 
     expect(screen.queryByText("Til B.")).toBeNull();
     expect(screen.getByText(/^Ingen beskeder endnu\./)).toBeTruthy();
+  });
+
+  it("does not show a message sent for the station before in the new station's chat", async () => {
+    let answerSend: (response: Response) => void = () => {};
+    fetchMock
+      .mockResolvedValueOnce(answer(200, thread([])))
+      .mockImplementationOnce(
+        () => new Promise<Response>((resolve) => (answerSend = resolve)),
+      )
+      .mockResolvedValue(answer(200, { ...thread([]), station: "Station C" }));
+    const view = renderChat("Station B");
+    await openChat();
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "Til B.",
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+
+    view.rerender(
+      <StationChat
+        token={token}
+        station="Station C"
+        activationId={1}
+        closedReason="Du er ikke længere tjekket ind på stationen."
+        onClosedByServer={onClosedByServer}
+      />,
+    );
+    await screen.findByText(/^Ingen beskeder endnu\./);
+    await act(async () => {
+      answerSend(answer(201, message(1, "STATION", "Til B.")));
+    });
+
+    expect(screen.queryByText("Til B.")).toBeNull();
   });
 
   it("says why when the steward is checked out while the chat is open", async () => {
