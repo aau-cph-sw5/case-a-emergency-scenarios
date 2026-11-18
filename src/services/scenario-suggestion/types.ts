@@ -1,4 +1,4 @@
-export type Tokenize = (text: string) => string[];
+export type { Tokenize } from "./danish-tokenize.js";
 
 export type ScenarioDocument = {
   scenarioId: string;
