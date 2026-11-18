@@ -17,6 +17,19 @@ import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
+// Choosing a station is a tap on its row and the yellow BEKRÆFT slide (#376).
+// Each step is its own act, so the screen has the new state before the next.
+async function chooseStation(station: string) {
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText(`Vælg ${station}`));
+  });
+  await act(async () => {
+    fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+      nativeEvent: { actionName: "activate" },
+    });
+  });
+}
+
 jest.mock("@react-native-async-storage/async-storage", () =>
   require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
 );
@@ -87,9 +100,7 @@ async function reportStationB() {
   showView({ status: "live", snapshot: noStatus });
   render(stewardView(true));
   await act(async () => {});
-  await act(async () => {
-    fireEvent.press(screen.getByLabelText("Meld dig på vej til Station B"));
-  });
+  await chooseStation("Station B");
 }
 
 const snapshot = buildSnapshot(
@@ -154,7 +165,9 @@ describe("StewardView station messages written offline (MET-A-029)", () => {
   });
 
   it("still shows how the reports went when sending the messages fails", async () => {
-    flush.mockResolvedValue({ ...nothingSent, acknowledged: 1 });
+    // A report that went through says nothing since #376, so the answer that
+    // must still show is a refused one.
+    flush.mockResolvedValue({ ...nothingSent, rejected: 1 });
     flushMessages.mockRejectedValue(new Error("storage failed"));
     showView({ status: "copy", reason: "offline", snapshot });
     const { rerender } = render(stewardView(false));
@@ -162,7 +175,9 @@ describe("StewardView station messages written offline (MET-A-029)", () => {
     showView({ status: "live", snapshot });
     rerender(stewardView(true));
 
-    expect(await screen.findByText("Position sendt.")).toBeTruthy();
+    expect(
+      await screen.findByText("Positionen blev ikke modtaget."),
+    ).toBeTruthy();
   });
 
   it("forgets refused messages of other activations while a scenario is live", async () => {
@@ -243,7 +258,9 @@ describe("StewardView superseded reports", () => {
     showView({ status: "live", snapshot });
     rerender(stewardView(true));
 
-    expect(await screen.findByText("Position sendt.")).toBeTruthy();
+    // A delivered report says nothing (#376); the copy is fetched again.
+    await act(async () => {});
+    expect(screen.queryByText("Position sendt.")).toBeNull();
     const { results } = useActiveScenario.mock;
     const { refresh } = results[results.length - 1].value as {
       refresh: jest.Mock;
@@ -288,7 +305,8 @@ describe("StewardView superseded reports", () => {
       activationId: noStatus.state.activationId,
       event: "EN_ROUTE",
     });
-    expect(screen.getByText("Position sendt.")).toBeTruthy();
+    expect(flush).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText("Position sendt.")).toBeNull();
   });
 
   it("says a refused report was not received and others are waiting", async () => {
@@ -298,11 +316,7 @@ describe("StewardView superseded reports", () => {
 
     await reportStationB();
 
-    expect(
-      screen.getByText(
-        "Positionen blev ikke modtaget.\nPosition gemt. Afventer levering.",
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText("Positionen blev ikke modtaget.")).toBeTruthy();
   });
 
   it("fetches the server's status when a report was refused", async () => {
@@ -386,7 +400,12 @@ describe("StewardView superseded reports", () => {
         jest.advanceTimersByTime(RETRY_DELAYS_MS[1] - RETRY_DELAYS_MS[0]);
       });
       expect(flush).toHaveBeenCalledTimes(3);
-      expect(screen.getByText("Position sendt.")).toBeTruthy();
+      // Delivered at last: the earlier warning goes, and nothing replaces it.
+      expect(
+        screen.queryByText(
+          "Position gemt på telefonen, men kunne ikke sendes endnu.",
+        ),
+      ).toBeNull();
     } finally {
       jest.useRealTimers();
     }
@@ -406,7 +425,12 @@ describe("StewardView superseded reports", () => {
         jest.advanceTimersByTime(RETRY_DELAYS_MS[0]);
       });
       expect(flush).toHaveBeenCalledTimes(3);
-      expect(screen.getByText("Position sendt.")).toBeTruthy();
+      // Delivered at last: the earlier warning goes, and nothing replaces it.
+      expect(
+        screen.queryByText(
+          "Position gemt på telefonen, men kunne ikke sendes endnu.",
+        ),
+      ).toBeNull();
     } finally {
       jest.useRealTimers();
     }

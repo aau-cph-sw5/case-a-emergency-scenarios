@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { StyleSheet, Text, View } from "react-native";
 import {
   colors,
   panelRadius,
@@ -7,8 +8,15 @@ import {
   text,
 } from "../../../shared/Theme";
 import type { OwnStatus } from "../data/steward-status";
+import { CardButton } from "./CardButton";
 import { SlideToConfirm } from "./SlideToConfirm";
-import { StatusBox, type StatusChip, type StatusNote } from "./StatusBox";
+import {
+  StatusBox,
+  staffingWords,
+  type CardLook,
+  type StatusChip,
+} from "./StatusBox";
+import { Swap } from "./Swap";
 
 export type StationCoverage = {
   arrived: number;
@@ -16,15 +24,20 @@ export type StationCoverage = {
   needed: number;
 };
 
+// The gap between the boxes inside the status card and around them.
+const INSIDE = spacing.small * 2;
+
 // The steward's own status in the active scenario (MET-A-015, #263, #305):
-// no status, on the way, arrived or checked out. Only the next valid actions
-// are offered: on the way, the arrival slide and Fortryd; arrived, Tjek ud.
-// Choosing a station happens with + in "Påvirkede stationer". Colours, words,
-// symbols, spacing and radius come from Theme.tsx.
+// no status, on the way, arrived or checked out (#376).
 //
-// The status is shown in the black status box (#375): the station, a chip
-// with the status, and the staffing of the station under its name. note is
-// the message that turns the box over after the steward's own change.
+// ONE status card holds what the steward acts on: the status (StatusBox),
+// the map and the ONE control for the next valid action. Without a station,
+// the yellow BEKRÆFT slide for the station chosen in the list (grey and
+// locked until one is chosen); on the way, the CHECK IND slide with a cross
+// that cancels; arrived, TJEK UD. The card's colour is the status: black
+// without a station, yellow on the way, green once arrived. A new status
+// turns the whole card over (Swap). children (the station list) sit under
+// the card. Colours, words, spacing and radius come from Theme.tsx.
 export function StewardStatusControl({
   own,
   coverage,
@@ -32,11 +45,17 @@ export function StewardStatusControl({
   sending,
   error,
   onArrive,
-  onCancel,
+  onAssign,
+  selected,
   onCheckOut,
-  onSlidingChange,
-  note = null,
+  onCancel,
+  cancelDisabled = false,
   offline = false,
+  ready = true,
+  scenario,
+  connected = true,
+  map,
+  children,
 }: {
   own: OwnStatus | null;
   coverage: StationCoverage | null;
@@ -45,13 +64,23 @@ export function StewardStatusControl({
   sending: boolean;
   error: string | null;
   onArrive: () => void;
-  onCancel: () => void;
+  // Assigns the steward to the station chosen in the list. Left out when the
+  // steward cannot choose a station right now.
+  onAssign?: () => void;
+  selected?: string;
   onCheckOut: () => void;
-  // Whether the arrival slide is being slid, so the screen can stop scrolling.
-  onSlidingChange?: (sliding: boolean) => void;
-  note?: StatusNote | null;
+  // Cancels the assignment while on the way.
+  onCancel?: () => void;
+  cancelDisabled?: boolean;
   // Showing the saved copy without a connection: the slide is grey and locked.
   offline?: boolean;
+  // False until the steward's own status has been read (see StatusBox).
+  ready?: boolean;
+  scenario?: string;
+  connected?: boolean;
+  // The map of the affected stretch, shown in the card under the status.
+  map?: ReactNode;
+  children?: ReactNode;
 }) {
   // After checking out the steward is free again, like with no status.
   const active = own !== null && own.status !== "CHECKED_OUT" ? own : null;
@@ -60,6 +89,49 @@ export function StewardStatusControl({
   // from either (#310).
   const atStation =
     active?.status === "MANNED" || active?.status === "TASK_DONE";
+  const onTheWay = active?.status === "PENDING";
+  // Whether the cross next to CHECK IND has been pressed and the red
+  // BEKRÆFT ANNULLÉR slide is showing. It starts over on every new status.
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  if (!onTheWay && confirmCancel) setConfirmCancel(false);
+
+  // What the bottom control is. Empty until the steward's status is read, so
+  // no control shows that is not the steward's.
+  const bottomKind = !ready
+    ? ""
+    : atStation
+      ? "check-out"
+      : onTheWay && confirmCancel
+        ? "confirm-cancel"
+        : "slide";
+  // The slide: BEKRÆFT without a station, CHECK IND on the way.
+  const slide: "assign" | "check-in" | null = onTheWay
+    ? "check-in"
+    : active === null && onAssign !== undefined
+      ? "assign"
+      : null;
+  // Grey and locked only when it is really blocked.
+  const slideLock =
+    slide === "check-in"
+      ? offline
+        ? "Ingen forbindelse"
+        : blockedReason !== null
+          ? "Din position sendes"
+          : null
+      : selected === undefined
+        ? "Vælg en station"
+        : null;
+
+  const look: CardLook = atStation
+    ? steward.card.arrived
+    : onTheWay
+      ? steward.card.onTheWay
+      : steward.card.none;
+  // A new station or status turns the card; nothing turns before the status
+  // has been read.
+  const turnKey = ready
+    ? `${active?.station ?? ""}|${active?.status ?? ""}`
+    : "";
 
   return (
     <View style={styles.container}>
@@ -74,79 +146,98 @@ export function StewardStatusControl({
         </Text>
       )}
 
-      <StatusBox
-        station={
-          active?.station ??
-          (own?.status === "CHECKED_OUT" ? own.station : "Ingen station")
-        }
-        chip={statusChip(own, coverage)}
-        subLine={
-          own?.status === "CHECKED_OUT"
-            ? `Du er tjekket ud fra ${own.station}.`
-            : active === null
-              ? "Vælg den nærmeste station"
-              : staffing(coverage)
-        }
-        note={note}
-      />
-
-      {active === null && (
-        <Text style={styles.hint}>
-          Tryk + ved en station under Påvirkede stationer for at melde dig på
-          vej.
-        </Text>
-      )}
-
-      {active?.status === "PENDING" && blockedReason === null && (
-        <Text style={styles.hint}>
-          Forkert station? Tryk + ved den rigtige, eller fortryd.
-        </Text>
-      )}
-      {atStation && blockedReason === null && (
-        <Text style={styles.hint}>
-          Tjek ud, når du forlader stationen. Så kan du melde dig til en ny.
-        </Text>
-      )}
-
-      {active?.status === "PENDING" && (
-        <>
-          <SlideToConfirm
-            label="CHECK IND"
-            tone="green"
-            lockedReason={offline ? "Ingen forbindelse" : null}
-            disabled={disabled}
-            onConfirm={onArrive}
-            onSlidingChange={onSlidingChange}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled }}
-            disabled={disabled}
-            onPress={onCancel}
-            style={[styles.secondaryButton, disabled && styles.disabled]}
-          >
-            <Text style={styles.secondaryText}>FORTRYD</Text>
-          </Pressable>
-        </>
-      )}
-
-      {atStation && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled }}
-          disabled={disabled}
-          onPress={onCheckOut}
-          style={[styles.primaryButton, disabled && styles.disabled]}
+      {/* A new status turns the whole card (Swap, "turn"). */}
+      <Swap swapKey={turnKey} motion="turn">
+        <View
+          style={[styles.card, { backgroundColor: look.background }]}
+          testID="status-card"
         >
-          <Text style={styles.primaryText}>TJEK UD</Text>
-        </Pressable>
-      )}
+          <StatusBox
+            // After checking out the card is back at the start (#376): no
+            // station chosen.
+            station={active?.station ?? "Ingen station"}
+            chip={statusChip(active, coverage)}
+            subLine={
+              active === null
+                ? "Vælg den nærmeste station"
+                : coverage && coverage.needed > 0
+                  ? staffingWords(coverage.arrived, coverage.enRoute)
+                  : null
+            }
+            scenario={scenario}
+            connected={connected}
+            look={look}
+            ready={ready}
+          />
+          {map !== undefined && <View style={styles.map}>{map}</View>}
+
+          {/* The ONE control. Its kind changes by the shared axis (Swap);
+              the slide changes its action the same way inside itself. */}
+          <View style={styles.slot}>
+            <Swap swapKey={bottomKind}>
+              {/* Keeps the place of the control while the status is read. */}
+              {!ready && <View style={styles.placeholder} />}
+              {/* ONE slide in one place: from BEKRÆFT to CHECK IND it is the
+                  same element, held at the end while the change is sent. On
+                  the way, its cross cancels in two steps, like checking out:
+                  the cross, then the red slide. */}
+              {bottomKind === "slide" && slide !== null && (
+                <SlideToConfirm
+                  label={slide === "check-in" ? "CHECK IND" : "BEKRÆFT"}
+                  tone={slide === "check-in" ? "green" : "yellow"}
+                  lockedReason={slideLock}
+                  disabled={slide === "check-in" ? disabled : sending}
+                  pending={sending}
+                  actionKey={slide}
+                  cross={
+                    slide === "check-in" && onCancel !== undefined
+                      ? {
+                          label: "Annullér tildeling",
+                          onPress: () => setConfirmCancel(true),
+                        }
+                      : undefined
+                  }
+                  onConfirm={
+                    slide === "check-in" ? onArrive : (onAssign ?? noop)
+                  }
+                />
+              )}
+              {bottomKind === "confirm-cancel" && (
+                <SlideToConfirm
+                  label="BEKRÆFT ANNULLÉR"
+                  tone="red"
+                  lockedReason={offline ? "Ingen forbindelse" : null}
+                  disabled={cancelDisabled}
+                  pending={sending}
+                  cross={{
+                    label: "Fortryd annullering",
+                    onPress: () => setConfirmCancel(false),
+                  }}
+                  onConfirm={onCancel ?? noop}
+                />
+              )}
+              {bottomKind === "check-out" && (
+                <CardButton
+                  kind="wide"
+                  label="TJEK UD"
+                  disabled={disabled}
+                  onPress={onCheckOut}
+                />
+              )}
+            </Swap>
+          </View>
+        </View>
+      </Swap>
+
+      <View style={styles.middle}>{children}</View>
     </View>
   );
 }
 
-// The chip in the status box: what the status is, in the colour of the slide
-// that led to it.
+function noop() {}
+
+// The chip in the status box: what the status is. It stands out from its own
+// card colour: black on the yellow card, white on the green one.
 function statusChip(
   own: OwnStatus | null,
   coverage: StationCoverage | null,
@@ -155,8 +246,8 @@ function statusChip(
     case "PENDING":
       return {
         label: "PÅ VEJ",
-        background: steward.yellow,
-        color: colors.text,
+        background: steward.black,
+        color: steward.yellow,
       };
     case "MANNED":
     case "TASK_DONE":
@@ -164,14 +255,8 @@ function statusChip(
         label: coverage
           ? `ANKOMMET ${coverage.arrived}/${coverage.needed}`
           : "ANKOMMET",
-        background: steward.green,
-        color: colors.textInverse,
-      };
-    case "CHECKED_OUT":
-      return {
-        label: "CHECKET UD",
-        background: steward.red,
-        color: colors.textInverse,
+        background: colors.background,
+        color: steward.green,
       };
     default:
       return {
@@ -182,64 +267,38 @@ function statusChip(
   }
 }
 
-// The line under the station name: how many are at the station and on the
-// way, the same words as the station list. Nothing when the app has no count.
-function staffing(coverage: StationCoverage | null): string | null {
-  if (coverage === null || coverage.needed === 0) return null;
-  const parts = [
-    coverage.arrived > 0 ? `${coverage.arrived} på stationen` : null,
-    coverage.enRoute > 0 ? `${coverage.enRoute} på vej` : null,
-  ].filter((part) => part !== null);
-  return parts.length > 0 ? parts.join(" · ") : "Ingen tildelt";
-}
-
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.medium,
+    flex: 1,
+    gap: INSIDE,
+  },
+  card: {
+    borderRadius: panelRadius,
+  },
+  map: {
+    aspectRatio: 21 / 9,
+    backgroundColor: colors.background,
+    borderRadius: panelRadius,
+    marginHorizontal: INSIDE,
+    overflow: "hidden",
+  },
+  slot: {
+    margin: INSIDE,
+  },
+  middle: {
+    flex: 1,
   },
   error: {
     ...text.body,
     color: colors.statusRed,
     fontWeight: "600",
-    marginBottom: spacing.small,
   },
   blocked: {
     ...text.body,
     color: colors.text,
     fontWeight: "600",
-    marginBottom: spacing.small,
   },
-  hint: {
-    ...text.body,
-    color: colors.text,
-    marginTop: spacing.small,
-  },
-  primaryButton: {
-    alignItems: "center",
-    backgroundColor: steward.black,
-    borderRadius: panelRadius,
-    justifyContent: "center",
-    marginTop: spacing.medium,
-    minHeight: steward.slideHeight,
-  },
-  primaryText: {
-    ...text.button,
-    letterSpacing: 1,
-  },
-  secondaryButton: {
-    alignItems: "center",
-    backgroundColor: steward.strip,
-    borderRadius: panelRadius,
-    justifyContent: "center",
-    marginTop: spacing.medium,
-    minHeight: 44,
-  },
-  secondaryText: {
-    ...text.button,
-    color: colors.text,
-    letterSpacing: 1,
-  },
-  disabled: {
-    opacity: 0.4,
+  placeholder: {
+    height: steward.slideHeight,
   },
 });
