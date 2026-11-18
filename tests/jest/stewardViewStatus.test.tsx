@@ -61,12 +61,13 @@ async function chooseStation(station: string) {
   await slide();
 }
 
-// TJEK UD checks out.
+// TJEK UD, then the red BEKRÆFT TJEK UD slide (#377).
 async function checkOut() {
   await act(async () => {
     fireEvent.press(await screen.findByText("TJEK UD"));
   });
-  await settle();
+  await screen.findByText("BEKRÆFT TJEK UD");
+  await slide();
 }
 
 async function cancelStation() {
@@ -227,7 +228,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
   jest.setTimeout(20000);
 
   it("goes from no status, via on the way and arrived, to checked out", async () => {
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     await renderView();
     expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
 
@@ -270,8 +271,23 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
   });
 
+  // Without a station the card shows no bar; a chosen station shows its
+  // staffing bar there before BEKRÆFT (#376).
+  it("shows the chosen station's staffing on the card", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
+    expect(screen.queryByTestId("staffing-bar")).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Vælg Station B"));
+    });
+
+    expect(screen.getByTestId("staffing-bar")).toBeTruthy();
+  });
+
   it("cancels while on the way and offers + again", async () => {
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     await renderView();
 
     await chooseStation("Station B");
@@ -287,8 +303,57 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
   });
 
+  it("checks in after cancelling and choosing a station again", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+
+    await chooseStation("Station B");
+    await cancelStation();
+    await chooseStation("Station B");
+
+    // The CHECK IND slide is free: no spinner left from the slides before.
+    expect(await screen.findByText("TJEK IND")).toBeTruthy();
+    expect(screen.queryAllByTestId("slide-spinner")).toHaveLength(0);
+
+    await slide();
+    expect(report).toHaveBeenLastCalledWith("token", "Station B", 1, "ARRIVED");
+    expect(await screen.findByText(/ANKOMMET/)).toBeTruthy();
+  });
+
+  // A slow server (longer than the spinner's delay) and a second shift in
+  // the same session: the slides must not keep a spinner from the first.
+  it("checks in a second time in a session with a slow server", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    report.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ ok: true, message: "" }), 500),
+        ),
+    );
+    await renderView();
+    const wait = (ms: number) =>
+      act(async () => {
+        await new Promise((r) => setTimeout(r, ms));
+      });
+
+    for (const round of [1, 2]) {
+      await chooseStation("Station B");
+      await wait(900);
+      expect(await screen.findByText("TJEK IND")).toBeTruthy();
+      expect(screen.queryAllByTestId("slide-spinner")).toHaveLength(0);
+      await slide();
+      await wait(1500);
+      expect(screen.getByText(/ANKOMMET/)).toBeTruthy();
+      expect(screen.queryAllByTestId("slide-spinner")).toHaveLength(0);
+      await checkOut();
+      await wait(1500);
+      expect(screen.getByText("IKKE VALGT")).toBeTruthy();
+      expect(round).toBeGreaterThan(0);
+    }
+  });
+
   it("shows the refusal and keeps the status when arriving is refused", async () => {
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     await renderView();
     await chooseStation("Station B");
     report.mockResolvedValue({
@@ -313,7 +378,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       httpStatus: 409,
       code: ERROR_CODES.STATION_NOT_IN_SCENARIO,
     });
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     await renderView();
 
     await chooseStation("Station B");
@@ -338,7 +403,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
 
   it("blocks arriving and cancelling while a report waits to be sent", async () => {
     waiting.mockResolvedValue(queuedReport);
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     await renderView();
 
     expect(
@@ -360,7 +425,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Fortryd annullering"));
     });
-    await screen.findByText("CHECK IND");
+    await screen.findByText("TJEK IND");
     await act(async () => {
       fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
         nativeEvent: { actionName: "activate" },
@@ -403,7 +468,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
   });
 
   it("shows the server's status after a reload instead of no status (#310)", async () => {
-    showView({ status: "live", snapshot: arrivedOnServer });
+    showView({ status: "live", notices: [], snapshot: arrivedOnServer });
     await renderView();
 
     await waitFor(() => expect(screen.queryByText("IKKE VALGT")).toBeNull());
@@ -430,7 +495,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       "7",
       new Date(),
     );
-    showView({ status: "live", snapshot: onTheWay });
+    showView({ status: "live", notices: [], snapshot: onTheWay });
     await renderView();
 
     expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
@@ -438,7 +503,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
   });
 
   it("explains an E1006 refusal and fetches the scenario again (#310)", async () => {
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     await renderView();
     await chooseStation("Station B");
     report.mockResolvedValue({
@@ -466,7 +531,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
   // + and the slide report the position, so the old picker and its button,
   // which sent a report the status did not know about, are gone (#310).
   it("has no separate station picker or Rapportér position button", async () => {
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     await renderView();
 
     expect(screen.queryByText("Rapportér position")).toBeNull();
@@ -476,7 +541,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
   // Another steward's report changes the coverage; the phone fetches the
   // scenario again so its numbers and map follow (#310).
   it("fetches the scenario again when the coverage changes", async () => {
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     await renderView();
 
     const on = socket.on as jest.Mock;
@@ -492,7 +557,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
   // The same login checked out on another phone. The next copy of the
   // scenario must win over what this phone remembers (#310).
   it("follows a change made on another phone with the same login", async () => {
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     // A new element each time, so React renders again with the new copy.
     const element = () => (
       <StewardView
@@ -532,7 +597,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       "9",
       new Date(),
     );
-    showView({ status: "live", snapshot: checkedOutElsewhere });
+    showView({ status: "live", notices: [], snapshot: checkedOutElsewhere });
     view.rerender(element());
     await act(async () => {});
 
@@ -545,7 +610,7 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
   // bottom may never be missing while the steward has no station or is on
   // the way (the list above it would jump). Every render is checked.
   it("never flashes text or loses the bottom control through a shift", async () => {
-    showView({ status: "live", snapshot });
+    showView({ status: "live", notices: [], snapshot });
     report.mockResolvedValue({ ok: true, message: "" });
     const visible = () => {
       const out = new Set<string>();
@@ -620,7 +685,10 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
     await step("assign again", slide);
     await step("check in", slide);
     await screen.findByText("TJEK UD");
-    await step("check out", () => fireEvent.press(screen.getByText("TJEK UD")));
+    await step("ask to check out", () =>
+      fireEvent.press(screen.getByText("TJEK UD")),
+    );
+    await step("check out", slide);
     expect(problems).toEqual([]);
   }, 20000);
 });

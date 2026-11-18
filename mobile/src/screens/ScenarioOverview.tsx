@@ -10,7 +10,13 @@ import {
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
 import { lineColors, colors, palette, steward } from "../../../shared/Theme";
 import { staffingWords } from "../components/StatusBox";
-import { ListCard, ListStrip, listStripTitle } from "../components/ListCard";
+import {
+  ListCard,
+  ListSection,
+  ListStrip,
+  listStripTitle,
+} from "../components/ListCard";
+import { MovingRow } from "../components/MovingRow";
 import { Swap } from "../components/Swap";
 import MapRender from "../../../shared/MapRenderer";
 import type { MapNetwork } from "../../../shared/network/network";
@@ -26,6 +32,51 @@ import {
 } from "../../../shared/components/stationState";
 import { zoomedViewBox } from "./map-zoom";
 import { findOwnAssignment } from "./own-assignment";
+
+// One task of the own station. A task that fits on one line is a plain row.
+// A longer one shows its first line and a chevron, and a press opens it to
+// its full text (and closes it again). Whether it is longer than one line is
+// measured on a hidden copy of the text without a line limit, because a text
+// with numberOfLines reports only the lines it shows.
+function TaskRow({
+  number,
+  instruction,
+}: {
+  number: number;
+  instruction: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [lineCount, setLineCount] = useState(1);
+  const longer = lineCount > 1;
+  return (
+    <Pressable
+      accessibilityRole={longer ? "button" : undefined}
+      accessibilityState={longer ? { expanded } : undefined}
+      accessibilityHint={
+        longer ? (expanded ? "Skjul resten" : "Vis hele opgaven") : undefined
+      }
+      disabled={!longer}
+      onPress={() => setExpanded((value) => !value)}
+      style={styles.task}
+    >
+      <Text style={styles.taskNumber}>{number}.</Text>
+      <View style={styles.taskBody}>
+        <Text style={styles.taskText} numberOfLines={expanded ? undefined : 1}>
+          {instruction}
+        </Text>
+        <Text
+          style={[styles.taskText, styles.taskMeasure]}
+          onTextLayout={(event) => setLineCount(event.nativeEvent.lines.length)}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          {instruction}
+        </Text>
+      </View>
+      {longer && <Text style={styles.taskChevron}>{expanded ? "▴" : "▾"}</Text>}
+    </Pressable>
+  );
+}
 
 // The colour of the affected stretch on the map.
 const STRETCH_COLOR = lineColors[0];
@@ -237,10 +288,25 @@ export function ScenarioOverview({
     assignedStation,
     checkedOutStation,
   );
-  const ownRow = requirements.find((row) => row.station === ownStation);
-  const ownActions = sortedActions(ownRow);
+  // The tasks of the own station from ALL its requirement rows (#377), in
+  // the order of the rows, numbered from 1; the placements are listed
+  // together.
+  const ownRows = requirements.filter((row) => row.station === ownStation);
+  const ownActions = ownRows.flatMap((row) =>
+    sortedActions(row).map((action) => ({
+      key: `${row.placement}-${action.sequence}`,
+      instruction: action.instruction,
+    })),
+  );
+  const ownPlacement = [...new Set(ownRows.map((row) => row.placement))].join(
+    " · ",
+  );
   const [listHeight, setListHeight] = useState(0);
+  // After check in: whether the other stations are open (the tasks then
+  // close to their strip). It starts closed at every check in.
   const arrived = ownArrived && ownStation !== undefined;
+  const [restOpen, setRestOpen] = useState(false);
+  if (!arrived && restOpen) setRestOpen(false);
 
   // The coverage of each row, counted once per render (the sort and the rows
   // both need it).
@@ -281,6 +347,15 @@ export function ScenarioOverview({
         )
       : ROW_HEIGHT;
 
+  // Each row's distance from the top of the list, so a row that changes place
+  // can slide there (MovingRow).
+  const tops = new Map<string, number>();
+  let nextTop = 0;
+  for (const row of sorted) {
+    tops.set(row.station, nextTop);
+    nextTop += tall(row) ? steward.ownRowHeight : rowHeight;
+  }
+
   const renderRow = (row: StationRequirement) => {
     const own = row.station === ownStation;
     const chosen = !own && row.station === selected;
@@ -301,43 +376,48 @@ export function ScenarioOverview({
     // One row in every state, keyed by the station, so a chosen station that
     // becomes the own station stays the same element (#376).
     return (
-      <Pressable
+      <MovingRow
         key={row.station}
-        accessibilityRole={selectable ? "button" : undefined}
-        accessibilityLabel={selectable ? `Vælg ${row.station}` : undefined}
-        accessibilityState={selectable ? { selected: chosen } : undefined}
-        disabled={!selectable}
-        onPress={selectable ? () => onSelect(row.station) : undefined}
-        style={[
-          styles.row,
-          { height: rowHeight },
-          (own || chosen) && styles.tallRow,
-          (own || chosen) && {
-            backgroundColor: onGreen ? steward.green : steward.yellow,
-          },
-        ]}
+        top={tops.get(row.station) ?? 0}
+        place={sorted.indexOf(row)}
       >
-        <View style={styles.grow}>
-          <Text
-            style={[
-              styles.name,
-              (own || chosen) && styles.bigName,
-              onGreen && styles.inverse,
-            ]}
-            numberOfLines={1}
-          >
-            {row.station}
+        <Pressable
+          accessibilityRole={selectable ? "button" : undefined}
+          accessibilityLabel={selectable ? `Vælg ${row.station}` : undefined}
+          accessibilityState={selectable ? { selected: chosen } : undefined}
+          disabled={!selectable}
+          onPress={selectable ? () => onSelect(row.station) : undefined}
+          style={[
+            styles.row,
+            { height: rowHeight },
+            (own || chosen) && styles.tallRow,
+            (own || chosen) && {
+              backgroundColor: onGreen ? steward.green : steward.yellow,
+            },
+          ]}
+        >
+          <View style={styles.grow}>
+            <Text
+              style={[
+                styles.name,
+                (own || chosen) && styles.bigName,
+                onGreen && styles.inverse,
+              ]}
+              numberOfLines={1}
+            >
+              {row.station}
+            </Text>
+            <Swap swapKey={sub}>
+              <Text style={[styles.sub, onGreen && styles.inverse]}>{sub}</Text>
+            </Swap>
+          </View>
+          {chosen && <Text style={styles.chosenMark}>✓</Text>}
+          <Text style={[styles.count, { color: countColor }]}>
+            {coverage.current}/{row.minimumStaffing}
+            {coverage.current >= row.minimumStaffing ? " ✓" : ""}
           </Text>
-          <Swap swapKey={sub}>
-            <Text style={[styles.sub, onGreen && styles.inverse]}>{sub}</Text>
-          </Swap>
-        </View>
-        {chosen && <Text style={styles.chosenMark}>✓</Text>}
-        <Text style={[styles.count, { color: countColor }]}>
-          {coverage.current}/{row.minimumStaffing}
-          {coverage.current >= row.minimumStaffing ? " ✓" : ""}
-        </Text>
-      </Pressable>
+        </Pressable>
+      </MovingRow>
     );
   };
 
@@ -352,27 +432,51 @@ export function ScenarioOverview({
     </View>
   );
 
-  // After check in only the own station matters: the card shows its tasks,
-  // in the same frame as the stations (ListCard).
+  // After check in only the own station matters (#376): the card shows the
+  // tasks of the own station, and the other stations open on request. It is
+  // an accordion in the same frame: opening the stations closes the tasks to
+  // their strip, and that strip opens them again.
   if (arrived) {
+    // The two parts move by themselves (ListSection).
+    const toggle = () => setRestOpen((open) => !open);
     return (
       <ListCard>
-        <ListStrip first title={`Opgaver på ${ownStation}`} />
-        <ScrollView style={styles.fill} accessibilityLabel="Din opgave">
-          {ownRow && <Text style={styles.placement}>{ownRow.placement}</Text>}
-          {ownActions.length > 0 ? (
-            ownActions.map((action) => (
-              <View key={action.sequence} style={styles.task}>
-                <Text style={styles.taskNumber}>{action.sequence}.</Text>
-                <Text style={styles.taskText}>{action.instruction}</Text>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.placement}>
-              Ingen opgaver for denne station
-            </Text>
-          )}
-        </ScrollView>
+        <ListStrip
+          first
+          title="Påvirkede stationer"
+          action={restOpen ? "Vis færre" : `Vis alle ${rows.length}`}
+          onPress={toggle}
+        />
+        {/* Pinned to the top: the tasks strip sliding down uncovers it. */}
+        <ListSection open={restOpen} anchor="top">
+          {stationList}
+        </ListSection>
+        <ListStrip
+          title={`Opgaver på ${ownStation}`}
+          action={restOpen ? "Vis opgaver" : undefined}
+          onPress={restOpen ? toggle : undefined}
+        />
+        {/* Pinned to the bottom: the strip sliding up uncovers it. */}
+        <ListSection open={!restOpen} anchor="bottom">
+          <ScrollView style={styles.fill} accessibilityLabel="Din opgave">
+            {ownPlacement !== "" && (
+              <Text style={styles.placement}>{ownPlacement}</Text>
+            )}
+            {ownActions.length > 0 ? (
+              ownActions.map((action, index) => (
+                <TaskRow
+                  key={action.key}
+                  number={index + 1}
+                  instruction={action.instruction}
+                />
+              ))
+            ) : (
+              <Text style={styles.placement}>
+                Ingen opgaver for denne station
+              </Text>
+            )}
+          </ScrollView>
+        </ListSection>
       </ListCard>
     );
   }
@@ -487,8 +591,8 @@ const MapCard = memo(
     a.fontScale === b.fontScale,
 );
 
-function sortedActions(row: StationRequirement | undefined) {
-  return [...(row?.actions ?? [])].sort((a, b) => a.sequence - b.sequence);
+function sortedActions(row: StationRequirement) {
+  return [...(row.actions ?? [])].sort((a, b) => a.sequence - b.sequence);
 }
 
 const styles = StyleSheet.create({
@@ -567,10 +671,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     minWidth: 20,
   },
+  taskBody: { flex: 1 },
   taskText: {
     color: colors.text,
-    flex: 1,
     fontSize: 16,
     lineHeight: 21,
   },
+  // The invisible copy that counts the lines; it takes no room in the row.
+  taskMeasure: { left: 0, opacity: 0, position: "absolute", right: 0 },
+  taskChevron: { color: steward.muted, fontSize: 14, lineHeight: 21 },
 });
