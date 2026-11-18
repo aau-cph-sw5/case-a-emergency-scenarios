@@ -77,6 +77,40 @@ included, so no threshold can tell a good match from a vague one. With `true`,
 words that match no scenario lower the score, which is what separates a
 description of a segment from one that only mentions a track.
 
+## multilingual-e5 as the scorer
+
+`createE5Scorer({ embed, docs })` in `e5-confidence.ts` scores every ranked
+scenario with multilingual-e5: the cosine similarity between `query:
+<description>` and `passage: <document text>`, from the same documents the
+ranker searches. The ranker returns every scenario, so e5 also scores those
+BM25 gave 0, and synonyms such as "ingen kørestrøm" for "strømsvigt" can match.
+Each scenario is embedded once and kept.
+
+`loadE5Embedder()` in `e5-embedder.ts` runs `Xenova/multilingual-e5-large`, the
+ONNX build of `intfloat/multilingual-e5-large`, with Transformers.js on the
+CPU, so incident text never leaves the server. `@huggingface/transformers` is
+not a dependency yet: install it to use e5. It is loaded on the first call, so
+the BM25 default works without it. `E5_MODEL` and `E5_REVISION`
+override the model and its revision. Pin the revision to a commit hash, or a
+new upload can change every score.
+
+```ts
+const scorer = createE5Scorer({ embed: await loadE5Embedder(), docs });
+await suggestScenarios(text, docs, {
+  ranker,
+  scorer,
+  threshold: E5_CONFIDENCE_THRESHOLD,
+});
+```
+
+`E5_CONFIDENCE_THRESHOLD = 0.8` is a placeholder: e5 is not measured yet, and
+the evaluation (#421) doesn't cover it for now. e5 places most Danish text
+between 0.7 and 0.9, unrelated text included, so it needs its own threshold.
+e5 is weak on station
+abbreviations such as KGN and on negations ("ikke brand"), where BM25 is
+better, and close scores mean a threshold slightly off passes everything or
+nothing.
+
 ## Known failure modes
 
 - **Many words that match nothing push a correct match below the threshold.**
