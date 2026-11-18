@@ -15,7 +15,7 @@ import {
   checkPositionReportReplay,
   recordPositionReport,
 } from "../services/position-report-service.js";
-import { setCheckedIn } from "../realtime/station-messages.js";
+import { syncStationRoom } from "../realtime/station-messages.js";
 
 // The response carries the code's fixed message; the details go to the log.
 function refuse(
@@ -114,15 +114,7 @@ export async function postPositionReport(request: Request, response: Response) {
     return response.status(202).json({ accepted: true });
   }
   const io = request.app.locals.io as Server | undefined;
-  if (io) {
-    setCheckedIn(
-      io,
-      userId,
-      activation.activationId,
-      station,
-      report.event === "ARRIVED",
-    );
-  }
+  if (io) await syncStationRoom(io, userId, activation.lineGroup);
 
   io?.to(roleRoom("OPERATOR", activation.lineGroup)).emit("position-report", {
     ...report,

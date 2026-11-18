@@ -9,6 +9,7 @@ import {
   findActiveScenarioVersion,
   type ActivationStatus,
   findActiveActivation,
+  findActivation,
   listActivations,
   type StoredActivation,
 } from "../repositories/activation-repository.js";
@@ -199,7 +200,8 @@ export async function activate(
       console.warn("Socket.IO not attached; scenario-activated not sent");
     }
     if (io && replaces !== undefined) {
-      emitThreadsClosed(io, replaces, lineGroup);
+      const replaced = await findActivation(replaces);
+      if (replaced) emitThreadsClosed(io, replaced);
     }
     io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-activated", {
       scenario,
@@ -260,13 +262,12 @@ export async function standDown(
   }
 
   const io = request.app.locals.io as Server | undefined;
-  // Stewards refetch the scenario state, operators their activations, in the
-  // stood-down activation's line group only.
+
   const { lineGroup } = result.activation;
   io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-stood-down");
   io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
   if (io) {
-    emitThreadsClosed(io, result.activation.activationId, lineGroup);
+    emitThreadsClosed(io, result.activation);
   }
 
   response.json(result.activation);
