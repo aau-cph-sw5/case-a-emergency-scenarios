@@ -46,6 +46,5 @@ Changed application files need 80% combined line coverage
 ## For agents
 
 - Follow the PR title and branch rules in CONTRIBUTING.md. Open PRs against `dev`.
-- Don't commit, push or open PRs unless the developer asks you to.
 - When a rule here and the code disagree, say so. Don't "fix" the code to match
   this file without asking.
