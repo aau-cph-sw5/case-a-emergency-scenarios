@@ -16,6 +16,8 @@ const schemaFiles = (await readdir(schemaDirectory))
 for (const schemaFile of schemaFiles) {
   const output = await compileFromFile(join(schemaDirectory, schemaFile), {
     cwd: schemaDirectory,
+    // min/max item counts stay in the schema and the runtime guard; as types they expand into one variant per length.
+    ignoreMinAndMaxItems: true,
   });
   const outputFile = `${basename(schemaFile, ".schema.json")}.ts`;
   await writeFile(join(outputDirectory, outputFile), output);
