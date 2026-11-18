@@ -35,6 +35,7 @@ function scenarioWithRoute(route: object[]): Scenario {
               trackNumber: 1,
               maximumTrains: 1,
               did: "D",
+              color: "#e6140f",
               route:
                 route as Scenario["versions"][0]["operatingPlan"]["patterns"][0]["route"],
             },

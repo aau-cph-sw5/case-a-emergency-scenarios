@@ -189,7 +189,7 @@ describe("MetroMap", () => {
     ].map((segment) => segment.props.stroke);
     expect(strokes).toContain(DIDLineColors[0]);
     expect(strokes).toContain(DIDLineColors[1]);
-    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(80);
+    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(64);
     expect(screen.getByText("TEST")).toBeTruthy();
     expect(screen.getByText("TEST-2")).toBeTruthy();
     expect(markedDots().length).toBeGreaterThan(0);

@@ -32,6 +32,7 @@ export interface Scenario {
         route: {
           [k: string]: unknown;
         }[];
+        color?: string;
         [k: string]: unknown;
       }[];
       [k: string]: unknown;
