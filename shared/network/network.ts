@@ -1,4 +1,4 @@
-import type { Network } from "../types/v1/network";
+import type { Network } from "../types/v1/network.js";
 
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -55,6 +55,7 @@ type Pair = [string, string];
 export const connectionKey = (a: string, b: string) =>
   JSON.stringify(a < b ? [a, b] : [b, a]);
 export type MapNetwork = {
+  stationNames?: Record<string, string>;
   positions: Record<string, [number, number]>;
   lines: {
     name: string;
@@ -69,7 +70,9 @@ export type MapNetwork = {
 
 export function buildMapNetwork(network: Network): MapNetwork {
   const positions: Record<string, [number, number]> = Object.create(null);
+  const stationNames: Record<string, string> = Object.create(null);
   for (const station of network.stations) {
+    stationNames[station.code] = station.name;
     if (station.x !== null && station.y !== null)
       positions[station.code] = [station.x, station.y];
   }
@@ -150,6 +153,7 @@ export function buildMapNetwork(network: Network): MapNetwork {
   if (["M1", "M2", "M3", "M4"].some((line) => !lines.has(line)))
     incomplete = true;
   return {
+    stationNames,
     positions,
     lines: [...lines.values()],
     segments: network.segments,
@@ -172,12 +176,15 @@ export function resolveStops(
       const lineTracks =
         line.connectionTracks?.[connectionKey(a, b)] ?? line.tracks;
       if (
-        !segments.some(
-          (segment) =>
-            tracks.includes(segment.trackNumber) &&
-            lineTracks.includes(segment.trackNumber) &&
-            ((segment.stationA === a && segment.stationB === b) ||
-              (segment.stationA === b && segment.stationB === a)),
+        !tracks.every(
+          (track) =>
+            lineTracks.includes(track) &&
+            segments.some(
+              (segment) =>
+                segment.trackNumber === track &&
+                ((segment.stationA === a && segment.stationB === b) ||
+                  (segment.stationA === b && segment.stationB === a)),
+            ),
         )
       )
         continue;
@@ -185,6 +192,13 @@ export function resolveStops(
         edges.push([a, b]);
     }
   }
+  edges.sort(([a, b], [c, d]) =>
+    connectionKey(a, b) < connectionKey(c, d)
+      ? -1
+      : connectionKey(a, b) > connectionKey(c, d)
+        ? 1
+        : 0,
+  );
   const connections: Pair[] = [];
   for (let i = 1; i < stops.length; i++) {
     const start = stops[i - 1];
