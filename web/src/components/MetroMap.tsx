@@ -1,4 +1,5 @@
-﻿import { useState } from "react";
+﻿import { use, useState } from "react";
+import { createPortal } from "react-dom";
 import { Pressable, Text, View } from "react-native";
 import MapRender from "../../../shared/MapRenderer";
 import {
@@ -23,6 +24,7 @@ import {
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import { useScenario } from "../data/useScenario";
 import { useNetwork } from "../data/useNetwork";
+import { ColourSlotContext } from "./colour-slot";
 import {
   connectionKey,
   resolveStops,
@@ -213,6 +215,7 @@ export function MetroMap({
   // Each scenario starts with its whole line group in view.
   const [zoomedInto, setZoomedInto] = useState<string | null>(null);
   const [colourBy, setColourBy] = useState<ColourBy>("line");
+  const colourSlot = use(ColourSlotContext);
   const { network: mapNetwork, error: networkError, retry } = useNetwork(token);
   if (networkError)
     return (
@@ -277,6 +280,32 @@ export function MetroMap({
   const canZoom = view.viewBox !== undefined && groupHasScenario;
   const zoomKey = `${scenarioId}-${lineGroup}`;
   const zoomedIn = canZoom && zoomedInto === zoomKey;
+
+  // Same segmented switch as M1 / M2 in the header and the mode tabs in the
+  // scenario picker (.operator-line-switcher), so the three switches look and
+  // behave alike: the pressed option is the white one. It is drawn in the
+  // legend row above the map when the dashboard offers that slot.
+  const colourSwitch = (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <Text style={text.small}>Farver efter:</Text>
+      <div
+        className="operator-line-switcher"
+        role="group"
+        aria-label="Farver efter"
+      >
+        {COLOUR_MODES.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={colourBy === id}
+            onClick={() => setColourBy(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </View>
+  );
 
   return (
     <View style={{ flex: 1 }}>
@@ -362,29 +391,7 @@ export function MetroMap({
           accessibilityLabel="Destination IDs"
           style={{ marginLeft: 8, flexDirection: "column", gap: 6 }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={text.small}>Farver efter:</Text>
-            {/* Same segmented switch as M1 / M2 in the header and the mode
-                tabs in the scenario picker (.operator-line-switcher), so the
-                three switches look and behave alike: the pressed option is
-                the white one. */}
-            <div
-              className="operator-line-switcher"
-              role="group"
-              aria-label="Farver efter"
-            >
-              {COLOUR_MODES.map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  aria-pressed={colourBy === id}
-                  onClick={() => setColourBy(id)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </View>
+          {colourSlot ? createPortal(colourSwitch, colourSlot) : colourSwitch}
           <Text style={text.small}>Destination IDs:</Text>
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
             {runningLines.map((line) => (

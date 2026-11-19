@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import "./OperatorSections.css";
+import { ColourSlotContext } from "./colour-slot";
 // Where the start/stop card is drawn: a slot at the bottom of the right column.
 // ScenarioList owns the card's state, so it portals into this slot instead of
 // the card moving in the markup. Null (tests, no dashboard) means: draw inline.
@@ -27,6 +28,7 @@ export function OperatorSections({
   statusPopup?: ReactNode;
 }) {
   const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null);
+  const [colourSlot, setColourSlot] = useState<HTMLElement | null>(null);
   const coverageRef = useRef<HTMLElement>(null);
 
   // Tells the CSS how tall the open status window is, so the column makes room
@@ -67,52 +69,55 @@ export function OperatorSections({
 
   return (
     <ActionsSlotContext value={actionsSlot}>
-      <div className="operator-sections">
-        <section className="operator-sidebar" aria-label="Scenario selection">
-          {scenarioSelection}
-        </section>
-        <section className="operator-map-panel" aria-label="Map">
-          <div className="map-heading">
-            <h1>Oversigt</h1>
-            {mapControls}
-          </div>
-          <div className="map-legend" aria-label="Kortforklaring">
-            <span>
-              <i className="legend-required" />
-              Bemandingsbehov
-            </span>
-            <span>
-              <i className="legend-blocked" />
-              Spærret spor
-            </span>
-          </div>
-          <div className="operator-map-frame">{map}</div>
-        </section>
-        <section
-          ref={coverageRef}
-          className="operator-coverage-panel"
-          aria-label="Steward coverage"
-        >
-          <div className="operator-coverage-content">
-            <h2 className="coverage-heading">Bemandingsplan</h2>
-            {coverage}
-          </div>
-          <div ref={setActionsSlot} className="operator-actions-slot" />
-          {statusPopup && (
-            <div className="operator-status-footer">
-              <div className="status-popup">{statusPopup}</div>
-              <button
-                type="button"
-                className="operator-message-button"
-                disabled
-                title="Beskeder er endnu ikke tilgængelige"
-              >
-                Beskeder
-              </button>
+      <ColourSlotContext value={colourSlot}>
+        <div className="operator-sections">
+          <section className="operator-sidebar" aria-label="Scenario selection">
+            {scenarioSelection}
+          </section>
+          <section className="operator-map-panel" aria-label="Map">
+            <div className="map-heading">
+              <h1>Oversigt</h1>
+              {mapControls}
             </div>
-          )}
-        </section>
-      </div>
+            <div className="map-legend" aria-label="Kortforklaring">
+              <span>
+                <i className="legend-required" />
+                Bemandingsbehov
+              </span>
+              <span>
+                <i className="legend-blocked" />
+                Spærret spor
+              </span>
+              <div ref={setColourSlot} className="map-legend-colour" />
+            </div>
+            <div className="operator-map-frame">{map}</div>
+          </section>
+          <section
+            ref={coverageRef}
+            className="operator-coverage-panel"
+            aria-label="Steward coverage"
+          >
+            <div className="operator-coverage-content">
+              <h2 className="coverage-heading">Bemandingsplan</h2>
+              {coverage}
+            </div>
+            <div ref={setActionsSlot} className="operator-actions-slot" />
+            {statusPopup && (
+              <div className="operator-status-footer">
+                <div className="status-popup">{statusPopup}</div>
+                <button
+                  type="button"
+                  className="operator-message-button"
+                  disabled
+                  title="Beskeder er endnu ikke tilgængelige"
+                >
+                  Beskeder
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      </ColourSlotContext>
     </ActionsSlotContext>
   );
 }

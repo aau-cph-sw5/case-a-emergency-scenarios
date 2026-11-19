@@ -577,6 +577,9 @@ body {
   line-height: 12px;
   min-height: 12px;
 }
+.map-legend-colour {
+  margin-left: auto;
+}
 .map-legend > span {
   display: flex;
   align-items: center;
