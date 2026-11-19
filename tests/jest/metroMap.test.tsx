@@ -232,6 +232,14 @@ describe("MetroMap", () => {
 
   it("colours routes by destination ID when asked, and back by Metro line", () => {
     render(withScenario(scenario.scenarioId, async () => scenario, scenario));
+    // The switch is the shared DOM switch (.operator-line-switcher).
+    const chooseColours = (label: string) => {
+      const option = screen
+        .UNSAFE_getAllByType("button" as never)
+        .find((item) => item.props.children === label)!;
+      expect(option.parent!.props.className).toBe("operator-line-switcher");
+      fireEvent(option, "click");
+    };
     const strokes = () =>
       [
         ...screen.UNSAFE_queryAllByType(Line),
@@ -239,7 +247,7 @@ describe("MetroMap", () => {
       ].map((strip) => strip.props.stroke);
     expect(strokes()).toContain(lineColors[0]);
     expect(strokes()).not.toContain(DIDLineColors[0]);
-    fireEvent.press(screen.getByText("Destination ID"));
+    chooseColours("Destination ID");
     expect(strokes()).toEqual(
       expect.arrayContaining(DIDLineColors.slice(0, 2)),
     );
@@ -249,7 +257,7 @@ describe("MetroMap", () => {
     expect(DIDLineColors).not.toEqual(
       expect.arrayContaining(lineColors.slice(0, 4)),
     );
-    fireEvent.press(screen.getByText("Metrolinje"));
+    chooseColours("Metrolinje");
     expect(strokes()).toContain(lineColors[0]);
   });
 

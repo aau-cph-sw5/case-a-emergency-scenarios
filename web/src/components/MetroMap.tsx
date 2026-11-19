@@ -364,35 +364,26 @@ export function MetroMap({
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Text style={text.small}>Farver efter:</Text>
-            {COLOUR_MODES.map(({ id, label }) => (
-              <Pressable
-                key={id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: colourBy === id }}
-                onPress={() => setColourBy(id)}
-                style={{
-                  borderColor: theme.text,
-                  borderWidth: 1,
-                  borderRadius: 4,
-                  paddingVertical: 4,
-                  paddingHorizontal: 8,
-                  backgroundColor:
-                    colourBy === id ? theme.text : theme.background,
-                }}
-              >
-                <Text
-                  style={[
-                    text.small,
-                    {
-                      color: colourBy === id ? theme.textInverse : theme.text,
-                      fontWeight: "700",
-                    },
-                  ]}
+            {/* Same segmented switch as M1 / M2 in the header and the mode
+                tabs in the scenario picker (.operator-line-switcher), so the
+                three switches look and behave alike: the pressed option is
+                the white one. */}
+            <div
+              className="operator-line-switcher"
+              role="group"
+              aria-label="Farver efter"
+            >
+              {COLOUR_MODES.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={colourBy === id}
+                  onClick={() => setColourBy(id)}
                 >
                   {label}
-                </Text>
-              </Pressable>
-            ))}
+                </button>
+              ))}
+            </div>
           </View>
           <Text style={text.small}>Destination IDs:</Text>
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
