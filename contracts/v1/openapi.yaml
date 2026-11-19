@@ -569,7 +569,7 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error:
-                  code: "E0005"
+                  code: "E0006"
                   message: "description must be 1 to 2000 characters"
         "401":
           description: Missing, invalid or expired bearer token
