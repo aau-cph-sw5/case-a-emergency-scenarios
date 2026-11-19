@@ -113,7 +113,7 @@ function setup(token = "test") {
   };
 }
 
-it("clears unread badges only for the visible station and lets the operator send to an empty chat", async () => {
+it("keeps recent conversations first while clearing unread badges and sending to an empty chat", async () => {
   const send = jest.fn(
     async (
       station: string,
@@ -137,6 +137,7 @@ it("clears unread badges only for the visible station and lets the operator send
       state: "UNANSWERED" as const,
       unansweredSince: writtenAt,
       lastMessageAt: writtenAt,
+      stationMessageIds: [forMessage.id],
       messages: [forMessage],
     },
     ORE: {
@@ -144,7 +145,8 @@ it("clears unread badges only for the visible station and lets the operator send
       station: "ORE",
       state: "UNANSWERED" as const,
       unansweredSince: olderTime,
-      lastMessageAt: writtenAt,
+      lastMessageAt: "2026-11-17T08:37:00.000Z",
+      stationMessageIds: [oreMessage.id, oreFollowUp.id],
       messages: [oreMessage, oreFollowUp],
     },
     SOT: {
@@ -153,13 +155,14 @@ it("clears unread badges only for the visible station and lets the operator send
       state: "ANSWERED" as const,
       unansweredSince: null,
       lastMessageAt: null,
+      stationMessageIds: [],
       messages: [],
     },
   };
-  stationThreads.mockImplementation(() => ({
+  stationThreads.mockImplementation((_token, _activationId, station) => ({
     history,
     threads: [history.FOR, history.ORE],
-    thread: null,
+    thread: station ? history[station as keyof typeof history] : null,
     listError: null,
     threadError: null,
     closed: false,
@@ -189,12 +192,14 @@ it("clears unread badges only for the visible station and lets the operator send
     history.FOR.messages.push(
       stationMessage(3, "FOR", "Besked mens chatten er åben"),
     );
+    history.FOR.stationMessageIds.push(3);
     await panel.render();
     expect(panel.stationButton("FOR").textContent).toBe("FOR");
     await panel.click(panel.savedButton());
     history.FOR.messages.push(
       stationMessage(4, "FOR", "Besked mens Gemt er åbent"),
     );
+    history.FOR.stationMessageIds.push(4);
     await panel.render();
     expect(panel.stationButton("FOR").textContent).toContain("1 ulæst");
 
@@ -211,7 +216,7 @@ it("clears unread badges only for the visible station and lets the operator send
     expect(panel.stationButton("FOR").textContent).toContain("1 ulæst");
 
     await panel.click(panel.stationButton("ORE"));
-    expect(panel.stationButtons()[0]).toBe(panel.stationButton("FOR"));
+    expect(panel.stationButtons()[0]).toBe(panel.stationButton("ORE"));
     await panel.click(panel.stationButton("FOR"));
     await panel.click(panel.pin(0));
     await panel.click(panel.stationButton("ORE"));

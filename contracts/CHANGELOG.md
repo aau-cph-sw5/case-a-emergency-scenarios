@@ -1,5 +1,14 @@
 # Scenario State Contract Changelog
 
+## 8.7.0 - 2026-11-19
+
+Additive. Station inbox summaries expose unread-message metadata (MET-A-029, #337).
+
+- Add optional `stationMessageIds` to `station-thread.schema.json`. The server includes this array of received station-message IDs in HTTP summaries and details, without message text in summaries.
+- Operators count unread IDs against their local read state. A failed history request therefore cannot clear the inbox badge.
+- The operator inbox orders conversations by `lastMessageAt`, newest first, and fetches message history when a conversation is opened.
+- Existing socket event producers may omit the new field.
+
 ## 8.6.0 - 2026-11-16
 
 Additive. Admins create and edit user accounts (MET-A-030).

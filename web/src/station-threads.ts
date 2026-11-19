@@ -29,7 +29,13 @@ function isThread(value: unknown): value is StationThread {
     (thread.state === "UNANSWERED" || thread.state === "ANSWERED") &&
     (thread.unansweredSince === null ||
       typeof thread.unansweredSince === "string") &&
-    (thread.lastMessageAt === null || typeof thread.lastMessageAt === "string")
+    (thread.lastMessageAt === null ||
+      typeof thread.lastMessageAt === "string") &&
+    (thread.stationMessageIds === undefined ||
+      (Array.isArray(thread.stationMessageIds) &&
+        thread.stationMessageIds.every(
+          (id) => Number.isSafeInteger(id) && id > 0,
+        )))
   );
 }
 
@@ -38,7 +44,10 @@ export function fetchStationThreads(token: string, signal: AbortSignal) {
     threadsPath,
     token,
     (value): value is StationThread[] =>
-      Array.isArray(value) && value.every(isThread),
+      Array.isArray(value) &&
+      value.every(
+        (entry) => isThread(entry) && Array.isArray(entry.stationMessageIds),
+      ),
     signal,
   );
 }

@@ -124,7 +124,7 @@ function ActiveMessages({
   } = useStationThreads(
     token,
     active && !testing ? (activationId ?? null) : null,
-    showSaved ? null : station,
+    open && !showSaved ? station : null,
   );
   const readOnly = !active || closed;
 
@@ -178,8 +178,11 @@ function ActiveMessages({
   function messagesFor(name: string) {
     return testing
       ? (testThreads[name] ?? noMessages)
-      : (history[name]?.messages ??
-          (thread?.station === name ? thread.messages : undefined));
+      : thread?.station === name
+        ? thread.messages
+        : readOnly
+          ? history[name]?.messages
+          : undefined;
   }
 
   const shownMessages = station ? messagesFor(station) : undefined;
@@ -211,13 +214,24 @@ function ActiveMessages({
       ...stations,
     ]),
   ]
-    .map((name) => ({
-      name,
-      unread: (messagesFor(name) ?? noMessages).filter(
-        ({ id, sender }) => sender === "STATION" && !readIds.has(id),
-      ).length,
-    }))
-    .sort((a, b) => b.unread - a.unread);
+    .map((name) => {
+      const summary = threads?.find((entry) => entry.station === name);
+      const messages = testThreads[name] ?? noMessages;
+      const ids = testing
+        ? messages
+            .filter(({ sender }) => sender === "STATION")
+            .map(({ id }) => id)
+        : (summary?.stationMessageIds ?? []);
+      const lastMessageAt = testing
+        ? messages.at(-1)?.receivedAt
+        : summary?.lastMessageAt;
+      return {
+        name,
+        unread: ids.filter((id) => !readIds.has(id)).length,
+        lastMessageAt: lastMessageAt ? Date.parse(lastMessageAt) : 0,
+      };
+    })
+    .sort((a, b) => b.lastMessageAt - a.lastMessageAt);
   const stationUnreadCount = stationChats.reduce(
     (total, chat) => total + chat.unread,
     0,
@@ -362,7 +376,8 @@ function ActiveMessages({
                 <h3>{station}</h3>
                 {shownThreadError && (
                   <p role="alert">
-                    Kunne ikke hente beskeder. {shownThreadError}{" "}
+                    Kunne ikke hente beskeder. {shownThreadError} Luk og åbn
+                    samtalen igen for at hente beskederne.{" "}
                     <button type="button" onClick={reload}>
                       Prøv igen
                     </button>

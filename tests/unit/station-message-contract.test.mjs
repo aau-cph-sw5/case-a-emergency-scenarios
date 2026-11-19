@@ -123,3 +123,11 @@ test("rejects a thread whose message carries the steward's identity", () => {
     [],
   );
 });
+
+test("validates station-message IDs independently of message history", () => {
+  assert.deepEqual(checkThread({ ...thread, stationMessageIds: [1, 2] }), []);
+  assert.deepEqual(checkThread({ ...thread, stationMessageIds: [] }), []);
+  for (const stationMessageIds of [[1, 1], [0], [-1], ["1"], null]) {
+    assert.notDeepEqual(checkThread({ ...thread, stationMessageIds }), []);
+  }
+});

@@ -76,6 +76,9 @@ function threadSummary(
     unansweredSince:
       newest?.sender === "STATION" ? messages[0].receivedAt : null,
     lastMessageAt: newest?.receivedAt ?? null,
+    stationMessageIds: messages
+      .filter(({ sender }) => sender === "STATION")
+      .map(({ id }) => id),
   };
 }
 
@@ -209,7 +212,9 @@ it("loads station threads, refreshes on live events and reconnect, and keeps fet
     expect.objectContaining({ headers: { Authorization: `Bearer ${token}` } }),
   );
   expect(launcher().getAttribute("aria-label")).toContain("1 ulæste");
+  expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([threadsPath]);
   await click(launcher());
+  expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([threadsPath]);
   await click(stationButton("FOR"));
   expect(history()).toContain(messages.FOR[0].text);
   expect(launcher().getAttribute("aria-label")).toBe("Beskeder");
@@ -456,4 +461,145 @@ it("allows messaging when saved session data is malformed or browser storage is 
     getItem.mockRestore();
     setItem.mockRestore();
   }
+});
+
+it("keeps unread counts when history fails and sorts by recent activity instead of unread count", async () => {
+  const messages = {
+    FOR: [
+      stationMessage(1, "FOR", "First"),
+      stationMessage(2, "FOR", "Second"),
+      stationMessage(3, "FOR", "Third"),
+    ],
+    ORE: [stationMessage(4, "ORE", "Latest station reply")],
+  };
+  let historyFails = true;
+  fetchMock.mockImplementation(async (path) => {
+    if (path === threadsPath)
+      return response(
+        Object.entries(messages).map(([name, entries]) =>
+          threadSummary(name, entries),
+        ),
+      );
+    if (path === forPath)
+      return historyFails
+        ? response({}, 503)
+        : response({
+            ...threadSummary("FOR", messages.FOR),
+            messages: [...messages.FOR],
+          });
+    if (path === `${threadsPath}/ORE`)
+      throw new Error("An unopened conversation should not be fetched");
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  const stationOrder = () =>
+    [...container.querySelectorAll("nav li strong")].map(
+      (entry) => entry.textContent,
+    );
+
+  await render();
+  await click(launcher());
+  expect(stationOrder()).toEqual(["ORE", "FOR"]);
+  expect(stationButton("FOR").textContent).toContain("3 ulæst");
+  expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([threadsPath]);
+
+  await click(stationButton("FOR"));
+  expect(
+    container.querySelector(".operator-thread [role=alert]")?.textContent,
+  ).toContain("Luk og åbn samtalen igen");
+  expect(stationButton("FOR").textContent).toContain("3 ulæst");
+  expect(launcher().getAttribute("aria-label")).toContain("4 ulæste");
+  expect(stationOrder()).toEqual(["ORE", "FOR"]);
+
+  historyFails = false;
+  await click(
+    container.querySelector<HTMLButtonElement>(
+      ".operator-message-panel header button",
+    )!,
+  );
+  await click(launcher());
+  expect(history()).toContain("Third");
+  expect(stationButton("FOR").textContent).toBe("FOR");
+  expect(stationButton("ORE").textContent).toContain("1 ulæst");
+  expect(stationOrder()).toEqual(["ORE", "FOR"]);
+
+  const reply = {
+    ...stationMessage(5, "FOR", "Operator reply"),
+    sender: "CONTROL_ROOM" as const,
+  };
+  messages.FOR.push(reply);
+  await announceMessage(reply);
+  expect(stationOrder()).toEqual(["FOR", "ORE"]);
+  expect(history()).toContain(reply.text);
+  expect(stationButton("ORE").textContent).toContain("1 ulæst");
+});
+
+it("preserves inbox badges on list failures and ignores a history response after switching chats", async () => {
+  const forMessage = stationMessage(1, "FOR", "Older message");
+  const oreMessage = stationMessage(2, "ORE", "Newer message");
+  let failList = false;
+  let resolveHistory!: (value: Response) => void;
+  let historySignal: AbortSignal | undefined;
+  fetchMock.mockImplementation(async (path, options) => {
+    if (path === threadsPath)
+      return failList
+        ? response({}, 503)
+        : response([
+            threadSummary("FOR", [forMessage]),
+            threadSummary("ORE", [oreMessage]),
+          ]);
+    if (path === forPath) {
+      historySignal = options?.signal as AbortSignal;
+      return new Promise<Response>((resolve) => {
+        resolveHistory = resolve;
+      });
+    }
+    if (path === `${threadsPath}/ORE`)
+      return response({
+        ...threadSummary("ORE", [oreMessage]),
+        messages: [oreMessage],
+      });
+    throw new Error(`Unexpected request: ${path}`);
+  });
+
+  await render();
+  await click(launcher());
+  await click(stationButton("FOR"));
+  await click(stationButton("ORE"));
+  expect(historySignal?.aborted).toBe(true);
+  await act(async () => {
+    resolveHistory(
+      response({
+        ...threadSummary("FOR", [forMessage]),
+        messages: [forMessage],
+      }),
+    );
+  });
+  expect(history()).toContain(oreMessage.text);
+  expect(history()).not.toContain(forMessage.text);
+  expect(stationButton("FOR").textContent).toContain("1 ulæst");
+
+  await click(
+    container.querySelector<HTMLButtonElement>(
+      ".operator-message-panel header button",
+    )!,
+  );
+  const detailRequests = fetchMock.mock.calls.filter(
+    ([path]) => path !== threadsPath,
+  ).length;
+  failList = true;
+  const newer = stationMessage(3, "FOR", "Arrived while panel was closed");
+  await act(async () => {
+    socket.emit("station-message", {
+      message: newer,
+      thread: threadSummary("FOR", [forMessage, newer]),
+      sentAt: timestamp,
+    });
+  });
+  expect(stationButton("FOR").textContent).toContain("2 ulæst");
+  expect(container.querySelector("nav [role=alert]")?.textContent).toContain(
+    "Kunne ikke hente samtaler",
+  );
+  expect(
+    fetchMock.mock.calls.filter(([path]) => path !== threadsPath),
+  ).toHaveLength(detailRequests);
 });
