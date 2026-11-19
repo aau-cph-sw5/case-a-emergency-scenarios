@@ -12,14 +12,22 @@ export function RoleView({
   title,
   onLogout,
   children,
+  obscured = false,
 }: {
   title: string;
   onLogout: () => void;
   children?: ReactNode;
+  // Something covers the view (the station's chat), so a screen reader
+  // skips the header behind it.
+  obscured?: boolean;
 }) {
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View
+        style={styles.header}
+        accessibilityElementsHidden={obscured}
+        importantForAccessibility={obscured ? "no-hide-descendants" : "auto"}
+      >
         {/* The two sides take the same width, so the logo stays in the middle
             of the phone whatever the texts' widths. */}
         <View style={styles.side}>
