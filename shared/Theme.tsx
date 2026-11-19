@@ -35,6 +35,7 @@ export const palette = {
   // colours are the metro colours above; these are the greys around them.
   // Only the steward app uses these; the web keeps the colours above.
   stewardLabelGrey: "#C9CCD0",
+  stewardInputBorder: "#9AA0A6",
   stewardLine: "#D9DCDF",
   stewardStrip: "#F6F7F8",
   stewardMuted: "#5B6168",
@@ -217,6 +218,12 @@ export const steward = {
   chat: {
     controlRoom: palette.metroDeepRed,
     onControlRoom: palette.metroWhite,
+    // A colleague at the same station writes as the station too; their
+    // messages are light grey, so the steward's own stay the black ones.
+    colleague: palette.stewardLine,
+    onColleague: palette.metroBlack,
+    // The outline of the box the steward writes in, and its selection.
+    inputBorder: palette.stewardInputBorder,
   },
   // The status card takes the colour of the status (#376): black without a
   // station, yellow on the way, green once arrived. text is the station name,

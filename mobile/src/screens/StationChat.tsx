@@ -1,3 +1,4 @@
+import * as Crypto from "expo-crypto";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -15,9 +16,29 @@ import { colors, spacing, steward } from "../../../shared/Theme";
 import { ChatClosedNotice, ChatHeader } from "../components/ChatHeader";
 import { ChatTab } from "../components/ChatTab";
 import { MessageBubble, WarningIcon } from "../components/MessageBubble";
-import { closesThread, stationThread } from "../data/station-thread";
+import { MessageComposer } from "../components/MessageComposer";
+import {
+  closesThread,
+  isSendableText,
+  stationThread,
+} from "../data/station-thread";
+import { userIdFromToken } from "../../../shared/auth/login";
+import {
+  ownMessageIds,
+  rememberOwnMessage,
+} from "../offline/own-station-messages";
 import { socket } from "../socket";
+import { useKeyboardPadding } from "../useKeyboardPadding";
 import { useSlideInPanel } from "../useSlideInPanel";
+
+// A message the steward wrote that the server has not stored: on its way, or
+// not sent with the reason.
+type OwnMessage = {
+  clientMessageId: string;
+  text: string;
+  writtenAt: string;
+  failed: string | null;
+};
 
 // The thread's messages with a new one added, each once, in the order the
 // server received them (by id).
@@ -69,6 +90,7 @@ export function StationChat({
     panelDragHandlers,
     translateX,
   } = useSlideInPanel(onOpenChange);
+  const keyboardPadding = useKeyboardPadding();
 
   // The thread as the steward last saw it. It belongs to one station in one
   // activation, so it starts over when either changes.
@@ -81,22 +103,48 @@ export function StationChat({
   const [lastStation, setLastStation] = useState(station);
   if (station !== undefined && station !== lastStation) setLastStation(station);
   const [messages, setMessages] = useState<StationMessage[]>([]);
+  const [own, setOwn] = useState<OwnMessage[]>([]);
   // Whether the thread has been read since the chat showed this thread.
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Set when the server closed the thread while the app still had a station.
   const [closedByServer, setClosedByServer] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  // The clientMessageIds of the messages this steward wrote on this phone, so
+  // their messages can be told from colleagues' at the same station.
+  const [mine, setMine] = useState<ReadonlySet<string>>(() => new Set());
+  const userId = userIdFromToken(token);
   if (threadKey !== shownThreadKey) {
     setShownThreadKey(threadKey);
     // The station going away keeps the old messages behind the closed
     // notice; a new station or activation starts empty.
     if (threadKey !== undefined) {
       setMessages([]);
+      setOwn([]);
       setLoaded(false);
       setLoadError(null);
       setClosedByServer(null);
+      setDraft("");
+      setMine(new Set());
     }
   }
+
+  useEffect(() => {
+    if (
+      userId === null ||
+      activationId === undefined ||
+      station === undefined
+    ) {
+      return;
+    }
+    let cancelled = false;
+    void ownMessageIds(userId, activationId, station).then((ids) => {
+      if (!cancelled) setMine((current) => new Set([...current, ...ids]));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, activationId, station]);
 
   // A refusal that means there is no thread any more closes the chat.
   const closeByServer = useCallback(
@@ -176,6 +224,70 @@ export function StationChat({
     };
   }, [station, activationId, closeByServer]);
 
+  // Sends one message the steward wrote. A message that did not go through
+  // keeps its id and time written, so "Send igen" can never store it twice.
+  const deliver = useCallback(
+    async (message: OwnMessage) => {
+      if (station === undefined || activationId === undefined) return;
+      setOwn((current) =>
+        current.map((entry) =>
+          entry.clientMessageId === message.clientMessageId
+            ? { ...entry, failed: null }
+            : entry,
+        ),
+      );
+      const result = await stationThread(token, station, {
+        type: "send",
+        clientMessageId: message.clientMessageId,
+        activationId,
+        text: message.text,
+        writtenAt: message.writtenAt,
+      });
+      // Sent for the thread before: its own list has gone with it.
+      if (currentThreadRef.current !== threadKey) return;
+      if (result.ok) {
+        setMessages((current) => merge(current, [result.value]));
+        setOwn((current) =>
+          current.filter(
+            (entry) => entry.clientMessageId !== message.clientMessageId,
+          ),
+        );
+        return;
+      }
+      setOwn((current) =>
+        current.map((entry) =>
+          entry.clientMessageId === message.clientMessageId
+            ? { ...entry, failed: `Ikke sendt. ${result.message}` }
+            : entry,
+        ),
+      );
+      if (closesThread(result.code)) onClosedByServer();
+    },
+    [token, station, activationId, threadKey, onClosedByServer],
+  );
+
+  const send = () => {
+    const written = draft.trim();
+    if (!isSendableText(written)) return;
+    const message: OwnMessage = {
+      clientMessageId: Crypto.randomUUID(),
+      text: written,
+      writtenAt: new Date().toISOString(),
+      failed: null,
+    };
+    setOwn((current) => [...current, message]);
+    setMine((current) => new Set([...current, message.clientMessageId]));
+    if (userId !== null && activationId !== undefined && station !== undefined)
+      void rememberOwnMessage(
+        userId,
+        activationId,
+        station,
+        message.clientMessageId,
+      );
+    setDraft("");
+    void deliver(message);
+  };
+
   const scrollRef = useRef<ScrollViewInstance>(null);
   const closed =
     station === undefined ? closedReason : (closedByServer ?? null);
@@ -195,7 +307,7 @@ export function StationChat({
           testID="station-chat"
           {...panelDragHandlers}
         >
-          <View style={styles.fill}>
+          <View style={[styles.fill, { paddingBottom: keyboardPadding }]}>
             <ChatHeader
               station={closed === null ? station : lastStation}
               closed={closed !== null}
@@ -205,46 +317,87 @@ export function StationChat({
             {closed !== null ? (
               <ChatClosedNotice reason={closed} onBack={closeChat} />
             ) : (
-              <ScrollView
-                ref={scrollRef}
-                style={styles.fill}
-                contentContainerStyle={styles.messages}
-                onContentSizeChange={() =>
-                  scrollRef.current?.scrollToEnd({ animated: false })
-                }
-              >
-                {!loaded && messages.length === 0 && (
-                  <Text style={styles.info}>Henter beskeder…</Text>
-                )}
-                {loaded && !loadError && messages.length === 0 && (
-                  <Text style={styles.info}>Ingen beskeder endnu.</Text>
-                )}
-                {messages.map((message, index) => (
-                  <MessageBubble
-                    key={message.id}
-                    fromStation={message.sender === "STATION"}
-                    showSender={messages[index - 1]?.sender !== message.sender}
-                    text={message.text}
-                    writtenAt={message.writtenAt}
-                  />
-                ))}
-                {loadError && (
-                  <View style={styles.loadError}>
-                    <View style={styles.loadErrorRow}>
-                      <WarningIcon />
-                      <Text
-                        style={styles.loadErrorText}
-                        accessibilityRole="alert"
-                      >
-                        Beskederne kunne ikke hentes. {loadError}
+              <>
+                <ScrollView
+                  ref={scrollRef}
+                  style={styles.fill}
+                  contentContainerStyle={styles.messages}
+                  onContentSizeChange={() =>
+                    scrollRef.current?.scrollToEnd({ animated: false })
+                  }
+                  // The keyboard makes the list shorter; keep the newest
+                  // message in sight.
+                  onLayout={() =>
+                    scrollRef.current?.scrollToEnd({ animated: false })
+                  }
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {!loaded && messages.length === 0 && (
+                    <Text style={styles.info}>Henter beskeder…</Text>
+                  )}
+                  {loaded &&
+                    !loadError &&
+                    messages.length === 0 &&
+                    own.length === 0 && (
+                      <Text style={styles.info}>
+                        Ingen beskeder endnu. Skriv til kontrolrummet, hvis I
+                        har brug for noget, der ikke haster.
                       </Text>
+                    )}
+                  {messages.map((message, index) => (
+                    <MessageBubble
+                      key={message.id}
+                      fromStation={message.sender === "STATION"}
+                      colleague={
+                        message.sender === "STATION" &&
+                        !mine.has(message.clientMessageId.toLowerCase())
+                      }
+                      showSender={
+                        messages[index - 1]?.sender !== message.sender
+                      }
+                      text={message.text}
+                      writtenAt={message.writtenAt}
+                    />
+                  ))}
+                  {own.map((message, index) => (
+                    <MessageBubble
+                      key={message.clientMessageId}
+                      fromStation
+                      showSender={
+                        index > 0
+                          ? false
+                          : messages[messages.length - 1]?.sender !== "STATION"
+                      }
+                      text={message.text}
+                      writtenAt={message.writtenAt}
+                      failed={message.failed}
+                      onRetry={() => void deliver(message)}
+                    />
+                  ))}
+                  {loadError && (
+                    <View style={styles.loadError}>
+                      <View style={styles.loadErrorRow}>
+                        <WarningIcon />
+                        <Text
+                          style={styles.loadErrorText}
+                          accessibilityRole="alert"
+                        >
+                          Beskederne kunne ikke hentes. {loadError}
+                        </Text>
+                      </View>
+                      <Pressable accessibilityRole="button" onPress={load}>
+                        <Text style={styles.link}>Prøv igen</Text>
+                      </Pressable>
                     </View>
-                    <Pressable accessibilityRole="button" onPress={load}>
-                      <Text style={styles.link}>Prøv igen</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </ScrollView>
+                  )}
+                </ScrollView>
+
+                <MessageComposer
+                  draft={draft}
+                  onChangeDraft={setDraft}
+                  onSend={send}
+                />
+              </>
             )}
           </View>
         </Animated.View>

@@ -80,6 +80,9 @@ async function cancelStation() {
 
 // The view is driven by a given scenario view and a mocked position report,
 // so no server, socket or storage is needed.
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);
 jest.mock("../../shared/offline/use-active-scenario", () => ({
   useActiveScenario: jest.fn(),
 }));
