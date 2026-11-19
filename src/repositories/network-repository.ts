@@ -34,3 +34,12 @@ export async function getNetwork(): Promise<Network> {
   `;
   return row.network;
 }
+
+// Every station's code and name, for scenario suggestion (MET-A-019). Ordered
+// by code, so the station list, and with it the tokens, is the same every time.
+export async function getStations(): Promise<{ code: string; name: string }[]> {
+  const sql = getDatabase();
+  return sql<{ code: string; name: string }[]>`
+    SELECT code, name FROM stations ORDER BY code
+  `;
+}
