@@ -10,7 +10,7 @@ import {
 } from "../controllers/scenario-controller.js";
 
 import { requireAuth } from "../middleware/require-auth.js";
-import { requireAdmin } from "../middleware/require-admin.js";
+import { requireRole } from "../middleware/require-role.js";
 import {
   validateBody,
   validateOptionalBody,
@@ -22,7 +22,7 @@ scenarioRouter.get("/api/v1/scenarios", requireAuth, getScenarios);
 scenarioRouter.post(
   "/api/v1/scenarios",
   requireAuth,
-  requireAdmin,
+  requireRole("ADMIN"),
   validateBody("create-scenario-request.schema.json"),
   createScenarioHandler,
 );
