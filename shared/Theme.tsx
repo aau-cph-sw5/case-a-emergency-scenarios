@@ -30,6 +30,14 @@ export const palette = {
   darkYellow: "#8A6A00", // yellow dark enough to read as text on white
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
+  // Operator web view (#357). Grey text and outlines that pass WCAG on white:
+  // mutedGrey 5.5:1 for small text, optionGrey only for decorative card edges.
+  mutedGrey: "#686868",
+  optionGrey: "#e0e0e0",
+  wellGrey: "#f4f4f4",
+  // Darker shade of M4 blue for focus rings: 5.0:1 on white, where M4 blue
+  // itself (2.9:1) fails the 3:1 that WCAG 2.4.13 asks of a focus indicator.
+  focusTeal: "#00758C",
 
   // The steward app's look from the approved prototype (#375). Its status
   // colours are the metro colours above; these are the greys around them.
@@ -187,6 +195,29 @@ export const page = {
   flex: 1,
 };
 
+// The operator web view styles itself in web/src/components/OperatorSections.css.
+// These custom properties hand it the theme, so the colours it shares with the
+// rest of the app are defined once, here. OperatorDashboard sets them on its
+// root element.
+export const operatorCssVars = {
+  "--operator-red": palette.metroLineThree,
+  "--operator-yellow": palette.metroLineTwo,
+  "--operator-green": palette.metroLineOne,
+  "--operator-blue": palette.metroLineFour,
+  "--operator-ink": palette.metroBlack,
+  "--operator-muted": palette.mutedGrey,
+  "--operator-option-border": palette.optionGrey,
+  "--operator-well": palette.wellGrey,
+  "--operator-focus": palette.focusTeal,
+  // Two corner sizes only (design guide: outer = inner x 3): 4px for things you
+  // press or type in, 12px for things that hold content. Circles use 50%.
+  "--operator-radius-control": "4px",
+  "--operator-radius-card": "12px",
+  // Pressed toggles are a light tint of ink, not yellow: yellow read as an
+  // alarm next to the map's warning colours (design review, #357).
+  "--operator-pressed": `${palette.metroBlack}1a`,
+  "--operator-pressed-border": `${palette.metroBlack}59`,
+} as const;
 // The steward app's colours and sizes (#375). The status colours match the
 // slide that leads to the status: yellow on the way, green arrived, red
 // checked out. They are the exact line colours from Metro's brand guide (M2
