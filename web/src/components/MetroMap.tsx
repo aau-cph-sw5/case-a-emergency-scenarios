@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import MapRender from "../../../shared/MapRenderer";
 import {
   colors as theme,
+  DIDLineColors,
   lineColors,
   palette,
   radius,
@@ -75,6 +76,14 @@ function scenarioLines(
 }
 
 const CLOSED_LINE = "Spærret";
+
+// What a scenario's routes are coloured by: the Metro line each runs on, or
+// one colour per destination ID, which tells two routes on one line apart.
+type ColourBy = "line" | "did";
+const COLOUR_MODES: { id: ColourBy; label: string }[] = [
+  { id: "line", label: "Metrolinje" },
+  { id: "did", label: "Destination ID" },
+];
 
 // A route has the colour of the Metro line it runs on (design guide: M1-M4
 // for lines). A route that fits more than one line, or none, is Metro Black.
@@ -203,6 +212,7 @@ export function MetroMap({
 
   // Each scenario starts with its whole line group in view.
   const [zoomedInto, setZoomedInto] = useState<string | null>(null);
+  const [colourBy, setColourBy] = useState<ColourBy>("line");
   const { network: mapNetwork, error: networkError, retry } = useNetwork(token);
   if (networkError)
     return (
@@ -247,9 +257,11 @@ export function MetroMap({
       ? lineColor
       : {
           ...Object.fromEntries(
-            runningLines.map((route) => [
+            runningLines.map((route, index) => [
               route.name,
-              routeColor(route, groupNetwork),
+              colourBy === "did"
+                ? DIDLineColors[index % DIDLineColors.length]
+                : routeColor(route, groupNetwork),
             ]),
           ),
           [CLOSED_LINE]: theme.blockedTrack,
@@ -350,6 +362,38 @@ export function MetroMap({
           accessibilityLabel="Destination IDs"
           style={{ marginLeft: 8, flexDirection: "column", gap: 6 }}
         >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={text.small}>Farver efter:</Text>
+            {COLOUR_MODES.map(({ id, label }) => (
+              <Pressable
+                key={id}
+                accessibilityRole="button"
+                accessibilityState={{ selected: colourBy === id }}
+                onPress={() => setColourBy(id)}
+                style={{
+                  borderColor: theme.text,
+                  borderWidth: 1,
+                  borderRadius: 4,
+                  paddingVertical: 4,
+                  paddingHorizontal: 8,
+                  backgroundColor:
+                    colourBy === id ? theme.text : theme.background,
+                }}
+              >
+                <Text
+                  style={[
+                    text.small,
+                    {
+                      color: colourBy === id ? theme.textInverse : theme.text,
+                      fontWeight: "700",
+                    },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           <Text style={text.small}>Destination IDs:</Text>
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
             {runningLines.map((line) => (

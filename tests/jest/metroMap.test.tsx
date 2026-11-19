@@ -6,7 +6,7 @@ import {
 } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
-import { colors, lineColors } from "../../shared/Theme";
+import { colors, DIDLineColors, lineColors } from "../../shared/Theme";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
@@ -228,6 +228,29 @@ describe("MetroMap", () => {
     expect(strokes).toEqual(
       expect.arrayContaining([lineColors[0], lineColors[1], colors.text]),
     );
+  });
+
+  it("colours routes by destination ID when asked, and back by Metro line", () => {
+    render(withScenario(scenario.scenarioId, async () => scenario, scenario));
+    const strokes = () =>
+      [
+        ...screen.UNSAFE_queryAllByType(Line),
+        ...screen.UNSAFE_queryAllByType(Path),
+      ].map((strip) => strip.props.stroke);
+    expect(strokes()).toContain(lineColors[0]);
+    expect(strokes()).not.toContain(DIDLineColors[0]);
+    fireEvent.press(screen.getByText("Destination ID"));
+    expect(strokes()).toEqual(
+      expect.arrayContaining(DIDLineColors.slice(0, 2)),
+    );
+    expect(strokes()).not.toContain(lineColors[0]);
+    // The destination ID palette is its own: it never reuses a Metro line colour.
+    expect(new Set(DIDLineColors).size).toBe(DIDLineColors.length);
+    expect(DIDLineColors).not.toEqual(
+      expect.arrayContaining(lineColors.slice(0, 4)),
+    );
+    fireEvent.press(screen.getByText("Metrolinje"));
+    expect(strokes()).toContain(lineColors[0]);
   });
 
   it("shows an error instead of inventing a destination ID without routes", () => {
