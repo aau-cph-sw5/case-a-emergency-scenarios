@@ -1,12 +1,15 @@
 import type { Server, Socket } from "socket.io";
+
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { verifyToken, type AuthUser } from "../services/auth-service.js";
 import {
   findActiveActivation,
   findActiveScenarioVersion,
+  type StoredActivation,
 } from "../repositories/activation-repository.js";
 
 import { findScenario } from "../repositories/scenario-repository.js";
+import { syncStationRoom } from "./station-messages.js";
 
 // Each socket joins the room for its role and line group, so an event reaches
 // one role in one line group only, e.g. io.to(roleRoom("STEWARD", "M1_M2")).
@@ -15,6 +18,9 @@ export function roleRoom(
   lineGroup: AuthUser["lineGroup"],
 ): string {
   return `${role}:${lineGroup}`;
+}
+export function stationRoom(activationId: number, station: string): string {
+  return `station:${activationId}:${station}`;
 }
 
 export function userRoom(userId: number): string {
@@ -84,8 +90,6 @@ export function attachSocketHandlers(io: Server) {
       console.log("Socket disconnected:", socket.id, reason);
     });
 
-    // Recheck after joining the user room so a concurrent login cannot miss
-    // a socket whose handshake was already in progress.
     void verifyToken(socket.handshake.auth.token)
       .then(async (current) => {
         if (!current || current.role !== role || !socket.connected) {
@@ -100,31 +104,38 @@ export function attachSocketHandlers(io: Server) {
           role,
           current.lineGroup,
         );
-        socket.emit("welcome", "Connected to the emergency scenarios server.");
-        // The active scenario in the user's own line group.
+
         const latest = await findActiveActivation(current.lineGroup);
-        if (role === "STEWARD" && latest) {
-          try {
-            const versionId = await findActiveScenarioVersion(
-              latest.activationId,
-              latest.scenarioId,
-            );
-            const scenario =
-              versionId === undefined
-                ? undefined
-                : await findScenario(latest.scenarioId, versionId);
-            if (scenario && socket.connected) {
-              socket.emit("scenario-activated", {
-                scenario,
-                sentAt: new Date().toISOString(),
-                sequence: latest.sequence,
-              });
-            }
-          } catch (error) {
-            console.error("Could not send the latest activation:", error);
-          }
+
+        if (role === "STEWARD") {
+          await syncStationRoom(io, userId, current.lineGroup);
         }
+        socket.emit("welcome", "Connected to the emergency scenarios server.");
+        if (role === "STEWARD" && latest)
+          await sendActiveScenario(socket, latest);
       })
       .catch(() => socket.disconnect());
   });
+}
+
+async function sendActiveScenario(socket: Socket, latest: StoredActivation) {
+  try {
+    const versionId = await findActiveScenarioVersion(
+      latest.activationId,
+      latest.scenarioId,
+    );
+    const scenario =
+      versionId === undefined
+        ? undefined
+        : await findScenario(latest.scenarioId, versionId);
+    if (scenario && socket.connected) {
+      socket.emit("scenario-activated", {
+        scenario,
+        sentAt: new Date().toISOString(),
+        sequence: latest.sequence,
+      });
+    }
+  } catch (error) {
+    console.error("Could not send the latest activation:", error);
+  }
 }

@@ -100,14 +100,12 @@ export async function stationIsRequired(
   return row.exists;
 }
 
-export async function stewardIsCheckedIn(
+export async function findCheckedInStation(
   db: Db,
   userId: number,
   activationId: number,
-  station: string,
-): Promise<boolean> {
-  // Use the newest report; older reports don't show the steward's current status.
-  const [latest] = await db<
+): Promise<string | null> {
+  const [lastest] = await db<
     { station: string; event: string; taskDone: boolean }[]
   >`
     SELECT station, event, task_done
@@ -117,12 +115,18 @@ export async function stewardIsCheckedIn(
     ORDER BY received_at DESC, id DESC
     LIMIT 1
   `;
+  return lastest?.event === "ARRIVED" && lastest.taskDone === false
+    ? lastest.station
+    : null;
+}
 
-  return (
-    latest?.station === station &&
-    latest.event === "ARRIVED" &&
-    latest.taskDone === false
-  );
+export async function stewardIsCheckedIn(
+  db: Db,
+  userId: number,
+  activationId: number,
+  station: string,
+): Promise<boolean> {
+  return (await findCheckedInStation(db, userId, activationId)) === station;
 }
 
 export async function insertStationMessage(
