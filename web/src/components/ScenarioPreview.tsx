@@ -4,28 +4,13 @@ import type { useScenario } from "../data/useScenario";
 import { routeLabel } from "../suggestion-reasons";
 import { STATION_RANK } from "../../../shared/components/stationView";
 
-/*
- * Preview of the selected scenario, in the right column. Design: the guide's
- * "Status" column and "Begrundelse" block (04 Components).
- * - The scenario's name is the largest text and comes first. The two counts
- *   sit under it as label / number rows with the numbers right-aligned in one
- *   column (tabular figures), so they can be found at a glance.
- * - Stations are rows, not cards: a 3px rule above, a 1px rule under each.
- *   A square marker plus a word carry the need, never colour alone. Red is the
- *   guide's "gap" colour, so it is used for the stewards still missing.
- * - The route sits in a block with a 4px bar, like Begrundelse.
- * - Pressing a row opens it: placement and the numbered tasks (Opgaver) for
- *   that station. A chevron shows that rows open; the open row gets the
- *   guide's selected-row mark (black bar, grey ground).
- * The text "Nødvendige stewards: N" is kept as one string for screen readers
- * and tests.
- */
-
 const rank = (station: string) =>
   STATION_RANK.get(station) ?? Number.MAX_SAFE_INTEGER;
 
 type Requirement = Scenario["versions"][number]["stationRequirements"][number];
 
+// Right-column preview of the selected scenario (guide 04: Status, Begrundelse).
+// "Nødvendige stewards: N" stays one string for screen readers and tests.
 export function ScenarioPreview({
   scenarioId,
   preview,
@@ -56,6 +41,7 @@ export function ScenarioPreview({
   );
 }
 
+// Name and counts first, then the route block and the station rows.
 function Details({ scenario }: { scenario: Scenario }) {
   const version = scenario.versions.find(
     (item) => item.version === scenario.currentVersion,
@@ -107,6 +93,8 @@ function Details({ scenario }: { scenario: Scenario }) {
   );
 }
 
+// One station as a row (square marker plus word, never colour alone); pressing
+// it opens placement and the numbered tasks.
 function StationRow({ requirement }: { requirement: Requirement }) {
   const [open, setOpen] = useState(false);
   const actions = [...(requirement.actions ?? [])].sort(
