@@ -1,6 +1,6 @@
 # TypeScript seed loader
 
-The seed loader (`scripts/seed-scenarios.ts`) reads the scenario seed data files, checks them, and loads them into the local database. The website and the API then read the scenarios from that database.
+The seed loader (`scripts/seed-scenarios.ts`) reads the scenario seed data files, checks them, and loads them into the local database. The website and the API then read the scenarios from that database. Each scenario operating pattern needs a `color` value such as `"#FF080B"`; normal-service patterns are assigned their line's standard colour by the network loader.
 
 The scenario files are private Metro material. They are not in git and must never be added to the repository.
 
@@ -149,7 +149,8 @@ track segments and normal-service patterns independently of scenarios. Set
 repository**. The file contains `stations`, `segments` and `normalPatterns`
 arrays. Stations have `code`, `name`, `x`, and `y`; segments have `trackNumber`,
 `stationA`, and `stationB`; and normal patterns have `line`, `routeCode`,
-`operationType`, `trackNumber`, `maximumTrains`, `did`, and ordered `stops`.
+`operationType`, `trackNumber`, `maximumTrains`, `did`, `color` (a six-digit
+hex color such as `#008D40`), and ordered `stops`.
 Supply the actual DID and maximum train count for each normal pattern.
 Crossovers are outside this loader's scope.
 

@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react-native";
-import { describe, expect, it } from "@jest/globals";
+import { fireEvent, render, screen } from "@testing-library/react-native";
+import { describe, expect, it, jest } from "@jest/globals";
 import { Circle, Line, Path } from "react-native-svg";
 import MapRender from "../../shared/MapRenderer";
 import { getLines } from "../../mockData/data";
@@ -15,6 +15,100 @@ function drawnStations() {
 }
 
 describe("MapRender", () => {
+  it("lets callers select both ordinary and highlighted stations", () => {
+    const onStationPress = jest.fn();
+    render(
+      <MapRender
+        lines={[{ name: "M2", tracks: [1, 2], connections: [["VAN", "FL"]] }]}
+        colors={colors}
+        markedStations={["VAN"]}
+        onStationPress={onStationPress}
+      />,
+    );
+    fireEvent.press(screen.getByLabelText("Vælg station VAN"));
+    fireEvent.press(screen.getByLabelText("Vælg station FL"));
+    expect(onStationPress).toHaveBeenCalledWith("VAN");
+    expect(onStationPress).toHaveBeenCalledWith("FL");
+  });
+  it("marks stops without marking stations passed through", () => {
+    render(
+      <MapRender
+        lines={[
+          {
+            name: "M2",
+            tracks: [1],
+            connections: [
+              ["A", "B"],
+              ["B", "C"],
+            ],
+          },
+        ]}
+        colors={colors}
+        positions={{ A: [0, 0], B: [50, 0], C: [100, 0] }}
+        crossovers={[]}
+        stopStations={["A", "C"]}
+        markedStations={["A"]}
+      />,
+    );
+    const markers = screen
+      .UNSAFE_queryAllByType(Circle)
+      .filter((dot) => dot.props.r === 3);
+    expect(markers.map((dot) => dot.props.cx)).toEqual(
+      expect.arrayContaining([0, 100]),
+    );
+    expect(markers).toHaveLength(2);
+  });
+
+  it("draws shared crossovers on visible segments and accepts colour overrides", () => {
+    const lines = [
+      {
+        name: "M2",
+        tracks: [1, 2],
+        connections: [["VAN", "FL"]] as [string, string][],
+      },
+    ];
+    const view = render(<MapRender lines={lines} colors={colors} />);
+    expect(screen.getByTestId("crossover-VAN-FL")).toBeTruthy();
+    expect(screen.queryByTestId("crossover-KN-KGN")).toBeNull();
+    view.rerender(<MapRender lines={lines} colors={colors} crossovers={[]} />);
+    expect(screen.queryByTestId("crossover-VAN-FL")).toBeNull();
+    view.rerender(
+      <MapRender
+        lines={lines}
+        colors={colors}
+        crossovers={[
+          { stationA: "VAN", stationB: "FL", color: "#f00" },
+          { stationA: "KN", stationB: "KGN", color: "#f00" },
+        ]}
+      />,
+    );
+    expect(screen.getByTestId("crossover-VAN-FL")).toBeTruthy();
+    expect(screen.queryByTestId("crossover-KN-KGN")).toBeNull();
+    const crossoverLines = screen
+      .UNSAFE_queryAllByType(Line)
+      .filter((line) => line.props.stroke === "#f00");
+    expect(crossoverLines).toHaveLength(2);
+    expect(crossoverLines.every((line) => !line.props.strokeDasharray)).toBe(
+      true,
+    );
+  });
+
+  it("connects a curved ring crossover to both curved tracks", () => {
+    const line = getLines().find((candidate) => candidate.name === "M3")!;
+    render(
+      <MapRender
+        lines={[{ ...line, tracks: [1, 2] }]}
+        colors={{ M3: "#00f" }}
+        crossovers={[{ stationA: "NØ", stationB: "NØR", color: "#f00" }]}
+      />,
+    );
+    const crossoverLines = screen
+      .UNSAFE_queryAllByType(Line)
+      .filter((item) => item.props.stroke === "#f00");
+    expect(crossoverLines).toHaveLength(2);
+    expect(crossoverLines[0].props.x1).not.toBe(crossoverLines[1].props.x1);
+    expect(crossoverLines[0].props.y1).not.toBe(crossoverLines[1].props.y1);
+  });
   it.each(["M1", "M2"])(
     "shows Nørreport between Forum and Kongens Nytorv on %s",
     (name) => {
@@ -34,6 +128,28 @@ describe("MapRender", () => {
       expect(drawnStations()).toContainEqual([565, 343]);
     },
   );
+
+  it("renders a route over a station-only network line", () => {
+    render(
+      <MapRender
+        lines={[
+          { name: "M1", tracks: [], connections: [["VAN", "FL"]] },
+          { name: "preview", tracks: [1], connections: [["VAN", "FL"]] },
+        ]}
+        colors={{ preview: "#e6140f" }}
+        positions={{ VAN: [0, 0], FL: [50, 0] }}
+        ringStations={[]}
+        availableSegments={[
+          { trackNumber: 1, stationA: "VAN", stationB: "FL" },
+        ]}
+        crossovers={[]}
+      />,
+    );
+    const route = screen
+      .UNSAFE_queryAllByType(Line)
+      .filter((line) => line.props.stroke === "#e6140f");
+    expect(route.length).toBeGreaterThan(0);
+  });
 
   it("draws a circular ring with arcs between unevenly spaced stations", () => {
     const stations = ["A", "B", "C", "D"];
@@ -59,6 +175,48 @@ describe("MapRender", () => {
     const paths = screen.UNSAFE_queryAllByType(Path);
     expect(paths.length).toBeGreaterThan(0);
     expect(paths.every((path) => / A /.test(path.props.d))).toBe(true);
+  });
+
+  it("removes old tracks after a route with repeated segments changes", () => {
+    const positions = {
+      A: [0, 20] as [number, number],
+      B: [100, 20] as [number, number],
+      C: [200, 20] as [number, number],
+    };
+    const view = render(
+      <MapRender
+        lines={[
+          {
+            name: "preview",
+            tracks: [1],
+            connections: [
+              ["A", "B"],
+              ["B", "A"],
+              ["B", "C"],
+            ],
+          },
+        ]}
+        colors={{ preview: "red" }}
+        positions={positions}
+        ringStations={[]}
+        crossovers={[]}
+      />,
+    );
+    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(4);
+    view.rerender(
+      <MapRender
+        lines={[{ name: "preview", tracks: [1], connections: [["B", "C"]] }]}
+        colors={{ preview: "red" }}
+        positions={positions}
+        ringStations={[]}
+        crossovers={[]}
+      />,
+    );
+    const lines = screen.UNSAFE_queryAllByType(Line);
+    expect(lines).toHaveLength(2);
+    expect(
+      lines.every((line) => line.props.x1 === 100 && line.props.x2 === 200),
+    ).toBe(true);
   });
 
   it("uses supplied network positions and only draws available tracks", () => {
@@ -159,6 +317,27 @@ describe("MapRender", () => {
     );
 
     expect(drawnStations()).toHaveLength(2);
+  });
+
+  it("uses view-specific station positions without changing the default layout", () => {
+    const lines = [
+      {
+        name: "M2",
+        tracks: [1, 2],
+        connections: [["KN", "KGN"]] as [string, string][],
+      },
+    ];
+    const view = render(<MapRender lines={lines} colors={colors} />);
+    expect(drawnStations()).toContainEqual([648, 347]);
+    view.rerender(
+      <MapRender
+        lines={lines}
+        colors={colors}
+        stationPositions={{ KGN: [648, 343] }}
+      />,
+    );
+    expect(drawnStations()).toContainEqual([648, 343]);
+    expect(drawnStations()).toContainEqual([565, 343]);
   });
 
   it("skips a station the map has no position for and draws the rest", () => {

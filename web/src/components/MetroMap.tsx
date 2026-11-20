@@ -68,11 +68,21 @@ function scenarioLines(
           : [];
         if (stopList.length < 2 || stops.length !== pattern.route.length - 1) {
           missingRoutes = true;
-          return { name: pattern.did, tracks, connections: [] };
+          return {
+            name: pattern.did,
+            color: pattern.color,
+            tracks,
+            connections: [],
+          };
         }
         const result = resolveStops(stopList, groupLines, segments, tracks);
         if (result.incomplete) missingRoutes = true;
-        return { name: pattern.did, tracks, connections: result.connections };
+        return {
+          name: pattern.did,
+          color: pattern.color,
+          tracks,
+          connections: result.connections,
+        };
       }) ?? [];
   return { lines: routes, missingRoutes: missingRoutes || routes.length === 0 };
 }
@@ -263,7 +273,7 @@ export function MetroMap({
             runningLines.map((route, index) => [
               route.name,
               colourBy === "did"
-                ? DIDLineColors[index % DIDLineColors.length]
+                ? (route.color ?? DIDLineColors[index % DIDLineColors.length])
                 : routeColor(route, groupNetwork),
             ]),
           ),

@@ -16,7 +16,7 @@ import type { Network } from "../../shared/types/v1/network.js";
 
 const network: Network = {
   stations: [
-    { code: "A", name: "A", x: 10, y: 20 },
+    { code: "A", name: "Station Alpha", x: 10, y: 20 },
     { code: "B", name: "B", x: 30, y: 40 },
   ],
   segments: [{ id: 1, trackNumber: 1, stationA: "A", stationB: "B" }],
@@ -47,6 +47,7 @@ test("network map uses stored positions and connected normal stops", () => {
   assert.equal(isNetwork(network), true);
   const map = buildMapNetwork(network);
   assert.deepEqual(map.positions.A, [10, 20]);
+  assert.equal(map.stationNames?.A, "Station Alpha");
   assert.deepEqual(map.lines[0].connections, [["A", "B"]]);
   assert.equal(map.incomplete, false);
 });
