@@ -313,6 +313,9 @@ export const motion = {
   axisDistance: 16,
   axisOutMs: 100,
   axisInMs: 220,
+  // How long the note about a new message from the control room stays at the
+  // top of the steward's screen, unless it is tapped first (MET-A-029, #336).
+  messageNoticeMs: 6000,
 };
 
 // A required station on the map by its live coverage (MET-A-011, #310): the

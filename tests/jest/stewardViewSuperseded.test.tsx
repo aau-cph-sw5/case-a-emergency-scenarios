@@ -48,7 +48,13 @@ jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
 }));
 jest.mock("../../mobile/src/offline/station-message-store", () => ({
   stationMessageDelivery: { flush: jest.fn() },
-  stationMessageQueueStore: { discardEndedRejections: jest.fn() },
+  stationMessageQueueStore: {
+    discardEndedRejections: jest.fn(),
+    getPending: jest.fn(async () => []),
+    getRejected: jest.fn(async () => []),
+  },
+  onStationMessagesChanged: () => () => undefined,
+  notifyStationMessagesChanged: jest.fn(),
 }));
 jest.mock("../../mobile/src/offline/queue-position-report", () => ({
   queuePositionReport: jest.fn(),
