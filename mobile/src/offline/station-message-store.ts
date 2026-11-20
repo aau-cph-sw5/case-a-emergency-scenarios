@@ -11,7 +11,7 @@ export const stationMessageQueueStore =
   createStationMessageQueueStore(AsyncStorage);
 
 // Told when the queue may have changed: a message was added, or a send went
-// out (from the chat or from the reconnect in StewardView). result is what
+// out (from the chat or from the retry loop in StewardView). result is what
 // the send did, null when only a message was added or the send failed.
 type QueueListener = (result: MessageFlushResult | null) => void;
 const listeners = new Set<QueueListener>();

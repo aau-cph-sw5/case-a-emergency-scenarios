@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import type { StationMessageEvent } from "../../../shared/socket/events";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
+import type { StationThread } from "../../../shared/types/v1/station-thread";
 import { colors, spacing, steward } from "../../../shared/Theme";
 import { ChatClosedNotice, ChatHeader } from "../components/ChatHeader";
 import { ChatTab } from "../components/ChatTab";
@@ -20,8 +21,9 @@ import { MessageNotice } from "../components/MessageNotice";
 import {
   closesThread,
   isSendableText,
-  stationThread,
+  readStationThread,
   threadErrorMessage,
+  type ThreadResult,
 } from "../data/station-thread";
 import { userIdFromToken } from "../../../shared/auth/login";
 import {
@@ -48,10 +50,6 @@ type OwnMessage = {
   writtenAt: string;
   failed: string | null;
 };
-
-// How long a message waiting on the phone waits before the chat tries to
-// send it again (MET-A-029, #336).
-export const PENDING_RETRY_MS = 15_000;
 
 // The thread's messages with a new one added, each once, in the order the
 // server received them (by id).
@@ -196,7 +194,7 @@ export function StationChat({
   // Shows the thread read from the server: the earlier messages too, also
   // those written before the steward checked in.
   const showRead = useCallback(
-    (result: Awaited<ReturnType<typeof stationThread<{ type: "read" }>>>) => {
+    (result: ThreadResult<StationThread>) => {
       setLoaded(true);
       if (result.ok) {
         setLoadError(null);
@@ -208,7 +206,7 @@ export function StationChat({
   );
   const load = useCallback(() => {
     if (station === undefined || threadKey === undefined) return;
-    void stationThread(token, station, { type: "read" }).then((result) => {
+    void readStationThread(token, station).then((result) => {
       if (currentThreadRef.current === threadKey) showRead(result);
     });
   }, [token, station, threadKey, showRead]);
@@ -298,8 +296,9 @@ export function StationChat({
   }, [userId, station, activationId, threadKey, onClosedByServer]);
 
   // Shows the queue as it is now, and again whenever it changes: a message
-  // written here, or a send from the chat or from the reconnect in
-  // StewardView. A message the server stored joins the thread at once.
+  // written here, or a send from the chat or from the retry loop in
+  // StewardView (MET-A-029, #445). A message the server stored joins the
+  // thread at once.
   useEffect(() => {
     void showOwn().catch(() => undefined);
     return onStationMessagesChanged((result) => {
@@ -312,23 +311,6 @@ export function StationChat({
       void showOwn().catch(() => undefined);
     });
   }, [showOwn, station, activationId]);
-
-  // While a message waits ("Afventer"), the chat tries again by itself: at
-  // once when the socket reaches the server again, and otherwise every
-  // PENDING_RETRY_MS. The reconnect in StewardView only runs when the phone's
-  // own connection comes back, not when only the server was gone.
-  const waiting = own.some((message) => message.failed === null);
-  useEffect(() => {
-    if (!waiting || userId === null) return;
-    const retry = () =>
-      void stationMessageDelivery.flush(userId, token).catch(() => undefined);
-    socket.on("connect", retry);
-    const timer = setTimeout(retry, PENDING_RETRY_MS);
-    return () => {
-      socket.off("connect", retry);
-      clearTimeout(timer);
-    };
-  }, [waiting, own, userId, token]);
 
   // Saves the message on the phone first, then sends it. Without a
   // connection it stays as "Afventer" and goes out when the phone is back
