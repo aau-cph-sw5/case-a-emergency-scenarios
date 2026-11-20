@@ -78,7 +78,7 @@ describe("scenario builder integration", () => {
     (
       globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
-    const lines = getLines();
+    const lines = getLines().map((line) => ({ ...line, tracks: [1, 2] }));
     const names = [
       ...new Set(lines.flatMap((line) => line.connections.flat())),
     ];
