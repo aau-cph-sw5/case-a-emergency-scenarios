@@ -1,5 +1,9 @@
 # Scenario State Contract Changelog
 
+## 8.7.0 - 2026-11-18
+
+Additive. Operating patterns store a required display colour, and scenario responses include it. Clients accept responses from older servers without a colour.
+
 ## 8.6.0 - 2026-11-16
 
 Additive. Admins create and edit user accounts (MET-A-030).
