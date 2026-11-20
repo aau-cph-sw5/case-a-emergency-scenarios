@@ -13,10 +13,16 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ERROR_CODES } from "../../shared/error-codes";
 import type { StationMessage } from "../../shared/types/v1/station-message";
 import { StationChat } from "../../mobile/src/screens/StationChat";
+import { rememberOwnMessage } from "../../mobile/src/offline/own-station-messages";
+import {
+  lastReadMessageId,
+  markStationChatRead,
+} from "../../mobile/src/offline/station-chat-read";
 import { stationMessageDelivery } from "../../mobile/src/offline/station-message-store";
 import { motion } from "../../shared/Theme";
 
@@ -86,12 +92,12 @@ const payload = Buffer.from(JSON.stringify({ userId: 7 })).toString(
 );
 const token = `header.${payload}.signature`;
 
-function renderChat(station: string | undefined) {
+function renderChat(station: string | undefined, activationId = 1) {
   return render(
     <StationChat
       token={token}
       station={station}
-      activationId={1}
+      activationId={activationId}
       closedReason="Du er ikke længere tjekket ind på stationen."
       onClosedByServer={onClosedByServer}
     />,
@@ -100,7 +106,13 @@ function renderChat(station: string | undefined) {
 
 async function openChat() {
   await act(async () => {
-    fireEvent.press(screen.getByLabelText("Åbn chat med kontrolrummet"));
+    fireEvent.press(screen.getByLabelText(/^Åbn chat med kontrolrummet/));
+  });
+}
+
+async function closeChat() {
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText("Luk chatten"));
   });
 }
 
@@ -712,5 +724,342 @@ describe("StationChat (MET-A-029, #335)", () => {
     expect(screen.getByText("Chatten er lukket")).toBeTruthy();
     expect(screen.getByText("Scenariet er afsluttet.")).toBeTruthy();
     expect(onClosedByServer).toHaveBeenCalled();
+  });
+});
+
+describe("StationChat unread across reconnects (MET-A-029, #446)", () => {
+  it("shows a badge at startup for unread control-room messages already in the thread", async () => {
+    fetchMock.mockResolvedValue(
+      answer(
+        200,
+        thread([
+          message(1, "STATION", "Elevatoren er ude af drift."),
+          message(2, "CONTROL_ROOM", "Modtaget."),
+          message(3, "CONTROL_ROOM", "Tekniker er på vej."),
+        ]),
+      ),
+    );
+    renderChat("Station B");
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+      ).toHaveTextContent("2"),
+    );
+    expect(screen.queryByTestId("station-chat")).toBeNull();
+  });
+
+  it("remembers what was read across an app restart and counts only new replies", async () => {
+    const initial = [
+      message(1, "STATION", "Vi er på plads."),
+      message(2, "CONTROL_ROOM", "Modtaget."),
+    ];
+    fetchMock.mockResolvedValue(answer(200, thread(initial)));
+    const first = renderChat("Station B");
+    await openChat();
+    await screen.findByText("Modtaget.");
+    await waitFor(async () =>
+      expect(await lastReadMessageId("7", 1, "Station B")).toBe(2),
+    );
+    await closeChat();
+    first.unmount();
+
+    const readsBeforeSecond = fetchMock.mock.calls.length;
+    const second = renderChat("Station B");
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(readsBeforeSecond),
+    );
+    await act(async () => {});
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+    expect(screen.queryByTestId("message-notice")).toBeNull();
+    second.unmount();
+
+    fetchMock.mockResolvedValue(
+      answer(
+        200,
+        thread([
+          ...initial,
+          message(3, "CONTROL_ROOM", "Afløsning kommer kl. 09:00."),
+        ]),
+      ),
+    );
+    renderChat("Station B");
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+      ).toHaveTextContent("1"),
+    );
+    expect(screen.getByTestId("message-notice")).toBeTruthy();
+    expect(screen.getByText("Afløsning kommer kl. 09:00.")).toBeTruthy();
+  });
+
+  it("updates the badge and note when a reply is found after socket reconnect", async () => {
+    fetchMock.mockResolvedValueOnce(answer(200, thread([])));
+    renderChat("Station B");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+
+    fetchMock.mockResolvedValueOnce(
+      answer(200, thread([message(4, "CONTROL_ROOM", "Bliv på stationen.")])),
+    );
+    await act(async () => {
+      emit("connect", undefined);
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+      ).toHaveTextContent("1"),
+    );
+    expect(screen.getByTestId("message-notice")).toBeTruthy();
+    expect(screen.getByText("Bliv på stationen.")).toBeTruthy();
+  });
+
+  it("updates the badge and note when a reply is found on app foregrounding", async () => {
+    const appStateListeners: Array<(state: string) => void> = [];
+    const originalImpl = jest.isMockFunction(AppState.addEventListener)
+      ? AppState.addEventListener.getMockImplementation()
+      : undefined;
+    const spy = jest
+      .spyOn(AppState, "addEventListener")
+      .mockImplementation((type, listener) => {
+        if (type === "change") {
+          appStateListeners.push(listener as (state: string) => void);
+        }
+        return { remove: jest.fn() };
+      });
+    try {
+      fetchMock.mockResolvedValueOnce(answer(200, thread([])));
+      renderChat("Station B");
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      await act(async () => {});
+
+      fetchMock.mockResolvedValueOnce(
+        answer(
+          200,
+          thread([message(6, "CONTROL_ROOM", "Vi åbner udgang nord.")]),
+        ),
+      );
+      await act(async () => {
+        for (const listener of appStateListeners) listener("active");
+      });
+
+      await waitFor(() =>
+        expect(
+          screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+        ).toHaveTextContent("1"),
+      );
+      expect(screen.getByTestId("message-notice")).toBeTruthy();
+      expect(screen.getByText("Vi åbner udgang nord.")).toBeTruthy();
+    } finally {
+      spy.mockRestore();
+      if (originalImpl && jest.isMockFunction(AppState.addEventListener)) {
+        AppState.addEventListener.mockImplementation(originalImpl);
+      }
+    }
+  });
+
+  it("does not double-count a reply seen live and again on reconnect", async () => {
+    fetchMock.mockResolvedValueOnce(answer(200, thread([])));
+    renderChat("Station B");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+
+    const reply = message(5, "CONTROL_ROOM", "Vi sender en kollega.");
+    await act(async () => {
+      emit("station-message", { message: reply, thread: {}, sentAt: "" });
+    });
+    expect(
+      screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toHaveTextContent("1");
+
+    fetchMock.mockResolvedValueOnce(answer(200, thread([reply])));
+    await act(async () => {
+      emit("connect", undefined);
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await act(async () => {});
+
+    expect(
+      screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toHaveTextContent("1");
+  });
+
+  it("ignores own and colleague station messages found on reconnect", async () => {
+    await rememberOwnMessage("7", 1, "Station B", "own-client-1");
+    fetchMock.mockResolvedValueOnce(answer(200, thread([])));
+    renderChat("Station B");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+
+    fetchMock.mockResolvedValueOnce(
+      answer(
+        200,
+        thread([
+          {
+            ...message(7, "STATION", "Fra mig."),
+            clientMessageId: "own-client-1",
+          },
+          message(8, "STATION", "Fra en kollega."),
+        ]),
+      ),
+    );
+    await act(async () => {
+      emit("connect", undefined);
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await act(async () => {});
+
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+    expect(screen.queryByTestId("message-notice")).toBeNull();
+  });
+
+  it("clears the badge and stores the newest id when opened", async () => {
+    const messages = [
+      message(1, "CONTROL_ROOM", "Første svar."),
+      message(4, "CONTROL_ROOM", "Andet svar."),
+    ];
+    fetchMock.mockResolvedValue(answer(200, thread(messages)));
+    const first = renderChat("Station B");
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+      ).toHaveTextContent("2"),
+    );
+
+    await openChat();
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+    await waitFor(async () =>
+      expect(await lastReadMessageId("7", 1, "Station B")).toBe(4),
+    );
+    first.unmount();
+
+    const readsBeforeRemount = fetchMock.mock.calls.length;
+    renderChat("Station B");
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(readsBeforeRemount),
+    );
+    await act(async () => {});
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+  });
+
+  it("marks messages arriving while open as read before the chat closes", async () => {
+    fetchMock.mockResolvedValue(answer(200, thread([])));
+    renderChat("Station B");
+    await openChat();
+    await screen.findByText(/Ingen beskeder endnu/);
+
+    await act(async () => {
+      emit("station-message", {
+        message: message(9, "CONTROL_ROOM", "Vi er på vej."),
+        thread: {},
+        sentAt: "",
+      });
+    });
+    await waitFor(async () =>
+      expect(await lastReadMessageId("7", 1, "Station B")).toBe(9),
+    );
+
+    await closeChat();
+
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+    expect(screen.queryByTestId("message-notice")).toBeNull();
+  });
+
+  it("does not reuse a read marker from another station or activation", async () => {
+    await markStationChatRead("7", 1, "Station B", 10);
+    fetchMock.mockResolvedValue(
+      answer(200, {
+        ...thread([
+          {
+            ...message(3, "CONTROL_ROOM", "Til station C."),
+            station: "Station C",
+          },
+        ]),
+        station: "Station C",
+      }),
+    );
+    const view = renderChat("Station C", 1);
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+      ).toHaveTextContent("1"),
+    );
+
+    fetchMock.mockResolvedValue(
+      answer(200, {
+        ...thread([
+          {
+            ...message(2, "CONTROL_ROOM", "Nyt scenarie."),
+            activationId: 2,
+          },
+        ]),
+        activationId: 2,
+      }),
+    );
+    view.rerender(
+      <StationChat
+        token={token}
+        station="Station B"
+        activationId={2}
+        closedReason="Du er ikke længere tjekket ind på stationen."
+        onClosedByServer={onClosedByServer}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+      ).toHaveTextContent("1"),
+    );
+  });
+
+  it("does not show the note again when a dismissed unread message is read on reconnect", async () => {
+    jest.useFakeTimers();
+    try {
+      const reply = message(5, "CONTROL_ROOM", "Vi sender hjælp.");
+      fetchMock.mockResolvedValue(answer(200, thread([reply])));
+      renderChat("Station B");
+
+      await waitFor(() =>
+        expect(screen.getByTestId("message-notice")).toBeTruthy(),
+      );
+      await act(async () => {
+        jest.advanceTimersByTime(motion.messageNoticeMs);
+      });
+      expect(screen.queryByTestId("message-notice")).toBeNull();
+      expect(
+        screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+      ).toHaveTextContent("1");
+
+      await act(async () => {
+        emit("connect", undefined);
+      });
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      await act(async () => {});
+
+      expect(screen.queryByTestId("message-notice")).toBeNull();
+      expect(
+        screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+      ).toHaveTextContent("1");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
