@@ -130,6 +130,33 @@ export function useScenarioBuilder(token: string) {
   const nextIdRef = useRef(
     Math.max(-1, ...(initialDraft?.routes ?? []).map((route) => route.id)) + 1,
   );
+  const currentUrlRef = useRef(window.location.href);
+  const hasUnsavedChanges =
+    view !== "home" &&
+    view !== "complete" &&
+    Boolean(
+      scenarioId.trim() ||
+      scenarioName.trim() ||
+      routes.length ||
+      staffing.length ||
+      selectedStops.length ||
+      from ||
+      to ||
+      did.trim() ||
+      maximumTrains.trim() ||
+      manualType !== null ||
+      track !== 1 ||
+      lineColor !== routeColors[0] ||
+      pathIndex !== 0,
+    );
+  const confirmDiscard = useCallback(
+    () =>
+      !hasUnsavedChanges ||
+      window.confirm(
+        "Vil du forlade scenariet? Dine ændringer bliver slettet.",
+      ),
+    [hasUnsavedChanges],
+  );
   useEffect(() => {
     if (view !== "editor" && view !== "staffing") return;
     writeScenarioDraft(token, {
@@ -199,7 +226,16 @@ export function useScenarioBuilder(token: string) {
   useEffect(() => {
     const onPopState = () => {
       const location = readAdminLocation();
-      if (location.view === "home") discardDraft();
+      const leavingDraft =
+        location.view === "home" ||
+        (location.view === "group" &&
+          (view === "editor" || view === "staffing"));
+      if (leavingDraft && !confirmDiscard()) {
+        window.history.pushState(null, "", currentUrlRef.current);
+        return;
+      }
+      currentUrlRef.current = window.location.href;
+      if (leavingDraft) discardDraft();
       if (location.lineGroup && location.lineGroup !== lineGroup) {
         setLineGroup(location.lineGroup);
         setRoutes([]);
@@ -214,7 +250,7 @@ export function useScenarioBuilder(token: string) {
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [lineGroup, discardDraft]);
+  }, [lineGroup, discardDraft, confirmDiscard, view]);
   const lines = network?.lines ?? [];
   const baseLines = groupLines(lineGroup, lines);
   const stationPositions = network?.positions ?? {};
@@ -378,7 +414,13 @@ export function useScenarioBuilder(token: string) {
 
   function navigate(nextView: AdminView, group?: LineGroup, editing = false) {
     const url = new URL(window.location.href);
-    if (nextView === "home") discardDraft();
+    const leavingDraft =
+      nextView === "home" ||
+      (nextView === "group" && (view === "editor" || view === "staffing"));
+    if (leavingDraft) {
+      if (!confirmDiscard()) return;
+      discardDraft();
+    }
     url.pathname =
       nextView === "home"
         ? "/admin"
@@ -390,6 +432,7 @@ export function useScenarioBuilder(token: string) {
     if (nextView === "editor" && editing) url.searchParams.set("line", "new");
     else url.searchParams.delete("line");
     window.history.pushState(null, "", url);
+    currentUrlRef.current = url.href;
     setView(nextView);
     setEditingLine(editing);
   }
@@ -673,6 +716,7 @@ export function useScenarioBuilder(token: string) {
     mapStops,
     turnbacks,
     discardDraft,
+    confirmDiscard,
     navigate,
     selectGroup,
     resetLineDraft,

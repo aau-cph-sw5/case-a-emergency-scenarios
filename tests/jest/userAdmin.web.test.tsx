@@ -12,6 +12,14 @@ import { AdminDashboard } from "../../web/src/AdminDashboard";
 import type { User } from "../../shared/types/v1/user";
 
 jest.mock("../../web/src/components/UserAdmin.css", () => ({}));
+jest.mock("../../web/src/ScenarioBuilder", () => ({
+  ScenarioBuilder: ({ onUsers }: { onUsers: () => void }) => (
+    <main>
+      <h1>Admin</h1>
+      <button onClick={onUsers}>Brugere</button>
+    </main>
+  ),
+}));
 
 // The admin is user 1; the token only needs its claims for the page.
 const token = `header.${btoa(JSON.stringify({ userId: 1, role: "ADMIN" }))}.signature`;
