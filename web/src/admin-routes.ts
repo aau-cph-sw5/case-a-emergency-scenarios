@@ -1,5 +1,9 @@
 import { getCrossovers, type Crossover } from "../../mockData/data";
-import { connectionKey, type MapNetwork } from "../../shared/network/network";
+import {
+  connectionKey,
+  edgeAllowed,
+  type MapNetwork,
+} from "../../shared/network/network";
 
 export type LineGroup = "M1/M2" | "M3/M4";
 export function groupCrossovers(group: LineGroup) {
@@ -80,23 +84,10 @@ export function routesBetween(
 ): string[][] {
   if (!from || !to || from === to) return [];
   const neighbours = new Map<string, Set<string>>();
-  for (const { connections } of groupLines(group, lines)) {
-    for (const [a, b] of connections) {
-      const tracks =
-        trackNumber === 12 ? [1, 2] : trackNumber ? [trackNumber] : [];
-      if (
-        segments &&
-        tracks.some(
-          (track) =>
-            !segments.some(
-              (segment) =>
-                segment.trackNumber === track &&
-                ((segment.stationA === a && segment.stationB === b) ||
-                  (segment.stationA === b && segment.stationB === a)),
-            ),
-        )
-      )
-        continue;
+  const tracks = trackNumber === 12 ? [1, 2] : trackNumber ? [trackNumber] : [];
+  for (const line of groupLines(group, lines)) {
+    for (const [a, b] of line.connections) {
+      if (!edgeAllowed(line, segments, tracks, a, b)) continue;
       if (!neighbours.has(a)) neighbours.set(a, new Set());
       if (!neighbours.has(b)) neighbours.set(b, new Set());
       neighbours.get(a)!.add(b);

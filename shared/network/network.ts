@@ -163,6 +163,28 @@ export function buildMapNetwork(network: Network): MapNetwork {
   };
 }
 
+export function edgeAllowed(
+  line: MapNetwork["lines"][number],
+  segments: MapNetwork["segments"] | undefined,
+  tracks: number[],
+  a: string,
+  b: string,
+): boolean {
+  const lineTracks =
+    line.connectionTracks?.[connectionKey(a, b)] ?? line.tracks;
+  return tracks.every(
+    (track) =>
+      lineTracks.includes(track) &&
+      (!segments ||
+        segments.some(
+          (segment) =>
+            segment.trackNumber === track &&
+            ((segment.stationA === a && segment.stationB === b) ||
+              (segment.stationA === b && segment.stationB === a)),
+        )),
+  );
+}
+
 // Resolve stops through normal-line edges.
 export function resolveStops(
   stops: string[],
@@ -173,21 +195,7 @@ export function resolveStops(
   const edges: Pair[] = [];
   for (const line of lines) {
     for (const [a, b] of line.connections) {
-      const lineTracks =
-        line.connectionTracks?.[connectionKey(a, b)] ?? line.tracks;
-      if (
-        !tracks.every(
-          (track) =>
-            lineTracks.includes(track) &&
-            segments.some(
-              (segment) =>
-                segment.trackNumber === track &&
-                ((segment.stationA === a && segment.stationB === b) ||
-                  (segment.stationA === b && segment.stationB === a)),
-            ),
-        )
-      )
-        continue;
+      if (!edgeAllowed(line, segments, tracks, a, b)) continue;
       if (!edges.some(([x, y]) => (x === a && y === b) || (x === b && y === a)))
         edges.push([a, b]);
     }

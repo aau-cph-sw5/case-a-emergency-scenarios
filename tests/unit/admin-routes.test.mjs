@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getLines } from "../../mockData/data.tsx";
+import { resolveStops } from "../../shared/network/network.ts";
 
 const lines = getLines();
 import {
@@ -71,6 +72,51 @@ test("route options require the selected tracks on every segment", () => {
   assert.deepEqual(
     routesBetween("M1/M2", "A", "C", supplied, segments, 12),
     [],
+  );
+});
+
+test("routes require the requested tracks on the same normal-line edge", () => {
+  const supplied = [
+    {
+      name: "M1",
+      tracks: [1, 2],
+      connections: [["A", "B"]],
+      connectionTracks: { '["A","B"]': [1] },
+    },
+  ];
+  const segments = [
+    { id: 1, trackNumber: 1, stationA: "A", stationB: "B" },
+    { id: 2, trackNumber: 2, stationA: "B", stationB: "A" },
+  ];
+  assert.deepEqual(routesBetween("M1/M2", "A", "B", supplied, segments, 1), [
+    ["A", "B"],
+  ]);
+  assert.deepEqual(routesBetween("M1/M2", "A", "B", supplied, segments, 2), []);
+  assert.deepEqual(
+    routesBetween("M1/M2", "A", "B", supplied, segments, 12),
+    [],
+  );
+  assert.equal(
+    resolveStops(["A", "B"], supplied, segments, [1]).incomplete,
+    false,
+  );
+  assert.equal(
+    resolveStops(["A", "B"], supplied, segments, [2]).incomplete,
+    true,
+  );
+  supplied.push({
+    name: "M2",
+    tracks: [2],
+    connections: [["A", "B"]],
+    connectionTracks: { '["A","B"]': [2] },
+  });
+  assert.deepEqual(
+    routesBetween("M1/M2", "A", "B", supplied, segments, 12),
+    [],
+  );
+  assert.equal(
+    resolveStops(["A", "B"], supplied, segments, [1, 2]).incomplete,
+    true,
   );
 });
 

@@ -81,6 +81,36 @@ describe("StationSelect", () => {
     expect(onChange).toHaveBeenCalledWith("LIT");
     expect(trigger().getAttribute("aria-expanded")).toBe("false");
   });
+  it("keeps search focus while clicking an option or closing the menu", async () => {
+    await show();
+    await act(async () => trigger().click());
+    const input = search();
+    expect(document.activeElement).toBe(input);
+    const option = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Vælg FL"]',
+    )!;
+    const down = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      option.dispatchEvent(down);
+      option.click();
+    });
+    expect(down.defaultPrevented).toBe(true);
+    expect(onChange).toHaveBeenCalledWith("FL");
+    await act(async () => trigger().click());
+    const triggerDown = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      trigger().dispatchEvent(triggerDown);
+      trigger().click();
+    });
+    expect(triggerDown.defaultPrevented).toBe(true);
+    expect(trigger().getAttribute("aria-expanded")).toBe("false");
+  });
   it("supports keyboard selection, empty results and closing", async () => {
     await show("VAN");
     expect(trigger().getAttribute("title")).toBe("Vanløse");

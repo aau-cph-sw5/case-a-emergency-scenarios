@@ -58,6 +58,9 @@ export function StationSelect({
         title={value ? stationNames?.[value] : undefined}
         aria-expanded={open}
         aria-controls={listId}
+        onMouseDown={(event) => {
+          if (open) event.preventDefault();
+        }}
         onClick={() => (open ? close() : setOpen(true))}
       >
         <span
@@ -100,6 +103,7 @@ export function StationSelect({
                   aria-label={`Vælg ${station}`}
                   title={stationNames?.[station] || station}
                   aria-pressed={station === value}
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => select(station)}
                 >
                   <span className="admin-station-dot" aria-hidden="true" />
