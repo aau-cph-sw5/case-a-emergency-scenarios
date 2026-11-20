@@ -43,6 +43,7 @@ interface Pattern {
   trackNumber: number;
   maximumTrains: number;
   did: string;
+  color: string;
   description?: string;
   route: Route[];
 }
@@ -155,6 +156,12 @@ export function validate(
         errors.push(
           `${where}.trackNumber "${pattern.trackNumber}" is not 1, 2 or 12.`,
         );
+      }
+      if (
+        typeof pattern.color !== "string" ||
+        !/^#[0-9A-Fa-f]{6}$/.test(pattern.color)
+      ) {
+        errors.push(`${where}.color must be a six-digit hexadecimal colour.`);
       }
       if (pattern.maximumTrains < 0) {
         errors.push(
@@ -460,7 +467,7 @@ async function loadScenario(
     for (const pattern of version.operatingPlan.patterns) {
       const patternResult = await client.query(
         `INSERT INTO operating_patterns (scenario_version_id, operation_type, route_code, track_number,
-                maximum_trains, did, description)VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+                maximum_trains, did, description, color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
         [
           versionId,
           pattern.operationType,
@@ -469,6 +476,7 @@ async function loadScenario(
           pattern.maximumTrains,
           pattern.did,
           pattern.description ?? null,
+          pattern.color,
         ],
       );
       const patternId: number = patternResult.rows[0].id;

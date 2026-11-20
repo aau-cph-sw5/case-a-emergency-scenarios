@@ -65,7 +65,7 @@ export async function findScenario(
       // Each pattern with its stops as a list.
       sql`
         SELECT op.operation_type, op.route_code, op.track_number,
-               op.maximum_trains, op.did, op.description,
+               op.maximum_trains, op.did, op.description, op.color,
                (SELECT json_agg(json_build_object('sequence', ls.sequence, 'station', st.code)
                                 ORDER BY ls.sequence)
                 FROM line_stops ls JOIN stations st ON st.id = ls.station_id
@@ -111,11 +111,14 @@ export async function findScenario(
         revision: row.revision,
         operatingPlan: {
           name: row.planName ?? row.name,
-          patterns: patterns.map(({ description, route, ...pattern }) => ({
-            ...pattern,
-            ...(description !== null && { description }),
-            route: route ?? [],
-          })),
+          patterns: patterns.map(
+            ({ description, color, route, ...pattern }) => ({
+              ...pattern,
+              ...(description !== null && { description }),
+              ...(color !== null && { color }),
+              route: route ?? [],
+            }),
+          ),
         },
         stationRequirements: requirements.map(
           ({ activeDuring, actions, ...r }) => ({

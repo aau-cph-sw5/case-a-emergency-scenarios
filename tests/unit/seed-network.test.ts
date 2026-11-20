@@ -23,6 +23,7 @@ function demo(): NetworkSeed {
         trackNumber: 12,
         maximumTrains: 1,
         did: "TEST",
+        color: "#008D40",
         stops: ["A", "B"],
       },
     ],
@@ -59,7 +60,7 @@ test("requires real pattern values and known stations", () => {
   data.normalPatterns[0].stops = ["Station A", "unknown"];
   assert.match(
     validateNetwork(data).join("\n"),
-    /DID and at least two known stops/,
+    /DID, hex color and at least two known stops/,
   );
 });
 
@@ -68,4 +69,12 @@ test("rejects malformed network data before database writes", () => {
   const data = demo();
   data.stations[0].x = Infinity;
   assert.match(validateNetwork(data).join("\n"), /finite x\/y/);
+});
+
+test("requires a six-digit hex color for each normal pattern", () => {
+  for (const color of [undefined, "", "green", "#fff", "#zzzzzz"]) {
+    const data = demo();
+    data.normalPatterns[0].color = color as string;
+    assert.match(validateNetwork(data).join("\n"), /hex color/);
+  }
 });

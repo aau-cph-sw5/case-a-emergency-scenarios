@@ -20,7 +20,8 @@
             "maximumTrains": 1,
             "did": "DEMO",
             "description": "Synthetic pendulum service",
-            "route": []
+            "route": [],
+            "color": "#FF080B"
           }
         ]
       },
