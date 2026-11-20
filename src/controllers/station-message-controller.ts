@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
+import type { Server } from "socket.io";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 import type { StationMessageRequest } from "../../shared/types/v1/station-message-request.js";
+import { emitStationMessage } from "../realtime/station-messages.js";
 import type { AuthUser } from "../services/auth-service.js";
 import {
   createStationMessage,
@@ -59,6 +61,16 @@ export async function postStationMessage(
 
   if (result.kind === "refused") {
     return refuse(response, result.code);
+  }
+
+  // A new message goes live to the operators in its line group and the
+  // stewards checked in at the station (#334). A repeat was sent the first
+  // time, so it is not sent again.
+  if (result.kind === "created") {
+    const io = request.app.locals.io as Server | undefined;
+    if (io) {
+      emitStationMessage(io, result.activation, result.message, result.thread);
+    }
   }
 
   return (
