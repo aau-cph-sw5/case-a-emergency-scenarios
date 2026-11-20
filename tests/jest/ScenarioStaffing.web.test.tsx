@@ -85,6 +85,13 @@ describe("scenario staffing editor", () => {
     await act(async () => root.render(<View />));
     expect(container.textContent).toContain("Ingen stationer valgt endnu");
     expect(button("Gem scenarie").disabled).toBe(true);
+    await inputValue(
+      container.querySelector<HTMLInputElement>(
+        'input[placeholder="Indtast scenarie-ID"]',
+      )!,
+      "TEST",
+    );
+    expect(button("Gem scenarie").disabled).toBe(false);
     await act(async () => button("Kort VAN").click());
     expect(container.querySelector('[data-testid="marked"]')?.textContent).toBe(
       "VAN",
@@ -95,8 +102,14 @@ describe("scenario staffing editor", () => {
     const count = container.querySelector<HTMLInputElement>(
       'input[type="number"]',
     )!;
+    await inputValue(count, "");
+    expect(count.value).toBe("");
+    expect(button("Gem scenarie").disabled).toBe(true);
+    expect(container.textContent).toContain("Angiv antal medarbejdere");
     await inputValue(count, "2");
+    expect(count.value).toBe("2");
     expect(container.textContent).toContain("2 medarbejdere");
+    expect(button("Gem scenarie").disabled).toBe(false);
     await inputValue(
       container.querySelector<HTMLInputElement>(
         'input[placeholder="F.eks. ved rulletrappen"]',
@@ -115,6 +128,16 @@ describe("scenario staffing editor", () => {
       container.querySelector<HTMLInputElement>(".admin-task-row input")?.value,
     ).toBe("Hjælp rejsende");
     await act(async () => button("Tilføj bemandingstid").click());
+    expect(
+      container.querySelector<HTMLInputElement>(
+        'input[aria-label="Fra for bemandingstid 1 på VAN"]',
+      )?.value,
+    ).toBe("12:00");
+    expect(
+      container.querySelector<HTMLInputElement>(
+        'input[aria-label="Til for bemandingstid 1 på VAN"]',
+      )?.value,
+    ).toBe("12:15");
     await act(async () =>
       container
         .querySelector<HTMLButtonElement>(
