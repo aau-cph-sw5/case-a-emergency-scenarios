@@ -65,15 +65,22 @@ function hasWord(text: string, word: string) {
   return wordPattern(word, "iu").test(text);
 }
 
-// Adds the word, or removes it again when it is already in the text.
+// Adds the word, or removes it again when it is already in the text. Removing
+// takes out only the word and the ", " or the spaces next to it, so line
+// breaks and the rest of the operator's text stay as typed.
 function toggleWord(text: string, word: string): string {
   if (hasWord(text, word)) {
-    return text
-      .replace(wordPattern(word, "giu"), "")
-      .split(",")
-      .map((part) => part.replace(/\s+/g, " ").trim())
-      .filter(Boolean)
-      .join(", ");
+    let out = text;
+    for (let m = wordPattern(word, "iu").exec(out); m;) {
+      const head = out.slice(0, m.index);
+      const tail = out.slice(m.index + m[0].length);
+      const comma = /,[ \t]*$/.test(head);
+      out = comma
+        ? head.replace(/,[ \t]*$/, "") + tail
+        : head + tail.replace(/^[ \t]+/, "");
+      m = wordPattern(word, "iu").exec(out);
+    }
+    return out.replace(/[ \t]+$/, "");
   }
   const trimmed = text.trim();
   return trimmed ? `${trimmed}, ${word.toLowerCase()}` : word.toLowerCase();
@@ -111,9 +118,17 @@ export function ScenarioSuggestions({
   const [state, setState] = useState<State>({ status: "idle" });
   const abortRef = useRef<AbortController | null>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const answerRef = useRef<HTMLDivElement>(null);
   const loading = state.status === "loading";
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // The answer can land below the fold, so bring it into view when it arrives.
+  useEffect(() => {
+    if (state.status === "done" || state.status === "error") {
+      answerRef.current?.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [state.status]);
 
   async function submit(event?: FormEvent) {
     event?.preventDefault();
@@ -233,40 +248,42 @@ export function ScenarioSuggestions({
             : ""}
       </p>
 
-      {state.status === "error" && (
-        <Notice
-          tone="error"
-          title="Kunne ikke hente forslag"
-          onGoToList={onGoToList}
-        >
-          {state.message}
-        </Notice>
-      )}
-
-      {candidates.length > 0 && (
-        <SuggestionResults
-          id={`${id}-results`}
-          candidates={candidates}
-          scenarios={scenarios}
-          // Editing clears the suggestions, so the current text is the
-          // description they were made for.
-          description={description}
-          selectedId={selectedId}
-          disabled={disabled}
-          onSelect={onSelect}
-        />
-      )}
-
-      {state.status === "done" &&
-        state.result.status === "NO_CONFIDENT_CANDIDATE" && (
+      <div ref={answerRef} className="suggest-answer">
+        {state.status === "error" && (
           <Notice
-            tone="info"
-            title="Ingen sikre forslag"
+            tone="error"
+            title="Kunne ikke hente forslag"
             onGoToList={onGoToList}
           >
-            Tilføj en station og prøv igen, eller vælg selv i listen nedenfor.
+            {state.message}
           </Notice>
         )}
+
+        {candidates.length > 0 && (
+          <SuggestionResults
+            id={`${id}-results`}
+            candidates={candidates}
+            scenarios={scenarios}
+            // Editing clears the suggestions, so the current text is the
+            // description they were made for.
+            description={description}
+            selectedId={selectedId}
+            disabled={disabled}
+            onSelect={onSelect}
+          />
+        )}
+
+        {state.status === "done" &&
+          state.result.status === "NO_CONFIDENT_CANDIDATE" && (
+            <Notice
+              tone="info"
+              title="Ingen sikre forslag"
+              onGoToList={onGoToList}
+            >
+              Tilføj en station og prøv igen, eller vælg selv i listen nedenfor.
+            </Notice>
+          )}
+      </div>
     </form>
   );
 }
