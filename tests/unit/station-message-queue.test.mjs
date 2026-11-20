@@ -208,3 +208,27 @@ test("leaves another steward's refused messages alone", async () => {
   await queue.discardEndedRejections("steward-1", null);
   assert.equal((await queue.getRejected("steward-2")).length, 1);
 });
+
+test("clears pending and rejected messages for all stewards, and accepts new ones after (MET-A-029, #445)", async () => {
+  const storage = memoryStorage();
+  const queue = createStationMessageQueueStore(storage);
+  await queue.enqueue(aMessage("pending-1", "steward-1"));
+  await queue.enqueue(aMessage("rejected-1", "steward-1"));
+  await queue.reject("steward-1", "rejected-1", {
+    httpStatus: 409,
+    code: "E1007",
+  });
+  await queue.enqueue(aMessage("pending-2", "steward-2"));
+
+  await queue.clear();
+
+  assert.equal(await storage.getItem(STATION_MESSAGE_QUEUE_KEY), null);
+  assert.deepEqual(await queue.getPending("steward-1"), []);
+  assert.deepEqual(await queue.getRejected("steward-1"), []);
+  assert.deepEqual(await queue.getPending("steward-2"), []);
+
+  await queue.enqueue(aMessage("after-clear", "steward-1"));
+  assert.deepEqual(await queue.getPending("steward-1"), [
+    aMessage("after-clear", "steward-1"),
+  ]);
+});

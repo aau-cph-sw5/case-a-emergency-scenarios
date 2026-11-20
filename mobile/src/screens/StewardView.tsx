@@ -20,14 +20,14 @@ import {
 import type { QueuedPositionReport } from "../../../shared/offline/position-report-queue";
 import type { FlushResult } from "../offline/position-report-delivery";
 import { positionReportDelivery } from "../offline/position-report-delivery-instance";
+import { RETRY_DELAYS_MS } from "../offline/queue-delivery";
 import { queuePositionReport } from "../offline/queue-position-report";
 import { snapshotStore } from "../offline/snapshot-store";
-import {
-  stationMessageDelivery,
-  stationMessageQueueStore,
-} from "../offline/station-message-store";
+import { stationMessageQueueStore } from "../offline/station-message-store";
+import { useStationMessageRetry } from "../offline/useStationMessageRetry";
 import { reportRejection, waitingReport } from "../offline/waiting-report";
 import { socket } from "../socket";
+import { useAppActive } from "../useAppActive";
 import { liveNotices, NoticeStack, stoodDownNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { withOwnStatus } from "./own-assignment";
@@ -53,9 +53,6 @@ const CHAT_CLOSED_STOOD_DOWN = "Scenariet er afsluttet.";
 const CHAT_CLOSED_CHECKED_OUT = "Du er ikke længere tjekket ind på stationen.";
 const chatClosedSwitched = (name: string) =>
   `Scenariet er skiftet til “${name}”.`;
-
-// Waits before each new try after a send failed while live
-export const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
 
 // Tells the steward which queued reports were rejected because the scenario changed.
 export function supersededMessage(
@@ -192,6 +189,13 @@ export function StewardView({
     };
   }, [token, activationId, userId, deployments]);
 
+  const appActive = useAppActive();
+  useStationMessageRetry({
+    token,
+    enabled: online && appActive,
+    onUnauthorized,
+  });
+
   // Sends the queued reports and says what went wrong, null when nothing did.
   // A report that went through says nothing (#376): the status box already
   // shows the new status, so "Position sendt." was noise. delivered tells
@@ -205,13 +209,6 @@ export function StewardView({
     const owner = userIdFromToken(token);
     if (owner === null)
       return { message: null, blocked: false, delivered: false };
-    // Station messages written offline go out at the same time (MET-A-029).
-    // The chat shows how each one went; here a stopped send only makes the
-    // retry below try again.
-    const messagesBlocked = stationMessageDelivery.flush(owner, token).then(
-      (result) => result.blocked,
-      () => true,
-    );
     try {
       const result = await positionReportDelivery.flush(owner, token);
       const refused =
@@ -225,7 +222,7 @@ export function StewardView({
       );
       return {
         message: lines.length > 0 ? lines.join("\n") : null,
-        blocked: result.blockedBy !== undefined || (await messagesBlocked),
+        blocked: result.blockedBy !== undefined,
         delivered: result.acknowledged > 0,
       };
     } catch {
@@ -260,6 +257,7 @@ export function StewardView({
   // Also sends after a stop while offline, so the steward learns why reports were rejected.
   const canSend =
     online &&
+    appActive &&
     (view.status === "live" ||
       view.status === "stood-down" ||
       view.status === "none");
