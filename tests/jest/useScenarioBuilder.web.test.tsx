@@ -41,7 +41,7 @@ describe("scenario editor state", () => {
     (
       globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
-    const lines = getLines();
+    const lines = getLines().map((line) => ({ ...line, tracks: [1, 2] }));
     const stationCodes = [
       ...new Set(lines.flatMap((line) => line.connections.flat())),
     ];
