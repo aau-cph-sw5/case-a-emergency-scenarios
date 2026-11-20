@@ -271,8 +271,24 @@ describe("scenario builder integration", () => {
     await act(async () => button("Tilføj linje").click());
     await act(async () => button("Fjern").click());
     expect(container.textContent).toContain("Ingen linjer oprettet endnu");
+    const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
     await act(async () => button("Vælg linjegruppe").click());
-    await act(async () => button("Tilbage").click());
+    expect(container.textContent).toContain("Linjegruppe: M1/M2");
+    expect(
+      [...container.querySelectorAll("label")]
+        .find((label) => label.textContent?.includes("Scenarienavn"))
+        ?.querySelector("input")?.value,
+    ).toBe("Test");
+    confirm.mockReturnValue(true);
+    await act(async () => button("Vælg linjegruppe").click());
+    expect(container.textContent).toContain("Vælg linjegruppe");
+    await act(async () => button("M1 / M2").click());
+    expect(
+      [...container.querySelectorAll("label")]
+        .find((label) => label.textContent?.includes("Scenarienavn"))
+        ?.querySelector("input")?.value,
+    ).toBe("");
+    confirm.mockRestore();
   });
   it("closes the M3 ring from the map controls", async () => {
     await act(async () =>
@@ -304,6 +320,24 @@ describe("scenario builder integration", () => {
     expect(container.textContent).toContain("Brugeradministration");
     await act(async () => button("Tilbage").click());
     expect(container.textContent).toContain("Opret scenarie");
+  });
+  it("asks before signing out with an unfinished scenario", async () => {
+    const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
+    await act(async () =>
+      root.render(
+        <ScenarioBuilder token={token} onUsers={onUsers} onLogout={onLogout} />,
+      ),
+    );
+    await act(async () => button("Opret scenarie").click());
+    await act(async () => button("M1 / M2").click());
+    await input("Scenarienavn", "Udkast");
+    await act(async () => button("Log ud").click());
+    expect(onLogout).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Linjegruppe: M1/M2");
+    confirm.mockReturnValue(true);
+    await act(async () => button("Log ud").click());
+    expect(onLogout).toHaveBeenCalledTimes(1);
+    confirm.mockRestore();
   });
   it("keeps access to user management and sign out", async () => {
     await act(async () =>

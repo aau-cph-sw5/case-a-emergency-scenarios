@@ -74,6 +74,7 @@ export function ScenarioBuilder({
   } = builder;
   const {
     discardDraft,
+    confirmDiscard,
     navigate,
     selectGroup,
     resetLineDraft,
@@ -99,6 +100,7 @@ export function ScenarioBuilder({
           <button
             className="admin-logout"
             onClick={() => {
+              if (!confirmDiscard()) return;
               discardDraft();
               setView("home");
               onLogout();
