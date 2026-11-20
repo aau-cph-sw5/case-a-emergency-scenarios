@@ -10,7 +10,7 @@ import { colors, DIDLineColors, lineColors } from "../../shared/Theme";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
-import { MetroMap } from "../../web/src/components/MetroMap";
+import { closedStretchLine, MetroMap } from "../../web/src/components/MetroMap";
 import { LiveDataContext } from "../../web/src/data/liveData";
 import { useNetwork } from "../../web/src/data/useNetwork";
 import { getLines, getStation } from "../../mockData/data";
@@ -187,8 +187,8 @@ describe("MetroMap", () => {
       ...screen.UNSAFE_queryAllByType(Line),
       ...screen.UNSAFE_queryAllByType(Path),
     ].map((segment) => segment.props.stroke);
-    expect(strokes).toContain(DIDLineColors[0]);
-    expect(strokes).toContain(DIDLineColors[1]);
+    expect(strokes).toContain(lineColors[0]);
+    expect(strokes).toContain(lineColors[1]);
     expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(64);
     expect(screen.getByText("TEST")).toBeTruthy();
     expect(screen.getByText("TEST-2")).toBeTruthy();
@@ -200,7 +200,7 @@ describe("MetroMap", () => {
     expect(viewBox()).toBe(fullView);
   });
 
-  it("draws scenario lines using their saved colors", () => {
+  it("draws the saved colour of each route when coloured by destination ID", () => {
     const savedColors = ["#D65A00", "#019CD3"];
     const coloredScenario = {
       ...scenario,
@@ -222,6 +222,12 @@ describe("MetroMap", () => {
         coloredScenario,
       ),
     );
+    fireEvent(
+      screen
+        .UNSAFE_getAllByType("button" as never)
+        .find((item) => item.props.children === "Destination ID")!,
+      "click",
+    );
     const strokes = [
       ...screen.UNSAFE_queryAllByType(Line),
       ...screen.UNSAFE_queryAllByType(Path),
@@ -229,37 +235,65 @@ describe("MetroMap", () => {
     expect(strokes).toEqual(expect.arrayContaining(savedColors));
   });
 
-  it("uses a separate palette for destination IDs", () => {
-    const patterns = Array.from({ length: DIDLineColors.length }, (_, i) => ({
+  it("colours a route by its Metro line, and a route on several lines black", () => {
+    const route = (did: string, stations: string[]) => ({
       ...scenario.versions[0].operatingPlan.patterns[0],
-      did: `DID-${i + 1}`,
-    }));
-    const scenarioWithManyDestinations = {
+      did,
+      route: stations.map((station, i) => ({ sequence: i + 1, station })),
+    });
+    const patterns = [
+      route("ONLY-M1", ["KHC", "ISB", "UNI"]),
+      route("ONLY-M2", ["KHC", "AMB", "LGP"]),
+      route("BOTH", ["FOR", "KN"]),
+    ];
+    const withRoutes = {
       ...scenario,
       versions: scenario.versions.map((version) => ({
         ...version,
         operatingPlan: { ...version.operatingPlan, patterns },
       })),
     };
-
     render(
-      withScenario(
-        scenario.scenarioId,
-        async () => scenarioWithManyDestinations,
-        scenarioWithManyDestinations,
-      ),
+      withScenario(scenario.scenarioId, async () => withRoutes, withRoutes),
     );
-
     const strokes = [
       ...screen.UNSAFE_queryAllByType(Line),
       ...screen.UNSAFE_queryAllByType(Path),
     ].map((strip) => strip.props.stroke);
+    expect(strokes).toEqual(
+      expect.arrayContaining([lineColors[0], lineColors[1], colors.text]),
+    );
+  });
+
+  it("colours routes by destination ID when asked, and back by Metro line", () => {
+    render(withScenario(scenario.scenarioId, async () => scenario, scenario));
+    // The switch is the shared DOM switch (.operator-line-switcher).
+    const chooseColours = (label: string) => {
+      const option = screen
+        .UNSAFE_getAllByType("button" as never)
+        .find((item) => item.props.children === label)!;
+      expect(option.parent!.props.className).toBe("operator-line-switcher");
+      fireEvent(option, "click");
+    };
+    const strokes = () =>
+      [
+        ...screen.UNSAFE_queryAllByType(Line),
+        ...screen.UNSAFE_queryAllByType(Path),
+      ].map((strip) => strip.props.stroke);
+    expect(strokes()).toContain(lineColors[0]);
+    expect(strokes()).not.toContain(DIDLineColors[0]);
+    chooseColours("Destination ID");
+    expect(strokes()).toEqual(
+      expect.arrayContaining(DIDLineColors.slice(0, 2)),
+    );
+    expect(strokes()).not.toContain(lineColors[0]);
+    // The destination ID palette is its own: it never reuses a Metro line colour.
     expect(new Set(DIDLineColors).size).toBe(DIDLineColors.length);
-    // Shared segments display at most two destination IDs at a time.
-    expect(strokes).toEqual(expect.arrayContaining(DIDLineColors.slice(0, 2)));
     expect(DIDLineColors).not.toEqual(
       expect.arrayContaining(lineColors.slice(0, 4)),
     );
+    chooseColours("Metrolinje");
+    expect(strokes()).toContain(lineColors[0]);
   });
 
   it("shows an error instead of inventing a destination ID without routes", () => {
@@ -407,5 +441,36 @@ describe("MetroMap", () => {
       ),
     );
     expect(uniDot()).toBe(colors.statusGreen);
+  });
+});
+
+describe("closedStretchLine", () => {
+  const running = [
+    {
+      name: "1",
+      tracks: [1],
+      connections: [["FB", "FOR"]] as [string, string][],
+    },
+  ];
+
+  it("draws a covered segment that no running route draws", () => {
+    const line = closedStretchLine(
+      [
+        { trackNumber: 1, stationA: "VAN", stationB: "FL" },
+        { trackNumber: 1, stationA: "FB", stationB: "FOR" },
+      ],
+      running,
+    );
+    expect(line?.connections).toEqual([["VAN", "FL"]]);
+    expect(line?.tracks).toEqual([1]);
+  });
+
+  it("draws nothing when every covered segment is already on a route", () => {
+    expect(
+      closedStretchLine(
+        [{ trackNumber: 1, stationA: "FOR", stationB: "FB" }],
+        running,
+      ),
+    ).toBeNull();
   });
 });
