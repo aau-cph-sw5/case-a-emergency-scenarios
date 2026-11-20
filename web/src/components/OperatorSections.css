@@ -27,7 +27,8 @@ body {
   background: transparent;
   color: var(--operator-ink);
   font:
-    13px Arial,
+    13px "Metro",
+    Arial,
     Helvetica,
     sans-serif;
 }
@@ -780,7 +781,8 @@ body {
   color: white;
   box-shadow: 0 15px 45px #0005;
   font:
-    14px Arial,
+    14px "Metro",
+    Arial,
     sans-serif;
 }
 .operator-confirm::backdrop {
@@ -808,7 +810,8 @@ body {
   background: transparent;
   color: white;
   font:
-    bold 13px Arial,
+    bold 13px "Metro",
+    Arial,
     sans-serif;
   cursor: pointer;
 }
