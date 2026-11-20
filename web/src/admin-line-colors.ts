@@ -5,12 +5,12 @@ export const routeColors = [
   palette.metroLineOne,
   palette.metroLineFour,
   palette.metroLineTwo,
-  "#6A1B9A",
-  "#EC6BB5",
-  "#A5C42F",
-  "#00BDB5",
-  "#D65A00",
-  "#C39BEF",
+  palette.scenarioPurple,
+  palette.scenarioPink,
+  palette.scenarioLime,
+  palette.scenarioTurquoise,
+  palette.scenarioOrange,
+  palette.scenarioLavender,
 ];
 export const routeColorNames = [
   "Rød",
