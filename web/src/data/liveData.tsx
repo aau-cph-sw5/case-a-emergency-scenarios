@@ -125,8 +125,8 @@ export function LiveDataProvider({
     };
   }, [socket, token]);
 
-  // The scenario list does not change while the app runs, so it is loaded
-  // once per login, and again only when the operator asks after a failure.
+  // A newly created scenario invalidates the list; reconnect also catches
+  // changes made while the operator was offline.
   const scenariosLoadRef = useRef<AbortController | null>(null);
   const reloadScenarios = useCallback(() => {
     // Aborting the older load makes its answer count as ignored, so a slow
@@ -148,9 +148,15 @@ export function LiveDataProvider({
     );
   }, [token]);
   useEffect(() => {
+    socket.on("scenarios-changed", reloadScenarios);
+    socket.on("connect", reloadScenarios);
     reloadScenarios();
-    return () => scenariosLoadRef.current?.abort();
-  }, [reloadScenarios]);
+    return () => {
+      socket.off("scenarios-changed", reloadScenarios);
+      socket.off("connect", reloadScenarios);
+      scenariosLoadRef.current?.abort();
+    };
+  }, [socket, reloadScenarios]);
 
   const loadScenario = useMemo(() => scenarioLoader(token), [token]);
 
