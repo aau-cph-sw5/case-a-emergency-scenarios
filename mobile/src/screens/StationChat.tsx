@@ -32,6 +32,10 @@ import {
 } from "../offline/own-station-messages";
 import { queueStationMessage } from "../offline/queue-station-message";
 import {
+  lastReadMessageId,
+  markStationChatRead,
+} from "../offline/station-chat-read";
+import {
   onStationMessagesChanged,
   stationMessageDelivery,
   stationMessageQueueStore,
@@ -124,10 +128,14 @@ export function StationChat({
   // The clientMessageIds of the messages this steward wrote on this phone, so
   // their messages can be told from colleagues' at the same station.
   const [mine, setMine] = useState<ReadonlySet<string>>(() => new Set());
-  // How many messages from the control room the steward has not opened the
-  // chat for yet (the badge on the tab), and the newest one's text for the
-  // note at the top while it shows (#336).
-  const [unread, setUnread] = useState(0);
+  // The newest message id the steward has already seen in this thread, read
+  // from phone storage so the unread badge survives disconnects and restarts
+  // (MET-A-029, #446). readKnown waits for storage so already read messages do
+  // not flash as unread.
+  const [readUpTo, setReadUpTo] = useState<number | null>(null);
+  const [readKnown, setReadKnown] = useState(false);
+  // The newest unread control-room message's text for the note at the top
+  // while the chat is closed (#336).
   const [notice, setNotice] = useState<string | null>(null);
   const userId = userIdFromToken(token);
   if (threadKey !== shownThreadKey) {
@@ -142,20 +150,55 @@ export function StationChat({
       setClosedByServer(null);
       setDraft("");
       setMine(new Set());
-      setUnread(0);
+      setReadUpTo(null);
+      setReadKnown(false);
       setNotice(null);
     }
   }
 
-  // Opening the chat reads the new messages, so the badge and the note go.
+  // Opening the chat reads the new messages, so the note goes and the read
+  // marker advances to the newest loaded message (MET-A-029, #446).
   const openRef = useRef(open);
   useEffect(() => {
     openRef.current = open;
   }, [open]);
-  if (open && (unread > 0 || notice !== null)) {
-    setUnread(0);
+  if (open && notice !== null) {
     setNotice(null);
   }
+  const newestMessageId = messages.reduce(
+    (highest, message) => Math.max(highest, message.id),
+    0,
+  );
+  if (
+    open &&
+    readKnown &&
+    userId !== null &&
+    activationId !== undefined &&
+    station !== undefined &&
+    newestMessageId > (readUpTo ?? 0)
+  ) {
+    setReadUpTo(newestMessageId);
+  }
+
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  const readUpToRef = useRef(readUpTo);
+  useEffect(() => {
+    readUpToRef.current = readUpTo;
+  }, [readUpTo]);
+
+  const markerReady = userId === null || readKnown;
+  // Derived from merged messages so live socket events and later reads never
+  // double-count, and only control-room replies count (MET-A-029, #446).
+  const unread =
+    open || !markerReady
+      ? 0
+      : messages.filter(
+          (message) =>
+            message.sender === "CONTROL_ROOM" && message.id > (readUpTo ?? 0),
+        ).length;
 
   useEffect(() => {
     if (
@@ -173,6 +216,42 @@ export function StationChat({
       cancelled = true;
     };
   }, [userId, activationId, station]);
+
+  useEffect(() => {
+    if (
+      userId === null ||
+      activationId === undefined ||
+      station === undefined
+    ) {
+      return;
+    }
+    let cancelled = false;
+    void lastReadMessageId(userId, activationId, station).then((id) => {
+      if (cancelled) return;
+      readUpToRef.current = id;
+      setReadUpTo(id);
+      setReadKnown(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, activationId, station]);
+
+  // Persists the read marker once the steward has opened the chat and seen
+  // messages, and again as newer messages arrive while open (MET-A-029, #446).
+  useEffect(() => {
+    if (
+      !open ||
+      !readKnown ||
+      userId === null ||
+      activationId === undefined ||
+      station === undefined ||
+      readUpTo === null
+    ) {
+      return;
+    }
+    void markStationChatRead(userId, activationId, station, readUpTo);
+  }, [open, readKnown, userId, activationId, station, readUpTo]);
 
   // A refusal that means there is no thread any more closes the chat.
   const closeByServer = useCallback(
@@ -192,13 +271,33 @@ export function StationChat({
   }, [threadKey]);
 
   // Shows the thread read from the server: the earlier messages too, also
-  // those written before the steward checked in.
+  // those written before the steward checked in. While the chat is closed, a
+  // new unread reply from the control room also shows in the top note
+  // (MET-A-029, #446).
   const showRead = useCallback(
     (result: ThreadResult<StationThread>) => {
       setLoaded(true);
       if (result.ok) {
         setLoadError(null);
-        setMessages((current) => merge(current, result.value.messages ?? []));
+        const incoming = result.value.messages ?? [];
+        if (!openRef.current) {
+          const knownIds = new Set(
+            messagesRef.current.map((message) => message.id),
+          );
+          const readAfter = readUpToRef.current ?? 0;
+          const newestReply = incoming
+            .filter(
+              (message) =>
+                message.sender === "CONTROL_ROOM" &&
+                message.id > readAfter &&
+                !knownIds.has(message.id),
+            )
+            .sort((a, b) => a.id - b.id)
+            .at(-1);
+          if (newestReply !== undefined) setNotice(newestReply.text);
+        }
+        messagesRef.current = merge(messagesRef.current, incoming);
+        setMessages((current) => merge(current, incoming));
       } else if (closesThread(result.code)) closeByServer(result.message);
       else setLoadError(result.message);
     },
@@ -211,10 +310,12 @@ export function StationChat({
     });
   }, [token, station, threadKey, showRead]);
 
-  // Read when the chat opens, and again when the socket reconnects or the
-  // app returns to the foreground, so a message missed meanwhile shows.
+  // Read the thread once the saved read marker is known, and again when the
+  // socket reconnects or the app returns to the foreground, so control-room
+  // replies missed while closed or disconnected update the badge
+  // (MET-A-029, #446).
   useEffect(() => {
-    if (!open || station === undefined) return;
+    if (station === undefined || !markerReady) return;
     load();
     const onConnect = () => load();
     socket.on("connect", onConnect);
@@ -225,7 +326,16 @@ export function StationChat({
       socket.off("connect", onConnect);
       subscription.remove();
     };
-  }, [open, station, load]);
+  }, [station, markerReady, load]);
+
+  // Opening the chat reads again so a failed read while closed recovers and
+  // the open list is current, without issuing a second read on initial mount.
+  const wasOpenRef = useRef(open);
+  useEffect(() => {
+    const opened = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+    if (opened && station !== undefined && markerReady) load();
+  }, [open, station, markerReady, load]);
 
   // New messages and the thread closing arrive over the socket.
   useEffect(() => {
@@ -237,9 +347,9 @@ export function StationChat({
       ) {
         return;
       }
+      messagesRef.current = merge(messagesRef.current, [event.message]);
       setMessages((current) => merge(current, [event.message]));
       if (event.message.sender === "CONTROL_ROOM" && !openRef.current) {
-        setUnread((count) => count + 1);
         setNotice(event.message.text);
       }
     };
@@ -306,8 +416,10 @@ export function StationChat({
         (message) =>
           message.station === station && message.activationId === activationId,
       );
-      if (delivered.length > 0)
+      if (delivered.length > 0) {
+        messagesRef.current = merge(messagesRef.current, delivered);
         setMessages((current) => merge(current, delivered));
+      }
       void showOwn().catch(() => undefined);
     });
   }, [showOwn, station, activationId]);

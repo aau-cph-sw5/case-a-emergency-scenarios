@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AppState } from "react-native";
 import activeState from "../../fixtures/v1/scenario-state.json";
@@ -10,6 +11,10 @@ import {
 import { RETRY_DELAYS_MS } from "../../mobile/src/offline/queue-delivery";
 import { queuePositionReport } from "../../mobile/src/offline/queue-position-report";
 import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
+import {
+  lastReadMessageId,
+  markStationChatRead,
+} from "../../mobile/src/offline/station-chat-read";
 import {
   notifyStationMessagesChanged,
   stationMessageDelivery,
@@ -104,7 +109,8 @@ const queued = {
   activationId: 1,
 };
 
-beforeEach(() => {
+beforeEach(async () => {
+  await AsyncStorage.clear();
   jest.clearAllMocks();
   mockMessageListeners.clear();
   flush.mockResolvedValue(nothingSent);
@@ -222,6 +228,29 @@ describe("StewardView station messages written offline (MET-A-029)", () => {
     await act(async () => {});
 
     expect(discardEnded).not.toHaveBeenCalled();
+  });
+
+  it("forgets chat read markers on stand-down and activation change, but keeps them while offline (#446)", async () => {
+    const liveId = (activeState as ScenarioState).activationId;
+    await markStationChatRead("7", liveId, "Station B", 4);
+
+    // Offline copy keeps the marker.
+    showView({ status: "copy", reason: "offline", snapshot });
+    const { rerender } = render(stewardView(false));
+    await act(async () => {});
+    expect(await lastReadMessageId("7", liveId, "Station B")).toBe(4);
+
+    // Live activation keeps its own marker.
+    showView({ status: "live", notices: [], snapshot });
+    rerender(stewardView(true));
+    await act(async () => {});
+    expect(await lastReadMessageId("7", liveId, "Station B")).toBe(4);
+
+    // Stand-down forgets the marker.
+    showView({ status: "stood-down", scenarioName: "Demo" });
+    rerender(stewardView(true));
+    await act(async () => {});
+    expect(await lastReadMessageId("7", liveId, "Station B")).toBeNull();
   });
 
   it("tries again later while messages are waiting for the connection", async () => {

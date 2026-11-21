@@ -17,6 +17,7 @@ import { apiBaseUrl } from "./src/api-base-url";
 import { mobileSessionStore } from "./src/auth/session-store";
 import { forgetOwnMessages } from "./src/offline/own-station-messages";
 import { snapshotStore } from "./src/offline/snapshot-store";
+import { clearStationChatRead } from "./src/offline/station-chat-read";
 import { stationMessageQueueStore } from "./src/offline/station-message-store";
 import { networkStore } from "./src/network/network-store";
 import { useConnectivity } from "./src/offline/useConnectivity";
@@ -76,6 +77,7 @@ export default function App() {
       void networkStore.clear().catch(() => undefined);
       void stationMessageQueueStore.clear().catch(() => undefined);
       void forgetOwnMessages();
+      void clearStationChatRead().catch(() => undefined);
     }
   }, [state.status]);
 

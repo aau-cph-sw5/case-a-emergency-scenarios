@@ -21,6 +21,7 @@ import {
   STORAGE_KEY,
   buildSnapshot,
 } from "../../shared/offline/scenario-snapshot";
+import { markStationChatRead } from "../../mobile/src/offline/station-chat-read";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
@@ -185,6 +186,27 @@ describe("App", () => {
     );
     await waitFor(async () =>
       expect(await ownMessageIds("7", 1, "Station B")).toEqual(new Set()),
+    );
+  });
+
+  it("clears station chat read markers on sign-out (MET-A-029, #446)", async () => {
+    await storeSession();
+    await storeCopy();
+    await markStationChatRead("7", 1, "Station B", 5);
+    jest
+      .spyOn(global, "fetch")
+      .mockRejectedValue(new TypeError("Network request failed"));
+
+    render(<App />);
+
+    expect(await screen.findByText(scenario.name)).toBeTruthy();
+    expect(await AsyncStorage.getItem("station-chat-read/7")).not.toBeNull();
+
+    fireEvent.press(screen.getByText("Log ud"));
+
+    expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem("station-chat-read/7")).toBeNull(),
     );
   });
 });
