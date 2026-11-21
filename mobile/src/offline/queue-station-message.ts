@@ -3,6 +3,7 @@ import * as Crypto from "expo-crypto";
 import type { QueuedStationMessage } from "../../../shared/offline/station-message-queue";
 import type { MessageFlushResult } from "./station-message-delivery";
 import {
+  notifyStationMessagesChanged,
   stationMessageDelivery,
   stationMessageQueueStore,
 } from "./station-message-store";
@@ -39,6 +40,7 @@ export async function queueStationMessage(
     writtenAt: new Date().toISOString(),
   };
   await stationMessageQueueStore.enqueue(message);
+  notifyStationMessagesChanged();
   return message;
 }
 

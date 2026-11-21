@@ -16,7 +16,12 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ERROR_CODES } from "../../shared/error-codes";
 import type { StationMessage } from "../../shared/types/v1/station-message";
-import { StationChat } from "../../mobile/src/screens/StationChat";
+import {
+  PENDING_RETRY_MS,
+  StationChat,
+} from "../../mobile/src/screens/StationChat";
+import { stationMessageDelivery } from "../../mobile/src/offline/station-message-store";
+import { motion } from "../../shared/Theme";
 
 // The socket as a list of listeners, so a test can push an event.
 const mockListeners = new Map<string, Set<(event: unknown) => void>>();
@@ -315,11 +320,16 @@ describe("StationChat (MET-A-029, #335)", () => {
     expect(onClosedByServer).toHaveBeenCalled();
   });
 
-  it("sends a message that did not get through again with the same id and time", async () => {
+  it("keeps a message written offline as Afventer, and sends it once the phone is back online", async () => {
     fetchMock
       .mockResolvedValueOnce(answer(200, thread([])))
       .mockRejectedValueOnce(new TypeError("offline"))
-      .mockResolvedValueOnce(answer(201, message(7, "STATION", "Hej.")));
+      .mockResolvedValueOnce(
+        answer(201, {
+          ...message(7, "STATION", "Hej."),
+          clientMessageId: "11111111-1111-4111-8111-111111111111",
+        }),
+      );
     renderChat("Station B");
     await openChat();
     await screen.findByText(/Ingen beskeder endnu/);
@@ -331,18 +341,253 @@ describe("StationChat (MET-A-029, #335)", () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Send besked"));
     });
-    expect(
-      await screen.findByText("Ikke sendt. Ingen forbindelse til serveren."),
-    ).toBeTruthy();
 
+    // Not sent yet, but not failed either: it waits on the phone.
+    expect(await screen.findByText("Afventer")).toBeTruthy();
+    expect(screen.queryByText(/Ikke sendt/)).toBeNull();
+    expect(screen.queryByText("Send igen")).toBeNull();
+
+    // The phone is back online: the reconnect sends the queue.
     await act(async () => {
-      fireEvent.press(screen.getByText("Send igen"));
+      await stationMessageDelivery.flush("7", token);
     });
 
     const first = JSON.parse(fetchMock.mock.calls[1][1]?.body as string);
     const second = JSON.parse(fetchMock.mock.calls[2][1]?.body as string);
     expect(second).toEqual(first);
-    await waitFor(() => expect(screen.queryByText(/Ikke sendt/)).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Afventer")).toBeNull());
+    expect(screen.getAllByText("Hej.")).toHaveLength(1);
+  });
+
+  it("tries a waiting message again by itself when only the server was gone", async () => {
+    jest.useFakeTimers();
+    try {
+      fetchMock
+        .mockResolvedValueOnce(answer(200, thread([])))
+        .mockRejectedValueOnce(new TypeError("offline"))
+        .mockResolvedValue(
+          answer(201, {
+            ...message(8, "STATION", "Test."),
+            clientMessageId: "11111111-1111-4111-8111-111111111111",
+          }),
+        );
+      renderChat("Station B");
+      await openChat();
+      await screen.findByText(/Ingen beskeder endnu/);
+      fireEvent.changeText(
+        screen.getByLabelText("Besked til kontrolrummet"),
+        "Test.",
+      );
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText("Send besked"));
+      });
+      expect(await screen.findByText("Afventer")).toBeTruthy();
+
+      await act(async () => {
+        jest.advanceTimersByTime(PENDING_RETRY_MS);
+      });
+
+      await waitFor(() => expect(screen.queryByText("Afventer")).toBeNull());
+      expect(screen.getAllByText("Test.")).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("sends a waiting message at once when the socket reaches the server again", async () => {
+    fetchMock
+      .mockResolvedValueOnce(answer(200, thread([])))
+      .mockRejectedValueOnce(new TypeError("offline"))
+      .mockResolvedValue(
+        answer(201, {
+          ...message(9, "STATION", "Igen."),
+          clientMessageId: "11111111-1111-4111-8111-111111111111",
+        }),
+      );
+    renderChat("Station B");
+    await openChat();
+    await screen.findByText(/Ingen beskeder endnu/);
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "Igen.",
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+    await screen.findByText("Afventer");
+
+    await act(async () => {
+      emit("connect", undefined);
+    });
+
+    await waitFor(() => expect(screen.queryByText("Afventer")).toBeNull());
+  });
+
+  it("still shows a message waiting on the phone after the app starts again", async () => {
+    fetchMock
+      .mockResolvedValueOnce(answer(200, thread([])))
+      .mockRejectedValueOnce(new TypeError("offline"))
+      .mockResolvedValue(answer(200, thread([])));
+    const first = renderChat("Station B");
+    await openChat();
+    await screen.findByText(/Ingen beskeder endnu/);
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "Hej.",
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+    await screen.findByText("Afventer");
+    first.unmount();
+
+    renderChat("Station B");
+    await openChat();
+
+    expect(await screen.findByText("Afventer")).toBeTruthy();
+    expect(screen.getByText("Hej.")).toBeTruthy();
+  });
+
+  it("marks the tab and shows a note when the control room writes while the chat is closed", async () => {
+    fetchMock.mockResolvedValue(answer(200, thread([])));
+    renderChat("Station B");
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+
+    await act(async () => {
+      emit("station-message", {
+        message: message(2, "CONTROL_ROOM", "Vi sender to mere."),
+        thread: {},
+        sentAt: "",
+      });
+    });
+
+    expect(
+      screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toHaveTextContent("1");
+    expect(
+      screen.getByLabelText("Åbn chat med kontrolrummet, 1 ny besked"),
+    ).toBeTruthy();
+    expect(screen.getByTestId("message-notice")).toBeTruthy();
+    expect(screen.getByText("Vi sender to mere.")).toBeTruthy();
+
+    // Tapping the note opens the chat; the dot and the note go.
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("message-notice"));
+    });
+    expect(screen.queryByTestId("message-notice")).toBeNull();
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+  });
+
+  it("counts the control room's messages the steward has not opened, up to 9+", async () => {
+    fetchMock.mockResolvedValue(answer(200, thread([])));
+    renderChat("Station B");
+
+    await act(async () => {
+      for (let id = 1; id <= 2; id++)
+        emit("station-message", {
+          message: message(id, "CONTROL_ROOM", `Besked ${id}.`),
+          thread: {},
+          sentAt: "",
+        });
+    });
+    expect(
+      screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toHaveTextContent("2");
+    expect(
+      screen.getByLabelText("Åbn chat med kontrolrummet, 2 nye beskeder"),
+    ).toBeTruthy();
+
+    await act(async () => {
+      for (let id = 3; id <= 12; id++)
+        emit("station-message", {
+          message: message(id, "CONTROL_ROOM", `Besked ${id}.`),
+          thread: {},
+          sentAt: "",
+        });
+    });
+    expect(
+      screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toHaveTextContent("9+");
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("chat-tab"));
+    });
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+  });
+
+  it("does not mark the tab for the station's own messages or another station's", async () => {
+    fetchMock.mockResolvedValue(answer(200, thread([])));
+    renderChat("Station B");
+
+    await act(async () => {
+      emit("station-message", {
+        message: message(2, "STATION", "En kollega skriver."),
+        thread: {},
+        sentAt: "",
+      });
+      emit("station-message", {
+        message: { ...message(3, "CONTROL_ROOM", "Andet."), station: "X" },
+        thread: {},
+        sentAt: "",
+      });
+    });
+
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+    expect(screen.queryByTestId("message-notice")).toBeNull();
+  });
+
+  it("shows no note while the chat is open, since the message is in front of the steward", async () => {
+    fetchMock.mockResolvedValue(answer(200, thread([])));
+    renderChat("Station B");
+    await openChat();
+    await screen.findByText(/Ingen beskeder endnu/);
+
+    await act(async () => {
+      emit("station-message", {
+        message: message(2, "CONTROL_ROOM", "Modtaget."),
+        thread: {},
+        sentAt: "",
+      });
+    });
+
+    expect(screen.getByText("Modtaget.")).toBeTruthy();
+    expect(screen.queryByTestId("message-notice")).toBeNull();
+  });
+
+  it("lets the note go by itself after a while", async () => {
+    jest.useFakeTimers();
+    try {
+      fetchMock.mockResolvedValue(answer(200, thread([])));
+      renderChat("Station B");
+      await act(async () => {
+        emit("station-message", {
+          message: message(2, "CONTROL_ROOM", "Vi sender to mere."),
+          thread: {},
+          sentAt: "",
+        });
+      });
+      expect(screen.getByTestId("message-notice")).toBeTruthy();
+
+      await act(async () => {
+        jest.advanceTimersByTime(motion.messageNoticeMs);
+      });
+
+      expect(screen.queryByTestId("message-notice")).toBeNull();
+      // The dot stays until the chat is opened.
+      expect(
+        screen.getByTestId("chat-unread", { includeHiddenElements: true }),
+      ).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("says why the messages could not be read, and reads again", async () => {
