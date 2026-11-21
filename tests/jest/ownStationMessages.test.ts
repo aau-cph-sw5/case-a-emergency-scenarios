@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  forgetOwnMessages,
   ownMessageIds,
   rememberOwnMessage,
 } from "../../mobile/src/offline/own-station-messages";
@@ -47,11 +48,31 @@ describe("own station messages (MET-A-029, #335)", () => {
   it("does not fail when the phone cannot store the list", async () => {
     jest
       .spyOn(AsyncStorage, "setItem")
-      .mockRejectedValue(new Error("storage full"));
+      .mockRejectedValueOnce(new Error("storage full"));
 
     await expect(
       rememberOwnMessage("7", 1, "Station B", "abc"),
     ).resolves.toBeUndefined();
     expect(await ownMessageIds("7", 1, "Station B")).toEqual(new Set());
+  });
+
+  it("forgets all remembered own-message keys and leaves other keys alone (MET-A-029, #445)", async () => {
+    await rememberOwnMessage("7", 1, "Station B", "abc-1");
+    await rememberOwnMessage("8", 2, "Station C", "abc-2");
+    await AsyncStorage.setItem("other-key", "keep");
+
+    await forgetOwnMessages();
+
+    expect(await ownMessageIds("7", 1, "Station B")).toEqual(new Set());
+    expect(await ownMessageIds("8", 2, "Station C")).toEqual(new Set());
+    expect(await AsyncStorage.getItem("other-key")).toBe("keep");
+  });
+
+  it("does not fail when forgetting own messages hits a storage error", async () => {
+    jest
+      .spyOn(AsyncStorage, "getAllKeys")
+      .mockRejectedValue(new Error("storage unavailable"));
+
+    await expect(forgetOwnMessages()).resolves.toBeUndefined();
   });
 });
