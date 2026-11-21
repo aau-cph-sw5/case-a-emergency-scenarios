@@ -6,7 +6,7 @@
  */
 
 /**
- * Answer to POST /api/v1/scenario-suggestions. The request is a ScenarioSuggestionRequest. DRAFT: to be approved by the owners of MET-A-019 (#355, #356).
+ * Answer to POST /api/v1/scenario-suggestions. The request is a ScenarioSuggestionRequest.
  */
 export type ScenarioSuggestionResponse =
   | {

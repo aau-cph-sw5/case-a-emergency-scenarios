@@ -1,5 +1,9 @@
 # Scenario State Contract Changelog
 
+## 8.10.1 - 2026-11-21
+
+No change to the shape. `POST /api/v1/scenario-suggestions` is no longer a draft: the server serves it (#371).
+
 ## 8.10.0 - 2026-11-18
 
 Additive. Scenario suggestions from a free-text incident description (MET-A-019, #357). A draft: the owners of #355 and #356 still have to approve it, and the server does not serve the endpoint yet (#371).
