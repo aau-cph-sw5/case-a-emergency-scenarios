@@ -6,12 +6,18 @@ import type { ScenarioState } from "./types/v1/scenario-state";
 export const palette = {
   metroBlack: "#1E1E1E",
   metroDeepRed: "#940024",
-  metroLineOne: "#007D55",
-  metroLineTwo: "#FFC82D",
-  metroLineThree: "#E6140F",
-  metroLineFour: "#00A0BE",
+  metroLineOne: "#008D40",
+  metroLineTwo: "#FFC600",
+  metroLineThree: "#FF080B",
+  metroLineFour: "#019CD3",
   metroSummerRed: "#E40037",
   metroWhite: "#FFFFFF",
+  scenarioPurple: "#6A1B9A",
+  scenarioPink: "#EC6BB5",
+  scenarioLime: "#A5C42F",
+  scenarioTurquoise: "#00BDB5",
+  scenarioOrange: "#D65A00",
+  scenarioLavender: "#C39BEF",
   DIDLineOne: "#1F4E79",
   DIDLineTwo: "#A61E75",
   DIDLineThree: "#6B3FA0",
@@ -31,11 +37,20 @@ export const palette = {
   darkRed: "#7F1916",
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
+  // Operator web view (#357). Grey text and outlines that pass WCAG on white:
+  // mutedGrey 5.5:1 for small text, optionGrey only for decorative card edges.
+  mutedGrey: "#686868",
+  optionGrey: "#e0e0e0",
+  wellGrey: "#f4f4f4",
+  // Darker shade of M4 blue for focus rings: 5.0:1 on white, where M4 blue
+  // itself (2.9:1) fails the 3:1 that WCAG 2.4.13 asks of a focus indicator.
+  focusTeal: "#00758C",
 
   // The steward app's look from the approved prototype (#375). Its status
   // colours are the metro colours above; these are the greys around them.
   // Only the steward app uses these; the web keeps the colours above.
   stewardLabelGrey: "#C9CCD0",
+  stewardInputBorder: "#9AA0A6",
   stewardLine: "#D9DCDF",
   stewardStrip: "#F6F7F8",
   stewardMuted: "#5B6168",
@@ -130,7 +145,7 @@ export const text = {
   small: { fontSize: 12, color: colors.text },
   // A CSS font list only works on web; Android and iOS use the system font.
   header: {
-    fontFamily: Platform.select({ web: "Arial, sans-serif" }),
+    fontFamily: Platform.select({ web: '"Metro", Arial, sans-serif' }),
     fontSize: 16,
   },
   button: {
@@ -190,6 +205,29 @@ export const page = {
   flex: 1,
 };
 
+// The operator web view styles itself in web/src/components/OperatorSections.css.
+// These custom properties hand it the theme, so the colours it shares with the
+// rest of the app are defined once, here. OperatorDashboard sets them on its
+// root element.
+export const operatorCssVars = {
+  "--operator-red": palette.metroLineThree,
+  "--operator-yellow": palette.metroLineTwo,
+  "--operator-green": palette.metroLineOne,
+  "--operator-blue": palette.metroLineFour,
+  "--operator-ink": palette.metroBlack,
+  "--operator-muted": palette.mutedGrey,
+  "--operator-option-border": palette.optionGrey,
+  "--operator-well": palette.wellGrey,
+  "--operator-focus": palette.focusTeal,
+  // Two corner sizes only (design guide: outer = inner x 3): 4px for things you
+  // press or type in, 12px for things that hold content. Circles use 50%.
+  "--operator-radius-control": "4px",
+  "--operator-radius-card": "12px",
+  // Pressed toggles are a light tint of ink, not yellow: yellow read as an
+  // alarm next to the map's warning colours (design review, #357).
+  "--operator-pressed": `${palette.metroBlack}1a`,
+  "--operator-pressed-border": `${palette.metroBlack}59`,
+} as const;
 // The steward app's colours and sizes (#375). The status colours match the
 // slide that leads to the status: yellow on the way, green arrived, red
 // checked out. They are the exact line colours from Metro's brand guide (M2
@@ -214,6 +252,20 @@ export const steward = {
   yellowOnYellow: palette.stewardYellowOnYellow,
   // The same green as the connection dot beside the scenario name.
   greenOnGreen: palette.stewardOnline,
+  // The station's chat (MET-A-029, #335). Metro Deep Red is the control
+  // room's voice: its messages are filled with it and its name is written in
+  // it (9.2:1 against white). The station's own messages stay black, and the
+  // tab stays black, so no red reads as an alarm on the status card.
+  chat: {
+    controlRoom: palette.metroDeepRed,
+    onControlRoom: palette.metroWhite,
+    // A colleague at the same station writes as the station too; their
+    // messages are light grey, so the steward's own stay the black ones.
+    colleague: palette.stewardLine,
+    onColleague: palette.metroBlack,
+    // The outline of the box the steward writes in, and its selection.
+    inputBorder: palette.stewardInputBorder,
+  },
   // The status card takes the colour of the status (#376): black without a
   // station, yellow on the way, green once arrived. text is the station name,
   // label the small labels and the line under the name.

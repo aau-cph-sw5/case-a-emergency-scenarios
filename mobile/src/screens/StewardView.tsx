@@ -32,6 +32,7 @@ import { liveNotices, NoticeStack, stoodDownNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { withOwnStatus } from "./own-assignment";
 import { RoleView } from "./RoleView";
+import { StationChat } from "./StationChat";
 import {
   oneRowPerStation,
   ScenarioMap,
@@ -46,6 +47,12 @@ const STATUS_BLOCKED_OFFLINE =
 // Shown while a report waits on the phone, so a later change cannot overtake it.
 const STATUS_BLOCKED_WAITING =
   "Din position er ikke sendt endnu. Du kan ændre status, når den er modtaget.";
+
+// Why the chat is gone, shown in a chat that was open (MET-A-029, #335).
+const CHAT_CLOSED_STOOD_DOWN = "Scenariet er afsluttet.";
+const CHAT_CLOSED_CHECKED_OUT = "Du er ikke længere tjekket ind på stationen.";
+const chatClosedSwitched = (name: string) =>
+  `Scenariet er skiftet til “${name}”.`;
 
 // Waits before each new try after a send failed while live
 export const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
@@ -464,8 +471,34 @@ export function StewardView({
 
   const retry = onRetry ?? (() => void refresh());
 
+  // The station's chat is there only while the steward is checked in
+  // (ARRIVED) at it, as the server requires (MET-A-029, #335).
+  const chatStation = own?.status === "MANNED" ? own.station : undefined;
+  // The activation the steward was last checked in for. When the control
+  // room switches scenario, the chat says so, not that the steward checked
+  // out.
+  const [chatActivation, setChatActivation] = useState(activationId);
+  // Only once the status is the new activation's: in the render that sees a
+  // new activation, own is still the old one's.
+  if (
+    chatStation !== undefined &&
+    statusKey === shownStatusKey &&
+    activationId !== chatActivation
+  ) {
+    setChatActivation(activationId);
+  }
+  const chatClosedReason =
+    view.status === "stood-down" || view.status === "none"
+      ? CHAT_CLOSED_STOOD_DOWN
+      : shown !== null && activationId !== chatActivation
+        ? chatClosedSwitched(shown.scenario.name)
+        : CHAT_CLOSED_CHECKED_OUT;
+  const refreshScenario = useCallback(() => void refresh(), [refresh]);
+  // While the chat is open it covers the view, which a screen reader skips.
+  const [chatOpen, setChatOpen] = useState(false);
+
   return (
-    <RoleView title="Steward" onLogout={onLogout}>
+    <RoleView title="Steward" onLogout={onLogout} obscured={chatOpen}>
       {/* Activated and switched show over the screen and move nothing;
           stood down turns the status card (closed, below). */}
       <NoticeStack
@@ -477,7 +510,11 @@ export function StewardView({
       />
       {/* The screen does not scroll (#376): the status card at the top (the
           status, the map and the one control), the station list under it. */}
-      <View style={styles.content}>
+      <View
+        style={styles.content}
+        accessibilityElementsHidden={chatOpen}
+        importantForAccessibility={chatOpen ? "no-hide-descendants" : "auto"}
+      >
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
         )}
@@ -563,6 +600,13 @@ export function StewardView({
               reportStatus && <Text style={styles.report}>{reportStatus}</Text>
             }
           >
+            {/* Part of the list, so it comes and goes with the card's
+                status, not a turn ahead of it (#335). */}
+            {own?.status === "PENDING" && (
+              <Text style={styles.report}>
+                Tjek ind på stationen for at skrive til kontrolrummet.
+              </Text>
+            )}
             {shown && (
               <ScenarioOverview
                 snapshot={counted ?? shown}
@@ -595,6 +639,15 @@ export function StewardView({
           <Text style={styles.report}>{reportStatus}</Text>
         )}
       </View>
+      {/* Over the whole view, header included, so it is the last child. */}
+      <StationChat
+        token={token}
+        station={chatStation}
+        activationId={activationId}
+        closedReason={chatClosedReason}
+        onClosedByServer={refreshScenario}
+        onOpenChange={setChatOpen}
+      />
     </RoleView>
   );
 }
