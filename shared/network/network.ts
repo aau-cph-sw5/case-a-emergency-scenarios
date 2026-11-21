@@ -42,6 +42,9 @@ export function isNetwork(value: unknown): value is Network {
         typeof pattern.maximumTrains === "number" &&
         pattern.maximumTrains >= 0 &&
         typeof pattern.did === "string" &&
+        (pattern.color === undefined ||
+          (typeof pattern.color === "string" &&
+            /^#[0-9a-fA-F]{6}$/.test(pattern.color))) &&
         (pattern.trackNumber === 1 ||
           pattern.trackNumber === 2 ||
           pattern.trackNumber === 12) &&
@@ -59,6 +62,7 @@ export type MapNetwork = {
   positions: Record<string, [number, number]>;
   lines: {
     name: string;
+    color?: string;
     tracks: number[];
     connections: Pair[];
     connectionTracks?: Record<string, number[]>;
@@ -80,6 +84,7 @@ export function buildMapNetwork(network: Network): MapNetwork {
     string,
     {
       name: string;
+      color?: string;
       tracks: number[];
       connections: Pair[];
       connectionTracks: Record<string, number[]>;
@@ -91,6 +96,7 @@ export function buildMapNetwork(network: Network): MapNetwork {
     if (!line) {
       line = {
         name: pattern.line,
+        color: pattern.color,
         tracks: [],
         connections: [],
         connectionTracks: Object.create(null),

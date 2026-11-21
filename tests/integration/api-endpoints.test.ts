@@ -326,6 +326,10 @@ test("an assigned admin can sign in and is identified by their current role", as
     assert.equal(user.role, "ADMIN");
     assert.deepEqual(validate(user, "me.schema.json"), []);
 
+    const network = await fetch(`${baseUrl}/api/v1/network`, { headers });
+    assert.equal(network.status, 200);
+    assert.deepEqual(validate(await network.json(), "network.schema.json"), []);
+
     const activation = await postJson(
       "/api/v1/scenarios/DEMO-002/activate",
       {},
