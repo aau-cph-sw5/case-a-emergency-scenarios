@@ -17,6 +17,7 @@ import {
   stationIsRequired,
   stewardIsCheckedIn,
 } from "../repositories/station-message-repository.js";
+import type { LineGroup } from "../../shared/auth/line-groups.js";
 import type { AuthUser } from "./auth-service.js";
 import { appendStationMessageEvent } from "./incident-log-service.js";
 
@@ -102,11 +103,23 @@ async function validateActiveActivation(
   return { kind: "ok", activation };
 }
 
+// A new message also carries what the live event needs (#334): the
+// activation it belongs to and the thread's state after it, worked out in the
+// same transaction, so the event matches what was stored.
+export type CreatedStationMessage = {
+  kind: "created";
+  message: StationMessage;
+  activation: { activationId: number; lineGroup: LineGroup };
+  thread: Omit<ThreadView, "messages">;
+};
+
 export async function createStationMessage(
   user: AuthUser,
   station: string,
   request: StationMessageRequest,
-): Promise<{ kind: "created" | "repeat"; message: StationMessage } | Refusal> {
+): Promise<
+  CreatedStationMessage | { kind: "repeat"; message: StationMessage } | Refusal
+> {
   return getDatabase().begin(async (tx) => {
     // Keep using this client-generated ID for retries; ignore differences in letter case.
     const clientMessageId = request.clientMessageId.toLowerCase();
@@ -180,8 +193,23 @@ export async function createStationMessage(
       lineGroup: activation.lineGroup,
     });
 
+    const thread = makeThread(
+      activation.activationId,
+      station,
+      await listMessages(tx, activation.activationId, station),
+      false,
+    );
+
     // The message and its log event are in one transaction, so both succeed or neither does.
-    return { kind: "created", message };
+    return {
+      kind: "created",
+      message,
+      activation: {
+        activationId: activation.activationId,
+        lineGroup: activation.lineGroup,
+      },
+      thread,
+    };
   });
 }
 
