@@ -1,5 +1,13 @@
 # Scenario State Contract Changelog
 
+## 8.10.0 - 2026-11-18
+
+Additive. Scenario suggestions from a free-text incident description (MET-A-019, #357). A draft: the owners of #355 and #356 still have to approve it, and the server does not serve the endpoint yet (#371).
+
+- New `scenario-suggestion.schema.json`: the request `description` (1 to 2000 characters) and the response. `status` is `CONFIDENT` with one to five `candidates` (`scenarioId` and a `score` from 0 to 1, best first), or `NO_CONFIDENT_CANDIDATE` without candidates.
+- New `POST /api/v1/scenario-suggestions`. Only `OPERATOR` may use it; other roles get 403 `E0002`. A missing, empty or too long `description` gets 400 `E0006`, and a missing or expired token gets 401 `E0001`.
+- It only suggests. Activating a scenario still goes through the activation endpoint and its confirmation.
+
 ## 8.9.0 - 2026-11-18
 
 Additive. Normal network patterns include their stored display color.
