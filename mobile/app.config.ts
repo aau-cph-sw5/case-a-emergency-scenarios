@@ -10,6 +10,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: config.name ?? "mobile",
   slug: config.slug ?? "mobile",
+  android: {
+    ...config.android,
+    // Firebase's file for push (ADR 0014), kept out of git as the repo is public
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON || undefined,
+  },
   extra: {
     ...config.extra,
     apiUrl: process.env.API_URL || "http://localhost:3000",

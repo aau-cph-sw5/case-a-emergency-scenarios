@@ -1,5 +1,12 @@
 # Scenario State Contract Changelog
 
+## 8.7.0 - 2026-11-19
+
+Additive. Steward phones register for push notifications (MET-A-018, ADR 0014).
+
+- New `PUT /api/v1/me/push-token` with `push-token-request.schema.json` (`pushToken`), for the STEWARD role. Stores the phone's Firebase Cloud Messaging token on the current login session and answers 204. Other roles get 403 `E0002`. Logging out or logging in again removes the token, and a token another account still holds is moved to this one.
+- `info.version` in `openapi.yaml` is now 8.7.0.
+
 ## 8.6.0 - 2026-11-16
 
 Additive. Admins create and edit user accounts (MET-A-030).

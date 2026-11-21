@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.6.0
+  version: 8.7.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -379,6 +379,57 @@ paths:
                 error:
                   code: "E0001"
                   message: "Invalid or expired token"
+
+  /api/v1/me/push-token:
+    put:
+      summary: Register the steward phone's push token
+      description: >
+        Requires the STEWARD role (MET-A-018, ADR 0014). Stores the phone's
+        Firebase Cloud Messaging token on the current login session, so the
+        phone gets push notifications while the steward is logged in. Logging
+        out or logging in again removes it. A token another account still
+        holds is moved to this one.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./push-token-request.schema.json"
+      responses:
+        "204":
+          description: Token stored
+        "400":
+          description: Request body does not match the push-token-request contract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0006"
+                  message: "Request body does not match contract schema"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The user is not a steward
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "The authenticated user's role does not permit this action"
 
   /api/v1/auth/logout:
     post:

@@ -18,6 +18,7 @@ import { mobileSessionStore } from "./src/auth/session-store";
 import { snapshotStore } from "./src/offline/snapshot-store";
 import { networkStore } from "./src/network/network-store";
 import { useConnectivity } from "./src/offline/useConnectivity";
+import { registerPush } from "./src/push/register-push";
 import { StewardView } from "./src/screens/StewardView";
 import { socket } from "./src/socket";
 import { useSessionNetworkRecovery } from "./src/useSessionNetworkRecovery";
@@ -63,6 +64,17 @@ export default function App() {
       void restore();
     }
   }, [online, state.status, restore]);
+
+  // Once the server has confirmed the session, so it can store the phone's
+  // push token on it (ADR 0014). Without it the app still works, only no alerts.
+  const confirmedToken = state.status === "signed-in" ? token : undefined;
+  useEffect(() => {
+    if (confirmedToken) {
+      registerPush(confirmedToken).catch((error: unknown) =>
+        console.warn("Push registration failed:", error),
+      );
+    }
+  }, [confirmedToken]);
 
   // A signed-out phone keeps no scenario data, however the session ended:
   // logging out, or a token the server no longer accepts. The steward view

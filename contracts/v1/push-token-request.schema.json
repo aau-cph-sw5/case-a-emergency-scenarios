@@ -1,0 +1,10 @@
+{
+  "$id": "push-token-request.schema.json",
+  "title": "Push Token Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pushToken"],
+  "properties": {
+    "pushToken": { "type": "string", "minLength": 1, "maxLength": 4096 }
+  }
+}

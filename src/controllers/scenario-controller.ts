@@ -21,6 +21,7 @@ import {
   standDownAndLog,
   switchAndLog,
 } from "../services/activation-service.js";
+import { notifyScenarioChange } from "../services/push-service.js";
 import type { ActivateRequest } from "../../shared/types/v1/activate-request.js";
 
 // Users only see their own line group's scenarios
@@ -203,6 +204,8 @@ export async function activate(
       sequence: result.sequence,
     });
     io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
+    // Phones where the app is closed or in the background (ADR 0014)
+    void notifyScenarioChange(lineGroup, true, scenario.scenarioId);
     console.log("Scenario activated:", result.activation);
     response.status(201).json(result.activation);
   }
@@ -261,6 +264,7 @@ export async function standDown(
   const { lineGroup } = result.activation;
   io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-stood-down");
   io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
+  void notifyScenarioChange(lineGroup, false, result.activation.scenarioId);
 
   response.json(result.activation);
 }
