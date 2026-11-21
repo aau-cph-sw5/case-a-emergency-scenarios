@@ -22,7 +22,7 @@ export async function getNetwork(): Promise<Network> {
         SELECT json_agg(json_build_object('line', op.normal_line,
                  'routeCode', op.route_code, 'operationType', op.operation_type,
                  'trackNumber', op.track_number, 'maximumTrains', op.maximum_trains,
-                 'did', op.did,
+                 'did', op.did, 'color', op.color,
                  'stops', COALESCE((
                    SELECT json_agg(s.code ORDER BY ls.sequence)
                    FROM line_stops ls JOIN stations s ON s.id = ls.station_id

@@ -28,6 +28,7 @@ export interface Network {
     operationType: "PENDULUM" | "ROUNDTRIP";
     maximumTrains: number;
     did: string;
+    color?: string;
     [k: string]: unknown;
   }[];
   [k: string]: unknown;

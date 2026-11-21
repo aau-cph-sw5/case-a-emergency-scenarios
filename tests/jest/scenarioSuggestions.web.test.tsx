@@ -225,4 +225,36 @@ describe("scenario suggestions", () => {
     );
     expect(field().value).toBe("");
   });
+
+  it("turning a quick pick off removes only that word, never the rest of the text", async () => {
+    const text = "Signalfejl ved Forum ... Nørreport\nPassagerer melder røg";
+    await openBox(text);
+    await click("Signalfejl");
+    expect(field().value).toBe(
+      "ved Forum ... Nørreport\nPassagerer melder røg",
+    );
+    await type("Ved Forum, signalfejl, Nørreport");
+    await click("Signalfejl");
+    expect(field().value).toBe("Ved Forum, Nørreport");
+    await type("Strømsvigt ved KN");
+    await click("Strømsvigt");
+    await click("Strømsvigt");
+    expect(field().value).toBe("ved KN, strømsvigt");
+  });
+
+  it("scrolls the answer into view, so the operator sees that results came back", async () => {
+    const scrollIntoView = jest.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    fetchMock.mockResolvedValue({
+      status: "CONFIDENT",
+      candidates: [{ scenarioId: "S1", score: 0.87 }],
+    });
+    await openBox("signalfejl ved vanløse");
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    await click("Foreslå scenarie");
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(
+      container.querySelector(".suggest-answer"),
+    );
+  });
 });

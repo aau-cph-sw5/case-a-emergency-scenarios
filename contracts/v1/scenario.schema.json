@@ -20,7 +20,9 @@
     "covers": {
       "type": "array",
       "description": "Track segments covered by the scenario.",
-      "items": { "$ref": "#/definitions/TrackSegment" }
+      "items": {
+        "$ref": "#/definitions/TrackSegment"
+      }
     },
     "versions": {
       "type": "array",
@@ -85,6 +87,10 @@
                       "items": {
                         "type": "object"
                       }
+                    },
+                    "color": {
+                      "type": "string",
+                      "pattern": "^#[0-9A-Fa-f]{6}$"
                     }
                   }
                 }

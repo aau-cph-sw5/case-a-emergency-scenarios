@@ -1,7 +1,7 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { View, Pressable, Text as RNText } from "react-native";
-import Svg, { Text, Line, Circle, Path } from "react-native-svg";
-import { getLines, getStation } from "../mockData/data";
+import Svg, { Text, Line, Circle, Path, G } from "react-native-svg";
+import { getCrossovers, getLines, getStation } from "../mockData/data";
 import { text, radius, colors as theme, coverageColors } from "./Theme";
 import type { CoverageLevel } from "./components/stationState";
 import { connectionKey } from "./network/network";
@@ -17,6 +17,12 @@ type BlockedTrack = {
   trackNumber: number;
   stationA: string;
   stationB: string;
+};
+
+export type MapCrossover = {
+  stationA: string;
+  stationB: string;
+  color: string;
 };
 
 function GetOffset(
@@ -79,22 +85,38 @@ function circularRing(
   return { x, y, r };
 }
 
-function ringPath(
+type RingCurve =
+  | {
+      kind: "arc";
+      x: number;
+      y: number;
+      radius: number;
+      start: number;
+      delta: number;
+    }
+  | {
+      kind: "curve";
+      p1: readonly number[];
+      p2: readonly number[];
+      c1: number[];
+      c2: number[];
+    };
+
+function ringCurve(
   stationA: string,
   stationB: string,
   offset: number,
   ringStations: string[],
   position: (station: string) => [number, number] | undefined,
-) {
+): RingCurve | null {
   const count = ringStations.length;
   const start = ringStations.indexOf(stationA);
   if (start < 0) return null;
   if (ringStations[(start + 1) % count] !== stationB) {
     if (ringStations[(start - 1 + count) % count] === stationB)
-      return ringPath(stationB, stationA, -offset, ringStations, position);
+      return ringCurve(stationB, stationA, -offset, ringStations, position);
     return null;
   }
-
   const circle = circularRing(ringStations, position);
   const a = position(stationA);
   const b = position(stationB);
@@ -102,20 +124,20 @@ function ringPath(
     const cross =
       (a[0] - circle.x) * (b[1] - circle.y) -
       (a[1] - circle.y) * (b[0] - circle.x);
-    const sweep = cross > 0 ? 1 : 0;
-    const radius = circle.r + (sweep ? -offset : offset);
-    const point = ([x, y]: [number, number]) => {
-      const distance = Math.hypot(x - circle.x, y - circle.y);
-      return [
-        circle.x + ((x - circle.x) / distance) * radius,
-        circle.y + ((y - circle.y) / distance) * radius,
-      ];
+    const start = Math.atan2(a[1] - circle.y, a[0] - circle.x);
+    const end = Math.atan2(b[1] - circle.y, b[0] - circle.x);
+    let delta = end - start;
+    if (cross > 0 && delta < 0) delta += 2 * Math.PI;
+    if (cross < 0 && delta > 0) delta -= 2 * Math.PI;
+    return {
+      kind: "arc",
+      x: circle.x,
+      y: circle.y,
+      radius: circle.r + (cross > 0 ? -offset : offset),
+      start,
+      delta,
     };
-    const [x1, y1] = point(a);
-    const [x2, y2] = point(b);
-    return `M ${x1} ${y1} A ${radius} ${radius} 0 0 ${sweep} ${x2} ${y2}`;
   }
-
   const shifted = (index: number) => {
     const point = position(ringStations[(index + count) % count]);
     const previous = position(ringStations[(index - 1 + count) % count]);
@@ -131,8 +153,51 @@ function ringPath(
   if (!p0 || !p1 || !p2 || !p3) return null;
   const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
   const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+  return { kind: "curve", p1, p2, c1, c2 };
+}
+
+function ringPath(
+  stationA: string,
+  stationB: string,
+  offset: number,
+  ringStations: string[],
+  position: (station: string) => [number, number] | undefined,
+) {
+  const curve = ringCurve(stationA, stationB, offset, ringStations, position);
+  if (!curve) return null;
+  if (curve.kind === "arc") {
+    const [x1, y1] = curvePoint(curve, 0);
+    const [x2, y2] = curvePoint(curve, 1);
+    return `M ${x1} ${y1} A ${curve.radius} ${curve.radius} 0 0 ${curve.delta > 0 ? 1 : 0} ${x2} ${y2}`;
+  }
+  const { p1, p2, c1, c2 } = curve;
   return `M ${p1[0]} ${p1[1]} C ${c1[0]} ${c1[1]}, ${c2[0]} ${c2[1]}, ${p2[0]} ${p2[1]}`;
 }
+
+function curvePoint(curve: RingCurve, t: number): [number, number] {
+  if (curve.kind === "arc") {
+    const angle = curve.start + t * curve.delta;
+    return [
+      curve.x + curve.radius * Math.cos(angle),
+      curve.y + curve.radius * Math.sin(angle),
+    ];
+  }
+  const s = 1 - t;
+  const axis = (index: number) =>
+    s ** 3 * curve.p1[index] +
+    3 * s ** 2 * t * curve.c1[index] +
+    3 * s * t ** 2 * curve.c2[index] +
+    t ** 3 * curve.p2[index];
+  return [axis(0), axis(1)];
+}
+
+const defaultCrossovers: MapCrossover[] = getCrossovers().map(
+  ({ between: [stationA, stationB] }) => ({
+    stationA,
+    stationB,
+    color: "#252a2c",
+  }),
+);
 
 const LABEL_ABOVE_LEFT = ["NHT", "ORK", "AMH", "NUK", "NØR", "NØ", "SKP"];
 // These shared M3/M4 stations sit beside a diagonal route; their labels fit
@@ -148,8 +213,10 @@ function Station({
   y,
   highlightColor,
   requiredStaffing,
+  isStop = false,
   ringOnly = false,
   coverage,
+  onPress,
 }: {
   name: string;
   x: number;
@@ -157,9 +224,11 @@ function Station({
   // Set only for the station to highlight, e.g. the steward's own (MET-A-010).
   highlightColor?: string;
   requiredStaffing?: number;
+  isStop?: boolean;
   ringOnly?: boolean;
   // The live coverage fills the dot instead of the highlight (#310).
   coverage?: { fill: string; text: string };
+  onPress?: (station: string) => void;
 }) {
   const [hover, setHover] = useState(false);
   const baseRadius = 10;
@@ -184,7 +253,7 @@ function Station({
         ? y + 20
         : y - baseRadius - 2 - (name === "NØ" ? 5 : 0);
   return (
-    <>
+    <G>
       <Circle
         cx={x}
         cy={y}
@@ -192,12 +261,16 @@ function Station({
         fill={coverage?.fill ?? highlightColor ?? theme.background}
         stroke={theme.text}
         strokeWidth={5}
-        onPress={() => console.log(`Clicked: ${name}`)}
+        onPress={onPress ? () => onPress(name) : undefined}
+        accessibilityLabel={onPress ? `Vælg station ${name}` : undefined}
         {...({
           onMouseEnter: () => setHover(true),
           onMouseLeave: () => setHover(false),
         } as any)}
       />
+      {isStop && requiredStaffing === undefined && (
+        <Circle cx={x} cy={y} r={3} fill={theme.text} pointerEvents="none" />
+      )}
       {requiredStaffing !== undefined && (
         <Text
           x={x}
@@ -213,16 +286,17 @@ function Station({
       <Text
         {...text.mapLabel}
         fontSize={16}
-        fontWeight="600"
+        fontWeight="700"
         x={labelX}
         y={labelY}
         textAnchor={mirrored || insideRing || belowLeft ? "end" : "start"}
         transform={`rotate(${insideRing || outsideRight || horizontalRight ? 0 : mirrored || belowRight ? 45 : -45} ${labelX} ${labelY})`}
+        onPress={onPress ? () => onPress(name) : undefined}
         {...(highlightColor ? { fill: highlightColor } : {})}
       >
         {name}
       </Text>
-    </>
+    </G>
   );
 }
 
@@ -451,13 +525,17 @@ export default function MapRender({
   highlightStation,
   highlightColor = theme.text,
   markedStations = [],
+  stopStations = [],
   blockedTracks = [],
   initiallyHidden = [],
   requiredStaffing = {},
   stationCoverage = {},
   positions,
+  stationPositions,
   ringStations = defaultRingStations,
   availableSegments,
+  crossovers,
+  onStationPress,
 }: {
   lines: MapLine[];
   colors: Record<string, string>;
@@ -473,6 +551,7 @@ export default function MapRender({
   // Optional: more stations drawn the same way, for example the stations a
   // scenario needs staff at (#183). Leaving it out draws the map as before.
   markedStations?: readonly string[];
+  stopStations?: readonly string[];
   // Optional: the tracks a scenario blocks, drawn in their own style (#183).
   blockedTracks?: readonly BlockedTrack[];
   // Optional: lines that start switched off until their button is pressed.
@@ -484,7 +563,10 @@ export default function MapRender({
   // draws the map as before.
   stationCoverage?: Readonly<Record<string, CoverageLevel>>;
   positions?: Readonly<Record<string, [number, number]>>;
+  stationPositions?: Readonly<Record<string, [number, number]>>;
   ringStations?: string[];
+  crossovers?: readonly MapCrossover[];
+  onStationPress?: (station: string) => void;
   availableSegments?: readonly {
     trackNumber: number;
     stationA: string;
@@ -492,7 +574,11 @@ export default function MapRender({
   }[];
 }) {
   const position = (station: string) =>
-    positions ? positions[station] : getStation(station);
+    positions
+      ? positions[station]
+      : (stationPositions?.[station] ?? getStation(station));
+  const displayedCrossovers =
+    crossovers ?? (positions ? [] : defaultCrossovers);
   // Each station once, so a station both marked and highlighted is drawn once.
   const highlighted = [
     ...new Set([
@@ -504,6 +590,14 @@ export default function MapRender({
     highlighted.includes(station) ? highlightColor : undefined;
   const [hidden, setHidden] = useState<string[]>(initiallyHidden);
   const visible = lines.filter((l) => !hidden.includes(l.name));
+  const connections = new Map<string, [string, string]>();
+  for (const line of visible) {
+    for (const [a, b] of line.connections) {
+      const key = connectionKey(a, b);
+      if (!connections.has(key)) connections.set(key, [a, b]);
+    }
+  }
+
   const ringOnly =
     visible.some((line) => line.name === "M3" || line.name === "M4") &&
     !visible.some((line) => line.name === "M1" || line.name === "M2");
@@ -531,74 +625,132 @@ export default function MapRender({
         viewBox={viewBox}
         preserveAspectRatio="xMidYMid meet"
       >
-        {visible.flatMap(({ name, connections }) =>
-          connections
-            // A station the map has no position for is skipped, not drawn at 0,0.
-            .filter(
-              ([stationA, stationB]) =>
-                position(stationA) !== undefined &&
-                position(stationB) !== undefined,
-            )
-            .map(([lineA, lineB]) => {
-              // Give a physical segment the same orientation in every line view.
-              const matching = availableSegments?.filter(
-                (segment) =>
-                  (segment.stationA === lineA && segment.stationB === lineB) ||
-                  (segment.stationA === lineB && segment.stationB === lineA),
-              );
-              const reference =
-                matching?.find((segment) => segment.trackNumber === 1) ??
-                matching?.[0];
-              const stationA = reference?.stationA ?? lineA;
-              const stationB = reference?.stationB ?? lineB;
-              const [x1, y1] = position(stationA)!;
-              const [x2, y2] = position(stationB)!;
-              const rails = [1, 2].map((t) =>
-                GetColors(visible, colors, stationA, stationB, t),
-              );
+        {[...connections.values()]
+          // A station the map has no position for is skipped, not drawn at 0,0.
+          .filter(
+            ([stationA, stationB]) =>
+              position(stationA) !== undefined &&
+              position(stationB) !== undefined,
+          )
+          .map(([lineA, lineB]) => {
+            // Give a physical segment the same orientation in every line view.
+            const matching = availableSegments?.filter(
+              (segment) =>
+                (segment.stationA === lineA && segment.stationB === lineB) ||
+                (segment.stationA === lineB && segment.stationB === lineA),
+            );
+            const reference =
+              matching?.find((segment) => segment.trackNumber === 1) ??
+              matching?.[0];
+            const stationA = reference?.stationA ?? lineA;
+            const stationB = reference?.stationB ?? lineB;
+            const [x1, y1] = position(stationA)!;
+            const [x2, y2] = position(stationB)!;
+            const rails = [1, 2].map((t) =>
+              GetColors(visible, colors, stationA, stationB, t),
+            );
 
-              return (
-                <Fragment key={`${name}-${stationA}-${stationB}`}>
-                  {rails.map(
-                    ([colorA, colorB], i) =>
-                      colorA &&
-                      (!availableSegments ||
-                        availableSegments.some(
-                          (segment) =>
-                            segment.trackNumber === i + 1 &&
-                            ((segment.stationA === stationA &&
-                              segment.stationB === stationB) ||
-                              (segment.stationA === stationB &&
-                                segment.stationB === stationA)),
-                        )) && (
-                        <TrackSegment
-                          key={i}
-                          {...{
-                            stationA,
-                            stationB,
-                            x1,
-                            y1,
-                            x2,
-                            y2,
-                            colorA,
-                            colorB,
-                          }}
-                          track={i + 1}
-                          ringStations={ringStations}
-                          position={position}
-                          blocked={blockedTracks.some(
-                            (blocked) =>
-                              blocked.trackNumber === i + 1 &&
-                              [stationA, stationB].includes(blocked.stationA) &&
-                              [stationA, stationB].includes(blocked.stationB),
-                          )}
-                        />
-                      ),
-                  )}
-                </Fragment>
-              );
-            }),
-        )}
+            return (
+              <Fragment key={connectionKey(stationA, stationB)}>
+                {rails.map(
+                  ([colorA, colorB], i) =>
+                    colorA &&
+                    (!availableSegments ||
+                      availableSegments.some(
+                        (segment) =>
+                          segment.trackNumber === i + 1 &&
+                          ((segment.stationA === stationA &&
+                            segment.stationB === stationB) ||
+                            (segment.stationA === stationB &&
+                              segment.stationB === stationA)),
+                      )) && (
+                      <TrackSegment
+                        key={i}
+                        {...{
+                          stationA,
+                          stationB,
+                          x1,
+                          y1,
+                          x2,
+                          y2,
+                          colorA,
+                          colorB,
+                        }}
+                        track={i + 1}
+                        ringStations={ringStations}
+                        position={position}
+                        blocked={blockedTracks.some(
+                          (blocked) =>
+                            blocked.trackNumber === i + 1 &&
+                            [stationA, stationB].includes(blocked.stationA) &&
+                            [stationA, stationB].includes(blocked.stationB),
+                        )}
+                      />
+                    ),
+                )}
+              </Fragment>
+            );
+          })}
+        {displayedCrossovers.map(({ stationA, stationB, color }) => {
+          const a = position(stationA);
+          const b = position(stationB);
+          const visibleSegment = visible.some((line) =>
+            line.connections.some(
+              ([first, second]) =>
+                (first === stationA && second === stationB) ||
+                (first === stationB && second === stationA),
+            ),
+          );
+          if (!a || !b || !visibleSegment) return null;
+          const dx = b[0] - a[0];
+          const dy = b[1] - a[1];
+          const length = Math.hypot(dx, dy);
+          if (length === 0) return null;
+          const delta = Math.min(12 / length, 0.28);
+          const first = 0.5 - delta;
+          const last = 0.5 + delta;
+          const { ox, oy } = GetOffset(...a, ...b, 6);
+          const negativeCurve =
+            ringCurve(stationA, stationB, -6, ringStations, position) ??
+            ringCurve(stationB, stationA, -6, ringStations, position);
+          const positiveCurve =
+            ringCurve(stationA, stationB, 6, ringStations, position) ??
+            ringCurve(stationB, stationA, 6, ringStations, position);
+          const point = (t: number, side: -1 | 1): [number, number] => {
+            const curve = side === -1 ? negativeCurve : positiveCurve;
+            return curve
+              ? curvePoint(curve, t)
+              : [a[0] + dx * t + side * ox, a[1] + dy * t + side * oy];
+          };
+          const [x1, y1] = point(first, -1);
+          const [x2, y2] = point(last, 1);
+          const [x3, y3] = point(first, 1);
+          const [x4, y4] = point(last, -1);
+          return (
+            <G
+              key={`${stationA}-${stationB}`}
+              testID={`crossover-${stationA}-${stationB}`}
+              accessibilityLabel={`Sporskifte mellem ${stationA} og ${stationB}`}
+            >
+              <Line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={color}
+                strokeWidth={3}
+              />
+              <Line
+                x1={x3}
+                y1={y3}
+                x2={x4}
+                y2={y4}
+                stroke={color}
+                strokeWidth={3}
+              />
+            </G>
+          );
+        })}
         {/* Stations and labels sit above every track, including shared lines. */}
         {visibleStations
           .filter((station) => !highlighted.includes(station))
@@ -609,7 +761,9 @@ export default function MapRender({
               x={position(station)![0]}
               y={position(station)![1]}
               highlightColor={highlightFor(station)}
+              isStop={stopStations.includes(station)}
               ringOnly={ringOnly}
+              onPress={onStationPress}
             />
           ))}
         {highlighted
@@ -626,7 +780,9 @@ export default function MapRender({
                   // station keeps its own colour.
                   { coverage: coverageColors[stationCoverage[station]] })}
               requiredStaffing={requiredStaffing[station]}
+              isStop={stopStations.includes(station)}
               ringOnly={ringOnly}
+              onPress={onStationPress}
             />
           ))}
       </Svg>
