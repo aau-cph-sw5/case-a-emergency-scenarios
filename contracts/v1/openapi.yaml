@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.4.0
+  version: 8.10.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -68,6 +68,40 @@ paths:
                   code: "E0001"
                   message: "Invalid or expired token"
 
+    post:
+      summary: Create a scenario
+      description: >
+        Admins create a scenario and its first version with operating patterns,
+        station staffing and confirmed unavailable track segments. The entire
+        scenario is saved atomically.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./create-scenario-request.schema.json"
+      responses:
+        "201":
+          description: Scenario created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scenarioId]
+                properties:
+                  scenarioId:
+                    type: string
+        "400":
+          description: Invalid request or network references
+        "401":
+          description: Missing or invalid authentication
+        "403":
+          description: The user is not an admin
+        "409":
+          description: The scenario ID already exists
+
   /api/v1/scenarios/{scenarioId}:
     get:
       summary: Get a single scenario
@@ -105,6 +139,26 @@ paths:
                   message: "Invalid or expired token"
         "404":
           description: Scenario not found, or it belongs to another line group
+
+  /api/v1/network:
+    get:
+      summary: Get the shared metro network
+      description: Returns stations, schematic positions, physical segments and normal-service patterns. Crossovers are not included yet.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Network data, including empty collections when not seeded
+          content:
+            application/json:
+              schema:
+                $ref: "./network.schema.json"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /api/v1/metro-lines/{lineId}:
     get:
@@ -506,6 +560,72 @@ paths:
                       code: "E0007"
                       message: "'1' is not the active activation"
 
+  /api/v1/scenario-suggestions:
+    post:
+      summary: Suggests scenarios for a free-text incident description
+      description: >
+        DRAFT (MET-A-019), to be approved by the owners of #355 and #356.
+        Requires a bearer token with the OPERATOR role. Returns up to 5
+        candidates, best first, when the match is confident, otherwise
+        NO_CONFIDENT_CANDIDATE. Only suggests: it never activates.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./scenario-suggestion.schema.json#/definitions/ScenarioSuggestionRequest"
+            example:
+              description: "Signalfejl på strækningen mellem Nørreport og Kongens Nytorv"
+      responses:
+        "200":
+          description: Suggestions, or no confident candidate
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-suggestion.schema.json"
+              examples:
+                confident:
+                  value:
+                    status: "CONFIDENT"
+                    candidates:
+                      - scenarioId: "S1"
+                        score: 0.87
+                noConfidentCandidate:
+                  value:
+                    status: "NO_CONFIDENT_CANDIDATE"
+        "400":
+          description: description is missing, empty or longer than 2000 characters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0006"
+                  message: "description must be 1 to 2000 characters"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not ask for suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "Role STEWARD may not ask for scenario suggestions"
+
   /api/v1/activations/{activationId}/stand-down:
     post:
       summary: Stands down the active scenario
@@ -842,7 +962,167 @@ paths:
                       code: "E0007"
                       message: "The request conflicts with the current state of the resource"
 
+  /api/v1/users:
+    get:
+      summary: List the user accounts
+      description: >
+        Requires the ADMIN role (MET-A-030). Returns every account, ordered
+        by username. A password or its hash is never returned.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "./user.schema.json"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    post:
+      summary: Create a user account
+      description: >
+        Requires the ADMIN role (MET-A-030). The password is stored as a
+        hash. Usernames are unique regardless of casing, so "Operator" is
+        taken when "operator" exists.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./user-create.schema.json"
+            example:
+              username: "operator-2"
+              password: "a-long-password-2"
+              role: "OPERATOR"
+              lineGroup: "M1_M2"
+      responses:
+        "201":
+          description: The created account
+          content:
+            application/json:
+              schema:
+                $ref: "./user.schema.json"
+        "400":
+          description: The body does not match user-create.schema.json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0006"
+                  message: "Request body does not match contract schema"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: The username is taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0007"
+                  message: "The username is already taken"
+
+  /api/v1/users/{userId}:
+    patch:
+      summary: Edit a user account
+      description: >
+        Requires the ADMIN role (MET-A-030). Changes the password, the role
+        and/or the line group; a field that is left out stays as it is. The
+        username cannot be changed. An admin cannot change their own role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./user-update.schema.json"
+            example:
+              lineGroup: "M3_M4"
+      responses:
+        "200":
+          description: The edited account
+          content:
+            application/json:
+              schema:
+                $ref: "./user.schema.json"
+        "400":
+          description: The body does not match user-update.schema.json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0006"
+                  message: "Request body does not match contract schema"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: No account with this id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0004"
+                  message: "No user with id '42' exists"
+        "409":
+          description: An admin tried to change their own role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0007"
+                  message: "An admin cannot change their own role"
+
 components:
+  responses:
+    Unauthorized:
+      description: Missing, invalid or expired bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: "E0001"
+              message: "Invalid or expired token"
+    AdminOnly:
+      description: The signed-in role is not ADMIN
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: "E0002"
+              message: "The authenticated user's role does not permit this action"
+
   parameters:
     Station:
       name: station

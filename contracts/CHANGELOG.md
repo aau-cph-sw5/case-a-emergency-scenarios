@@ -1,5 +1,47 @@
 # Scenario State Contract Changelog
 
+## 8.10.0 - 2026-11-18
+
+Additive. Scenario suggestions from a free-text incident description (MET-A-019, #357). A draft: the owners of #355 and #356 still have to approve it, and the server does not serve the endpoint yet (#371).
+
+- New `scenario-suggestion.schema.json`: the request `description` (1 to 2000 characters) and the response. `status` is `CONFIDENT` with one to five `candidates` (`scenarioId` and a `score` from 0 to 1, best first), or `NO_CONFIDENT_CANDIDATE` without candidates.
+- New `POST /api/v1/scenario-suggestions`. Only `OPERATOR` may use it; other roles get 403 `E0002`. A missing, empty or too long `description` gets 400 `E0006`, and a missing or expired token gets 401 `E0001`.
+- It only suggests. Activating a scenario still goes through the activation endpoint and its confirmation.
+
+## 8.9.0 - 2026-11-18
+
+Additive. Normal network patterns include their stored display color.
+
+## 8.8.0 - 2026-11-18
+
+Additive. Admins can create a scenario and its first version with operating patterns, staffing, tasks and covered track segments.
+
+- New `POST /api/v1/scenarios` validates the request and saves it atomically.
+- New `create-scenario-request.schema.json` describes the request; non-admins receive 403 and duplicate scenario IDs receive 409.
+- The server emits `scenarios-changed` to operators in the scenario's line group.
+
+## 8.7.0 - 2026-11-18
+
+Additive. Operating patterns store a required display colour, and scenario responses include it. Clients accept responses from older servers without a colour.
+
+## 8.6.0 - 2026-11-16
+
+Additive. Admins create and edit user accounts (MET-A-030).
+
+- New `user.schema.json`: `userId`, `username`, `role` and `lineGroup`.
+- New `GET /api/v1/users`: every account, ordered by username.
+- New `POST /api/v1/users` with `user-create.schema.json` (`username`, `password` of at least 12 characters including a digit, `role`, `lineGroup`). Answers 201 with the account, and 409 `E0007` when the username is taken, regardless of casing.
+- New `PATCH /api/v1/users/{userId}` with `user-update.schema.json`: changes `password` (same rule as on create), `role` and/or `lineGroup`, at least one of them. The username cannot be changed. Answers 200 with the account, and 404 `E0004` for an unknown id. An admin changing their own role gets 409 `E0007`.
+- Only `ADMIN` may use the three endpoints. Other roles get 403 `E0002`.
+
+## 8.5.0 - 2026-11-16
+
+Additive. The shared metro network is available to authenticated clients (#381).
+
+- New `GET /api/v1/network` returns stations and schematic positions, track segments, and normal-service patterns with their stops in sequence. Station positions can be null when not configured.
+- New `network.schema.json` describes the response. Empty network collections are returned as arrays. Crossovers are not included.
+- `info.version` in `openapi.yaml` is now 8.5.0.
+
 ## 8.4.0 - 2026-11-13
 
 Additive. Station messages between stewards and the control room (MET-A-029, #332). The server does not serve the endpoints or send the events yet.

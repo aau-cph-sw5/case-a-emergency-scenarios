@@ -3,7 +3,7 @@
 **Status.** Accepted
 **Date.** 2026-10-19
 **Deciders.** group 7
-**Related backlog items.** MET-A-004, MET-A-007
+**Related backlog items.** MET-A-004, MET-A-007, MET-A-029
 
 ## Context
 
@@ -43,6 +43,23 @@ state, and `activations-changed` to the connected operators of that line group.
 A client sends its bearer token when it opens the socket, and the server
 refuses the connection without a valid token (error code `E0001`). Each socket
 joins one room for its role and line group: `OPERATOR:M1_M2`, `STEWARD:M1_M2`, `OPERATOR:M3_M4` or `STEWARD:M3_M4`. Every event is sent to the role it is for, in the line group of the activation it is about, so M1/M2 and M3/M4 never receive each other's events.
+
+Station messages (MET-A-029) are delivered more narrowly. A steward checked in
+at a station, meaning their latest report in the active activation is `ARRIVED`
+and not task done, is also in a room for that station and activation,
+`station:<activationId>:<station>`. The server never joins or leaves this room
+directly. After every accepted position report, and when a steward's socket
+connects, it syncs all of that steward's sockets with the database: into the
+room the latest report puts them in, and out of every other station room. Syncs
+for one steward run one at a time, and each reads the newest state, so reports
+that arrive close together cannot leave a steward in the wrong room. On connect
+the sync finishes before `welcome`, because clients treat `welcome` as ready. A
+new message is emitted as `station-message` to the operators of the
+activation's line group and to the station's room, the sender included, so the
+writer can match it by `clientMessageId`. When the activation is stood down or
+replaced in a switch, the server emits `station-threads-closed` to both roles in
+the line group and empties the room of each station the activation deploys
+staff to.
 
 ## Consequences
 

@@ -159,6 +159,26 @@ describe("useLiveData", () => {
     expect(scenariosMock).toHaveBeenCalledTimes(1);
   });
 
+  it("reloads scenarios when notified and after reconnecting", async () => {
+    activationsMock.mockResolvedValue([]);
+    const first = [{ scenarioId: "OLD", name: "Old" }];
+    const second = [{ scenarioId: "NEW", name: "New" }];
+    const third = [{ scenarioId: "LATER", name: "Later" }];
+    scenariosMock
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(second)
+      .mockResolvedValueOnce(third);
+    const { socket, fire } = fakeSocket();
+    const { result } = renderHook(() => useLiveData(), {
+      wrapper: wrapperFor(socket),
+    });
+    await waitFor(() => expect(result.current.scenarios).toEqual(first));
+    await fire("scenarios-changed");
+    await waitFor(() => expect(result.current.scenarios).toEqual(second));
+    await fire("connect");
+    await waitFor(() => expect(result.current.scenarios).toEqual(third));
+  });
+
   it("reports a failed scenario list and loads it again on reloadScenarios", async () => {
     activationsMock.mockResolvedValue([]);
     const summary = { scenarioId: "DEMO-001", name: "Demo" };

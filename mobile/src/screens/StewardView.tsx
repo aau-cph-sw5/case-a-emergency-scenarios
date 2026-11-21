@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  AppState,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-} from "react-native";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { getStationState } from "../../../shared/components/stationState";
 import { userIdFromToken } from "../../../shared/auth/login";
 import { ERROR_CODES } from "../../../shared/error-codes";
@@ -16,6 +10,7 @@ import { colors, palette, text } from "../../../shared/Theme";
 import { apiBaseUrl } from "../api-base-url";
 import { reportErrorMessage } from "../api/position-report";
 import { StewardStatusControl } from "../components/StewardStatusControl";
+import { animateNextLayout } from "../motion";
 import {
   stewardStatus,
   type OwnStatus,
@@ -27,12 +22,23 @@ import type { FlushResult } from "../offline/position-report-delivery";
 import { positionReportDelivery } from "../offline/position-report-delivery-instance";
 import { queuePositionReport } from "../offline/queue-position-report";
 import { snapshotStore } from "../offline/snapshot-store";
+import {
+  stationMessageDelivery,
+  stationMessageQueueStore,
+} from "../offline/station-message-store";
 import { reportRejection, waitingReport } from "../offline/waiting-report";
 import { socket } from "../socket";
-import { ScenarioNotice } from "./Notice";
+import { liveNotices, NoticeStack, stoodDownNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
+import { withOwnStatus } from "./own-assignment";
 import { RoleView } from "./RoleView";
-import { ScenarioOverview } from "./ScenarioOverview";
+import { StationChat } from "./StationChat";
+import {
+  oneRowPerStation,
+  ScenarioMap,
+  ScenarioOverview,
+} from "./ScenarioOverview";
+import { useNetwork } from "../network/useNetwork";
 
 // Shown on the saved copy, where only going on the way can be reported.
 const STATUS_BLOCKED_OFFLINE =
@@ -41,6 +47,12 @@ const STATUS_BLOCKED_OFFLINE =
 // Shown while a report waits on the phone, so a later change cannot overtake it.
 const STATUS_BLOCKED_WAITING =
   "Din position er ikke sendt endnu. Du kan ændre status, når den er modtaget.";
+
+// Why the chat is gone, shown in a chat that was open (MET-A-029, #335).
+const CHAT_CLOSED_STOOD_DOWN = "Scenariet er afsluttet.";
+const CHAT_CLOSED_CHECKED_OUT = "Du er ikke længere tjekket ind på stationen.";
+const chatClosedSwitched = (name: string) =>
+  `Scenariet er skiftet til “${name}”.`;
 
 // Waits before each new try after a send failed while live
 export const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
@@ -73,7 +85,12 @@ export function StewardView({
   onRetry?: () => void;
 }) {
   // Data from the socketstate
-  const { isConnected, messages } = useSocketState(socket);
+  const { isConnected } = useSocketState(socket);
+  const {
+    network,
+    usingCached,
+    status: networkStatus,
+  } = useNetwork(token, online);
   const { view, refresh, dismissNotice } = useActiveScenario({
     apiBaseUrl,
     token,
@@ -87,8 +104,11 @@ export function StewardView({
   const [ownStatus, setOwnStatus] = useState<OwnStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [sendingStatus, setSendingStatus] = useState(false);
-  // The page does not scroll while the arrival slide is being slid.
-  const [sliding, setSliding] = useState(false);
+  // The station chosen in the list, assigned by the BEKRÆFT slide (#376).
+  const [selected, setSelected] = useState<string | undefined>(undefined);
+  // The station just cancelled keeps its place at the top of the list until
+  // the steward picks again, so it does not jump away (#376).
+  const [pinned, setPinned] = useState<string | undefined>(undefined);
 
   // Fetches again when the app returns to the foreground, when the socket
   // announces an activation or a stand-down, and when the socket reconnects,
@@ -129,8 +149,12 @@ export function StewardView({
   const [shownStatusKey, setShownStatusKey] = useState(statusKey);
   // The newest report saved on the phone that the server has not received yet.
   const [waiting, setWaiting] = useState<QueuedPositionReport | null>(null);
+  // Whether the steward's own status for this activation has been read, so
+  // the app's own status may be counted in the numbers (withOwnStatus).
+  const [ownLoaded, setOwnLoaded] = useState(false);
   if (statusKey !== shownStatusKey) {
     setShownStatusKey(statusKey);
+    setOwnLoaded(false);
     setOwnStatus(null);
     setStatusError(null);
     setWaiting(null);
@@ -161,50 +185,75 @@ export function StewardView({
       if (cancelled) return;
       if (result.ok) setOwnStatus(result.own);
       setWaiting(pending);
+      setOwnLoaded(true);
     });
     return () => {
       cancelled = true;
     };
   }, [token, activationId, userId, deployments]);
 
-  // Sends the queued reports and says what happened, null when nothing changed.
+  // Sends the queued reports and says what went wrong, null when nothing did.
+  // A report that went through says nothing (#376): the status box already
+  // shows the new status, so "Position sendt." was noise. delivered tells
+  // that something went through, so an old problem message can go.
   const deliver = useCallback(async (): Promise<{
     message: string | null;
     blocked: boolean;
+    delivered: boolean;
   }> => {
     // From the token, since a stopped scenario leaves no snapshot.
     const owner = userIdFromToken(token);
-    if (owner === null) return { message: null, blocked: false };
+    if (owner === null)
+      return { message: null, blocked: false, delivered: false };
+    // Station messages written offline go out at the same time (MET-A-029).
+    // The chat shows how each one went; here a stopped send only makes the
+    // retry below try again.
+    const messagesBlocked = stationMessageDelivery.flush(owner, token).then(
+      (result) => result.blocked,
+      () => true,
+    );
     try {
       const result = await positionReportDelivery.flush(owner, token);
-      const sent =
-        result.pending > 0
-          ? "Position gemt. Afventer levering."
-          : result.acknowledged > 0
-            ? "Position sendt."
-            : null;
       const refused =
         result.rejected > result.superseded.length
           ? "Positionen blev ikke modtaget."
           : null;
       // A delivered or refused report changes the server's copy, so it is fetched again.
       if (result.acknowledged > 0 || result.rejected > 0) void refresh();
-      const lines = [
-        supersededMessage(result.superseded),
-        refused,
-        sent,
-      ].filter((line) => line !== null);
+      const lines = [supersededMessage(result.superseded), refused].filter(
+        (line) => line !== null,
+      );
       return {
         message: lines.length > 0 ? lines.join("\n") : null,
-        blocked: result.blockedBy !== undefined,
+        blocked: result.blockedBy !== undefined || (await messagesBlocked),
+        delivered: result.acknowledged > 0,
       };
     } catch {
       return {
         message: "Position gemt på telefonen, men kunne ikke sendes endnu.",
         blocked: true,
+        delivered: false,
       };
     }
   }, [token, refresh]);
+
+  // The activation the server says is live, null when it says none is, and
+  // undefined while that is not known (loading or offline).
+  const liveActivationId =
+    view.status === "live"
+      ? view.snapshot.state.activationId
+      : view.status === "stood-down" || view.status === "none"
+        ? null
+        : undefined;
+  // A stood-down scenario's thread is removed, so the messages the server
+  // refused for it are forgotten on the phone instead of piling up (MET-A-029).
+  useEffect(() => {
+    const owner = userIdFromToken(token);
+    if (owner === null || liveActivationId === undefined) return;
+    void stationMessageQueueStore
+      .discardEndedRejections(owner, liveActivationId)
+      .catch(() => undefined);
+  }, [token, liveActivationId]);
 
   // Failed sends in a row while online; 0 means no retry is waiting.
   const [retries, setRetries] = useState(0);
@@ -224,9 +273,10 @@ export function StewardView({
   // Sends the queue and shows the answer; a failed send waits for another try.
   const sendQueued = useCallback(
     (isCancelled: () => boolean) =>
-      void deliver().then(({ message, blocked }) => {
+      void deliver().then(({ message, blocked, delivered }) => {
         if (isCancelled()) return;
         if (message !== null) setReportStatus(message);
+        else if (delivered) setReportStatus(null);
         setRetries((count) => (blocked ? count + 1 : 0));
         void checkWaiting();
       }),
@@ -276,7 +326,8 @@ export function StewardView({
       };
     }
     if (!canSend) {
-      setReportStatus("Position gemt. Afventer levering.");
+      // Saved on the phone; the status box shows the steward on the way.
+      setReportStatus(null);
       setWaiting(queued);
       return { ok: true, message: "" };
     }
@@ -294,7 +345,7 @@ export function StewardView({
         ...(rejection.code === undefined ? {} : { code: rejection.code }),
       };
     }
-    setReportStatus(message ?? "Position gemt. Afventer levering.");
+    setReportStatus(message);
     // A report that could not be sent now is tried again after a delay.
     if (blocked) setRetries((count) => count + 1);
     return { ok: true, message: "" };
@@ -325,8 +376,13 @@ export function StewardView({
         deployments,
         change.type === "assign" ? queueReport : undefined,
       );
-      if (result.ok) setOwnStatus(result.own);
-      else setStatusError(result.message);
+      if (result.ok) {
+        // The status card turns by itself, and the list under it takes the
+        // new status when the card shows its new face (StewardStatusControl).
+        setOwnStatus(result.own);
+        setSelected(undefined);
+        setPinned(change.type === "cancel" ? ownStation : undefined);
+      } else setStatusError(result.message);
       // The server or the app's own check refused the change, so the app's
       // status is out of date (#310): a new copy brings the server's.
       if (!result.ok && result.code === ERROR_CODES.INVALID_STATUS_TRANSITION) {
@@ -346,49 +402,118 @@ export function StewardView({
   // have none, so + comes back and nothing is highlighted.
   const ownStation =
     own && own.status !== "CHECKED_OUT" ? own.station : undefined;
-  // After arriving the steward checks out before choosing a new station.
-  const canAssign =
-    (view.status === "live" || view.status === "copy") &&
-    !sendingStatus &&
-    own?.status !== "MANNED" &&
-    own?.status !== "TASK_DONE";
-
-  // The coverage of the steward's station, from the server's deployments
-  // only, so the steward sees the same as the control room.
-  const ownRequirement =
-    ownStation && shown
-      ? shown.scenario.versions[0]?.stationRequirements?.find(
-          (requirement) => requirement.station === ownStation,
-        )
+  // A station is chosen only while the steward has none: on the way they
+  // cancel first (the cross in the status card), and after arriving they
+  // check out first.
+  // A chosen station that a new copy of the scenario no longer has is
+  // dropped, so the slide cannot assign a station that is not there.
+  const chosen =
+    selected !== undefined &&
+    (shown?.scenario.versions[0]?.stationRequirements ?? []).some(
+      (row) => row.station === selected,
+    )
+      ? selected
       : undefined;
-  const ownCoverage =
-    ownStation && shown && ownRequirement
+  // Not tied to sending: while an assignment is sent the BEKRÆFT slide and
+  // the rows stay as they are (the slide is blocked by sending, and
+  // changeStatus refuses a second change), so nothing on the screen jumps.
+  const canPick =
+    (view.status === "live" || view.status === "copy") &&
+    ownStation === undefined;
+
+  // The scenario with the steward's own status counted at once (#376), so the
+  // numbers do not show an old value and jump when the server's next copy
+  // arrives. Before the own status has been read, the server's copy as it is.
+  const counted =
+    shown && ownLoaded
+      ? {
+          ...shown,
+          state: {
+            ...shown.state,
+            deployments: withOwnStatus(
+              shown.state.deployments,
+              shown.userId,
+              own,
+            ),
+          },
+        }
+      : shown;
+
+  // The coverage of the steward's station, with the own status counted.
+  // The station the status card shows the staffing of: the own station, or
+  // without one the station chosen in the list, so the steward sees how it
+  // is staffed before sliding BEKRÆFT (#376).
+  const cardStation = ownStation ?? chosen;
+  const cardRequirement =
+    cardStation && shown
+      ? // All rows of the station together, as in the list (#376).
+        oneRowPerStation(
+          shown.scenario.versions[0]?.stationRequirements ?? [],
+        ).find((requirement) => requirement.station === cardStation)
+      : undefined;
+  const cardCoverage =
+    cardStation && shown && cardRequirement
       ? (() => {
           const state = getStationState(
-            shown.state,
-            ownStation,
-            ownRequirement.minimumStaffing,
+            (counted ?? shown).state,
+            cardStation,
+            cardRequirement.minimumStaffing,
           );
           return {
             arrived: state.current,
             enRoute: state.enRoute,
-            needed: ownRequirement.minimumStaffing,
+            needed: cardRequirement.minimumStaffing,
           };
         })()
       : null;
 
+  const stoodDown = stoodDownNotice(view);
+
   const retry = onRetry ?? (() => void refresh());
 
+  // The station's chat is there only while the steward is checked in
+  // (ARRIVED) at it, as the server requires (MET-A-029, #335).
+  const chatStation = own?.status === "MANNED" ? own.station : undefined;
+  // The activation the steward was last checked in for. When the control
+  // room switches scenario, the chat says so, not that the steward checked
+  // out.
+  const [chatActivation, setChatActivation] = useState(activationId);
+  // Only once the status is the new activation's: in the render that sees a
+  // new activation, own is still the old one's.
+  if (
+    chatStation !== undefined &&
+    statusKey === shownStatusKey &&
+    activationId !== chatActivation
+  ) {
+    setChatActivation(activationId);
+  }
+  const chatClosedReason =
+    view.status === "stood-down" || view.status === "none"
+      ? CHAT_CLOSED_STOOD_DOWN
+      : shown !== null && activationId !== chatActivation
+        ? chatClosedSwitched(shown.scenario.name)
+        : CHAT_CLOSED_CHECKED_OUT;
+  const refreshScenario = useCallback(() => void refresh(), [refresh]);
+  // While the chat is open it covers the view, which a screen reader skips.
+  const [chatOpen, setChatOpen] = useState(false);
+
   return (
-    <RoleView
-      title="Steward"
-      description="Logget ind som steward."
-      onLogout={onLogout}
-    >
-      <ScenarioNotice view={view} onDismiss={dismissNotice} />
-      <ScrollView
-        contentContainerStyle={styles.content}
-        scrollEnabled={!sliding}
+    <RoleView title="Steward" onLogout={onLogout} obscured={chatOpen}>
+      {/* Activated and switched show over the screen and move nothing;
+          stood down turns the status card (closed, below). */}
+      <NoticeStack
+        notices={liveNotices(view)}
+        onDismiss={(id) => {
+          animateNextLayout();
+          dismissNotice(id);
+        }}
+      />
+      {/* The screen does not scroll (#376): the status card at the top (the
+          status, the map and the one control), the station list under it. */}
+      <View
+        style={styles.content}
+        accessibilityElementsHidden={chatOpen}
+        importantForAccessibility={chatOpen ? "no-hide-descendants" : "auto"}
       >
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
@@ -417,62 +542,124 @@ export function StewardView({
             onRetry={retry}
           />
         )}
-        {shown && (
-          <>
-            <StewardStatusControl
-              own={own}
-              coverage={ownCoverage}
-              blockedReason={
-                view.status === "copy"
-                  ? STATUS_BLOCKED_OFFLINE
-                  : waiting !== null
-                    ? STATUS_BLOCKED_WAITING
-                    : null
-              }
-              sending={sendingStatus}
-              error={statusError}
-              onArrive={() => void changeStatus({ type: "arrive" })}
-              onCancel={() => void changeStatus({ type: "cancel" })}
-              onCheckOut={() => void changeStatus({ type: "checkOut" })}
-              onSlidingChange={setSliding}
-            />
-            <ScenarioOverview
-              snapshot={shown}
-              assignedStation={ownStation}
-              checkedOutStation={
-                own?.status === "CHECKED_OUT" ? own.station : undefined
-              }
-              onAssign={
-                canAssign
-                  ? (station) => void changeStatus({ type: "assign", station })
-                  : undefined
-              }
-            />
-          </>
+        {(shown || stoodDown) && (
+          <StewardStatusControl
+            closed={
+              stoodDown
+                ? {
+                    title: stoodDown.title,
+                    text: stoodDown.text,
+                    onDismiss: () => dismissNotice(),
+                  }
+                : undefined
+            }
+            own={own}
+            coverage={cardCoverage}
+            blockedReason={
+              view.status === "copy"
+                ? STATUS_BLOCKED_OFFLINE
+                : waiting !== null
+                  ? STATUS_BLOCKED_WAITING
+                  : null
+            }
+            sending={sendingStatus}
+            error={statusError}
+            onArrive={() => void changeStatus({ type: "arrive" })}
+            onAssign={
+              canPick
+                ? () =>
+                    chosen !== undefined &&
+                    void changeStatus({ type: "assign", station: chosen })
+                : undefined
+            }
+            selected={chosen}
+            onCheckOut={() => void changeStatus({ type: "checkOut" })}
+            onCancel={() => void changeStatus({ type: "cancel" })}
+            cancelDisabled={
+              sendingStatus || view.status !== "live" || waiting !== null
+            }
+            offline={view.status === "copy"}
+            ready={ownLoaded}
+            scenario={shown?.scenario.name}
+            connected={online && isConnected}
+            map={
+              shown && (
+                <ScenarioMap
+                  snapshot={counted ?? shown}
+                  network={network}
+                  networkIsCached={usingCached}
+                  networkStatus={networkStatus}
+                  assignedStation={ownStation}
+                  checkedOutStation={
+                    own?.status === "CHECKED_OUT" ? own.station : undefined
+                  }
+                />
+              )
+            }
+            note={
+              reportStatus && <Text style={styles.report}>{reportStatus}</Text>
+            }
+          >
+            {/* Part of the list, so it comes and goes with the card's
+                status, not a turn ahead of it (#335). */}
+            {own?.status === "PENDING" && (
+              <Text style={styles.report}>
+                Tjek ind på stationen for at skrive til kontrolrummet.
+              </Text>
+            )}
+            {shown && (
+              <ScenarioOverview
+                snapshot={counted ?? shown}
+                assignedStation={ownStation}
+                checkedOutStation={
+                  own?.status === "CHECKED_OUT" ? own.station : undefined
+                }
+                ownArrived={
+                  own?.status === "MANNED" || own?.status === "TASK_DONE"
+                }
+                onSelect={
+                  canPick
+                    ? (station) => {
+                        animateNextLayout();
+                        setPinned(undefined);
+                        setSelected(station);
+                      }
+                    : undefined
+                }
+                selected={chosen}
+                pinnedStation={pinned}
+              />
+            )}
+          </StewardStatusControl>
         )}
 
-        {reportStatus && <Text>{reportStatus}</Text>}
-
-        {online && (
-          <>
-            <Text style={isConnected ? styles.ok : styles.offline}>
-              Socket: {isConnected ? "connected" : "disconnected"}
-            </Text>
-
-            {messages.map((message) => (
-              <Text key={message.id}>Socket: {message.text}</Text>
-            ))}
-          </>
+        {/* Without a scenario (for example after a stop) the answer about
+            the reports still shows; with one, it sits above the list. */}
+        {!shown && !stoodDown && reportStatus && (
+          <Text style={styles.report}>{reportStatus}</Text>
         )}
-      </ScrollView>
+      </View>
+      {/* Over the whole view, header included, so it is the last child. */}
+      <StationChat
+        token={token}
+        station={chatStation}
+        activationId={activationId}
+        closedReason={chatClosedReason}
+        onClosedByServer={refreshScenario}
+        onOpenChange={setChatOpen}
+      />
     </RoleView>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
+    flex: 1,
     paddingTop: 12,
-    paddingBottom: 24,
+  },
+  report: {
+    ...text.small,
+    marginBottom: 6,
   },
   message: {
     ...text.body,
@@ -484,15 +671,6 @@ const styles = StyleSheet.create({
     color: palette.metroDeepRed,
     fontWeight: "600",
     marginBottom: 4,
-  },
-  ok: {
-    color: "#1b7f3b",
-    fontWeight: "600",
-    marginTop: 8,
-  },
-  offline: {
-    color: "#6b7280",
-    marginTop: 8,
   },
   button: {
     alignSelf: "flex-start",

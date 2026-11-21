@@ -1,0 +1,18 @@
+{
+  "$id": "user-create.schema.json",
+  "title": "User Create",
+  "type": "object",
+  "required": ["username", "password", "role", "lineGroup"],
+  "additionalProperties": false,
+  "properties": {
+    "username": { "type": "string", "minLength": 1 },
+    "password": {
+      "type": "string",
+      "description": "At least 12 characters, at least one of them a digit.",
+      "minLength": 12,
+      "pattern": "[0-9]"
+    },
+    "role": { "enum": ["STEWARD", "OPERATOR", "ADMIN"] },
+    "lineGroup": { "enum": ["M1_M2", "M3_M4"] }
+  }
+}

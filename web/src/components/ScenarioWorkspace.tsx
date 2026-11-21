@@ -48,6 +48,7 @@ export function ScenarioWorkspace({
       }
       map={
         <MetroMap
+          token={token}
           lineGroup={lineGroup}
           scenarioId={mapScenarioId}
           scenario={selectedId === null || isActive ? undefined : scenario}

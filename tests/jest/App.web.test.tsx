@@ -32,6 +32,24 @@ jest.mock("../../web/src/OperatorDashboard", () => ({
   ),
 }));
 jest.mock("../../web/src/socket", () => ({ socket: {} }));
+jest.mock("../../web/src/ScenarioBuilder", () => ({
+  ScenarioBuilder: ({
+    onLogout,
+    onUsers,
+  }: {
+    onLogout: () => void;
+    onUsers: () => void;
+  }) => (
+    <main>
+      <h1>Admin</h1>
+      <button onClick={onLogout}>Log ud</button>
+      <button onClick={onUsers}>Brugere</button>
+    </main>
+  ),
+}));
+jest.mock("../../web/src/components/UserAdmin", () => ({
+  UserAdmin: () => <div>Brugeradministration</div>,
+}));
 
 const restore = jest.fn<() => Promise<void>>().mockResolvedValue();
 const signOut = jest.fn<() => Promise<void>>().mockResolvedValue();
@@ -116,6 +134,8 @@ describe("operator app session states", () => {
     setSession({ status: "signed-in", session });
     await showApp();
     expect(container.textContent).toContain("Operator log ud");
+    // User management is only on the admin dashboard.
+    expect(container.textContent).not.toContain("Brugere");
     expect(useAuthenticatedSocket).toHaveBeenCalledWith(
       expect.anything(),
       session.token,
@@ -130,10 +150,11 @@ describe("operator app session states", () => {
     expect(signOut).toHaveBeenCalled();
   });
 
-  it("shows the admin placeholder and signs out without an operator socket", async () => {
+  it("shows the admin dashboard and signs out without an operator socket", async () => {
     setSession({ status: "signed-in", session: { ...session, role: "ADMIN" } });
     await showApp();
     expect(container.querySelector("h1")?.textContent).toBe("Admin");
+    expect(container.textContent).toContain("Brugere");
     expect(container.textContent).not.toContain("Operator log ud");
     expect(useAuthenticatedSocket).toHaveBeenLastCalledWith(
       expect.anything(),

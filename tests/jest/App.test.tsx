@@ -9,6 +9,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import App from "../../mobile/App";
 import activeState from "../../fixtures/v1/scenario-state.json";
+import { network } from "../helpers/network";
+import { NETWORK_STORAGE_KEY } from "../../shared/network/cache";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
 import {
   STORAGE_KEY,
@@ -100,6 +102,7 @@ describe("App", () => {
   it("keeps the copy while the session is being verified and removes it at sign-out", async () => {
     await storeSession();
     await storeCopy();
+    await AsyncStorage.setItem(NETWORK_STORAGE_KEY, JSON.stringify(network));
     jest
       .spyOn(global, "fetch")
       .mockRejectedValue(new TypeError("Network request failed"));
@@ -108,12 +111,16 @@ describe("App", () => {
 
     expect(await screen.findByText(scenario.name)).toBeTruthy();
     expect(await AsyncStorage.getItem(STORAGE_KEY)).not.toBeNull();
+    expect(await AsyncStorage.getItem(NETWORK_STORAGE_KEY)).not.toBeNull();
 
     fireEvent.press(screen.getByText("Log ud"));
 
     expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull(),
+    );
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(NETWORK_STORAGE_KEY)).toBeNull(),
     );
   });
 

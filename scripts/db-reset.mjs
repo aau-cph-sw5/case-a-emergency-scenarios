@@ -10,7 +10,7 @@ import {
   main,
   migrateDatabase,
   removeDatabase,
-  seedDatabase,
+  seedReferenceData,
   startDatabase,
   seedUsers,
 } from "./lib/local-env.mjs";
@@ -24,7 +24,7 @@ await main(
     ["Starting the database", startDatabase],
     ["Applying migrations", migrateDatabase],
     ["Seeding test users", seedUsers],
-    ["Seeding scenario data", seedDatabase],
+    ["Seeding network and scenario data", seedReferenceData],
   ],
   "Database reset complete.",
 );

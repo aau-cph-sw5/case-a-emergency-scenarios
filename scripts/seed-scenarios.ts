@@ -43,6 +43,7 @@ interface Pattern {
   trackNumber: number;
   maximumTrains: number;
   did: string;
+  color: string;
   description?: string;
   route: Route[];
 }
@@ -155,6 +156,12 @@ export function validate(
         errors.push(
           `${where}.trackNumber "${pattern.trackNumber}" is not 1, 2 or 12.`,
         );
+      }
+      if (
+        typeof pattern.color !== "string" ||
+        !/^#[0-9A-Fa-f]{6}$/.test(pattern.color)
+      ) {
+        errors.push(`${where}.color must be a six-digit hexadecimal colour.`);
       }
       if (pattern.maximumTrains < 0) {
         errors.push(
@@ -354,13 +361,21 @@ async function getStationId(client: pg.Client, code: string): Promise<number> {
   if (name === undefined) {
     throw new Error(`Station "${code}" is not in stations.json.`);
   }
-  const result = await client.query(
+  // The network seed owns existing station data. Scenarios may introduce a
+  // missing station, but must not replace a station's name or identity.
+  const inserted = await client.query(
     `INSERT INTO stations (code, name) VALUES ($1, $2)
-       ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
-       RETURNING id`,
+       ON CONFLICT (code) DO NOTHING RETURNING id`,
     [code, name],
   );
-  return result.rows[0].id;
+  if (inserted.rows.length > 0) return inserted.rows[0].id;
+  const existing = await client.query(
+    "SELECT id FROM stations WHERE code = $1",
+    [code],
+  );
+  if (existing.rows.length === 0)
+    throw new Error(`Station "${code}" could not be found after insertion.`);
+  return existing.rows[0].id;
 }
 async function getTrackSegmentId(
   client: pg.Client,
@@ -433,7 +448,7 @@ async function loadScenario(
     // Replace the seed-controlled content while keeping the version ID, which
     // may already be referenced by an incident activation.
     await client.query(
-      "DELETE FROM operating_plans WHERE scenario_version_id = $1",
+      "DELETE FROM operating_patterns WHERE scenario_version_id = $1",
       [versionId],
     );
     await client.query(
@@ -445,25 +460,23 @@ async function loadScenario(
       [versionId],
     );
 
-    const planResult = await client.query(
-      `INSERT INTO operating_plans (scenario_version_id, name)
-             VALUES ($1, $2)
-             RETURNING id`,
-      [versionId, version.operatingPlan.name],
+    await client.query(
+      "UPDATE scenario_versions SET operating_plan_name = $1 WHERE id = $2",
+      [version.operatingPlan.name, versionId],
     );
-    const planId: number = planResult.rows[0].id;
     for (const pattern of version.operatingPlan.patterns) {
       const patternResult = await client.query(
-        `INSERT INTO operating_patterns (operating_plan_id, operation_type, route_code, track_number, 
-                maximum_trains, did, description)VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        `INSERT INTO operating_patterns (scenario_version_id, operation_type, route_code, track_number,
+                maximum_trains, did, description, color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
         [
-          planId,
+          versionId,
           pattern.operationType,
           pattern.routeCode,
           pattern.trackNumber,
           pattern.maximumTrains,
           pattern.did,
           pattern.description ?? null,
+          pattern.color,
         ],
       );
       const patternId: number = patternResult.rows[0].id;
