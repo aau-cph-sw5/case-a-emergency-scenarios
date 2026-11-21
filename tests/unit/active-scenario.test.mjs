@@ -243,3 +243,12 @@ test("rejects a scenario-state in an unexpected format", async () => {
     /unexpected format/,
   );
 });
+
+test("rejects a traversal scenario id before requesting its scenario", async () => {
+  const { fetchImpl, calls } = mockFetch({
+    "/api/v1/scenario-state": [200, { ...activeState, scenarioId: ".." }],
+  });
+
+  await assert.rejects(loadActiveScenario(API, "abc", fetchImpl), FormatError);
+  assert.equal(calls.length, 1);
+});

@@ -49,3 +49,23 @@ test("getJson throws a FormatError for an answer that fails the check", async ()
     FormatError,
   );
 });
+
+test("getJson rejects path traversal before making a request", async () => {
+  const { fetchImpl, calls } = mockFetch(200, []);
+
+  await assert.rejects(
+    getJson(API, "/api/v1/scenarios/%2e%2e/users", "abc", isList, fetchImpl),
+    /traversal segments/,
+  );
+  assert.equal(calls.length, 0);
+});
+
+test("getJson rejects encoded path separators before making a request", async () => {
+  const { fetchImpl, calls } = mockFetch(200, []);
+
+  await assert.rejects(
+    getJson(API, "/api/v1/scenarios/a%2fb", "abc", isList, fetchImpl),
+    /traversal segments/,
+  );
+  assert.equal(calls.length, 0);
+});

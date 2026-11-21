@@ -2,6 +2,7 @@
 // How the clients talk to the API: one timeout and one set of error types,
 // so callers can tell "no answer" from "the server answered with an error".
 import { REQUEST_TIMEOUT_MS } from "../http";
+import { sanitizeApiPath } from "../sanitize";
 
 // The server answered with an error status, e.g. 401 for an expired token.
 export class HttpError extends Error {
@@ -31,7 +32,7 @@ export async function getJson<T>(
   isValid: (data: unknown) => data is T,
   fetchImpl: typeof fetch = fetch,
 ): Promise<T> {
-  const response = await fetchImpl(`${apiBaseUrl}${path}`, {
+  const response = await fetchImpl(`${apiBaseUrl}${sanitizeApiPath(path)}`, {
     headers: { Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });

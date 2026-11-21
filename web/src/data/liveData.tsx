@@ -12,6 +12,7 @@ import type { AppSocket } from "../../../shared/socket/createSocket";
 import { useSocketState } from "../../../shared/socket/useSocketState";
 import type { Scenario } from "../../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../../shared/types/v1/scenario-state";
+import { sanitizeLogValue } from "../../../shared/sanitize";
 import { fetchActiveActivations } from "../activations";
 import { userMessage } from "../get-json";
 import {
@@ -109,7 +110,7 @@ export function LiveDataProvider({
         setActivationsError(null);
       } catch (e) {
         if (controller.signal.aborted || mine !== latest) return;
-        console.error(e);
+        console.error(sanitizeLogValue(e));
         setActivationsError(userMessage(e));
       } finally {
         if (mine === latest) setIsLoading(false);
@@ -142,7 +143,7 @@ export function LiveDataProvider({
       },
       (e: unknown) => {
         if (controller.signal.aborted) return;
-        console.error(e);
+        console.error(sanitizeLogValue(e));
         setScenariosError(userMessage(e));
       },
     );
