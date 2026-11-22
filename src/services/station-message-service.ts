@@ -29,6 +29,7 @@ type ThreadView = {
   state: "UNANSWERED" | "ANSWERED";
   unansweredSince: string | null;
   lastMessageAt: string | null;
+  stationMessageIds: number[];
   messages?: StationMessage[];
 };
 
@@ -64,6 +65,9 @@ function makeThread(
     state: unansweredSince === null ? "ANSWERED" : "UNANSWERED",
     unansweredSince,
     lastMessageAt: last?.receivedAt ?? null,
+    stationMessageIds: messages
+      .filter((message) => message.sender === "STATION")
+      .map((message) => message.id),
     ...(includeMessages ? { messages } : {}),
   };
 }

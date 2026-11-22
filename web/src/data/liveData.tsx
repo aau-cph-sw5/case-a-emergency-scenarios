@@ -48,6 +48,7 @@ export type LiveData = {
 type LiveContext = {
   live: LiveData;
   loadScenario: (scenarioId: string) => Promise<Scenario>;
+  socket?: AppSocket;
 };
 
 // One request per scenario id, shared by every useScenario(). The request is
@@ -72,7 +73,7 @@ export const LiveDataContext = createContext<LiveContext | null>(null);
 
 // Loads the server data for the control room once and hands it to every
 // component inside it. App puts it around the banner and the dashboard, so no
-// component fetches or listens to the socket itself.
+// view has to load activation data or listen for activation changes itself.
 export function LiveDataProvider({
   socket,
   token,
@@ -125,8 +126,8 @@ export function LiveDataProvider({
     };
   }, [socket, token]);
 
-  // The scenario list does not change while the app runs, so it is loaded
-  // once per login, and again only when the operator asks after a failure.
+  // A newly created scenario invalidates the list; reconnect also catches
+  // changes made while the operator was offline.
   const scenariosLoadRef = useRef<AbortController | null>(null);
   const reloadScenarios = useCallback(() => {
     // Aborting the older load makes its answer count as ignored, so a slow
@@ -148,9 +149,15 @@ export function LiveDataProvider({
     );
   }, [token]);
   useEffect(() => {
+    socket.on("scenarios-changed", reloadScenarios);
+    socket.on("connect", reloadScenarios);
     reloadScenarios();
-    return () => scenariosLoadRef.current?.abort();
-  }, [reloadScenarios]);
+    return () => {
+      socket.off("scenarios-changed", reloadScenarios);
+      socket.off("connect", reloadScenarios);
+      scenariosLoadRef.current?.abort();
+    };
+  }, [socket, reloadScenarios]);
 
   const loadScenario = useMemo(() => scenarioLoader(token), [token]);
 
@@ -167,6 +174,7 @@ export function LiveDataProvider({
         reloadScenarios,
       },
       loadScenario,
+      socket,
     }),
     [
       activations,
@@ -178,6 +186,7 @@ export function LiveDataProvider({
       scenariosError,
       reloadScenarios,
       loadScenario,
+      socket,
     ],
   );
 

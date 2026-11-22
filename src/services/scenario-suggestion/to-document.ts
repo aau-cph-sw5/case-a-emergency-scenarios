@@ -4,7 +4,7 @@ import type { ScenarioDocument } from "./types.js";
 // Only the name and the covered segments, each fact once, so repeats can't
 // raise the score. See docs/reference/scenario-suggestion.md for why.
 export function toDocument(
-  scenario: Scenario,
+  scenario: Pick<Scenario, "scenarioId" | "name" | "covers">,
   coveredStationNames: string[],
 ): ScenarioDocument {
   const covers = scenario.covers ?? [];

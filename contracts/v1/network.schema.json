@@ -88,6 +88,10 @@
           },
           "did": {
             "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$"
           }
         }
       }

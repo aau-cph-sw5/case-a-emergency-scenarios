@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { UserAdmin } from "./components/UserAdmin";
+import { ScenarioBuilder } from "./ScenarioBuilder";
 
 type Page = "home" | "users";
 
@@ -11,32 +12,32 @@ export function AdminDashboard({
   onLogout: () => void;
 }) {
   const [page, setPage] = useState<Page>("home");
+  if (page === "home")
+    return (
+      <ScenarioBuilder
+        token={token}
+        onLogout={onLogout}
+        onUsers={() => setPage("users")}
+      />
+    );
   return (
-    <main className="admin-dashboard">
+    <main className="admin-dashboard user-admin-dashboard">
       <header className="admin-header">
         <h1>Admin</h1>
         <button onClick={onLogout} type="button">
           Log ud
         </button>
       </header>
-      {page === "home" ? (
-        <nav className="admin-menu" aria-label="Administration">
-          <button type="button" onClick={() => setPage("users")}>
-            Brugere
-          </button>
-        </nav>
-      ) : (
-        <>
-          <button
-            type="button"
-            className="admin-back"
-            onClick={() => setPage("home")}
-          >
-            Tilbage
-          </button>
-          <UserAdmin token={token} />
-        </>
-      )}
+      <>
+        <button
+          className="admin-back"
+          type="button"
+          onClick={() => setPage("home")}
+        >
+          Tilbage
+        </button>
+        <UserAdmin token={token} />
+      </>
     </main>
   );
 }

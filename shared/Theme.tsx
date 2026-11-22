@@ -6,12 +6,18 @@ import type { ScenarioState } from "./types/v1/scenario-state";
 export const palette = {
   metroBlack: "#1E1E1E",
   metroDeepRed: "#940024",
-  metroLineOne: "#007D55",
-  metroLineTwo: "#FFC82D",
-  metroLineThree: "#E6140F",
-  metroLineFour: "#00A0BE",
+  metroLineOne: "#008D40",
+  metroLineTwo: "#FFC600",
+  metroLineThree: "#FF080B",
+  metroLineFour: "#019CD3",
   metroSummerRed: "#E40037",
   metroWhite: "#FFFFFF",
+  scenarioPurple: "#6A1B9A",
+  scenarioPink: "#EC6BB5",
+  scenarioLime: "#A5C42F",
+  scenarioTurquoise: "#00BDB5",
+  scenarioOrange: "#D65A00",
+  scenarioLavender: "#C39BEF",
   DIDLineOne: "#1F4E79",
   DIDLineTwo: "#A61E75",
   DIDLineThree: "#6B3FA0",
@@ -28,6 +34,7 @@ export const palette = {
   lineOrange: "#e67e22",
   signalOrange: "#FF6A00",
   darkYellow: "#8A6A00", // yellow dark enough to read as text on white
+  darkRed: "#7F1916",
   lightGrey: "#d9dde0",
   networkGrey: "#B0B0B0",
   // Operator web view (#357). Grey text and outlines that pass WCAG on white:
@@ -73,11 +80,14 @@ export const colors = {
   statusGreen: palette.metroLineOne,
   statusYellow: palette.metroLineTwo,
   statusRed: palette.metroLineThree,
+  statusRedBorder: palette.darkRed,
   statusYellowText: palette.darkYellow,
   subtleBorder: palette.lightGrey, // card outlines that should not compete with the status colour
   requiredStation: palette.signalOrange, // a station the scenario needs staff at; no line on the map uses it
   blockedTrack: palette.metroDeepRed, // darker than M3's red, and drawn dashed to tell them apart
 };
+
+export const messageSymbols = { pin: "📌" } as const;
 
 // How a steward's status looks, in the control room and the steward app. The
 // word carries the meaning; the symbol and colour only help. Yellow text
@@ -135,7 +145,7 @@ export const text = {
   small: { fontSize: 12, color: colors.text },
   // A CSS font list only works on web; Android and iOS use the system font.
   header: {
-    fontFamily: Platform.select({ web: "Arial, sans-serif" }),
+    fontFamily: Platform.select({ web: '"Metro", Arial, sans-serif' }),
     fontSize: 16,
   },
   button: {
