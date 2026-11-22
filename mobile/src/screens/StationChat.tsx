@@ -10,9 +10,12 @@ import {
   View,
 } from "react-native";
 import type { QueuedStationMessage } from "../../../shared/offline/station-message-queue";
-import type { StationMessageEvent } from "../../../shared/socket/events";
+import {
+  isStationMessageEvent,
+  isStationThreadsClosed,
+  type StationThreadWithMessages,
+} from "../../../shared/station-messages/validate";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
-import type { StationThread } from "../../../shared/types/v1/station-thread";
 import { colors, spacing, steward } from "../../../shared/Theme";
 import { ChatClosedNotice, ChatHeader } from "../components/ChatHeader";
 import { ChatTab } from "../components/ChatTab";
@@ -150,21 +153,19 @@ export function StationChat({
   const userId = userIdFromToken(token);
   if (threadKey !== shownThreadKey) {
     setShownThreadKey(threadKey);
-    // The station going away keeps the old messages behind the closed
-    // notice; a new station or activation starts empty.
-    if (threadKey !== undefined) {
-      setMessages([]);
-      setOwn([]);
-      setLoaded(false);
-      setLoadError(null);
-      setClosedByServer(null);
-      setDraft("");
-      setSaveFailed(false);
-      setMine(new Set());
-      setReadUpTo(null);
-      setReadKnown(false);
-      setNotice(null);
-    }
+    // Switching station or activation, or closing at stand-down/check-out,
+    // clears the thread's messages, pending entries, and unread notice.
+    setMessages([]);
+    setOwn([]);
+    setLoaded(false);
+    setLoadError(null);
+    setClosedByServer(null);
+    setDraft("");
+    setSaveFailed(false);
+    setMine(new Set());
+    setReadUpTo(null);
+    setReadKnown(false);
+    setNotice(null);
   }
 
   // Opening the chat reads the new messages, so the note goes and the read
@@ -264,9 +265,24 @@ export function StationChat({
     void markStationChatRead(userId, activationId, station, readUpTo);
   }, [open, readKnown, userId, activationId, station, readUpTo]);
 
-  // A refusal that means there is no thread any more closes the chat.
+  const closedByServerRef = useRef<string | null>(closedByServer);
+  useEffect(() => {
+    closedByServerRef.current = closedByServer;
+  }, [closedByServer]);
+
+  // A refusal that means there is no thread any more closes the chat and
+  // removes its messages, pending entries, and unread notice.
   const closeByServer = useCallback(
     (reason: string) => {
+      closedByServerRef.current = reason;
+      messagesRef.current = [];
+      setMessages([]);
+      setOwn([]);
+      setLoaded(false);
+      setLoadError(null);
+      setDraft("");
+      setSaveFailed(false);
+      setNotice(null);
       setClosedByServer(reason);
       onClosedByServer();
     },
@@ -286,11 +302,12 @@ export function StationChat({
   // new unread reply from the control room also shows in the top note
   // (MET-A-029, #446).
   const showRead = useCallback(
-    (result: ThreadResult<StationThread>) => {
+    (result: ThreadResult<StationThreadWithMessages>) => {
+      if (closedByServerRef.current !== null) return;
       setLoaded(true);
       if (result.ok) {
         setLoadError(null);
-        const incoming = result.value.messages ?? [];
+        const incoming = result.value.messages;
         if (!openRef.current) {
           const knownIds = new Set(
             messagesRef.current.map((message) => message.id),
@@ -315,9 +332,20 @@ export function StationChat({
     [closeByServer],
   );
   const load = useCallback(() => {
-    if (station === undefined || threadKey === undefined) return;
+    if (
+      station === undefined ||
+      threadKey === undefined ||
+      closedByServerRef.current !== null
+    ) {
+      return;
+    }
     void readStationThread(token, station).then((result) => {
-      if (currentThreadRef.current === threadKey) showRead(result);
+      if (
+        currentThreadRef.current === threadKey &&
+        closedByServerRef.current === null
+      ) {
+        showRead(result);
+      }
     });
   }, [token, station, threadKey, showRead]);
 
@@ -326,7 +354,9 @@ export function StationChat({
   // replies missed while closed or disconnected update the badge
   // (MET-A-029, #446).
   useEffect(() => {
-    if (station === undefined || !markerReady) return;
+    if (station === undefined || !markerReady || closedByServer !== null) {
+      return;
+    }
     load();
     const onConnect = () => load();
     socket.on("connect", onConnect);
@@ -337,7 +367,7 @@ export function StationChat({
       socket.off("connect", onConnect);
       subscription.remove();
     };
-  }, [station, markerReady, load]);
+  }, [station, markerReady, closedByServer, load]);
 
   // Opening the chat reads again so a failed read while closed recovers and
   // the open list is current, without issuing a second read on initial mount.
@@ -345,13 +375,27 @@ export function StationChat({
   useEffect(() => {
     const opened = open && !wasOpenRef.current;
     wasOpenRef.current = open;
-    if (opened && station !== undefined && markerReady) load();
-  }, [open, station, markerReady, load]);
+    if (
+      opened &&
+      station !== undefined &&
+      markerReady &&
+      closedByServer === null
+    ) {
+      load();
+    }
+  }, [open, station, markerReady, closedByServer, load]);
 
   // New messages and the thread closing arrive over the socket.
   useEffect(() => {
-    if (station === undefined || activationId === undefined) return;
-    const onMessage = (event: StationMessageEvent) => {
+    if (
+      station === undefined ||
+      activationId === undefined ||
+      closedByServer !== null
+    ) {
+      return;
+    }
+    const onMessage = (event: unknown) => {
+      if (!isStationMessageEvent(event)) return;
       if (
         event.message.station !== station ||
         event.message.activationId !== activationId
@@ -364,7 +408,8 @@ export function StationChat({
         setNotice(event.message.text);
       }
     };
-    const onClosed = (event: { activationId: number }) => {
+    const onClosed = (event: unknown) => {
+      if (!isStationThreadsClosed(event)) return;
       if (event.activationId === activationId) {
         closeByServer("Scenariet er afsluttet.");
       }
@@ -375,19 +420,30 @@ export function StationChat({
       socket.off("station-message", onMessage);
       socket.off("station-threads-closed", onClosed);
     };
-  }, [station, activationId, closeByServer]);
+  }, [station, activationId, closedByServer, closeByServer]);
 
   // The steward's own messages the server has not stored yet, read from the
   // phone's queue for this thread.
   const showOwn = useCallback(async () => {
-    if (userId === null || station === undefined || activationId === undefined)
+    if (
+      userId === null ||
+      station === undefined ||
+      activationId === undefined ||
+      closedByServerRef.current !== null
+    ) {
       return;
+    }
     const forThread = threadKey;
     const [pending, rejected] = await Promise.all([
       stationMessageQueueStore.getPending(userId),
       stationMessageQueueStore.getRejected(userId),
     ]);
-    if (currentThreadRef.current !== forThread) return;
+    if (
+      currentThreadRef.current !== forThread ||
+      closedByServerRef.current !== null
+    ) {
+      return;
+    }
     const inThread = (message: { station: string; activationId: number }) =>
       message.station === station && message.activationId === activationId;
     setOwn(
@@ -424,8 +480,10 @@ export function StationChat({
   // StewardView (MET-A-029, #445). A message the server stored joins the
   // thread at once.
   useEffect(() => {
+    if (closedByServer !== null) return;
     void showOwn().catch(() => undefined);
     return onStationMessagesChanged((result) => {
+      if (closedByServerRef.current !== null) return;
       const delivered = (result?.delivered ?? []).filter(
         (message) =>
           message.station === station && message.activationId === activationId,
@@ -436,7 +494,7 @@ export function StationChat({
       }
       void showOwn().catch(() => undefined);
     });
-  }, [showOwn, station, activationId]);
+  }, [showOwn, station, activationId, closedByServer]);
 
   // Saves the message on the phone first, then sends it. Without a
   // connection it stays as "Afventer" and goes out when the phone is back
@@ -450,9 +508,11 @@ export function StationChat({
       userId === null ||
       station === undefined ||
       activationId === undefined ||
+      closedByServerRef.current !== null ||
       savingRef.current
     )
       return;
+    const forThread = threadKey;
     savingRef.current = true;
     void (async () => {
       let message: QueuedStationMessage;
@@ -468,6 +528,12 @@ export function StationChat({
         return;
       } finally {
         savingRef.current = false;
+      }
+      if (
+        currentThreadRef.current !== forThread ||
+        closedByServerRef.current !== null
+      ) {
+        return;
       }
       setSaveFailed(false);
       // Text written while the message was saved stays.
@@ -488,12 +554,20 @@ export function StationChat({
   const scrollRef = useRef<ScrollViewInstance>(null);
   const closed =
     station === undefined ? closedReason : (closedByServer ?? null);
+  const deliveredClientIds = new Set(
+    messages.map((message) => message.clientMessageId.toLowerCase()),
+  );
+  const visibleOwn = own.filter(
+    (message) =>
+      message.delivery.kind !== "pending" ||
+      !deliveredClientIds.has(message.clientMessageId.toLowerCase()),
+  );
 
-  if (station === undefined && !shown) return null;
+  if (closed !== null && !shown) return null;
 
   return (
     <>
-      {station !== undefined && !open && (
+      {closed === null && !open && (
         <ChatTab
           onPress={openChat}
           dragHandlers={tabDragHandlers}
@@ -501,7 +575,7 @@ export function StationChat({
         />
       )}
 
-      {station !== undefined && !open && notice !== null && (
+      {closed === null && !open && notice !== null && (
         <MessageNotice
           text={notice}
           onOpen={openChat}
@@ -547,7 +621,7 @@ export function StationChat({
                   {loaded &&
                     !loadError &&
                     messages.length === 0 &&
-                    own.length === 0 && (
+                    visibleOwn.length === 0 && (
                       <Text style={styles.info}>
                         Ingen beskeder endnu. Skriv til kontrolrummet, hvis I
                         har brug for noget, der ikke haster.
@@ -568,7 +642,7 @@ export function StationChat({
                       writtenAt={message.writtenAt}
                     />
                   ))}
-                  {own.map((message, index) => (
+                  {visibleOwn.map((message, index) => (
                     <MessageBubble
                       key={message.clientMessageId}
                       fromStation

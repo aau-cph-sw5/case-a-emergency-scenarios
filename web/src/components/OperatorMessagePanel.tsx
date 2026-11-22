@@ -5,11 +5,19 @@ import {
   useState,
   type CSSProperties,
   type FormEvent,
+  type ReactNode,
 } from "react";
+import { FormatError } from "../../../shared/api/http";
 import { colors, messageSymbols, palette } from "../../../shared/Theme";
 import type { LineGroup } from "../../../shared/auth/line-groups";
 import { userIdFromToken } from "../../../shared/auth/login";
 import {
+  isSendableText,
+  MAX_MESSAGE_LENGTH,
+  messageLength,
+} from "../../../shared/station-messages/validate";
+import {
+  clearMessageSession,
   loadMessageSession,
   saveMessageSession,
 } from "../auth/message-session";
@@ -23,7 +31,6 @@ import { notificationTestShortcuts } from "../local-settings";
 import { stationMessageError } from "../station-threads";
 import { NotificationBadge } from "./NotificationBadge";
 
-const MAX_MESSAGE_LENGTH = 1000;
 const messageColors = {
   "--message-background": colors.background,
   "--message-ink": colors.text,
@@ -40,6 +47,7 @@ const writtenDateTime = new Intl.DateTimeFormat("da-DK", {
   timeStyle: "short",
 });
 const noMessages: StationMessage[] = [];
+const emptyPins: ReadonlyMap<number, StationMessage> = new Map();
 
 export function OperatorMessagePanel({
   token,
@@ -54,26 +62,162 @@ export function OperatorMessagePanel({
   const activation = activations.find(
     (active) => active.lineGroup === lineGroup,
   );
-  const [latest, setLatest] = useState(activation);
-  if (activation && activation !== latest) setLatest(activation);
-  const scenario = activation ?? latest;
   const userId = userIdFromToken(token);
   const storageKey =
-    userId && scenario
-      ? `metro-station-messages:${encodeURIComponent(userId)}:${scenario.activationId}`
+    userId && activation
+      ? `metro-station-messages:${encodeURIComponent(userId)}:${activation.activationId}`
       : null;
+
+  // Keep panel open state in the outer shell so stand-down never slams an open
+  // panel shut while the operator reads the closed state.
+  const [open, setOpen] = useState(false);
+
+  // Clear the closed or replaced activation's sessionStorage entry for the
+  // same operator, whether stand-down or a direct scenario switch happened.
+  const previousSessionRef = useRef<{
+    userId: string;
+    storageKey: string;
+  } | null>(null);
+  useEffect(() => {
+    const previous = previousSessionRef.current;
+    if (
+      previous &&
+      previous.userId === userId &&
+      previous.storageKey !== storageKey
+    ) {
+      clearMessageSession(previous.storageKey);
+    }
+    previousSessionRef.current =
+      userId && storageKey ? { userId, storageKey } : null;
+  }, [userId, storageKey]);
+
+  const shellProps = {
+    open,
+    onToggle: () => setOpen((current) => !current),
+    onClose: () => setOpen(false),
+  };
 
   return (
     <div className="operator-messages" style={messageColors}>
-      <ActiveMessages
-        key={storageKey ?? `${token}:${scenario?.activationId}`}
-        token={token}
-        storageKey={storageKey}
-        activation={scenario}
-        active={activation !== undefined}
-        testNotificationCount={testNotificationCount}
-      />
+      {activation ? (
+        <ActiveMessages
+          key={storageKey ?? `${token}:${activation.activationId}`}
+          token={token}
+          storageKey={storageKey}
+          activation={activation}
+          testNotificationCount={testNotificationCount}
+          shell={shellProps}
+        />
+      ) : (
+        <ClosedPanel shell={shellProps} notice="Intet aktivt scenarie." />
+      )}
     </div>
+  );
+}
+
+type ShellProps = {
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+};
+
+function MessagePanelShell({
+  shell,
+  unreadCount,
+  children,
+}: {
+  shell: ShellProps;
+  unreadCount: number;
+  children: ReactNode;
+}) {
+  const panelId = useId();
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (shell.open) closeButtonRef.current?.focus();
+  }, [shell.open]);
+
+  function close() {
+    shell.onClose();
+    launcherRef.current?.focus();
+  }
+
+  return (
+    <>
+      <button
+        ref={launcherRef}
+        type="button"
+        className="operator-message-button"
+        aria-expanded={shell.open}
+        aria-controls={panelId}
+        aria-label={
+          unreadCount ? `Beskeder, ${unreadCount} ulæste beskeder` : "Beskeder"
+        }
+        onClick={() => (shell.open ? close() : shell.onToggle())}
+      >
+        Beskeder
+        <NotificationBadge count={unreadCount} />
+      </button>
+      <section
+        id={panelId}
+        className="operator-message-panel"
+        aria-labelledby={`${panelId}-title`}
+        hidden={!shell.open}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") close();
+        }}
+      >
+        <header>
+          <h2 id={`${panelId}-title`}>Stationsbeskeder</h2>
+          <button ref={closeButtonRef} type="button" onClick={close}>
+            Luk
+          </button>
+        </header>
+        {children}
+      </section>
+    </>
+  );
+}
+
+function ClosedPanel({ shell, notice }: { shell: ShellProps; notice: string }) {
+  const [showSaved, setShowSaved] = useState(false);
+
+  return (
+    <MessagePanelShell shell={shell} unreadCount={0}>
+      <div className="operator-message-body">
+        <nav className="operator-thread-list" aria-label="Stationssamtaler">
+          <div className="operator-saved-toolbar">
+            <button
+              type="button"
+              aria-pressed={showSaved}
+              onClick={() => setShowSaved((current) => !current)}
+            >
+              Gemt <span aria-hidden="true">{messageSymbols.pin}</span>
+            </button>
+          </div>
+          <ul aria-label="Stationssamtaler" />
+        </nav>
+        <div className="operator-thread">
+          {showSaved ? (
+            <>
+              <h3>Gemte beskeder</h3>
+              <MessageHistory
+                key="saved"
+                label="Gemte beskeder"
+                messages={noMessages}
+                pinned={emptyPins}
+                onPin={() => undefined}
+                saved
+                visible={shell.open}
+              />
+            </>
+          ) : (
+            <p>{notice}</p>
+          )}
+        </div>
+      </div>
+    </MessagePanelShell>
   );
 }
 
@@ -81,56 +225,47 @@ function ActiveMessages({
   token,
   storageKey,
   activation,
-  active,
   testNotificationCount,
+  shell,
 }: {
   token: string;
   storageKey: string | null;
-  activation: ScenarioState | undefined;
-  active: boolean;
+  activation: ScenarioState;
   testNotificationCount?: number;
+  shell: ShellProps;
 }) {
   const { isConnected } = useLiveData();
-  const [open, setOpen] = useState(false);
   const [station, setStation] = useState<string | null>(null);
   const [showSaved, setShowSaved] = useState(false);
   const [messageState, setMessageState] = useState(() =>
-    loadMessageSession(storageKey, activation?.activationId),
+    loadMessageSession(storageKey, activation.activationId),
   );
-  const { readIds, pinned } = messageState;
-  useEffect(() => {
-    saveMessageSession(storageKey, readIds, pinned);
-  }, [storageKey, readIds, pinned]);
   const [testThreads, setTestThreads] = useState<
     Record<string, StationMessage[]>
   >({});
   const nextTestIdRef = useRef(0);
   const testing = Object.keys(testThreads).length > 0;
-  const activationId = activation?.activationId;
-  const deployments = activation?.deployments;
+  const { activationId, deployments } = activation;
+  const { threads, thread, listError, threadError, closed, reload, send } =
+    useStationThreads(
+      token,
+      !testing ? activationId : null,
+      shell.open && !showSaved ? station : null,
+    );
+
+  const { readIds, pinned } = messageState;
+  useEffect(() => {
+    if (closed) {
+      clearMessageSession(storageKey);
+      return;
+    }
+    saveMessageSession(storageKey, readIds, pinned);
+  }, [closed, storageKey, readIds, pinned]);
+
   const stations = [...new Set(deployments?.map(({ fulfills }) => fulfills))];
-  const panelId = useId();
-  const launcherRef = useRef<HTMLButtonElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const {
-    history,
-    threads,
-    thread,
-    listError,
-    threadError,
-    closed,
-    reload,
-    send,
-  } = useStationThreads(
-    token,
-    active && !testing ? (activationId ?? null) : null,
-    open && !showSaved ? station : null,
-  );
-  const readOnly = !active || closed;
 
   useEffect(() => {
-    if (!notificationTestShortcuts || !active || activationId === undefined)
-      return;
+    if (!notificationTestShortcuts || closed) return;
 
     function addTestMessages(event: KeyboardEvent) {
       if (
@@ -142,7 +277,7 @@ function ActiveMessages({
       )
         return;
       event.preventDefault();
-      if (event.repeat || activationId === undefined) return;
+      if (event.repeat) return;
 
       const writtenAt = new Date().toISOString();
       const messages = [
@@ -173,23 +308,30 @@ function ActiveMessages({
 
     window.addEventListener("keydown", addTestMessages);
     return () => window.removeEventListener("keydown", addTestMessages);
-  }, [active, activationId, deployments]);
+  }, [closed, activationId, deployments]);
+
+  if (closed) {
+    return (
+      <ClosedPanel
+        shell={shell}
+        notice="Scenariet er afsluttet. Samtalerne er lukket."
+      />
+    );
+  }
 
   function messagesFor(name: string) {
     return testing
       ? (testThreads[name] ?? noMessages)
       : thread?.station === name
         ? thread.messages
-        : readOnly
-          ? history[name]?.messages
-          : undefined;
+        : undefined;
   }
 
   const shownMessages = station ? messagesFor(station) : undefined;
   // Only messages in the visible conversation are acknowledged. This also
   // covers messages arriving after the operator opens the conversation.
   if (
-    open &&
+    shell.open &&
     !showSaved &&
     shownMessages?.some(
       ({ id, sender }) => sender === "STATION" && !readIds.has(id),
@@ -271,157 +413,106 @@ function ActiveMessages({
     return message;
   }
 
-  useEffect(() => {
-    if (open) closeButtonRef.current?.focus();
-  }, [open]);
-
-  function close() {
-    setOpen(false);
-    launcherRef.current?.focus();
-  }
-
   return (
-    <>
-      <button
-        ref={launcherRef}
-        type="button"
-        className="operator-message-button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        aria-label={
-          unreadCount ? `Beskeder, ${unreadCount} ulæste beskeder` : "Beskeder"
-        }
-        onClick={() => (open ? close() : setOpen(true))}
-      >
-        Beskeder
-        <NotificationBadge count={unreadCount} />
-      </button>
-      <section
-        id={panelId}
-        className="operator-message-panel"
-        aria-labelledby={`${panelId}-title`}
-        hidden={!open}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") close();
-        }}
-      >
-        <header>
-          <h2 id={`${panelId}-title`}>Stationsbeskeder</h2>
-          <button ref={closeButtonRef} type="button" onClick={close}>
-            Luk
-          </button>
-        </header>
-        {!readOnly && !testing && !isConnected && (
-          <p role="status">
-            Forbindelsen er afbrudt. Beskederne kan være forældede.
-          </p>
-        )}
-        <div className="operator-message-body">
-          <nav className="operator-thread-list" aria-label="Stationssamtaler">
-            <div className="operator-saved-toolbar">
-              <button
-                type="button"
-                aria-pressed={showSaved}
-                onClick={() => setShowSaved((current) => !current)}
-              >
-                Gemt <span aria-hidden="true">{messageSymbols.pin}</span>
+    <MessagePanelShell shell={shell} unreadCount={unreadCount}>
+      {!testing && !isConnected && (
+        <p role="status">
+          Forbindelsen er afbrudt. Beskederne kan være forældede.
+        </p>
+      )}
+      <div className="operator-message-body">
+        <nav className="operator-thread-list" aria-label="Stationssamtaler">
+          <div className="operator-saved-toolbar">
+            <button
+              type="button"
+              aria-pressed={showSaved}
+              onClick={() => setShowSaved((current) => !current)}
+            >
+              Gemt <span aria-hidden="true">{messageSymbols.pin}</span>
+            </button>
+          </div>
+          {shownListError && (
+            <p role="alert">
+              Kunne ikke hente samtaler. {shownListError}{" "}
+              <button type="button" onClick={reload}>
+                Prøv igen
               </button>
-            </div>
-            {shownListError && (
-              <p role="alert">
-                Kunne ikke hente samtaler. {shownListError}{" "}
-                <button type="button" onClick={reload}>
-                  Prøv igen
+            </p>
+          )}
+          <ul aria-label="Stationssamtaler">
+            {stationChats.map(({ name, unread }) => (
+              <li key={name}>
+                <button
+                  type="button"
+                  aria-pressed={!showSaved && station === name}
+                  onClick={() => {
+                    setStation(name);
+                    setShowSaved(false);
+                  }}
+                >
+                  <strong>{name}</strong>
+                  {unread > 0 && (
+                    <span className="station-thread-unread">
+                      {unread} ulæst
+                    </span>
+                  )}
                 </button>
-              </p>
-            )}
-            <ul aria-label="Stationssamtaler">
-              {stationChats.map(({ name, unread }) => (
-                <li key={name}>
-                  <button
-                    type="button"
-                    aria-pressed={!showSaved && station === name}
-                    onClick={() => {
-                      setStation(name);
-                      setShowSaved(false);
-                    }}
-                  >
-                    <strong>{name}</strong>
-                    {unread > 0 && (
-                      <span className="station-thread-unread">
-                        {unread} ulæst
-                      </span>
-                    )}
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="operator-thread">
+          {showSaved ? (
+            <>
+              <h3>Gemte beskeder</h3>
+              <MessageHistory
+                key="saved"
+                label="Gemte beskeder"
+                messages={savedMessages}
+                pinned={pinned}
+                onPin={togglePin}
+                saved
+                visible={shell.open}
+              />
+            </>
+          ) : station ? (
+            <>
+              <h3>{station}</h3>
+              {shownThreadError && (
+                <p role="alert">
+                  Kunne ikke hente beskeder. {shownThreadError} Luk og åbn
+                  samtalen igen for at hente beskederne.{" "}
+                  <button type="button" onClick={reload}>
+                    Prøv igen
                   </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <div className="operator-thread">
-            {showSaved ? (
-              <>
-                <h3>Gemte beskeder</h3>
+                </p>
+              )}
+              {shownMessages ? (
                 <MessageHistory
-                  key="saved"
-                  label="Gemte beskeder"
-                  messages={savedMessages}
+                  key={station}
+                  label={`Beskeder med ${station}`}
+                  messages={shownMessages}
                   pinned={pinned}
                   onPin={togglePin}
-                  saved
-                  visible={open}
+                  visible={shell.open}
                 />
-              </>
-            ) : station && activationId !== undefined ? (
-              <>
-                <h3>{station}</h3>
-                {shownThreadError && (
-                  <p role="alert">
-                    Kunne ikke hente beskeder. {shownThreadError} Luk og åbn
-                    samtalen igen for at hente beskederne.{" "}
-                    <button type="button" onClick={reload}>
-                      Prøv igen
-                    </button>
-                  </p>
-                )}
-                {shownMessages ? (
-                  <MessageHistory
-                    key={station}
-                    label={`Beskeder med ${station}`}
-                    messages={shownMessages}
-                    pinned={pinned}
-                    onPin={togglePin}
-                    visible={open}
-                  />
-                ) : (
-                  !shownThreadError && (
-                    <p>
-                      {readOnly
-                        ? "Beskederne er ikke hentet."
-                        : "Henter beskeder."}
-                    </p>
-                  )
-                )}
-                {!readOnly && (
-                  <MessageComposer
-                    key={`${testing}:${station}`}
-                    station={station}
-                    activationId={activationId}
-                    canSend={testing || isConnected}
-                    send={sendMessage}
-                  />
-                )}
-              </>
-            ) : (
-              <p>
-                {readOnly
-                  ? "Vælg en samtale for at læse beskeder."
-                  : "Vælg en station for at skrive eller læse beskeder."}
-              </p>
-            )}
-          </div>
+              ) : (
+                !shownThreadError && <p>Henter beskeder.</p>
+              )}
+              <MessageComposer
+                key={`${testing}:${station}`}
+                station={station}
+                activationId={activationId}
+                canSend={testing || isConnected}
+                send={sendMessage}
+              />
+            </>
+          ) : (
+            <p>Vælg en station for at skrive eller læse beskeder.</p>
+          )}
         </div>
-      </section>
-    </>
+      </div>
+    </MessagePanelShell>
   );
 }
 
@@ -513,8 +604,8 @@ function MessageComposer({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastRequestRef = useRef<StationMessageRequest | null>(null);
-  const tooLong = [...draft].length > MAX_MESSAGE_LENGTH;
-  const ready = canSend && !sending && !tooLong && draft.trim() !== "";
+  const tooLong = messageLength(draft) > MAX_MESSAGE_LENGTH;
+  const ready = canSend && !sending && isSendableText(draft);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -533,7 +624,10 @@ function MessageComposer({
       lastRequestRef.current = null;
       setDraft("");
     } catch (e) {
-      if (e instanceof ApiError && (e.status === 400 || e.status === 409)) {
+      if (
+        e instanceof FormatError ||
+        (e instanceof ApiError && (e.status === 400 || e.status === 409))
+      ) {
         lastRequestRef.current = null;
       }
       setError(stationMessageError(e));
