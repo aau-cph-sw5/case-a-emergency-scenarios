@@ -9,13 +9,18 @@ import {
   Text,
   View,
 } from "react-native";
+import type { QueuedStationMessage } from "../../../shared/offline/station-message-queue";
 import type { StationMessageEvent } from "../../../shared/socket/events";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
 import type { StationThread } from "../../../shared/types/v1/station-thread";
 import { colors, spacing, steward } from "../../../shared/Theme";
 import { ChatClosedNotice, ChatHeader } from "../components/ChatHeader";
 import { ChatTab } from "../components/ChatTab";
-import { MessageBubble, WarningIcon } from "../components/MessageBubble";
+import {
+  type Delivery,
+  MessageBubble,
+  WarningIcon,
+} from "../components/MessageBubble";
 import { MessageComposer } from "../components/MessageComposer";
 import { MessageNotice } from "../components/MessageNotice";
 import {
@@ -48,7 +53,7 @@ type OwnMessage = {
   clientMessageId: string;
   text: string;
   writtenAt: string;
-  failed: string | null;
+  delivery: Delivery;
 };
 
 // The thread's messages with a new one added, each once, in the order the
@@ -121,6 +126,11 @@ export function StationChat({
   // Set when the server closed the thread while the app still had a station.
   const [closedByServer, setClosedByServer] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  // Set when the phone could not save the message the steward sent, so the
+  // text stays in the field and the steward can send it again.
+  const [saveFailed, setSaveFailed] = useState(false);
+  // A message being saved, so a second tap on Send does not save it twice.
+  const savingRef = useRef(false);
   // The clientMessageIds of the messages this steward wrote on this phone, so
   // their messages can be told from colleagues' at the same station.
   const [mine, setMine] = useState<ReadonlySet<string>>(() => new Set());
@@ -141,6 +151,7 @@ export function StationChat({
       setLoadError(null);
       setClosedByServer(null);
       setDraft("");
+      setSaveFailed(false);
       setMine(new Set());
       setUnread(0);
       setNotice(null);
@@ -271,17 +282,20 @@ export function StationChat({
       message.station === station && message.activationId === activationId;
     setOwn(
       [
-        ...pending.filter(inThread).map((message) => ({
+        ...pending.filter(inThread).map((message): OwnMessage => ({
           clientMessageId: message.clientMessageId,
           text: message.text,
           writtenAt: message.writtenAt,
-          failed: null,
+          delivery: { kind: "pending" },
         })),
-        ...rejected.filter(inThread).map((message) => ({
+        ...rejected.filter(inThread).map((message): OwnMessage => ({
           clientMessageId: message.clientMessageId,
           text: message.text,
           writtenAt: message.writtenAt,
-          failed: `Ikke sendt. ${threadErrorMessage(message.rejection.code)}`,
+          delivery: {
+            kind: "refused",
+            reason: `Ikke sendt. ${threadErrorMessage(message.rejection.code)}`,
+          },
         })),
       ].sort((a, b) => a.writtenAt.localeCompare(b.writtenAt)),
     );
@@ -314,24 +328,38 @@ export function StationChat({
 
   // Saves the message on the phone first, then sends it. Without a
   // connection it stays as "Afventer" and goes out when the phone is back
-  // online; the same id means the server never stores it twice.
+  // online; the same id means the server never stores it twice. The field
+  // is cleared only once the message is saved, so a failed save loses
+  // nothing.
   const send = () => {
     const written = draft.trim();
     if (
       !isSendableText(written) ||
       userId === null ||
       station === undefined ||
-      activationId === undefined
+      activationId === undefined ||
+      savingRef.current
     )
       return;
-    setDraft("");
+    savingRef.current = true;
     void (async () => {
-      const message = await queueStationMessage({
-        userId,
-        station,
-        activationId,
-        text: written,
-      });
+      let message: QueuedStationMessage;
+      try {
+        message = await queueStationMessage({
+          userId,
+          station,
+          activationId,
+          text: written,
+        });
+      } catch {
+        setSaveFailed(true);
+        return;
+      } finally {
+        savingRef.current = false;
+      }
+      setSaveFailed(false);
+      // Text written while the message was saved stays.
+      setDraft((current) => (current.trim() === written ? "" : current));
       setMine((current) => new Set([...current, message.clientMessageId]));
       void rememberOwnMessage(
         userId,
@@ -439,8 +467,7 @@ export function StationChat({
                       }
                       text={message.text}
                       writtenAt={message.writtenAt}
-                      failed={message.failed}
-                      pending={message.failed === null}
+                      delivery={message.delivery}
                     />
                   ))}
                   {loadError && (
@@ -461,6 +488,17 @@ export function StationChat({
                   )}
                 </ScrollView>
 
+                {saveFailed && (
+                  <View style={styles.saveFailed}>
+                    <WarningIcon />
+                    <Text
+                      style={styles.loadErrorText}
+                      accessibilityRole="alert"
+                    >
+                      Beskeden kunne ikke gemmes på telefonen. Prøv igen.
+                    </Text>
+                  </View>
+                )}
                 <MessageComposer
                   draft={draft}
                   onChangeDraft={setDraft}
@@ -504,6 +542,13 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     flexDirection: "row",
     gap: 6,
+  },
+  saveFailed: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: spacing.large,
+    paddingTop: spacing.small,
   },
   loadErrorText: {
     color: steward.nobody,
