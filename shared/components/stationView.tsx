@@ -16,7 +16,7 @@ const STATION_ORDER = [metroLineM1, metroLineM2].flatMap(({ stops }) =>
     .sort((a, b) => a.sequence - b.sequence)
     .map(({ station }) => station),
 );
-const STATION_RANK = new Map(
+export const STATION_RANK = new Map(
   STATION_ORDER.map((station, index) => [station, index]),
 );
 

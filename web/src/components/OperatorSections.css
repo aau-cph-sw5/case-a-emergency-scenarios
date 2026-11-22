@@ -578,6 +578,9 @@ body {
   line-height: 12px;
   min-height: 12px;
 }
+.map-legend-colour {
+  margin-left: auto;
+}
 .map-legend > span {
   display: flex;
   align-items: center;
@@ -1033,21 +1036,195 @@ body {
     padding-inline: 7px;
   }
 }
-.scenario-preview h2 {
-  font-size: 18px;
-  letter-spacing: -0.4px;
-  margin: 5px 0 20px;
+/* Scenario preview (right column). Design notes are in ScenarioPreview.tsx. */
+.scenario-preview > p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--operator-muted);
 }
-.scenario-preview h3 {
-  font-size: 13px;
-  line-height: 1.6;
-  margin: 0;
+.preview-title {
+  margin: 0 0 16px;
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: -1px;
   overflow-wrap: anywhere;
 }
-.scenario-preview > p {
-  font-size: 11px;
-  line-height: 1.7;
+/* Label left, number right: every number ends in the same column. */
+.preview-stats {
+  margin: 0;
+  border-top: 3px solid var(--operator-ink);
+}
+.preview-stats > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--operator-ink);
+  font-size: 15px;
+}
+.preview-stats dt {
+  white-space: pre-wrap;
+}
+.preview-stats dd {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* The scenario name above replaces the column heading; it stays for screen
+   readers. When live coverage is shown it is still there, as before. */
+.coverage-heading:has(+ .scenario-preview) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* Section subtitles are black bars with white capitals, like the guide's
+   topbar. Colour and shape set them apart from the bold content under them,
+   so they do not have to compete in size. */
+.preview-heading {
+  margin: 24px 0 0;
+  padding: 8px 12px;
+  background: var(--operator-ink);
+  color: white;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+/* The route is why a scenario matters, so it is the second-loudest text: the
+   guide's 22px bold heading size, with the 4px bar of the Begrundelse block. */
+.scenario-preview .preview-route {
+  margin: 12px 0 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--operator-option-border);
+  border-bottom: 1px solid var(--operator-option-border);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+  text-align: center;
+  color: var(--operator-ink);
+}
+.preview-stations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.preview-stations > li {
+  border-bottom: 1px solid var(--operator-option-border);
+}
+/* Header and rows share three columns (name | stewards needed | chevron), so
+   the "Kræver" cells always sit in the same place whatever the name length. */
+.preview-heading--stations,
+.scenario-preview .preview-station {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px 16px;
+  column-gap: 8px;
+}
+.preview-heading--stations {
+  padding: 8px 8px 8px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.preview-heading--stations > span + span {
+  padding-left: 12px;
+  border-left: 1px solid rgb(255 255 255 / 0.35);
+}
+.scenario-preview .preview-station {
+  box-sizing: border-box;
+  align-items: stretch;
+  width: 100%;
+  padding: 0 8px 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--operator-ink);
+  font-size: 15px;
+  text-align: left;
+}
+.preview-station::after {
+  align-self: center;
+}
+.preview-station:hover {
+  background: var(--operator-well);
+}
+.preview-station-name {
+  align-self: center;
+  min-width: 0;
+  padding: 12px 0;
+  font-size: 17px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+/* Red is the guide's "missing" colour; the text uses the darker #B3100C. */
+.preview-station-need {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 1px solid var(--operator-option-border);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #b3100c;
+}
+.preview-station-need i {
+  width: 12px;
+  height: 12px;
+  background: var(--operator-red);
+}
+/* A chevron that turns when the row is open, so rows read as pressable. */
+.preview-station::after {
+  content: "";
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  border-right: 2px solid var(--operator-ink);
+  border-bottom: 2px solid var(--operator-ink);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 150ms ease-out;
+}
+.preview-station[aria-expanded="true"]::after {
+  transform: rotate(-135deg);
+}
+/* Open row: the guide's selected-row mark, a black bar and a grey ground. */
+.preview-stations > li.is-open {
+  background: var(--operator-well);
+  box-shadow: inset 6px 0 0 var(--operator-ink);
+}
+.preview-stations > li.is-open .preview-station {
+  padding-left: 16px;
+}
+/* Room on the right so the turned chevron stays inside the row. */
+.preview-stations > li.is-open .preview-station,
+.preview-stations .preview-station {
+  padding-right: 8px;
+}
+.preview-station-details {
+  padding: 0 0 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--operator-ink);
+}
+.preview-station-details p {
+  margin: 0 0 8px;
   color: var(--operator-muted);
+}
+.preview-station-details h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.preview-station-details ol {
+  margin: 0;
+  padding-left: 20px;
+}
+.preview-station-details li {
+  margin-bottom: 4px;
 }
 .operator-coverage-panel [role="button"] {
   padding: 14px 11px;
@@ -1064,7 +1241,7 @@ body {
 }
 .operator-coverage-content > div + .scenario-preview {
   margin-top: 22px;
-  border-top: 1px solid #ddd;
+  border-top: 3px solid var(--operator-ink);
   padding-top: 18px;
 }
 .scenario-picker [role="alert"],
