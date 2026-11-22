@@ -25,16 +25,6 @@ import { appendStationMessageEvent } from "./incident-log-service.js";
 
 type Refusal = { kind: "refused"; code: ErrorCode };
 
-type ThreadView = {
-  activationId: number;
-  station: string;
-  state: "UNANSWERED" | "ANSWERED";
-  unansweredSince: string | null;
-  lastMessageAt: string | null;
-  stationMessageIds: number[];
-  messages?: StationMessage[];
-};
-
 function makeThread(
   activationId: number,
   station: string,
