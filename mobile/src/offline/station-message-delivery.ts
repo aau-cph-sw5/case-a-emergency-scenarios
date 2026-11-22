@@ -20,7 +20,17 @@ export type MessageFlushResult = {
   rejected: number;
   pending: number;
   blocked: boolean; // stopped early, e.g. no connection; the rest waits for the next flush
+  blockedBy?: MessageDeliveryResult; // what stopped the flush, when blocked is true
 };
+
+// True when a flush stopped because the server no longer accepts the token
+// (MET-A-029, #445). The caller restores the session instead of retrying.
+export function isUnauthorized(result: MessageFlushResult): boolean {
+  return (
+    result.blockedBy?.status === "rejected" &&
+    result.blockedBy.httpStatus === 401
+  );
+}
 
 // Sends a steward's queued messages in the order they were written. The same
 // rules as position reports: a refusal about the message itself is final,
@@ -35,7 +45,7 @@ export function createStationMessageDelivery(
   ): Promise<MessageFlushResult> {
     const delivered: StationMessage[] = [];
     let rejected = 0;
-    let blocked = false;
+    let blockedBy: MessageDeliveryResult | undefined;
 
     for (const message of await queue.getPending(userId)) {
       const result = await sender(token, message);
@@ -51,7 +61,7 @@ export function createStationMessageDelivery(
         rejected++;
       } else {
         // Later messages wait too, so the thread keeps the order they were written in.
-        blocked = true;
+        blockedBy = result;
         break;
       }
     }
@@ -60,7 +70,8 @@ export function createStationMessageDelivery(
       delivered,
       rejected,
       pending: (await queue.getPending(userId)).length,
-      blocked,
+      blocked: blockedBy !== undefined,
+      ...(blockedBy ? { blockedBy } : {}),
     };
   }
 

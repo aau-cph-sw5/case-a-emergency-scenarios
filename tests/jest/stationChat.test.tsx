@@ -16,10 +16,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ERROR_CODES } from "../../shared/error-codes";
 import type { StationMessage } from "../../shared/types/v1/station-message";
-import {
-  PENDING_RETRY_MS,
-  StationChat,
-} from "../../mobile/src/screens/StationChat";
+import { StationChat } from "../../mobile/src/screens/StationChat";
 import { stationMessageDelivery } from "../../mobile/src/offline/station-message-store";
 import { motion } from "../../shared/Theme";
 
@@ -277,6 +274,77 @@ describe("StationChat (MET-A-029, #335)", () => {
     expect(screen.queryByText(/Ikke sendt/)).toBeNull();
   });
 
+  it("keeps the text and says so when the message cannot be saved on the phone", async () => {
+    fetchMock.mockResolvedValueOnce(answer(200, thread([])));
+    renderChat("Station B");
+    await openChat();
+    await screen.findByText(/Ingen beskeder endnu/);
+
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "Udgang B er ryddet.",
+    );
+    // The storage mock's setItem is a jest.fn, so this only changes one call.
+    jest
+      .mocked(AsyncStorage.setItem)
+      .mockRejectedValueOnce(new Error("disk full"));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+
+    expect(screen.getByLabelText("Besked til kontrolrummet").props.value).toBe(
+      "Udgang B er ryddet.",
+    );
+    expect(
+      screen.getByText("Beskeden kunne ikke gemmes på telefonen. Prøv igen."),
+    ).toBeTruthy();
+    // Nothing was saved, so nothing was sent.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Sending again works, and the warning goes.
+    fetchMock.mockResolvedValueOnce(
+      answer(201, {
+        ...message(5, "STATION", "Udgang B er ryddet."),
+        clientMessageId: "11111111-1111-4111-8111-111111111111",
+      }),
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+    expect(
+      screen.queryByText("Beskeden kunne ikke gemmes på telefonen. Prøv igen."),
+    ).toBeNull();
+    expect(screen.getByLabelText("Besked til kontrolrummet").props.value).toBe(
+      "",
+    );
+    expect(screen.getAllByText("Udgang B er ryddet.")).toHaveLength(1);
+  });
+
+  it("saves a message once when Send is tapped twice", async () => {
+    fetchMock.mockResolvedValueOnce(answer(200, thread([]))).mockResolvedValue(
+      answer(201, {
+        ...message(5, "STATION", "Vi er på plads."),
+        clientMessageId: "11111111-1111-4111-8111-111111111111",
+      }),
+    );
+    renderChat("Station B");
+    await openChat();
+    await screen.findByText(/Ingen beskeder endnu/);
+
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "Vi er på plads.",
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByText("Vi er på plads.")).toHaveLength(1);
+    expect(screen.queryByText(/kunne ikke gemmes/)).toBeNull();
+  });
+
   it("does not send empty text", async () => {
     fetchMock.mockResolvedValue(answer(200, thread([])));
     renderChat("Station B");
@@ -359,18 +427,13 @@ describe("StationChat (MET-A-029, #335)", () => {
     expect(screen.getAllByText("Hej.")).toHaveLength(1);
   });
 
-  it("tries a waiting message again by itself when only the server was gone", async () => {
+  it("does not retry a waiting message by itself after time passes (MET-A-029, #445)", async () => {
     jest.useFakeTimers();
     try {
       fetchMock
         .mockResolvedValueOnce(answer(200, thread([])))
         .mockRejectedValueOnce(new TypeError("offline"))
-        .mockResolvedValue(
-          answer(201, {
-            ...message(8, "STATION", "Test."),
-            clientMessageId: "11111111-1111-4111-8111-111111111111",
-          }),
-        );
+        .mockResolvedValue(answer(200, thread([])));
       renderChat("Station B");
       await openChat();
       await screen.findByText(/Ingen beskeder endnu/);
@@ -383,44 +446,23 @@ describe("StationChat (MET-A-029, #335)", () => {
       });
       expect(await screen.findByText("Afventer")).toBeTruthy();
 
+      const postCallsBefore = fetchMock.mock.calls.filter(
+        ([, options]) => options?.method === "POST",
+      ).length;
+
       await act(async () => {
-        jest.advanceTimersByTime(PENDING_RETRY_MS);
+        jest.advanceTimersByTime(60_000);
+        emit("connect", undefined);
       });
 
-      await waitFor(() => expect(screen.queryByText("Afventer")).toBeNull());
-      expect(screen.getAllByText("Test.")).toHaveLength(1);
+      const postCallsAfter = fetchMock.mock.calls.filter(
+        ([, options]) => options?.method === "POST",
+      ).length;
+      expect(postCallsAfter).toBe(postCallsBefore);
+      expect(screen.getByText("Afventer")).toBeTruthy();
     } finally {
       jest.useRealTimers();
     }
-  });
-
-  it("sends a waiting message at once when the socket reaches the server again", async () => {
-    fetchMock
-      .mockResolvedValueOnce(answer(200, thread([])))
-      .mockRejectedValueOnce(new TypeError("offline"))
-      .mockResolvedValue(
-        answer(201, {
-          ...message(9, "STATION", "Igen."),
-          clientMessageId: "11111111-1111-4111-8111-111111111111",
-        }),
-      );
-    renderChat("Station B");
-    await openChat();
-    await screen.findByText(/Ingen beskeder endnu/);
-    fireEvent.changeText(
-      screen.getByLabelText("Besked til kontrolrummet"),
-      "Igen.",
-    );
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText("Send besked"));
-    });
-    await screen.findByText("Afventer");
-
-    await act(async () => {
-      emit("connect", undefined);
-    });
-
-    await waitFor(() => expect(screen.queryByText("Afventer")).toBeNull());
   });
 
   it("still shows a message waiting on the phone after the app starts again", async () => {

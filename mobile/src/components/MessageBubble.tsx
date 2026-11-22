@@ -15,6 +15,12 @@ function clock(iso: string): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+// How far a message the steward wrote has got, when the server has not
+// stored it: still waiting on the phone ("Afventer"), or refused for good
+// with the reason, so it is not sent again. No delivery means it was sent.
+export type Delivery =
+  { kind: "pending" } | { kind: "refused"; reason: string };
+
 // One message in the station's chat (MET-A-029, #335). The station's messages
 // are on the right: the steward's own black, a colleague's at the same
 // station light grey. The control room's are Metro Deep Red on the left. Each
@@ -29,8 +35,7 @@ export function MessageBubble({
   showSender,
   text: body,
   writtenAt,
-  failed = null,
-  pending = false,
+  delivery,
 }: {
   fromStation: boolean;
   // Written by another steward checked in at the same station.
@@ -40,13 +45,11 @@ export function MessageBubble({
   showSender: boolean;
   text: string;
   writtenAt: string;
-  // Why the message was not sent; null when it was sent or is on its way.
-  // The server refused it for good, so it is not sent again.
-  failed?: string | null;
-  // Saved on the phone and not yet received by the server.
-  pending?: boolean;
+  delivery?: Delivery;
 }) {
   const time = clock(writtenAt);
+  const refused = delivery?.kind === "refused" ? delivery.reason : null;
+  const pending = delivery?.kind === "pending";
   const sender = fromStation
     ? colleague
       ? "Station, en kollega"
@@ -56,7 +59,7 @@ export function MessageBubble({
     <View
       style={[styles.row, fromStation ? styles.right : styles.left]}
       accessible
-      accessibilityLabel={`${sender}, ${time}: ${body}${failed ? `. ${failed}` : pending ? ". Afventer" : ""}`}
+      accessibilityLabel={`${sender}, ${time}: ${body}${refused !== null ? `. ${refused}` : pending ? ". Afventer" : ""}`}
     >
       {showSender && (
         <Text style={[styles.who, !fromStation && styles.controlWho]}>
@@ -68,13 +71,13 @@ export function MessageBubble({
           styles.bubble,
           fromStation ? styles.stationBubble : styles.controlBubble,
           colleague && styles.colleagueBubble,
-          failed !== null && styles.failedBubble,
+          refused !== null && styles.failedBubble,
         ]}
       >
         <Text
           style={[
             styles.text,
-            failed === null &&
+            refused === null &&
               (colleague
                 ? styles.colleagueText
                 : fromStation
@@ -85,15 +88,13 @@ export function MessageBubble({
           {body}
         </Text>
       </View>
-      {failed !== null && (
-        <>
-          <View style={styles.failedRow}>
-            <WarningIcon />
-            <Text style={styles.failedText}>{failed}</Text>
-          </View>
-        </>
+      {refused !== null && (
+        <View style={styles.failedRow}>
+          <WarningIcon />
+          <Text style={styles.failedText}>{refused}</Text>
+        </View>
       )}
-      {failed === null && pending && (
+      {pending && (
         <View style={styles.pendingRow} testID="message-pending">
           <ClockIcon />
           <Text style={styles.pendingText}>Afventer</Text>

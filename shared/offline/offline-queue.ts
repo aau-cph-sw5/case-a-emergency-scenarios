@@ -144,5 +144,11 @@ export function createOfflineQueue<T extends Owned>(
         if (left.length !== items.length) await write(left);
       });
     },
+
+    // Removes every queued and refused item on the phone, for all stewards
+    // (MET-A-029, #445). Called at sign-out so a signed-out phone keeps none.
+    clear(): Promise<void> {
+      return serialize(() => storage.removeItem(key));
+    },
   };
 }

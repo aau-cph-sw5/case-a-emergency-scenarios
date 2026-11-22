@@ -9,19 +9,26 @@ import {
   Text,
   View,
 } from "react-native";
+import type { QueuedStationMessage } from "../../../shared/offline/station-message-queue";
 import type { StationMessageEvent } from "../../../shared/socket/events";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
+import type { StationThread } from "../../../shared/types/v1/station-thread";
 import { colors, spacing, steward } from "../../../shared/Theme";
 import { ChatClosedNotice, ChatHeader } from "../components/ChatHeader";
 import { ChatTab } from "../components/ChatTab";
-import { MessageBubble, WarningIcon } from "../components/MessageBubble";
+import {
+  type Delivery,
+  MessageBubble,
+  WarningIcon,
+} from "../components/MessageBubble";
 import { MessageComposer } from "../components/MessageComposer";
 import { MessageNotice } from "../components/MessageNotice";
 import {
   closesThread,
   isSendableText,
-  stationThread,
+  readStationThread,
   threadErrorMessage,
+  type ThreadResult,
 } from "../data/station-thread";
 import { userIdFromToken } from "../../../shared/auth/login";
 import {
@@ -46,12 +53,8 @@ type OwnMessage = {
   clientMessageId: string;
   text: string;
   writtenAt: string;
-  failed: string | null;
+  delivery: Delivery;
 };
-
-// How long a message waiting on the phone waits before the chat tries to
-// send it again (MET-A-029, #336).
-export const PENDING_RETRY_MS = 15_000;
 
 // The thread's messages with a new one added, each once, in the order the
 // server received them (by id).
@@ -123,6 +126,11 @@ export function StationChat({
   // Set when the server closed the thread while the app still had a station.
   const [closedByServer, setClosedByServer] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  // Set when the phone could not save the message the steward sent, so the
+  // text stays in the field and the steward can send it again.
+  const [saveFailed, setSaveFailed] = useState(false);
+  // A message being saved, so a second tap on Send does not save it twice.
+  const savingRef = useRef(false);
   // The clientMessageIds of the messages this steward wrote on this phone, so
   // their messages can be told from colleagues' at the same station.
   const [mine, setMine] = useState<ReadonlySet<string>>(() => new Set());
@@ -143,6 +151,7 @@ export function StationChat({
       setLoadError(null);
       setClosedByServer(null);
       setDraft("");
+      setSaveFailed(false);
       setMine(new Set());
       setUnread(0);
       setNotice(null);
@@ -196,7 +205,7 @@ export function StationChat({
   // Shows the thread read from the server: the earlier messages too, also
   // those written before the steward checked in.
   const showRead = useCallback(
-    (result: Awaited<ReturnType<typeof stationThread<{ type: "read" }>>>) => {
+    (result: ThreadResult<StationThread>) => {
       setLoaded(true);
       if (result.ok) {
         setLoadError(null);
@@ -208,7 +217,7 @@ export function StationChat({
   );
   const load = useCallback(() => {
     if (station === undefined || threadKey === undefined) return;
-    void stationThread(token, station, { type: "read" }).then((result) => {
+    void readStationThread(token, station).then((result) => {
       if (currentThreadRef.current === threadKey) showRead(result);
     });
   }, [token, station, threadKey, showRead]);
@@ -273,17 +282,20 @@ export function StationChat({
       message.station === station && message.activationId === activationId;
     setOwn(
       [
-        ...pending.filter(inThread).map((message) => ({
+        ...pending.filter(inThread).map((message): OwnMessage => ({
           clientMessageId: message.clientMessageId,
           text: message.text,
           writtenAt: message.writtenAt,
-          failed: null,
+          delivery: { kind: "pending" },
         })),
-        ...rejected.filter(inThread).map((message) => ({
+        ...rejected.filter(inThread).map((message): OwnMessage => ({
           clientMessageId: message.clientMessageId,
           text: message.text,
           writtenAt: message.writtenAt,
-          failed: `Ikke sendt. ${threadErrorMessage(message.rejection.code)}`,
+          delivery: {
+            kind: "refused",
+            reason: `Ikke sendt. ${threadErrorMessage(message.rejection.code)}`,
+          },
         })),
       ].sort((a, b) => a.writtenAt.localeCompare(b.writtenAt)),
     );
@@ -298,8 +310,9 @@ export function StationChat({
   }, [userId, station, activationId, threadKey, onClosedByServer]);
 
   // Shows the queue as it is now, and again whenever it changes: a message
-  // written here, or a send from the chat or from the reconnect in
-  // StewardView. A message the server stored joins the thread at once.
+  // written here, or a send from the chat or from the retry loop in
+  // StewardView (MET-A-029, #445). A message the server stored joins the
+  // thread at once.
   useEffect(() => {
     void showOwn().catch(() => undefined);
     return onStationMessagesChanged((result) => {
@@ -313,43 +326,40 @@ export function StationChat({
     });
   }, [showOwn, station, activationId]);
 
-  // While a message waits ("Afventer"), the chat tries again by itself: at
-  // once when the socket reaches the server again, and otherwise every
-  // PENDING_RETRY_MS. The reconnect in StewardView only runs when the phone's
-  // own connection comes back, not when only the server was gone.
-  const waiting = own.some((message) => message.failed === null);
-  useEffect(() => {
-    if (!waiting || userId === null) return;
-    const retry = () =>
-      void stationMessageDelivery.flush(userId, token).catch(() => undefined);
-    socket.on("connect", retry);
-    const timer = setTimeout(retry, PENDING_RETRY_MS);
-    return () => {
-      socket.off("connect", retry);
-      clearTimeout(timer);
-    };
-  }, [waiting, own, userId, token]);
-
   // Saves the message on the phone first, then sends it. Without a
   // connection it stays as "Afventer" and goes out when the phone is back
-  // online; the same id means the server never stores it twice.
+  // online; the same id means the server never stores it twice. The field
+  // is cleared only once the message is saved, so a failed save loses
+  // nothing.
   const send = () => {
     const written = draft.trim();
     if (
       !isSendableText(written) ||
       userId === null ||
       station === undefined ||
-      activationId === undefined
+      activationId === undefined ||
+      savingRef.current
     )
       return;
-    setDraft("");
+    savingRef.current = true;
     void (async () => {
-      const message = await queueStationMessage({
-        userId,
-        station,
-        activationId,
-        text: written,
-      });
+      let message: QueuedStationMessage;
+      try {
+        message = await queueStationMessage({
+          userId,
+          station,
+          activationId,
+          text: written,
+        });
+      } catch {
+        setSaveFailed(true);
+        return;
+      } finally {
+        savingRef.current = false;
+      }
+      setSaveFailed(false);
+      // Text written while the message was saved stays.
+      setDraft((current) => (current.trim() === written ? "" : current));
       setMine((current) => new Set([...current, message.clientMessageId]));
       void rememberOwnMessage(
         userId,
@@ -457,8 +467,7 @@ export function StationChat({
                       }
                       text={message.text}
                       writtenAt={message.writtenAt}
-                      failed={message.failed}
-                      pending={message.failed === null}
+                      delivery={message.delivery}
                     />
                   ))}
                   {loadError && (
@@ -479,6 +488,17 @@ export function StationChat({
                   )}
                 </ScrollView>
 
+                {saveFailed && (
+                  <View style={styles.saveFailed}>
+                    <WarningIcon />
+                    <Text
+                      style={styles.loadErrorText}
+                      accessibilityRole="alert"
+                    >
+                      Beskeden kunne ikke gemmes på telefonen. Prøv igen.
+                    </Text>
+                  </View>
+                )}
                 <MessageComposer
                   draft={draft}
                   onChangeDraft={setDraft}
@@ -522,6 +542,13 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     flexDirection: "row",
     gap: 6,
+  },
+  saveFailed: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: spacing.large,
+    paddingTop: spacing.small,
   },
   loadErrorText: {
     color: steward.nobody,
