@@ -1,5 +1,6 @@
 import { ERROR_CODES } from "../../../shared/error-codes";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
+import { isStationThreadWithMessages } from "../../../shared/station-messages/validate";
 import type { StationThread } from "../../../shared/types/v1/station-thread";
 import { apiBaseUrl } from "../api-base-url";
 
@@ -74,15 +75,22 @@ export async function readStationThread(
   }
 
   // A body that breaks off or is not JSON is treated like no connection.
+  // A JSON body that does not match the contract schema is rejected as a
+  // server failure so malformed or identity-leaking payloads are never shown.
   if (response.ok) {
+    let body: unknown;
     try {
-      return {
-        ok: true,
-        value: (await response.json()) as StationThread,
-      };
+      body = await response.json();
     } catch {
       return { ok: false, message: NO_CONNECTION };
     }
+    if (!isStationThreadWithMessages(body)) {
+      return { ok: false, message: SERVER_FAILED };
+    }
+    return {
+      ok: true,
+      value: body,
+    };
   }
   const error = await response.json().catch(() => null);
   const code: unknown = error?.error?.code;

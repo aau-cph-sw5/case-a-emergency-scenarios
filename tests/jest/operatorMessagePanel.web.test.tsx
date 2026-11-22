@@ -39,7 +39,7 @@ function stationMessage(
     station,
     text,
     activationId: 1,
-    clientMessageId: `test-${id}`,
+    clientMessageId: `00000000-0000-4000-8000-${String(id).padStart(12, "0")}`,
     sender: "STATION",
     writtenAt: messageTime,
     receivedAt: messageTime,
@@ -160,7 +160,6 @@ it("keeps recent conversations first while clearing unread badges and sending to
     },
   };
   stationThreads.mockImplementation((_token, _activationId, station) => ({
-    history,
     threads: [history.FOR, history.ORE],
     thread: station ? history[station as keyof typeof history] : null,
     listError: null,
@@ -235,7 +234,6 @@ it("keeps recent conversations first while clearing unread badges and sending to
 it("handles fake chats, pinning, and sending without touching the server", async () => {
   const send = jest.fn<ReturnType<typeof useStationThreads>["send"]>();
   stationThreads.mockReturnValue({
-    history: {},
     threads: null,
     thread: null,
     listError: null,

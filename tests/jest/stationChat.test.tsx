@@ -17,6 +17,7 @@ import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ERROR_CODES } from "../../shared/error-codes";
 import type { StationMessage } from "../../shared/types/v1/station-message";
+import type { StationThread } from "../../shared/types/v1/station-thread";
 import { StationChat } from "../../mobile/src/screens/StationChat";
 import { rememberOwnMessage } from "../../mobile/src/offline/own-station-messages";
 import {
@@ -45,6 +46,20 @@ jest.mock("expo-crypto", () => ({
   randomUUID: () => "11111111-1111-4111-8111-111111111111",
 }));
 
+const t0820 = "2026-11-17T08:20:00Z";
+const t0825 = "2026-11-17T08:25:00Z";
+
+function uuid(id: number): string {
+  return `00000000-0000-4000-8000-${String(id).padStart(12, "0")}`;
+}
+
+// Matches MessageBubble's local clock formatting so assertions pass in UTC and local timezones.
+function localClock(iso: string): string {
+  const date = new Date(iso);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function emit(name: string, event: unknown) {
   for (const listener of mockListeners.get(name) ?? []) listener(event);
 }
@@ -53,11 +68,11 @@ function message(
   id: number,
   sender: StationMessage["sender"],
   text: string,
-  writtenAt = "2026-11-17T08:20:00",
+  writtenAt = t0820,
 ): StationMessage {
   return {
     id,
-    clientMessageId: `client-${id}`,
+    clientMessageId: uuid(id),
     activationId: 1,
     station: "Station B",
     sender,
@@ -75,14 +90,45 @@ function answer(status: number, body: unknown): Response {
   } as Response;
 }
 
-const thread = (messages: StationMessage[]) => ({
-  activationId: 1,
-  station: "Station B",
-  state: "ANSWERED",
-  unansweredSince: null,
-  lastMessageAt: null,
+const threadSummary = (
+  messages: StationMessage[],
+  overrides: Partial<Omit<StationThread, "messages">> = {},
+): Omit<StationThread, "messages"> => {
+  const ordered = [...messages].sort((a, b) => a.id - b.id);
+  const newest = ordered.at(-1);
+  const unanswered = newest?.sender === "STATION";
+  return {
+    activationId: newest?.activationId ?? 1,
+    station: newest?.station ?? "Station B",
+    state: unanswered ? "UNANSWERED" : "ANSWERED",
+    unansweredSince: unanswered ? newest.receivedAt : null,
+    lastMessageAt: newest?.receivedAt ?? null,
+    stationMessageIds: ordered
+      .filter((entry) => entry.sender === "STATION")
+      .map((entry) => entry.id),
+    ...overrides,
+  };
+};
+
+const thread = (messages: StationMessage[]): StationThread => ({
+  ...threadSummary(messages),
   messages,
 });
+
+function emitMessage(msg: StationMessage) {
+  emit("station-message", {
+    message: msg,
+    thread: threadSummary([msg]),
+    sentAt: msg.receivedAt,
+  });
+}
+
+function emitClosed(activationId = 1) {
+  emit("station-threads-closed", {
+    activationId,
+    sentAt: t0825,
+  });
+}
 
 const onClosedByServer = jest.fn();
 
@@ -138,7 +184,7 @@ describe("StationChat (MET-A-029, #335)", () => {
       answer(
         200,
         thread([
-          message(2, "CONTROL_ROOM", "Modtaget.", "2026-11-17T08:25:00"),
+          message(2, "CONTROL_ROOM", "Modtaget.", t0825),
           message(1, "STATION", "Elevatoren er ude af drift."),
         ]),
       ),
@@ -150,10 +196,12 @@ describe("StationChat (MET-A-029, #335)", () => {
     expect(await screen.findByText("Modtaget.")).toBeTruthy();
     expect(
       screen.getByLabelText(
-        "Station, en kollega, 08:20: Elevatoren er ude af drift.",
+        `Station, en kollega, ${localClock(t0820)}: Elevatoren er ude af drift.`,
       ),
     ).toBeTruthy();
-    expect(screen.getByLabelText("Kontrolrum, 08:25: Modtaget.")).toBeTruthy();
+    expect(
+      screen.getByLabelText(`Kontrolrum, ${localClock(t0825)}: Modtaget.`),
+    ).toBeTruthy();
     // By the server's order (id), not by the order of the answer.
     const labels = screen
       .getAllByText(/^(STATION|KONTROLRUM)$/)
@@ -179,7 +227,9 @@ describe("StationChat (MET-A-029, #335)", () => {
     expect(screen.getAllByText("KONTROLRUM")).toHaveLength(1);
     // A screen reader still hears who wrote each message.
     expect(
-      screen.getByLabelText("Kontrolrum, 08:20: Vi sender en mere."),
+      screen.getByLabelText(
+        `Kontrolrum, ${localClock(t0820)}: Vi sender en mere.`,
+      ),
     ).toBeTruthy();
   });
 
@@ -207,10 +257,14 @@ describe("StationChat (MET-A-029, #335)", () => {
     });
 
     expect(
-      await screen.findByLabelText("Station, dig, 08:20: Fra mig."),
+      await screen.findByLabelText(
+        `Station, dig, ${localClock(t0820)}: Fra mig.`,
+      ),
     ).toBeTruthy();
     expect(
-      screen.getByLabelText("Station, en kollega, 08:20: Fra en kollega."),
+      screen.getByLabelText(
+        `Station, en kollega, ${localClock(t0820)}: Fra en kollega.`,
+      ),
     ).toBeTruthy();
   });
 
@@ -231,7 +285,9 @@ describe("StationChat (MET-A-029, #335)", () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText("Send besked"));
     });
-    await screen.findByLabelText("Station, dig, 08:20: Fra mig.");
+    await screen.findByLabelText(
+      `Station, dig, ${localClock(t0820)}: Fra mig.`,
+    );
     first.unmount();
 
     // The server stores the id in upper or lower case; both are the same.
@@ -248,10 +304,14 @@ describe("StationChat (MET-A-029, #335)", () => {
     await openChat();
 
     expect(
-      await screen.findByLabelText("Station, dig, 08:20: Fra mig."),
+      await screen.findByLabelText(
+        `Station, dig, ${localClock(t0820)}: Fra mig.`,
+      ),
     ).toBeTruthy();
     expect(
-      screen.getByLabelText("Station, en kollega, 08:20: Fra en kollega."),
+      screen.getByLabelText(
+        `Station, en kollega, ${localClock(t0820)}: Fra en kollega.`,
+      ),
     ).toBeTruthy();
   });
 
@@ -510,11 +570,7 @@ describe("StationChat (MET-A-029, #335)", () => {
     ).toBeNull();
 
     await act(async () => {
-      emit("station-message", {
-        message: message(2, "CONTROL_ROOM", "Vi sender to mere."),
-        thread: {},
-        sentAt: "",
-      });
+      emitMessage(message(2, "CONTROL_ROOM", "Vi sender to mere."));
     });
 
     expect(
@@ -542,11 +598,7 @@ describe("StationChat (MET-A-029, #335)", () => {
 
     await act(async () => {
       for (let id = 1; id <= 2; id++)
-        emit("station-message", {
-          message: message(id, "CONTROL_ROOM", `Besked ${id}.`),
-          thread: {},
-          sentAt: "",
-        });
+        emitMessage(message(id, "CONTROL_ROOM", `Besked ${id}.`));
     });
     expect(
       screen.getByTestId("chat-unread", { includeHiddenElements: true }),
@@ -557,11 +609,7 @@ describe("StationChat (MET-A-029, #335)", () => {
 
     await act(async () => {
       for (let id = 3; id <= 12; id++)
-        emit("station-message", {
-          message: message(id, "CONTROL_ROOM", `Besked ${id}.`),
-          thread: {},
-          sentAt: "",
-        });
+        emitMessage(message(id, "CONTROL_ROOM", `Besked ${id}.`));
     });
     expect(
       screen.getByTestId("chat-unread", { includeHiddenElements: true }),
@@ -580,16 +628,8 @@ describe("StationChat (MET-A-029, #335)", () => {
     renderChat("Station B");
 
     await act(async () => {
-      emit("station-message", {
-        message: message(2, "STATION", "En kollega skriver."),
-        thread: {},
-        sentAt: "",
-      });
-      emit("station-message", {
-        message: { ...message(3, "CONTROL_ROOM", "Andet."), station: "X" },
-        thread: {},
-        sentAt: "",
-      });
+      emitMessage(message(2, "STATION", "En kollega skriver."));
+      emitMessage({ ...message(3, "CONTROL_ROOM", "Andet."), station: "X" });
     });
 
     expect(
@@ -605,11 +645,7 @@ describe("StationChat (MET-A-029, #335)", () => {
     await screen.findByText(/Ingen beskeder endnu/);
 
     await act(async () => {
-      emit("station-message", {
-        message: message(2, "CONTROL_ROOM", "Modtaget."),
-        thread: {},
-        sentAt: "",
-      });
+      emitMessage(message(2, "CONTROL_ROOM", "Modtaget."));
     });
 
     expect(screen.getByText("Modtaget.")).toBeTruthy();
@@ -622,11 +658,7 @@ describe("StationChat (MET-A-029, #335)", () => {
       fetchMock.mockResolvedValue(answer(200, thread([])));
       renderChat("Station B");
       await act(async () => {
-        emit("station-message", {
-          message: message(2, "CONTROL_ROOM", "Vi sender to mere."),
-          thread: {},
-          sentAt: "",
-        });
+        emitMessage(message(2, "CONTROL_ROOM", "Vi sender to mere."));
       });
       expect(screen.getByTestId("message-notice")).toBeTruthy();
 
@@ -674,14 +706,10 @@ describe("StationChat (MET-A-029, #335)", () => {
 
     await act(async () => {
       const reply = message(2, "CONTROL_ROOM", "Modtaget.");
-      emit("station-message", { message: reply, thread: {}, sentAt: "" });
-      emit("station-message", { message: reply, thread: {}, sentAt: "" });
+      emitMessage(reply);
+      emitMessage(reply);
       // Another station's message is not this thread's.
-      emit("station-message", {
-        message: { ...message(3, "CONTROL_ROOM", "Andet."), station: "X" },
-        thread: {},
-        sentAt: "",
-      });
+      emitMessage({ ...message(3, "CONTROL_ROOM", "Andet."), station: "X" });
     });
 
     expect(screen.getAllByText("Modtaget.")).toHaveLength(1);
@@ -784,17 +812,133 @@ describe("StationChat (MET-A-029, #335)", () => {
   });
 
   it("closes when the server closes the station's threads", async () => {
-    fetchMock.mockResolvedValue(answer(200, thread([])));
+    fetchMock.mockResolvedValue(
+      answer(200, thread([message(1, "STATION", "Hej.")])),
+    );
     renderChat("Station B");
     await openChat();
+    await screen.findByText("Hej.");
 
     await act(async () => {
-      emit("station-threads-closed", { activationId: 1, sentAt: "" });
+      emitClosed(1);
     });
 
     expect(screen.getByText("Chatten er lukket")).toBeTruthy();
     expect(screen.getByText("Scenariet er afsluttet.")).toBeTruthy();
+    expect(screen.queryByText("Hej.")).toBeNull();
     expect(onClosedByServer).toHaveBeenCalled();
+  });
+
+  it("hides ChatTab and MessageNotice as soon as station-threads-closed arrives before scenario refresh", async () => {
+    fetchMock.mockResolvedValue(answer(200, thread([])));
+    renderChat("Station B");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      emitMessage(message(2, "CONTROL_ROOM", "Vi sender hjælp."));
+    });
+    expect(screen.getByTestId("chat-tab")).toBeTruthy();
+    expect(screen.getByTestId("message-notice")).toBeTruthy();
+
+    await act(async () => {
+      emitClosed(1);
+    });
+
+    expect(screen.queryByTestId("chat-tab")).toBeNull();
+    expect(screen.queryByTestId("message-notice")).toBeNull();
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+    expect(onClosedByServer).toHaveBeenCalled();
+  });
+
+  it("clears messages, pending entries, and notice when threadKey becomes undefined", async () => {
+    fetchMock.mockResolvedValue(
+      answer(200, thread([message(1, "CONTROL_ROOM", "Vi kommer.")])),
+    );
+    const view = renderChat("Station B");
+    await waitFor(() =>
+      expect(screen.getByTestId("message-notice")).toBeTruthy(),
+    );
+
+    view.rerender(
+      <StationChat
+        token={token}
+        station={undefined}
+        activationId={undefined}
+        closedReason="Scenariet er afsluttet."
+        onClosedByServer={onClosedByServer}
+      />,
+    );
+    expect(screen.queryByTestId("chat-tab")).toBeNull();
+    expect(screen.queryByTestId("message-notice")).toBeNull();
+    expect(screen.queryByText("Vi kommer.")).toBeNull();
+  });
+
+  it("deduplicates a pending own message against a delivered message by lowercased clientMessageId", async () => {
+    fetchMock
+      .mockResolvedValueOnce(answer(200, thread([])))
+      .mockRejectedValueOnce(new TypeError("offline"));
+    renderChat("Station B");
+    await openChat();
+    await screen.findByText(/Ingen beskeder endnu/);
+
+    fireEvent.changeText(
+      screen.getByLabelText("Besked til kontrolrummet"),
+      "Vi mangler folk.",
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send besked"));
+    });
+    expect(await screen.findByText("Afventer")).toBeTruthy();
+
+    // Server delivers the same message over Socket.IO with uppercase UUID before queue ack.
+    await act(async () => {
+      emitMessage({
+        ...message(9, "STATION", "Vi mangler folk."),
+        clientMessageId: "11111111-1111-4111-8111-111111111111".toUpperCase(),
+      });
+    });
+
+    expect(screen.queryByText("Afventer")).toBeNull();
+    expect(screen.getAllByText("Vi mangler folk.")).toHaveLength(1);
+  });
+
+  it("ignores schema-invalid station-message and station-threads-closed socket payloads", async () => {
+    fetchMock.mockResolvedValue(answer(200, thread([])));
+    renderChat("Station B");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      emit("station-message", {
+        message: { ...message(2, "CONTROL_ROOM", "Lækket."), staff: "7" },
+        thread: threadSummary([message(2, "CONTROL_ROOM", "Lækket.")]),
+        sentAt: t0820,
+      });
+      emit("station-message", {
+        message: message(3, "CONTROL_ROOM", "Tomt thread."),
+        thread: {},
+        sentAt: t0820,
+      });
+      emit("station-message", {
+        message: message(4, "CONTROL_ROOM", "Ugyldig sentAt."),
+        thread: threadSummary([message(4, "CONTROL_ROOM", "Ugyldig sentAt.")]),
+        sentAt: "",
+      });
+      emit("station-threads-closed", { activationId: 1, sentAt: "" });
+      emit("station-threads-closed", {
+        activationId: 1,
+        sentAt: t0825,
+        extra: true,
+      });
+    });
+
+    expect(
+      screen.queryByTestId("chat-unread", { includeHiddenElements: true }),
+    ).toBeNull();
+    expect(screen.queryByTestId("message-notice")).toBeNull();
+    expect(screen.getByTestId("chat-tab")).toBeTruthy();
+    expect(onClosedByServer).not.toHaveBeenCalled();
   });
 });
 
@@ -944,7 +1088,7 @@ describe("StationChat unread across reconnects (MET-A-029, #446)", () => {
 
     const reply = message(5, "CONTROL_ROOM", "Vi sender en kollega.");
     await act(async () => {
-      emit("station-message", { message: reply, thread: {}, sentAt: "" });
+      emitMessage(reply);
     });
     expect(
       screen.getByTestId("chat-unread", { includeHiddenElements: true }),
@@ -963,7 +1107,8 @@ describe("StationChat unread across reconnects (MET-A-029, #446)", () => {
   });
 
   it("ignores own and colleague station messages found on reconnect", async () => {
-    await rememberOwnMessage("7", 1, "Station B", "own-client-1");
+    const ownId = uuid(99);
+    await rememberOwnMessage("7", 1, "Station B", ownId);
     fetchMock.mockResolvedValueOnce(answer(200, thread([])));
     renderChat("Station B");
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -975,7 +1120,7 @@ describe("StationChat unread across reconnects (MET-A-029, #446)", () => {
         thread([
           {
             ...message(7, "STATION", "Fra mig."),
-            clientMessageId: "own-client-1",
+            clientMessageId: ownId,
           },
           message(8, "STATION", "Fra en kollega."),
         ]),
@@ -1034,11 +1179,7 @@ describe("StationChat unread across reconnects (MET-A-029, #446)", () => {
     await screen.findByText(/Ingen beskeder endnu/);
 
     await act(async () => {
-      emit("station-message", {
-        message: message(9, "CONTROL_ROOM", "Vi er på vej."),
-        thread: {},
-        sentAt: "",
-      });
+      emitMessage(message(9, "CONTROL_ROOM", "Vi er på vej."));
     });
     await waitFor(async () =>
       expect(await lastReadMessageId("7", 1, "Station B")).toBe(9),

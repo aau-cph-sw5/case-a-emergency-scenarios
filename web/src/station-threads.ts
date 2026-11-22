@@ -1,43 +1,15 @@
 import { ERROR_CODES } from "../../shared/error-codes";
-import type { StationMessage } from "../../shared/types/v1/station-message";
+import {
+  isStationMessage,
+  isStationMessageRequest,
+  isStationThread,
+  isStationThreadWithMessages,
+} from "../../shared/station-messages/validate";
 import type { StationMessageRequest } from "../../shared/types/v1/station-message-request";
 import type { StationThread } from "../../shared/types/v1/station-thread";
 import { ApiError, getJson, postJson, userMessage } from "./get-json";
 
 const threadsPath = "/api/v1/station-threads";
-
-export function isMessage(value: unknown): value is StationMessage {
-  const message = value as Partial<StationMessage> | null;
-  return (
-    typeof message?.id === "number" &&
-    typeof message.activationId === "number" &&
-    typeof message.station === "string" &&
-    typeof message.clientMessageId === "string" &&
-    (message.sender === "STATION" || message.sender === "CONTROL_ROOM") &&
-    typeof message.text === "string" &&
-    typeof message.writtenAt === "string" &&
-    Number.isFinite(Date.parse(message.writtenAt)) &&
-    typeof message.receivedAt === "string"
-  );
-}
-
-function isThread(value: unknown): value is StationThread {
-  const thread = value as Partial<StationThread> | null;
-  return (
-    typeof thread?.activationId === "number" &&
-    typeof thread.station === "string" &&
-    (thread.state === "UNANSWERED" || thread.state === "ANSWERED") &&
-    (thread.unansweredSince === null ||
-      typeof thread.unansweredSince === "string") &&
-    (thread.lastMessageAt === null ||
-      typeof thread.lastMessageAt === "string") &&
-    (thread.stationMessageIds === undefined ||
-      (Array.isArray(thread.stationMessageIds) &&
-        thread.stationMessageIds.every(
-          (id) => Number.isSafeInteger(id) && id > 0,
-        )))
-  );
-}
 
 export function fetchStationThreads(token: string, signal: AbortSignal) {
   return getJson(
@@ -46,7 +18,8 @@ export function fetchStationThreads(token: string, signal: AbortSignal) {
     (value): value is StationThread[] =>
       Array.isArray(value) &&
       value.every(
-        (entry) => isThread(entry) && Array.isArray(entry.stationMessageIds),
+        (entry) =>
+          isStationThread(entry) && Array.isArray(entry.stationMessageIds),
       ),
     signal,
   );
@@ -60,10 +33,7 @@ export function fetchStationThread(
   return getJson(
     `${threadsPath}/${encodeURIComponent(station)}`,
     token,
-    (value): value is StationThread =>
-      isThread(value) &&
-      Array.isArray(value.messages) &&
-      value.messages.every(isMessage),
+    isStationThreadWithMessages,
     signal,
   );
 }
@@ -73,10 +43,15 @@ export function sendStationMessage(
   station: string,
   request: StationMessageRequest,
 ) {
+  if (!isStationMessageRequest(request)) {
+    return Promise.reject(
+      new Error("POST station message request is in an unexpected format"),
+    );
+  }
   return postJson(
     `${threadsPath}/${encodeURIComponent(station)}/messages`,
     token,
-    isMessage,
+    isStationMessage,
     request,
   );
 }

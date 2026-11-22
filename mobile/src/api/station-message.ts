@@ -1,5 +1,10 @@
+import { ERROR_CODES } from "../../../shared/error-codes";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
 import type { QueuedStationMessage } from "../../../shared/offline/station-message-queue";
+import {
+  isStationMessage,
+  isStationMessageRequest,
+} from "../../../shared/station-messages/validate";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
 import type { StationMessageRequest } from "../../../shared/types/v1/station-message-request";
 import { apiBaseUrl } from "../api-base-url";
@@ -21,6 +26,13 @@ export async function deliverStationMessage(
     text: message.text,
     writtenAt: message.writtenAt,
   };
+  if (!isStationMessageRequest(body)) {
+    return {
+      status: "rejected",
+      httpStatus: 400,
+      code: ERROR_CODES.MISSING_PARAMETER,
+    };
+  }
   try {
     const response = await fetch(
       `${apiBaseUrl}/api/v1/station-threads/${encodeURIComponent(message.station)}/messages`,
@@ -36,9 +48,13 @@ export async function deliverStationMessage(
     );
 
     if (response.status === 200 || response.status === 201) {
+      const data: unknown = await response.json();
+      if (!isStationMessage(data)) {
+        return { status: "retry" };
+      }
       return {
         status: "accepted",
-        message: (await response.json()) as StationMessage,
+        message: data,
       };
     }
     if (response.status === 429 || response.status >= 500) {

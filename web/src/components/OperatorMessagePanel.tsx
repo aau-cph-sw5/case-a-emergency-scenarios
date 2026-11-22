@@ -10,6 +10,7 @@ import { colors, messageSymbols, palette } from "../../../shared/Theme";
 import type { LineGroup } from "../../../shared/auth/line-groups";
 import { userIdFromToken } from "../../../shared/auth/login";
 import {
+  clearMessageSession,
   loadMessageSession,
   saveMessageSession,
 } from "../auth/message-session";
@@ -54,23 +55,31 @@ export function OperatorMessagePanel({
   const activation = activations.find(
     (active) => active.lineGroup === lineGroup,
   );
-  const [latest, setLatest] = useState(activation);
-  if (activation && activation !== latest) setLatest(activation);
-  const scenario = activation ?? latest;
   const userId = userIdFromToken(token);
   const storageKey =
-    userId && scenario
-      ? `metro-station-messages:${encodeURIComponent(userId)}:${scenario.activationId}`
+    userId && activation
+      ? `metro-station-messages:${encodeURIComponent(userId)}:${activation.activationId}`
       : null;
+  const previousSessionRef = useRef<{
+    userId: string;
+    storageKey: string;
+  } | null>(null);
+  useEffect(() => {
+    const previous = previousSessionRef.current;
+    if (previous && previous.userId === userId && storageKey === null) {
+      clearMessageSession(previous.storageKey);
+    }
+    previousSessionRef.current =
+      userId && storageKey ? { userId, storageKey } : null;
+  }, [userId, storageKey]);
 
   return (
     <div className="operator-messages" style={messageColors}>
       <ActiveMessages
-        key={storageKey ?? `${token}:${scenario?.activationId}`}
+        key={storageKey ?? `${token}:${activation?.activationId}`}
         token={token}
         storageKey={storageKey}
-        activation={scenario}
-        active={activation !== undefined}
+        activation={activation}
         testNotificationCount={testNotificationCount}
       />
     </div>
@@ -81,13 +90,11 @@ function ActiveMessages({
   token,
   storageKey,
   activation,
-  active,
   testNotificationCount,
 }: {
   token: string;
   storageKey: string | null;
   activation: ScenarioState | undefined;
-  active: boolean;
   testNotificationCount?: number;
 }) {
   const { isConnected } = useLiveData();
@@ -97,39 +104,53 @@ function ActiveMessages({
   const [messageState, setMessageState] = useState(() =>
     loadMessageSession(storageKey, activation?.activationId),
   );
-  const { readIds, pinned } = messageState;
-  useEffect(() => {
-    saveMessageSession(storageKey, readIds, pinned);
-  }, [storageKey, readIds, pinned]);
+  const [wasClosed, setWasClosed] = useState(false);
   const [testThreads, setTestThreads] = useState<
     Record<string, StationMessage[]>
   >({});
   const nextTestIdRef = useRef(0);
+  const active = activation !== undefined;
   const testing = Object.keys(testThreads).length > 0;
   const activationId = activation?.activationId;
   const deployments = activation?.deployments;
-  const stations = [...new Set(deployments?.map(({ fulfills }) => fulfills))];
   const panelId = useId();
   const launcherRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const {
-    history,
-    threads,
-    thread,
-    listError,
-    threadError,
-    closed,
-    reload,
-    send,
-  } = useStationThreads(
-    token,
-    active && !testing ? (activationId ?? null) : null,
-    open && !showSaved ? station : null,
-  );
-  const readOnly = !active || closed;
+  const { threads, thread, listError, threadError, closed, reload, send } =
+    useStationThreads(
+      token,
+      active && !testing ? (activationId ?? null) : null,
+      open && !showSaved ? station : null,
+    );
+  const hasActivation = active && !closed;
+
+  if (closed && !wasClosed) {
+    setWasClosed(true);
+    setStation(null);
+    setShowSaved(false);
+    setTestThreads({});
+    setMessageState({ readIds: new Set(), pinned: new Map() });
+  }
+
+  const { readIds, pinned } = messageState;
+  useEffect(() => {
+    if (!hasActivation) {
+      clearMessageSession(storageKey);
+      return;
+    }
+    saveMessageSession(storageKey, readIds, pinned);
+  }, [hasActivation, storageKey, readIds, pinned]);
+
+  const stations = hasActivation
+    ? [...new Set(deployments?.map(({ fulfills }) => fulfills))]
+    : [];
 
   useEffect(() => {
-    if (!notificationTestShortcuts || !active || activationId === undefined)
+    if (
+      !notificationTestShortcuts ||
+      !hasActivation ||
+      activationId === undefined
+    )
       return;
 
     function addTestMessages(event: KeyboardEvent) {
@@ -173,22 +194,22 @@ function ActiveMessages({
 
     window.addEventListener("keydown", addTestMessages);
     return () => window.removeEventListener("keydown", addTestMessages);
-  }, [active, activationId, deployments]);
+  }, [hasActivation, activationId, deployments]);
 
   function messagesFor(name: string) {
+    if (!hasActivation) return undefined;
     return testing
       ? (testThreads[name] ?? noMessages)
       : thread?.station === name
         ? thread.messages
-        : readOnly
-          ? history[name]?.messages
-          : undefined;
+        : undefined;
   }
 
   const shownMessages = station ? messagesFor(station) : undefined;
   // Only messages in the visible conversation are acknowledged. This also
   // covers messages arriving after the operator opens the conversation.
   if (
+    hasActivation &&
     open &&
     !showSaved &&
     shownMessages?.some(
@@ -206,44 +227,51 @@ function ActiveMessages({
     }));
   }
 
-  const stationChats = [
-    ...new Set([
-      ...(testing
-        ? Object.keys(testThreads)
-        : (threads?.map(({ station }) => station) ?? [])),
-      ...stations,
-    ]),
-  ]
-    .map((name) => {
-      const summary = threads?.find((entry) => entry.station === name);
-      const messages = testThreads[name] ?? noMessages;
-      const ids = testing
-        ? messages
-            .filter(({ sender }) => sender === "STATION")
-            .map(({ id }) => id)
-        : (summary?.stationMessageIds ?? []);
-      const lastMessageAt = testing
-        ? messages.at(-1)?.receivedAt
-        : summary?.lastMessageAt;
-      return {
-        name,
-        unread: ids.filter((id) => !readIds.has(id)).length,
-        lastMessageAt: lastMessageAt ? Date.parse(lastMessageAt) : 0,
-      };
-    })
-    .sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+  const stationChats = hasActivation
+    ? [
+        ...new Set([
+          ...(testing
+            ? Object.keys(testThreads)
+            : (threads?.map(({ station }) => station) ?? [])),
+          ...stations,
+        ]),
+      ]
+        .map((name) => {
+          const summary = threads?.find((entry) => entry.station === name);
+          const messages = testThreads[name] ?? noMessages;
+          const ids = testing
+            ? messages
+                .filter(({ sender }) => sender === "STATION")
+                .map(({ id }) => id)
+            : (summary?.stationMessageIds ?? []);
+          const lastMessageAt = testing
+            ? messages.at(-1)?.receivedAt
+            : summary?.lastMessageAt;
+          return {
+            name,
+            unread: ids.filter((id) => !readIds.has(id)).length,
+            lastMessageAt: lastMessageAt ? Date.parse(lastMessageAt) : 0,
+          };
+        })
+        .sort((a, b) => b.lastMessageAt - a.lastMessageAt)
+    : [];
   const stationUnreadCount = stationChats.reduce(
     (total, chat) => total + chat.unread,
     0,
   );
-  const unreadCount = testing
-    ? stationUnreadCount
-    : (testNotificationCount ?? stationUnreadCount);
-  const savedMessages = [...pinned.values()]
-    .filter(({ id, sender }) => sender === "STATION" && id < 0 === testing)
-    .sort((a, b) => Date.parse(a.writtenAt) - Date.parse(b.writtenAt));
-  const shownListError = testing ? null : listError;
-  const shownThreadError = testing || showSaved ? null : threadError;
+  const unreadCount = !hasActivation
+    ? 0
+    : testing
+      ? stationUnreadCount
+      : (testNotificationCount ?? stationUnreadCount);
+  const savedMessages = hasActivation
+    ? [...pinned.values()]
+        .filter(({ id, sender }) => sender === "STATION" && id < 0 === testing)
+        .sort((a, b) => Date.parse(a.writtenAt) - Date.parse(b.writtenAt))
+    : [];
+  const shownListError = !hasActivation || testing ? null : listError;
+  const shownThreadError =
+    !hasActivation || testing || showSaved ? null : threadError;
 
   function togglePin(message: StationMessage) {
     setMessageState((current) => {
@@ -311,7 +339,7 @@ function ActiveMessages({
             Luk
           </button>
         </header>
-        {!readOnly && !testing && !isConnected && (
+        {hasActivation && !testing && !isConnected && (
           <p role="status">
             Forbindelsen er afbrudt. Beskederne kan være forældede.
           </p>
@@ -371,7 +399,7 @@ function ActiveMessages({
                   visible={open}
                 />
               </>
-            ) : station && activationId !== undefined ? (
+            ) : hasActivation && station && activationId !== undefined ? (
               <>
                 <h3>{station}</h3>
                 {shownThreadError && (
@@ -393,29 +421,23 @@ function ActiveMessages({
                     visible={open}
                   />
                 ) : (
-                  !shownThreadError && (
-                    <p>
-                      {readOnly
-                        ? "Beskederne er ikke hentet."
-                        : "Henter beskeder."}
-                    </p>
-                  )
+                  !shownThreadError && <p>Henter beskeder.</p>
                 )}
-                {!readOnly && (
-                  <MessageComposer
-                    key={`${testing}:${station}`}
-                    station={station}
-                    activationId={activationId}
-                    canSend={testing || isConnected}
-                    send={sendMessage}
-                  />
-                )}
+                <MessageComposer
+                  key={`${testing}:${station}`}
+                  station={station}
+                  activationId={activationId}
+                  canSend={testing || isConnected}
+                  send={sendMessage}
+                />
               </>
             ) : (
               <p>
-                {readOnly
-                  ? "Vælg en samtale for at læse beskeder."
-                  : "Vælg en station for at skrive eller læse beskeder."}
+                {closed
+                  ? "Scenariet er afsluttet. Samtalerne er lukket."
+                  : !active
+                    ? "Intet aktivt scenarie."
+                    : "Vælg en station for at skrive eller læse beskeder."}
               </p>
             )}
           </div>

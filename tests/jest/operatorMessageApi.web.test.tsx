@@ -10,6 +10,7 @@ import type { StationMessageRequest } from "../../shared/types/v1/station-messag
 import type { StationThread } from "../../shared/types/v1/station-thread";
 import { OperatorMessagePanel } from "../../web/src/components/OperatorMessagePanel";
 import { LiveDataContext } from "../../web/src/data/liveData";
+import { sendStationMessage } from "../../web/src/station-threads";
 
 jest.mock("../../web/src/local-settings", () => ({
   notificationTestShortcuts: false,
@@ -47,6 +48,10 @@ function response(body: unknown, status = 200): Response {
   } as Response;
 }
 
+function uuid(id: number): string {
+  return `00000000-0000-4000-8000-${String(id).padStart(12, "0")}`;
+}
+
 function stationMessage(
   id: number,
   station: string,
@@ -57,7 +62,7 @@ function stationMessage(
     station,
     text,
     activationId: activation.activationId,
-    clientMessageId: `message-${id}`,
+    clientMessageId: uuid(id),
     sender: "STATION",
     writtenAt: timestamp,
     receivedAt: new Date(Date.parse(timestamp) + id * 1000).toISOString(),
@@ -180,7 +185,7 @@ afterEach(async () => {
   sessionStorage.clear();
 });
 
-it("loads station threads, refreshes on live events and reconnect, and keeps fetched history after closure", async () => {
+it("loads station threads, refreshes on live events and reconnect, and removes threads on stand-down", async () => {
   const messages = {
     FOR: [stationMessage(1, "FOR", "Rulletrappen er stoppet")],
     ORE: [] as StationMessage[],
@@ -237,6 +242,11 @@ it("loads station threads, refreshes on live events and reconnect, and keeps fet
   expect(history()).not.toContain(otherStation.text);
   expect(stationButton("ORE").textContent).toContain("1 ulæst");
 
+  await click(
+    container.querySelector<HTMLButtonElement>(".operator-message-pin")!,
+  );
+  expect(sessionStorage.getItem("metro-station-messages:1:1")).not.toBeNull();
+
   await render(false);
   expect(container.querySelector('[role="status"]')?.textContent).toContain(
     "Forbindelsen er afbrudt",
@@ -266,11 +276,23 @@ it("loads station threads, refreshes on live events and reconnect, and keeps fet
       sentAt: timestamp,
     });
   });
+  expect(container.querySelector("form")).toBeNull();
+  expect(history()).toBeUndefined();
+  expect(container.querySelectorAll("nav li button")).toHaveLength(0);
+  expect(launcher().getAttribute("aria-label")).toBe("Beskeder");
+  expect(sessionStorage.getItem("metro-station-messages:1:1")).toBeNull();
+  expect(container.textContent).toContain(
+    "Scenariet er afsluttet. Samtalerne er lukket.",
+  );
+  expect(socket.listenerCount("station-message")).toBe(0);
+
   await render(true, []);
   expect(container.querySelector("form")).toBeNull();
-  expect(history()).toContain(missed.text);
-  expect(container.textContent).not.toContain("Intet aktivt scenarie.");
-  expect(socket.listenerCount("station-message")).toBe(0);
+  expect(history()).toBeUndefined();
+  expect(container.querySelectorAll("nav li button")).toHaveLength(0);
+  expect(launcher().getAttribute("aria-label")).toBe("Beskeder");
+  expect(container.textContent).toContain("Intet aktivt scenarie.");
+  expect(sessionStorage.getItem("metro-station-messages:1:1")).toBeNull();
 });
 
 it("surfaces request errors and retries a failed send with the same message ID", async () => {
@@ -602,4 +624,177 @@ it("preserves inbox badges on list failures and ignores a history response after
   expect(
     fetchMock.mock.calls.filter(([path]) => path !== threadsPath),
   ).toHaveLength(detailRequests);
+});
+
+it("removes threads, pins, unread badges, and sessionStorage when the activation disappears", async () => {
+  const msg = stationMessage(1, "FOR", "Rulletrappen er stoppet");
+  const unread = stationMessage(2, "ORE", "Mange passagerer");
+  fetchMock.mockImplementation(async (path) => {
+    if (path === threadsPath) {
+      return response([
+        threadSummary("FOR", [msg]),
+        threadSummary("ORE", [unread]),
+      ]);
+    }
+    if (path === forPath) {
+      return response({ ...threadSummary("FOR", [msg]), messages: [msg] });
+    }
+    throw new Error(`Unexpected request: ${path}`);
+  });
+
+  await render();
+  await click(launcher());
+  await click(stationButton("FOR"));
+  await click(
+    container.querySelector<HTMLButtonElement>(".operator-message-pin")!,
+  );
+  expect(sessionStorage.getItem("metro-station-messages:1:1")).not.toBeNull();
+  expect(launcher().getAttribute("aria-label")).toContain("1 ulæste");
+
+  await render(true, []);
+  expect(sessionStorage.getItem("metro-station-messages:1:1")).toBeNull();
+  expect(launcher().getAttribute("aria-label")).toBe("Beskeder");
+  await click(launcher());
+  expect(container.querySelectorAll("nav li button")).toHaveLength(0);
+  expect(history()).toBeUndefined();
+  expect(container.textContent).toContain("Intet aktivt scenarie.");
+  await click(
+    container.querySelector<HTMLButtonElement>(
+      ".operator-saved-toolbar button",
+    )!,
+  );
+  expect(container.querySelector(".operator-thread")?.textContent).toContain(
+    "Ingen gemte beskeder",
+  );
+});
+
+it("rejects schema-invalid HTTP payloads, requests, sessionStorage pins, and Socket.IO events", async () => {
+  await expect(
+    sendStationMessage(token, "FOR", {
+      activationId: 1,
+      clientMessageId: "not-a-uuid",
+      text: "Hej",
+      writtenAt: timestamp,
+    }),
+  ).rejects.toThrow();
+  await expect(
+    sendStationMessage(token, "FOR", {
+      activationId: 1,
+      clientMessageId: uuid(10),
+      text: "Hej",
+      writtenAt: timestamp,
+      staff: "7",
+    } as unknown as StationMessageRequest),
+  ).rejects.toThrow();
+  expect(fetchMock).not.toHaveBeenCalled();
+
+  const validMsg = stationMessage(1, "FOR", "Gyldig besked");
+  sessionStorage.setItem(
+    "metro-station-messages:1:1",
+    JSON.stringify({
+      readIds: [],
+      pinned: [
+        { ...validMsg, staff: "7" },
+        { ...validMsg, id: 2, clientMessageId: "not-a-uuid" },
+      ],
+    }),
+  );
+
+  let mode: "bad-list" | "bad-detail" | "bad-send" | "valid" = "bad-list";
+  fetchMock.mockImplementation(async (path, options) => {
+    if (path === threadsPath) {
+      if (mode === "bad-list") {
+        return response([{ ...threadSummary("FOR", [validMsg]), staff: "7" }]);
+      }
+      return response([threadSummary("FOR", [validMsg])]);
+    }
+    if (path === forPath) {
+      if (mode === "bad-detail") {
+        return response({
+          ...threadSummary("FOR", [validMsg]),
+          messages: [{ ...validMsg, staff: "7" }],
+        });
+      }
+      return response({
+        ...threadSummary("FOR", [validMsg]),
+        messages: [validMsg],
+      });
+    }
+    if (path === sendPath && options?.method === "POST") {
+      const req: StationMessageRequest = JSON.parse(String(options.body));
+      return response(
+        {
+          ...req,
+          id: 2,
+          station: "FOR",
+          sender: "CONTROL_ROOM",
+          receivedAt: req.writtenAt,
+          userId: 1,
+        },
+        201,
+      );
+    }
+    throw new Error(`Unexpected request: ${path}`);
+  });
+
+  await render();
+  await click(launcher());
+  expect(container.querySelector("nav [role=alert]")?.textContent).toContain(
+    "Kunne ikke hente samtaler",
+  );
+  // Malformed saved pins were rejected when reading sessionStorage.
+  await click(
+    container.querySelector<HTMLButtonElement>(
+      ".operator-saved-toolbar button",
+    )!,
+  );
+  expect(container.querySelector(".operator-thread")?.textContent).toContain(
+    "Ingen gemte beskeder",
+  );
+
+  mode = "bad-detail";
+  await click(
+    container.querySelector<HTMLButtonElement>("nav [role=alert] button")!,
+  );
+  await click(stationButton("FOR"));
+  expect(
+    container.querySelector(".operator-thread > [role=alert]")?.textContent,
+  ).toContain("Kunne ikke hente beskeder");
+
+  mode = "bad-send";
+  await click(
+    container.querySelector<HTMLButtonElement>(
+      ".operator-thread > [role=alert] button",
+    )!,
+  );
+  expect(history()).toContain("Gyldig besked");
+  await writeMessage("Svar");
+  await click(sendButton());
+  expect(container.querySelector("form [role=alert]")).not.toBeNull();
+
+  // Invalid Socket.IO events are ignored without mutating state or closing.
+  const callsBeforeSocket = fetchMock.mock.calls.length;
+  await act(async () => {
+    socket.emit("station-message", {
+      message: { ...stationMessage(3, "ORE", "Lækket"), staff: "7" },
+      thread: threadSummary("ORE", [stationMessage(3, "ORE", "Lækket")]),
+      sentAt: timestamp,
+    });
+    socket.emit("station-message", {
+      message: stationMessage(4, "ORE", "Manglende sentAt"),
+      thread: threadSummary("ORE", [
+        stationMessage(4, "ORE", "Manglende sentAt"),
+      ]),
+      sentAt: "",
+    });
+    socket.emit("station-threads-closed", { activationId: 1, sentAt: "" });
+    socket.emit("station-threads-closed", {
+      activationId: 1,
+      sentAt: timestamp,
+      extra: true,
+    });
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(callsBeforeSocket);
+  expect(messageField()).not.toBeNull();
+  expect(stationButton("ORE").textContent).toBe("ORE");
 });

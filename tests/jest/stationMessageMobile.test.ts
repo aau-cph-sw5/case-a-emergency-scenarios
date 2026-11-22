@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import { ERROR_CODES } from "../../shared/error-codes";
 import { deliverStationMessage } from "../../mobile/src/api/station-message";
 import {
   isSendableText,
@@ -151,5 +152,39 @@ describe("deliverStationMessage", () => {
       httpStatus: 401,
       code: "E2001",
     });
+  });
+
+  it("rejects schema-invalid requests before sending them over HTTP", async () => {
+    const fetchMock = jest.spyOn(global, "fetch");
+
+    for (const invalid of [
+      { ...message, clientMessageId: "not-a-uuid" },
+      { ...message, activationId: 0 },
+      { ...message, text: "   " },
+      { ...message, writtenAt: "2026-11-15T20:00:00" },
+    ]) {
+      expect(await deliverStationMessage("token", invalid)).toEqual({
+        status: "rejected",
+        httpStatus: 400,
+        code: ERROR_CODES.MISSING_PARAMETER,
+      });
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not accept schema-invalid 2xx responses such as leaked identity fields", async () => {
+    for (const body of [
+      { ...storedMessage, staff: "7" },
+      { ...storedMessage, clientMessageId: "not-a-uuid" },
+      { ...storedMessage, receivedAt: "2026-11-15T20:05:00" },
+    ]) {
+      jest.spyOn(global, "fetch").mockResolvedValueOnce({
+        status: 201,
+        json: async () => body,
+      } as Response);
+      expect(await deliverStationMessage("token", message)).toEqual({
+        status: "retry",
+      });
+    }
   });
 });

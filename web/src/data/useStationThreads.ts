@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  StationMessageEvent,
-  StationThreadsClosed,
-} from "../../../shared/socket/events";
+import {
+  isStationMessageEvent,
+  isStationThreadsClosed,
+} from "../../../shared/station-messages/validate";
 import type { StationMessageRequest } from "../../../shared/types/v1/station-message-request";
 import type { StationThread } from "../../../shared/types/v1/station-thread";
 import { ApiError } from "../get-json";
@@ -22,7 +22,6 @@ export function useStationThreads(
   const { socket } = useLiveContext();
   const [threads, setThreads] = useState<StationThread[] | null>(null);
   const [thread, setThread] = useState<StationThread | null>(null);
-  const [history, setHistory] = useState<Record<string, StationThread>>({});
   const fetchedRef = useRef(new Map<string, StationThread>());
   const [listError, setListError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -61,7 +60,9 @@ export function useStationThreads(
       );
     }
 
-    function onMessage({ message, thread }: StationMessageEvent) {
+    function onMessage(event: unknown) {
+      if (!isStationMessageEvent(event)) return;
+      const { message, thread } = event;
       if (message.activationId !== activationId) return;
       // Keep the badge current even if the following list request fails.
       setThreads((current) => {
@@ -83,9 +84,15 @@ export function useStationThreads(
       refreshList();
     }
 
-    function onClosed(event: StationThreadsClosed) {
+    function onClosed(event: unknown) {
+      if (!isStationThreadsClosed(event)) return;
       if (event.activationId !== activationId) return;
       request?.abort();
+      fetchedRef.current.clear();
+      setThreads(null);
+      setThread(null);
+      setListError(null);
+      setDetailError(null);
       setClosed(true);
     }
 
@@ -127,7 +134,6 @@ export function useStationThreads(
           )
             return;
           fetchedRef.current.set(loaded.station, loaded);
-          setHistory((saved) => ({ ...saved, [loaded.station]: loaded }));
           setThread(loaded);
           setDetailError(null);
         },
@@ -138,12 +144,17 @@ export function useStationThreads(
       );
     }
 
-    function onMessage({ message }: StationMessageEvent) {
-      if (message.activationId === activationId && message.station === station)
+    function onMessage(event: unknown) {
+      if (!isStationMessageEvent(event)) return;
+      if (
+        event.message.activationId === activationId &&
+        event.message.station === station
+      )
         refreshThread();
     }
 
-    function onClosed(event: StationThreadsClosed) {
+    function onClosed(event: unknown) {
+      if (!isStationThreadsClosed(event)) return;
       if (event.activationId === activationId) request?.abort();
     }
 
@@ -165,17 +176,12 @@ export function useStationThreads(
     return message;
   }
 
-  const readOnly = closed || activationId === null;
+  const inactive = closed || activationId === null;
   return {
-    history,
-    threads,
-    thread: readOnly
-      ? (station && history[station]) || null
-      : thread?.station === station
-        ? thread
-        : null,
-    listError: readOnly ? null : listError,
-    threadError: !readOnly && station !== null ? detailError : null,
+    threads: inactive ? null : threads,
+    thread: inactive ? null : thread?.station === station ? thread : null,
+    listError: inactive ? null : listError,
+    threadError: !inactive && station !== null ? detailError : null,
     closed,
     reload,
     send,
