@@ -69,7 +69,7 @@ export async function postStationMessage(
   if (result.kind === "created") {
     const io = request.app.locals.io as Server | undefined;
     if (io) {
-      emitStationMessage(io, result.activation, result.message, result.thread);
+      emitStationMessage(io, result.lineGroup, result.message, result.thread);
     }
   }
 

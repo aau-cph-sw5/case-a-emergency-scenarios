@@ -1,5 +1,7 @@
 import type { StationMessage } from "../../shared/types/v1/station-message.js";
 import type { StationMessageRequest } from "../../shared/types/v1/station-message-request.js";
+import type { StationThread } from "../../shared/types/v1/station-thread.js";
+import type { StationMessageEvent } from "../../shared/socket/events.js";
 import { ERROR_CODES, type ErrorCode } from "../../shared/error-codes.js";
 import { getDatabase, type Db } from "../db/client.js";
 import {
@@ -23,21 +25,12 @@ import { appendStationMessageEvent } from "./incident-log-service.js";
 
 type Refusal = { kind: "refused"; code: ErrorCode };
 
-type ThreadView = {
-  activationId: number;
-  station: string;
-  state: "UNANSWERED" | "ANSWERED";
-  unansweredSince: string | null;
-  lastMessageAt: string | null;
-  messages?: StationMessage[];
-};
-
 function makeThread(
   activationId: number,
   station: string,
   messages: StationMessage[],
   includeMessages: boolean,
-): ThreadView {
+): StationThread {
   const last = messages[messages.length - 1];
   let lastControlRoomIndex = -1;
 
@@ -103,14 +96,14 @@ async function validateActiveActivation(
   return { kind: "ok", activation };
 }
 
-// A new message also carries what the live event needs (#334): the
-// activation it belongs to and the thread's state after it, worked out in the
-// same transaction, so the event matches what was stored.
+// A new message also carries what the live event needs (#334): the line group
+// and the thread's state after it, worked out in the same transaction, so the
+// event matches what was stored.
 export type CreatedStationMessage = {
   kind: "created";
   message: StationMessage;
-  activation: { activationId: number; lineGroup: LineGroup };
-  thread: Omit<ThreadView, "messages">;
+  lineGroup: LineGroup;
+  thread: StationMessageEvent["thread"];
 };
 
 export async function createStationMessage(
@@ -204,10 +197,7 @@ export async function createStationMessage(
     return {
       kind: "created",
       message,
-      activation: {
-        activationId: activation.activationId,
-        lineGroup: activation.lineGroup,
-      },
+      lineGroup: activation.lineGroup,
       thread,
     };
   });
@@ -216,7 +206,7 @@ export async function createStationMessage(
 export async function readStationThread(
   user: AuthUser,
   station: string,
-): Promise<ThreadView | Refusal> {
+): Promise<StationThread | Refusal> {
   return getDatabase().begin(async (tx) => {
     const activation = await findActiveActivation(user.lineGroup, tx);
     if (!activation) {
@@ -249,7 +239,7 @@ export async function readStationThread(
 
 export async function listStationThreads(
   user: AuthUser,
-): Promise<ThreadView[]> {
+): Promise<StationThread[]> {
   return getDatabase().begin(async (tx) => {
     const activation = await findActiveActivation(user.lineGroup, tx);
     if (!activation) return [];
