@@ -6,6 +6,15 @@ import type { StationMessage } from "../types/v1/station-message";
 import type { StationMessageRequest } from "../types/v1/station-message-request";
 import type { StationThread } from "../types/v1/station-thread";
 
+// Runtime checks for the station-message contract. Update them when
+// station-message-request, station-message or station-thread in contracts/v1/
+// change, or when the station events in shared/socket/events.ts change.
+//
+// A request the client sends must match its schema exactly. A response or event
+// the client receives may carry fields this build does not know: an additive
+// contract change must not break an older app. The server's contract tests keep
+// what it sends strict.
+
 // The contract's limit for a message, counted in Unicode code points.
 export const MAX_MESSAGE_LENGTH = 1000;
 
@@ -28,25 +37,6 @@ const REQUEST_KEYS = new Set([
   "activationId",
   "text",
   "writtenAt",
-]);
-const MESSAGE_KEYS = new Set([
-  "id",
-  "clientMessageId",
-  "activationId",
-  "station",
-  "sender",
-  "text",
-  "writtenAt",
-  "receivedAt",
-]);
-const THREAD_KEYS = new Set([
-  "activationId",
-  "station",
-  "state",
-  "unansweredSince",
-  "lastMessageAt",
-  "stationMessageIds",
-  "messages",
 ]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -138,9 +128,7 @@ export function isStationMessageRequest(
 }
 
 export function isStationMessage(value: unknown): value is StationMessage {
-  if (!isPlainObject(value) || !hasOnlyAllowedKeys(value, MESSAGE_KEYS)) {
-    return false;
-  }
+  if (!isPlainObject(value)) return false;
   return (
     isPositiveInteger(value.id) &&
     isUuid(value.clientMessageId) &&
@@ -154,9 +142,7 @@ export function isStationMessage(value: unknown): value is StationMessage {
 }
 
 export function isStationThread(value: unknown): value is StationThread {
-  if (!isPlainObject(value) || !hasOnlyAllowedKeys(value, THREAD_KEYS)) {
-    return false;
-  }
+  if (!isPlainObject(value)) return false;
   if (
     !isPositiveInteger(value.activationId) ||
     typeof value.station !== "string" ||
@@ -209,9 +195,6 @@ export function isStationThreadWithMessages(
   return isStationThread(value) && Array.isArray(value.messages);
 }
 
-// Socket wrappers do not have a contract schema with additionalProperties: false,
-// so extra wrapper fields (such as sequence) stay allowed while inner message
-// and thread payloads are validated strictly against their schemas.
 export function isStationMessageEvent(
   value: unknown,
 ): value is StationMessageEvent {

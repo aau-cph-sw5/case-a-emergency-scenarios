@@ -725,7 +725,7 @@ it("rejects schema-invalid HTTP payloads, requests, sessionStorage pins, and Soc
     JSON.stringify({
       readIds: [],
       pinned: [
-        { ...validMsg, staff: "7" },
+        { ...validMsg, sender: "STEWARD" },
         { ...validMsg, id: 2, clientMessageId: "not-a-uuid" },
       ],
     }),
@@ -735,7 +735,9 @@ it("rejects schema-invalid HTTP payloads, requests, sessionStorage pins, and Soc
   fetchMock.mockImplementation(async (path, options) => {
     if (path === threadsPath) {
       if (mode === "bad-list") {
-        return response([{ ...threadSummary("FOR", [validMsg]), staff: "7" }]);
+        return response([
+          { ...threadSummary("FOR", [validMsg]), state: "CLOSED" },
+        ]);
       }
       return response([threadSummary("FOR", [validMsg])]);
     }
@@ -743,7 +745,7 @@ it("rejects schema-invalid HTTP payloads, requests, sessionStorage pins, and Soc
       if (mode === "bad-detail") {
         return response({
           ...threadSummary("FOR", [validMsg]),
-          messages: [{ ...validMsg, staff: "7" }],
+          messages: [{ ...validMsg, sender: "STEWARD" }],
         });
       }
       return response({
@@ -758,9 +760,8 @@ it("rejects schema-invalid HTTP payloads, requests, sessionStorage pins, and Soc
           ...req,
           id: 2,
           station: "FOR",
-          sender: "CONTROL_ROOM",
+          sender: "STEWARD",
           receivedAt: req.writtenAt,
-          userId: 1,
         },
         201,
       );
@@ -807,7 +808,7 @@ it("rejects schema-invalid HTTP payloads, requests, sessionStorage pins, and Soc
   const callsBeforeSocket = fetchMock.mock.calls.length;
   await act(async () => {
     socket.emit("station-message", {
-      message: { ...stationMessage(3, "ORE", "Lækket"), staff: "7" },
+      message: { ...stationMessage(3, "ORE", "Lækket"), sender: "STEWARD" },
       thread: threadSummary("ORE", [stationMessage(3, "ORE", "Lækket")]),
       sentAt: timestamp,
     });

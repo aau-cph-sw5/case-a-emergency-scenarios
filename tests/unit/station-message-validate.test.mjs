@@ -150,9 +150,6 @@ test("isStationMessage matches Ajv across valid and invalid payloads", () => {
       { ...validMessage, receivedAt: "2026-11-11T12:00:02" },
     ],
     ["non-string station", { ...validMessage, station: 123 }],
-    ["leaked staff field", { ...validMessage, staff: "7" }],
-    ["leaked userId field", { ...validMessage, userId: 7 }],
-    ["leaked username field", { ...validMessage, username: "steward" }],
     [
       "missing receivedAt",
       { ...validRequest, id: 1, station: "Station B", sender: "STATION" },
@@ -214,12 +211,10 @@ test("isStationThread matches Ajv across valid and invalid payloads", () => {
     ],
     ["null stationMessageIds", { ...validThread, stationMessageIds: null }],
     [
-      "messages containing leaked staff",
-      { ...validThread, messages: [{ ...validMessage, staff: "7" }] },
+      "messages containing an invalid message",
+      { ...validThread, messages: [{ ...validMessage, sender: "STEWARD" }] },
     ],
     ["messages not array", { ...validThread, messages: "none" }],
-    ["leaked staff on thread", { ...validThread, staff: "7" }],
-    ["leaked userId on thread", { ...validThread, userId: 7 }],
     ["activationId zero", { ...validThread, activationId: 0 }],
     ["non-string station", { ...validThread, station: null }],
     ["null", null],
@@ -251,8 +246,49 @@ test("isStationThreadWithMessages requires a valid messages array", () => {
   assert.equal(
     isStationThreadWithMessages({
       ...validThread,
-      messages: [{ ...validMessage, staff: "7" }],
+      messages: [{ ...validMessage, sender: "STEWARD" }],
     }),
+    false,
+  );
+});
+
+test("received payloads may carry fields this build does not know", () => {
+  const futureMessage = { ...validMessage, editedAt: "2026-11-11T12:01:00Z" };
+  const futureThread = {
+    ...validThread,
+    stationMessageIds: [1],
+    priority: "HIGH",
+  };
+  assert.equal(isStationMessage(futureMessage), true);
+  assert.equal(isStationThreadSummary(futureThread), true);
+  assert.equal(
+    isStationThreadWithMessages({
+      ...validThread,
+      pinnedBy: [],
+      messages: [futureMessage],
+    }),
+    true,
+  );
+  assert.equal(
+    isStationMessageEvent({
+      message: futureMessage,
+      thread: futureThread,
+      sentAt: "2026-11-11T12:00:02Z",
+      sequence: 42,
+    }),
+    true,
+  );
+  assert.equal(
+    isStationThreadsClosed({
+      activationId: 1,
+      sentAt: "2026-11-11T12:05:00Z",
+      reason: "STAND_DOWN",
+    }),
+    true,
+  );
+  // A known field with a wrong value is still refused.
+  assert.equal(
+    isStationMessage({ ...futureMessage, sender: "STEWARD" }),
     false,
   );
 });
@@ -268,13 +304,11 @@ test("isStationMessageEvent validates Socket.IO station-message payloads", () =>
     isStationMessageEvent({ ...validEvent, thread: validThread }),
     true,
   );
-  // Extra outer wrapper keys (such as sequence) stay allowed for forward compatibility.
-  assert.equal(isStationMessageEvent({ ...validEvent, sequence: 42 }), true);
   assert.equal(isStationMessageEvent({ ...validEvent, sentAt: "" }), false);
   assert.equal(
     isStationMessageEvent({
       ...validEvent,
-      message: { ...validMessage, staff: "7" },
+      message: { ...validMessage, sender: "STEWARD" },
     }),
     false,
   );
@@ -306,7 +340,6 @@ test("isStationMessageEvent validates Socket.IO station-message payloads", () =>
 test("isStationThreadsClosed validates Socket.IO station-threads-closed payloads", () => {
   const validEvent = { activationId: 1, sentAt: "2026-11-11T12:05:00Z" };
   assert.equal(isStationThreadsClosed(validEvent), true);
-  assert.equal(isStationThreadsClosed({ ...validEvent, sequence: 7 }), true);
   assert.equal(
     isStationThreadsClosed({ activationId: 0, sentAt: validEvent.sentAt }),
     false,

@@ -180,7 +180,7 @@ describe("deliverStationMessage", () => {
 
   it("terminally rejects schema-invalid 2xx responses without deadlocking the queue", async () => {
     for (const body of [
-      { ...storedMessage, staff: "7" },
+      { ...storedMessage, sender: "STEWARD" },
       { ...storedMessage, clientMessageId: "not-a-uuid" },
       { ...storedMessage, receivedAt: "2026-11-15T20:05:00" },
     ]) {

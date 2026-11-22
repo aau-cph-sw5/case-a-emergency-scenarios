@@ -55,11 +55,11 @@ describe("readStationThread", () => {
     expect(options?.headers).toEqual({ Authorization: "Bearer token" });
   });
 
-  it("rejects schema-invalid thread responses including leaked identity fields", async () => {
+  it("rejects schema-invalid thread responses", async () => {
     const invalidBodies: unknown[] = [
       { station: "Station B", messages: [stored] },
-      { ...validThread, staff: "7" },
-      { ...validThread, messages: [{ ...stored, staff: "7" }] },
+      { ...validThread, state: "CLOSED" },
+      { ...validThread, messages: [{ ...stored, sender: "STEWARD" }] },
       {
         ...validThread,
         messages: [{ ...stored, clientMessageId: "not-a-uuid" }],

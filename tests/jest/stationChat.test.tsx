@@ -911,7 +911,10 @@ describe("StationChat (MET-A-029, #335)", () => {
 
     await act(async () => {
       emit("station-message", {
-        message: { ...message(2, "CONTROL_ROOM", "Lækket."), staff: "7" },
+        message: {
+          ...message(2, "CONTROL_ROOM", "Lækket."),
+          sender: "STEWARD",
+        },
         thread: threadSummary([message(2, "CONTROL_ROOM", "Lækket.")]),
         sentAt: t0820,
       });
