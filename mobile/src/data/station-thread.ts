@@ -1,7 +1,5 @@
 import { ERROR_CODES } from "../../../shared/error-codes";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
-import type { StationMessage } from "../../../shared/types/v1/station-message";
-import type { StationMessageRequest } from "../../../shared/types/v1/station-message-request";
 import type { StationThread } from "../../../shared/types/v1/station-thread";
 import { apiBaseUrl } from "../api-base-url";
 
@@ -54,81 +52,36 @@ export function closesThread(code?: string): boolean {
 export const NO_CONNECTION = "Ingen forbindelse til serveren.";
 export const SERVER_FAILED = "Serveren kunne ikke svare. Vi prøver igen.";
 
-// The contract's rule for a refusal: 400 and 409 are final, the client drops
-// the message and tells the steward. Every other answer is tried again; a 401
-// once the session is renewed.
-export function isFinal(httpStatus: number): boolean {
-  return httpStatus === 400 || httpStatus === 409;
-}
-
-// What the chat asks for: the station's thread with its messages, or to send
-// one message the steward has written.
-export type ThreadRequest =
-  { type: "read" } | ({ type: "send" } & StationMessageRequest);
-
-type ThreadAnswer = { read: StationThread; send: StationMessage };
-
-// offline is true when the server was not reached, so nothing was refused.
-// retry is true when the request should be tried again: when offline, and for
-// every answer the contract does not call final (see isFinal).
 export type ThreadResult<T> =
-  | { ok: true; value: T }
-  | {
-      ok: false;
-      code?: string;
-      message: string;
-      offline: boolean;
-      retry: boolean;
-    };
+  { ok: true; value: T } | { ok: false; code?: string; message: string };
 
-// The station's thread, the one place the steward app reads or writes it
-// (MET-A-029, #335). The steward must be checked in (ARRIVED) at the station;
-// otherwise the server refuses with E1007.
-export async function stationThread<R extends ThreadRequest>(
+// Reads one station's thread from the server (MET-A-029, #335, #445). The
+// steward must be checked in (ARRIVED) at the station; otherwise the server
+// refuses with E1007.
+export async function readStationThread(
   token: string,
   station: string,
-  request: R,
-): Promise<ThreadResult<ThreadAnswer[R["type"]]>> {
+): Promise<ThreadResult<StationThread>> {
   const path = `${apiBaseUrl}/api/v1/station-threads/${encodeURIComponent(station)}`;
   let response: Response;
   try {
-    if (request.type === "read") {
-      response = await fetch(path, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-    } else {
-      const body: StationMessageRequest = {
-        clientMessageId: request.clientMessageId,
-        activationId: request.activationId,
-        text: request.text,
-        writtenAt: request.writtenAt,
-      };
-      response = await fetch(`${path}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-    }
+    response = await fetch(path, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
   } catch {
-    return { ok: false, message: NO_CONNECTION, offline: true, retry: true };
+    return { ok: false, message: NO_CONNECTION };
   }
 
-  // 200 reads the thread; for a message 201 stores it and 200 means the
-  // server already had it, so both count as sent. A body that breaks off or
-  // is not JSON is tried again, like no connection.
+  // A body that breaks off or is not JSON is treated like no connection.
   if (response.ok) {
     try {
       return {
         ok: true,
-        value: (await response.json()) as ThreadAnswer[R["type"]],
+        value: (await response.json()) as StationThread,
       };
     } catch {
-      return { ok: false, message: NO_CONNECTION, offline: true, retry: true };
+      return { ok: false, message: NO_CONNECTION };
     }
   }
   const error = await response.json().catch(() => null);
@@ -139,8 +92,6 @@ export async function stationThread<R extends ThreadRequest>(
       response.status >= 500
         ? SERVER_FAILED
         : threadErrorMessage(typeof code === "string" ? code : undefined),
-    offline: false,
-    retry: !isFinal(response.status),
     ...(typeof code === "string" ? { code } : {}),
   };
 }

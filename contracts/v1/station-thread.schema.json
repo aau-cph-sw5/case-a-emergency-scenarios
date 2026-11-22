@@ -44,6 +44,12 @@
       "format": "date-time",
       "description": "receivedAt of the message the server received last. Null when the thread has no messages."
     },
+    "stationMessageIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 1 },
+      "description": "IDs of all messages received from the station, in server order. Included in HTTP thread summaries and details so clients can count unread messages without downloading message text. Older socket events may omit it."
+    },
     "messages": {
       "type": "array",
       "items": { "$ref": "station-message.schema.json" },

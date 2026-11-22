@@ -64,24 +64,18 @@ async function applyStationRoom(
 }
 export function emitStationMessage(
   io: Server,
-  activation: Pick<StoredActivation, "activationId" | "lineGroup">,
+  lineGroup: LineGroup,
   message: StationMessageEvent["message"],
   thread: StationMessageEvent["thread"],
 ) {
-  if (message.activationId !== activation.activationId) {
-    console.error(
-      `Station message ${message.id} is for activation ${message.activationId}, not ${activation.activationId}; not sent`,
-    );
-    return;
-  }
   const event: StationMessageEvent = {
     message,
     thread,
     sentAt: new Date().toISOString(),
   };
 
-  io.to(roleRoom("OPERATOR", activation.lineGroup))
-    .to(stationRoom(activation.activationId, message.station))
+  io.to(roleRoom("OPERATOR", lineGroup))
+    .to(stationRoom(message.activationId, message.station))
     .emit("station-message", event);
 }
 export function emitThreadsClosed(

@@ -190,18 +190,13 @@ function sendFakeMessage(
     writtenAt: now,
     receivedAt: now,
   };
-  emitStationMessage(
-    app.locals.io as Server,
-    { activationId, lineGroup },
-    message,
-    {
-      activationId,
-      station,
-      state: "ANSWERED",
-      unansweredSince: null,
-      lastMessageAt: now,
-    },
-  );
+  emitStationMessage(app.locals.io as Server, lineGroup, message, {
+    activationId,
+    station,
+    state: "ANSWERED",
+    unansweredSince: null,
+    lastMessageAt: now,
+  });
   return message;
 }
 
@@ -512,6 +507,111 @@ test("a station message reaches stewards checked in at the station only", async 
   assert.deepEqual((await received).message, message);
   await settle();
   assert.deepEqual(notCheckedIn, []);
+});
+
+async function postMessage(
+  token: string,
+  activationId: number,
+  text: string,
+  clientMessageId = randomUUID(),
+  writtenAt = new Date().toISOString(),
+) {
+  return fetch(
+    `${baseUrl}/api/v1/station-threads/${encodeURIComponent("Station G")}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ clientMessageId, activationId, text, writtenAt }),
+    },
+  );
+}
+
+test("a message stored through the API reaches the station and the operators live", async (t) => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const stewardToken = await login(stewardUsername, "steward123", "mobile");
+  const operator = await open(operatorToken);
+  const steward = await open(stewardToken);
+  const activationId = await activateScenario(operatorToken);
+  standDownAfter(t, operatorToken, activationId);
+  await checkInAtG(stewardToken, activationId);
+
+  // The control room writes: the steward checked in at the station gets it.
+  const atStation = nextEvent<StationMessageEvent>(steward, "station-message");
+  const reply = await postMessage(operatorToken, activationId, "Vi sender to.");
+  assert.equal(reply.status, 201);
+  const stored = (await reply.json()) as StationMessage;
+  const toSteward = await atStation;
+  assert.deepEqual(toSteward.message, stored);
+  assert.equal(toSteward.message.sender, "CONTROL_ROOM");
+  assert.equal(toSteward.thread.state, "ANSWERED");
+
+  // The station writes: the operator gets it, and the thread is unanswered.
+  const atOperator = nextEvent<StationMessageEvent>(
+    operator,
+    "station-message",
+  );
+  const question = await postMessage(stewardToken, activationId, "Modtaget.");
+  assert.equal(question.status, 201);
+  const toOperator = await atOperator;
+  assert.equal(toOperator.message.sender, "STATION");
+  assert.equal(toOperator.message.text, "Modtaget.");
+  assert.equal(toOperator.thread.state, "UNANSWERED");
+  assert.equal(
+    toOperator.thread.unansweredSince,
+    toOperator.message.receivedAt,
+  );
+});
+
+test("a repeat of a stored message is not sent live again", async (t) => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const stewardToken = await login(stewardUsername, "steward123", "mobile");
+  const steward = await open(stewardToken);
+  const activationId = await activateScenario(operatorToken);
+  standDownAfter(t, operatorToken, activationId);
+  await checkInAtG(stewardToken, activationId);
+
+  const events = record(steward, "station-message");
+  const clientMessageId = randomUUID();
+  const writtenAt = new Date().toISOString();
+  const first = await postMessage(
+    operatorToken,
+    activationId,
+    "Én gang.",
+    clientMessageId,
+    writtenAt,
+  );
+  const repeat = await postMessage(
+    operatorToken,
+    activationId,
+    "Én gang.",
+    clientMessageId,
+    writtenAt,
+  );
+
+  assert.equal(first.status, 201);
+  assert.equal(repeat.status, 200);
+  await settle();
+  assert.equal(events.length, 1);
+});
+
+test("a refused message is not sent live", async (t) => {
+  const operatorToken = await login(operatorUsername, "operator123", "web");
+  const stewardToken = await login(stewardUsername, "steward123", "mobile");
+  const operator = await open(operatorToken);
+  const activationId = await activateScenario(operatorToken);
+  standDownAfter(t, operatorToken, activationId);
+  // On the way, not checked in: the server refuses the steward's message.
+  await reportAtG(stewardToken, activationId);
+
+  const events = record(operator, "station-message");
+  const refused = await postMessage(stewardToken, activationId, "For tidligt.");
+
+  assert.equal(refused.status, 409);
+  await settle();
+  assert.deepEqual(events, []);
 });
 
 test("a steward who checks out stops getting messages without reconnecting", async (t) => {

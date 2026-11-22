@@ -27,6 +27,10 @@ export interface StationThread {
    */
   lastMessageAt: string | null;
   /**
+   * IDs of all messages received from the station, in server order. Included in HTTP thread summaries and details so clients can count unread messages without downloading message text. Older socket events may omit it.
+   */
+  stationMessageIds?: number[];
+  /**
    * The thread's messages in the order the server received them (by id). Always present when one thread is read, left out in the list of threads and in socket events.
    */
   messages?: StationMessage[];

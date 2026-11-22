@@ -1,4 +1,3 @@
-import * as Crypto from "expo-crypto";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -10,34 +9,55 @@ import {
   Text,
   View,
 } from "react-native";
+import type { QueuedStationMessage } from "../../../shared/offline/station-message-queue";
 import type { StationMessageEvent } from "../../../shared/socket/events";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
+import type { StationThread } from "../../../shared/types/v1/station-thread";
 import { colors, spacing, steward } from "../../../shared/Theme";
 import { ChatClosedNotice, ChatHeader } from "../components/ChatHeader";
 import { ChatTab } from "../components/ChatTab";
-import { MessageBubble, WarningIcon } from "../components/MessageBubble";
+import {
+  type Delivery,
+  MessageBubble,
+  WarningIcon,
+} from "../components/MessageBubble";
 import { MessageComposer } from "../components/MessageComposer";
+import { MessageNotice } from "../components/MessageNotice";
 import {
   closesThread,
   isSendableText,
-  stationThread,
+  readStationThread,
+  threadErrorMessage,
+  type ThreadResult,
 } from "../data/station-thread";
 import { userIdFromToken } from "../../../shared/auth/login";
 import {
   ownMessageIds,
   rememberOwnMessage,
 } from "../offline/own-station-messages";
+import { queueStationMessage } from "../offline/queue-station-message";
+import {
+  lastReadMessageId,
+  markStationChatRead,
+} from "../offline/station-chat-read";
+import {
+  onStationMessagesChanged,
+  stationMessageDelivery,
+  stationMessageQueueStore,
+} from "../offline/station-message-store";
 import { socket } from "../socket";
 import { useKeyboardPadding } from "../useKeyboardPadding";
 import { useSlideInPanel } from "../useSlideInPanel";
 
-// A message the steward wrote that the server has not stored: on its way, or
-// not sent with the reason.
+// A message the steward wrote that the server has not stored, as it is in the
+// phone's queue (MET-A-029, #336): waiting to be sent ("Afventer"), or refused
+// for good with the reason ("Ikke sendt"). A message waiting goes out by
+// itself when the phone is back online; a refused one is never sent again.
 type OwnMessage = {
   clientMessageId: string;
   text: string;
   writtenAt: string;
-  failed: string | null;
+  delivery: Delivery;
 };
 
 // The thread's messages with a new one added, each once, in the order the
@@ -110,9 +130,23 @@ export function StationChat({
   // Set when the server closed the thread while the app still had a station.
   const [closedByServer, setClosedByServer] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  // Set when the phone could not save the message the steward sent, so the
+  // text stays in the field and the steward can send it again.
+  const [saveFailed, setSaveFailed] = useState(false);
+  // A message being saved, so a second tap on Send does not save it twice.
+  const savingRef = useRef(false);
   // The clientMessageIds of the messages this steward wrote on this phone, so
   // their messages can be told from colleagues' at the same station.
   const [mine, setMine] = useState<ReadonlySet<string>>(() => new Set());
+  // The newest message id the steward has already seen in this thread, read
+  // from phone storage so the unread badge survives disconnects and restarts
+  // (MET-A-029, #446). readKnown waits for storage so already read messages do
+  // not flash as unread.
+  const [readUpTo, setReadUpTo] = useState<number | null>(null);
+  const [readKnown, setReadKnown] = useState(false);
+  // The newest unread control-room message's text for the note at the top
+  // while the chat is closed (#336).
+  const [notice, setNotice] = useState<string | null>(null);
   const userId = userIdFromToken(token);
   if (threadKey !== shownThreadKey) {
     setShownThreadKey(threadKey);
@@ -125,9 +159,57 @@ export function StationChat({
       setLoadError(null);
       setClosedByServer(null);
       setDraft("");
+      setSaveFailed(false);
       setMine(new Set());
+      setReadUpTo(null);
+      setReadKnown(false);
+      setNotice(null);
     }
   }
+
+  // Opening the chat reads the new messages, so the note goes and the read
+  // marker advances to the newest loaded message (MET-A-029, #446).
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+  if (open && notice !== null) {
+    setNotice(null);
+  }
+  const newestMessageId = messages.reduce(
+    (highest, message) => Math.max(highest, message.id),
+    0,
+  );
+  if (
+    open &&
+    readKnown &&
+    userId !== null &&
+    activationId !== undefined &&
+    station !== undefined &&
+    newestMessageId > (readUpTo ?? 0)
+  ) {
+    setReadUpTo(newestMessageId);
+  }
+
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  const readUpToRef = useRef(readUpTo);
+  useEffect(() => {
+    readUpToRef.current = readUpTo;
+  }, [readUpTo]);
+
+  const markerReady = userId === null || readKnown;
+  // Derived from merged messages so live socket events and later reads never
+  // double-count, and only control-room replies count (MET-A-029, #446).
+  const unread =
+    open || !markerReady
+      ? 0
+      : messages.filter(
+          (message) =>
+            message.sender === "CONTROL_ROOM" && message.id > (readUpTo ?? 0),
+        ).length;
 
   useEffect(() => {
     if (
@@ -145,6 +227,42 @@ export function StationChat({
       cancelled = true;
     };
   }, [userId, activationId, station]);
+
+  useEffect(() => {
+    if (
+      userId === null ||
+      activationId === undefined ||
+      station === undefined
+    ) {
+      return;
+    }
+    let cancelled = false;
+    void lastReadMessageId(userId, activationId, station).then((id) => {
+      if (cancelled) return;
+      readUpToRef.current = id;
+      setReadUpTo(id);
+      setReadKnown(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, activationId, station]);
+
+  // Persists the read marker once the steward has opened the chat and seen
+  // messages, and again as newer messages arrive while open (MET-A-029, #446).
+  useEffect(() => {
+    if (
+      !open ||
+      !readKnown ||
+      userId === null ||
+      activationId === undefined ||
+      station === undefined ||
+      readUpTo === null
+    ) {
+      return;
+    }
+    void markStationChatRead(userId, activationId, station, readUpTo);
+  }, [open, readKnown, userId, activationId, station, readUpTo]);
 
   // A refusal that means there is no thread any more closes the chat.
   const closeByServer = useCallback(
@@ -164,13 +282,33 @@ export function StationChat({
   }, [threadKey]);
 
   // Shows the thread read from the server: the earlier messages too, also
-  // those written before the steward checked in.
+  // those written before the steward checked in. While the chat is closed, a
+  // new unread reply from the control room also shows in the top note
+  // (MET-A-029, #446).
   const showRead = useCallback(
-    (result: Awaited<ReturnType<typeof stationThread<{ type: "read" }>>>) => {
+    (result: ThreadResult<StationThread>) => {
       setLoaded(true);
       if (result.ok) {
         setLoadError(null);
-        setMessages((current) => merge(current, result.value.messages ?? []));
+        const incoming = result.value.messages ?? [];
+        if (!openRef.current) {
+          const knownIds = new Set(
+            messagesRef.current.map((message) => message.id),
+          );
+          const readAfter = readUpToRef.current ?? 0;
+          const newestReply = incoming
+            .filter(
+              (message) =>
+                message.sender === "CONTROL_ROOM" &&
+                message.id > readAfter &&
+                !knownIds.has(message.id),
+            )
+            .sort((a, b) => a.id - b.id)
+            .at(-1);
+          if (newestReply !== undefined) setNotice(newestReply.text);
+        }
+        messagesRef.current = merge(messagesRef.current, incoming);
+        setMessages((current) => merge(current, incoming));
       } else if (closesThread(result.code)) closeByServer(result.message);
       else setLoadError(result.message);
     },
@@ -178,15 +316,17 @@ export function StationChat({
   );
   const load = useCallback(() => {
     if (station === undefined || threadKey === undefined) return;
-    void stationThread(token, station, { type: "read" }).then((result) => {
+    void readStationThread(token, station).then((result) => {
       if (currentThreadRef.current === threadKey) showRead(result);
     });
   }, [token, station, threadKey, showRead]);
 
-  // Read when the chat opens, and again when the socket reconnects or the
-  // app returns to the foreground, so a message missed meanwhile shows.
+  // Read the thread once the saved read marker is known, and again when the
+  // socket reconnects or the app returns to the foreground, so control-room
+  // replies missed while closed or disconnected update the badge
+  // (MET-A-029, #446).
   useEffect(() => {
-    if (!open || station === undefined) return;
+    if (station === undefined || !markerReady) return;
     load();
     const onConnect = () => load();
     socket.on("connect", onConnect);
@@ -197,7 +337,16 @@ export function StationChat({
       socket.off("connect", onConnect);
       subscription.remove();
     };
-  }, [open, station, load]);
+  }, [station, markerReady, load]);
+
+  // Opening the chat reads again so a failed read while closed recovers and
+  // the open list is current, without issuing a second read on initial mount.
+  const wasOpenRef = useRef(open);
+  useEffect(() => {
+    const opened = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+    if (opened && station !== undefined && markerReady) load();
+  }, [open, station, markerReady, load]);
 
   // New messages and the thread closing arrive over the socket.
   useEffect(() => {
@@ -209,7 +358,11 @@ export function StationChat({
       ) {
         return;
       }
+      messagesRef.current = merge(messagesRef.current, [event.message]);
       setMessages((current) => merge(current, [event.message]));
+      if (event.message.sender === "CONTROL_ROOM" && !openRef.current) {
+        setNotice(event.message.text);
+      }
     };
     const onClosed = (event: { activationId: number }) => {
       if (event.activationId === activationId) {
@@ -224,69 +377,113 @@ export function StationChat({
     };
   }, [station, activationId, closeByServer]);
 
-  // Sends one message the steward wrote. A message that did not go through
-  // keeps its id and time written, so "Send igen" can never store it twice.
-  const deliver = useCallback(
-    async (message: OwnMessage) => {
-      if (station === undefined || activationId === undefined) return;
-      setOwn((current) =>
-        current.map((entry) =>
-          entry.clientMessageId === message.clientMessageId
-            ? { ...entry, failed: null }
-            : entry,
-        ),
-      );
-      const result = await stationThread(token, station, {
-        type: "send",
-        clientMessageId: message.clientMessageId,
-        activationId,
-        text: message.text,
-        writtenAt: message.writtenAt,
-      });
-      // Sent for the thread before: its own list has gone with it.
-      if (currentThreadRef.current !== threadKey) return;
-      if (result.ok) {
-        setMessages((current) => merge(current, [result.value]));
-        setOwn((current) =>
-          current.filter(
-            (entry) => entry.clientMessageId !== message.clientMessageId,
-          ),
-        );
-        return;
-      }
-      setOwn((current) =>
-        current.map((entry) =>
-          entry.clientMessageId === message.clientMessageId
-            ? { ...entry, failed: `Ikke sendt. ${result.message}` }
-            : entry,
-        ),
-      );
-      if (closesThread(result.code)) onClosedByServer();
-    },
-    [token, station, activationId, threadKey, onClosedByServer],
-  );
+  // The steward's own messages the server has not stored yet, read from the
+  // phone's queue for this thread.
+  const showOwn = useCallback(async () => {
+    if (userId === null || station === undefined || activationId === undefined)
+      return;
+    const forThread = threadKey;
+    const [pending, rejected] = await Promise.all([
+      stationMessageQueueStore.getPending(userId),
+      stationMessageQueueStore.getRejected(userId),
+    ]);
+    if (currentThreadRef.current !== forThread) return;
+    const inThread = (message: { station: string; activationId: number }) =>
+      message.station === station && message.activationId === activationId;
+    setOwn(
+      [
+        ...pending.filter(inThread).map((message): OwnMessage => ({
+          clientMessageId: message.clientMessageId,
+          text: message.text,
+          writtenAt: message.writtenAt,
+          delivery: { kind: "pending" },
+        })),
+        ...rejected.filter(inThread).map((message): OwnMessage => ({
+          clientMessageId: message.clientMessageId,
+          text: message.text,
+          writtenAt: message.writtenAt,
+          delivery: {
+            kind: "refused",
+            reason: `Ikke sendt. ${threadErrorMessage(message.rejection.code)}`,
+          },
+        })),
+      ].sort((a, b) => a.writtenAt.localeCompare(b.writtenAt)),
+    );
+    // A refusal that means the steward has no thread any more: the app's
+    // copy of the scenario is out of date.
+    if (
+      rejected.some(
+        (message) => inThread(message) && closesThread(message.rejection.code),
+      )
+    )
+      onClosedByServer();
+  }, [userId, station, activationId, threadKey, onClosedByServer]);
 
+  // Shows the queue as it is now, and again whenever it changes: a message
+  // written here, or a send from the chat or from the retry loop in
+  // StewardView (MET-A-029, #445). A message the server stored joins the
+  // thread at once.
+  useEffect(() => {
+    void showOwn().catch(() => undefined);
+    return onStationMessagesChanged((result) => {
+      const delivered = (result?.delivered ?? []).filter(
+        (message) =>
+          message.station === station && message.activationId === activationId,
+      );
+      if (delivered.length > 0) {
+        messagesRef.current = merge(messagesRef.current, delivered);
+        setMessages((current) => merge(current, delivered));
+      }
+      void showOwn().catch(() => undefined);
+    });
+  }, [showOwn, station, activationId]);
+
+  // Saves the message on the phone first, then sends it. Without a
+  // connection it stays as "Afventer" and goes out when the phone is back
+  // online; the same id means the server never stores it twice. The field
+  // is cleared only once the message is saved, so a failed save loses
+  // nothing.
   const send = () => {
     const written = draft.trim();
-    if (!isSendableText(written)) return;
-    const message: OwnMessage = {
-      clientMessageId: Crypto.randomUUID(),
-      text: written,
-      writtenAt: new Date().toISOString(),
-      failed: null,
-    };
-    setOwn((current) => [...current, message]);
-    setMine((current) => new Set([...current, message.clientMessageId]));
-    if (userId !== null && activationId !== undefined && station !== undefined)
+    if (
+      !isSendableText(written) ||
+      userId === null ||
+      station === undefined ||
+      activationId === undefined ||
+      savingRef.current
+    )
+      return;
+    savingRef.current = true;
+    void (async () => {
+      let message: QueuedStationMessage;
+      try {
+        message = await queueStationMessage({
+          userId,
+          station,
+          activationId,
+          text: written,
+        });
+      } catch {
+        setSaveFailed(true);
+        return;
+      } finally {
+        savingRef.current = false;
+      }
+      setSaveFailed(false);
+      // Text written while the message was saved stays.
+      setDraft((current) => (current.trim() === written ? "" : current));
+      setMine((current) => new Set([...current, message.clientMessageId]));
       void rememberOwnMessage(
         userId,
         activationId,
         station,
         message.clientMessageId,
       );
-    setDraft("");
-    void deliver(message);
+      await stationMessageDelivery.flush(userId, token);
+    })().catch(() => undefined);
   };
+
+  const dismissNotice = useCallback(() => setNotice(null), []);
 
   const scrollRef = useRef<ScrollViewInstance>(null);
   const closed =
@@ -297,7 +494,19 @@ export function StationChat({
   return (
     <>
       {station !== undefined && !open && (
-        <ChatTab onPress={openChat} dragHandlers={tabDragHandlers} />
+        <ChatTab
+          onPress={openChat}
+          dragHandlers={tabDragHandlers}
+          unread={unread}
+        />
+      )}
+
+      {station !== undefined && !open && notice !== null && (
+        <MessageNotice
+          text={notice}
+          onOpen={openChat}
+          onDismiss={dismissNotice}
+        />
       )}
 
       {shown && (
@@ -370,8 +579,7 @@ export function StationChat({
                       }
                       text={message.text}
                       writtenAt={message.writtenAt}
-                      failed={message.failed}
-                      onRetry={() => void deliver(message)}
+                      delivery={message.delivery}
                     />
                   ))}
                   {loadError && (
@@ -392,6 +600,17 @@ export function StationChat({
                   )}
                 </ScrollView>
 
+                {saveFailed && (
+                  <View style={styles.saveFailed}>
+                    <WarningIcon />
+                    <Text
+                      style={styles.loadErrorText}
+                      accessibilityRole="alert"
+                    >
+                      Beskeden kunne ikke gemmes på telefonen. Prøv igen.
+                    </Text>
+                  </View>
+                )}
                 <MessageComposer
                   draft={draft}
                   onChangeDraft={setDraft}
@@ -435,6 +654,13 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     flexDirection: "row",
     gap: 6,
+  },
+  saveFailed: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: spacing.large,
+    paddingTop: spacing.small,
   },
   loadErrorText: {
     color: steward.nobody,

@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createStationMessageQueueStore } from "../../shared/offline/station-message-queue.ts";
-import { createStationMessageDelivery } from "../../mobile/src/offline/station-message-delivery.ts";
+import {
+  createStationMessageDelivery,
+  isUnauthorized,
+} from "../../mobile/src/offline/station-message-delivery.ts";
 
 function memoryStorage() {
   const items = new Map();
@@ -187,10 +190,75 @@ for (const httpStatus of [401, 403, 408, 429]) {
     }));
     const result = await delivery.flush("steward-1", "test-token");
     assert.equal(result.blocked, true);
+    assert.deepEqual(result.blockedBy, { status: "rejected", httpStatus });
     assert.equal(result.pending, 1);
     assert.deepEqual(await queue.getRejected("steward-1"), []);
   });
 }
+
+test("reports a 401 stop through blockedBy and isUnauthorized (MET-A-029, #445)", async () => {
+  const queue = await queued([aMessage("first"), aMessage("second")]);
+  let sends = 0;
+  const delivery = createStationMessageDelivery(queue, async () => {
+    sends++;
+    return { status: "rejected", httpStatus: 401, code: "E2001" };
+  });
+
+  const result = await delivery.flush("steward-1", "test-token");
+
+  assert.equal(sends, 1);
+  assert.equal(result.blocked, true);
+  assert.deepEqual(result.blockedBy, {
+    status: "rejected",
+    httpStatus: 401,
+    code: "E2001",
+  });
+  assert.equal(result.pending, 2);
+  assert.equal(isUnauthorized(result), true);
+  assert.deepEqual(await queue.getRejected("steward-1"), []);
+});
+
+test("isUnauthorized is true only when blockedBy is HTTP 401", () => {
+  assert.equal(
+    isUnauthorized({
+      delivered: [],
+      rejected: 0,
+      pending: 1,
+      blocked: true,
+      blockedBy: { status: "rejected", httpStatus: 401 },
+    }),
+    true,
+  );
+  assert.equal(
+    isUnauthorized({
+      delivered: [],
+      rejected: 0,
+      pending: 1,
+      blocked: true,
+      blockedBy: { status: "retry" },
+    }),
+    false,
+  );
+  assert.equal(
+    isUnauthorized({
+      delivered: [],
+      rejected: 0,
+      pending: 1,
+      blocked: true,
+      blockedBy: { status: "rejected", httpStatus: 403 },
+    }),
+    false,
+  );
+  assert.equal(
+    isUnauthorized({
+      delivered: [],
+      rejected: 0,
+      pending: 0,
+      blocked: false,
+    }),
+    false,
+  );
+});
 
 test("only sends the signed-in steward's messages", async () => {
   const queue = await queued([

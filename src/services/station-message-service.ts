@@ -1,5 +1,7 @@
 import type { StationMessage } from "../../shared/types/v1/station-message.js";
 import type { StationMessageRequest } from "../../shared/types/v1/station-message-request.js";
+import type { StationThread } from "../../shared/types/v1/station-thread.js";
+import type { StationMessageEvent } from "../../shared/socket/events.js";
 import { ERROR_CODES, type ErrorCode } from "../../shared/error-codes.js";
 import { getDatabase, type Db } from "../db/client.js";
 import {
@@ -17,26 +19,18 @@ import {
   stationIsRequired,
   stewardIsCheckedIn,
 } from "../repositories/station-message-repository.js";
+import type { LineGroup } from "../../shared/auth/line-groups.js";
 import type { AuthUser } from "./auth-service.js";
 import { appendStationMessageEvent } from "./incident-log-service.js";
 
 type Refusal = { kind: "refused"; code: ErrorCode };
-
-type ThreadView = {
-  activationId: number;
-  station: string;
-  state: "UNANSWERED" | "ANSWERED";
-  unansweredSince: string | null;
-  lastMessageAt: string | null;
-  messages?: StationMessage[];
-};
 
 function makeThread(
   activationId: number,
   station: string,
   messages: StationMessage[],
   includeMessages: boolean,
-): ThreadView {
+): StationThread {
   const last = messages[messages.length - 1];
   let lastControlRoomIndex = -1;
 
@@ -63,6 +57,9 @@ function makeThread(
     state: unansweredSince === null ? "ANSWERED" : "UNANSWERED",
     unansweredSince,
     lastMessageAt: last?.receivedAt ?? null,
+    stationMessageIds: messages
+      .filter((message) => message.sender === "STATION")
+      .map((message) => message.id),
     ...(includeMessages ? { messages } : {}),
   };
 }
@@ -102,11 +99,23 @@ async function validateActiveActivation(
   return { kind: "ok", activation };
 }
 
+// A new message also carries what the live event needs (#334): the line group
+// and the thread's state after it, worked out in the same transaction, so the
+// event matches what was stored.
+export type CreatedStationMessage = {
+  kind: "created";
+  message: StationMessage;
+  lineGroup: LineGroup;
+  thread: StationMessageEvent["thread"];
+};
+
 export async function createStationMessage(
   user: AuthUser,
   station: string,
   request: StationMessageRequest,
-): Promise<{ kind: "created" | "repeat"; message: StationMessage } | Refusal> {
+): Promise<
+  CreatedStationMessage | { kind: "repeat"; message: StationMessage } | Refusal
+> {
   return getDatabase().begin(async (tx) => {
     // Keep using this client-generated ID for retries; ignore differences in letter case.
     const clientMessageId = request.clientMessageId.toLowerCase();
@@ -180,15 +189,27 @@ export async function createStationMessage(
       lineGroup: activation.lineGroup,
     });
 
+    const thread = makeThread(
+      activation.activationId,
+      station,
+      await listMessages(tx, activation.activationId, station),
+      false,
+    );
+
     // The message and its log event are in one transaction, so both succeed or neither does.
-    return { kind: "created", message };
+    return {
+      kind: "created",
+      message,
+      lineGroup: activation.lineGroup,
+      thread,
+    };
   });
 }
 
 export async function readStationThread(
   user: AuthUser,
   station: string,
-): Promise<ThreadView | Refusal> {
+): Promise<StationThread | Refusal> {
   return getDatabase().begin(async (tx) => {
     const activation = await findActiveActivation(user.lineGroup, tx);
     if (!activation) {
@@ -221,7 +242,7 @@ export async function readStationThread(
 
 export async function listStationThreads(
   user: AuthUser,
-): Promise<ThreadView[]> {
+): Promise<StationThread[]> {
   return getDatabase().begin(async (tx) => {
     const activation = await findActiveActivation(user.lineGroup, tx);
     if (!activation) return [];

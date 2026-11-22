@@ -128,6 +128,7 @@ describe("StewardPositions pop-up", () => {
     renderWithLive(<StewardPositions />, {});
     fireEvent.press(screen.getByTestId("status-launcher"));
     expect(screen.getByTestId("status-window")).toBeTruthy();
+    expect(screen.queryByText(/Status \(0\)/)).toBeNull();
     expect(
       screen.getByTestId("status-launcher").props.accessibilityState,
     ).toEqual({
@@ -141,15 +142,48 @@ describe("StewardPositions pop-up", () => {
       expanded: false,
     });
   });
-  it("starts closed with the number of stewards on the button", () => {
+  it("starts closed with a notification for an existing report", () => {
     renderWithLive(<StewardPositions />, {
       activations: [
         activation(1, [onTheWay("steward-002", "Nørreport", minutesAgo(2))]),
       ],
     });
 
-    expect(screen.getByText("Status (1)")).toBeTruthy();
+    expect(screen.getByLabelText("Status, 1 nye opdateringer")).toBeTruthy();
     expect(screen.queryByText(/steward-002/)).toBeNull();
+  });
+
+  it("counts new reports until Status opens and leaves unchanged reports read", () => {
+    const first = onTheWay("steward-002", "Nørreport", minutesAgo(2));
+    const view = renderWithLive(<StewardPositions />, {
+      activations: [activation(1, [first])],
+    });
+    const launcher = () => screen.getByTestId("status-launcher");
+    const update = (...deployments: Deployment[]) =>
+      view.rerender(
+        <LiveDataContext
+          value={liveValue({ activations: [activation(1, deployments)] })}
+        >
+          <StewardPositions />
+        </LiveDataContext>,
+      );
+
+    update(first, onTheWay("steward-003", "Vanløse", minutesAgo(1)));
+    expect(launcher().props.accessibilityLabel).toBe(
+      "Status, 2 nye opdateringer",
+    );
+    fireEvent.press(launcher());
+    expect(launcher().props.accessibilityLabel).toBe("Status");
+    fireEvent.press(launcher());
+    update(first, onTheWay("steward-003", "Vanløse", minutesAgo(1)));
+    expect(launcher().props.accessibilityLabel).toBe("Status");
+    update(
+      first,
+      arrived("steward-003", "Vanløse", minutesAgo(1), minutesAgo(0)),
+    );
+    expect(launcher().props.accessibilityLabel).toBe(
+      "Status, 1 nye opdateringer",
+    );
   });
 
   it("opens to one row per steward with status, station and age, and closes again", () => {
@@ -163,7 +197,7 @@ describe("StewardPositions pop-up", () => {
       ],
     });
 
-    fireEvent.press(screen.getByText("Status (2)"));
+    fireEvent.press(screen.getByTestId("status-launcher"));
 
     expect(screen.getByText("steward-002 | På vej | Nørreport")).toBeTruthy();
     expect(screen.getByText("steward-003 | ✓ Ankommet | Vanløse")).toBeTruthy();
@@ -188,7 +222,7 @@ describe("StewardPositions pop-up", () => {
         ]),
       ],
     });
-    fireEvent.press(screen.getByText("Status (1)"));
+    fireEvent.press(screen.getByTestId("status-launcher"));
 
     expect(
       screen.getByText("steward-005 | ✓✓ Opgave udført | Forum"),
@@ -204,7 +238,7 @@ describe("StewardPositions pop-up", () => {
         ]),
       ],
     });
-    fireEvent.press(screen.getByText("Status (1)"));
+    fireEvent.press(screen.getByTestId("status-launcher"));
 
     expect(screen.getByText("steward-004 | Ingen status | Forum")).toBeTruthy();
   });
@@ -216,7 +250,7 @@ describe("StewardPositions pop-up", () => {
         activation(1, [onTheWay("steward-002", "Nørreport", minutesAgo(2))]),
       ],
     });
-    fireEvent.press(screen.getByText("Status (1)"));
+    fireEvent.press(screen.getByTestId("status-launcher"));
     expect(screen.getByText("for 2 min siden")).toBeTruthy();
 
     act(() => {
@@ -232,7 +266,7 @@ describe("StewardPositions pop-up", () => {
         activation(1, [onTheWay("steward-002", "Nørreport", minutesAgo(5))]),
       ],
     });
-    fireEvent.press(screen.getByText("Status (1)"));
+    fireEvent.press(screen.getByTestId("status-launcher"));
     expect(screen.getByText("steward-002 | På vej | Nørreport")).toBeTruthy();
 
     view.rerender(
@@ -253,7 +287,7 @@ describe("StewardPositions pop-up", () => {
 
   it("says positions may be out of date while disconnected", () => {
     renderWithLive(<StewardPositions />, { isConnected: false });
-    fireEvent.press(screen.getByText("Status (0)"));
+    fireEvent.press(screen.getByTestId("status-launcher"));
 
     expect(
       screen.getByText(
