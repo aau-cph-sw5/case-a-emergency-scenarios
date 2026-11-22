@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import {
   colors,
@@ -20,7 +20,9 @@ function clock(iso: string): string {
 // station light grey. The control room's are Metro Deep Red on the left. Each
 // has a word for who wrote it, so colour is not the only sign. A message that
 // was not sent is outlined and carries a warning sign, so it is not mistaken
-// for the control room.
+// for the control room. One still waiting on the phone (no connection) says
+// "Afventer" with a clock, and goes out by itself when the phone is back
+// online (MET-A-029, #336).
 export function MessageBubble({
   fromStation,
   colleague = false,
@@ -28,7 +30,7 @@ export function MessageBubble({
   text: body,
   writtenAt,
   failed = null,
-  onRetry,
+  pending = false,
 }: {
   fromStation: boolean;
   // Written by another steward checked in at the same station.
@@ -39,8 +41,10 @@ export function MessageBubble({
   text: string;
   writtenAt: string;
   // Why the message was not sent; null when it was sent or is on its way.
+  // The server refused it for good, so it is not sent again.
   failed?: string | null;
-  onRetry?: () => void;
+  // Saved on the phone and not yet received by the server.
+  pending?: boolean;
 }) {
   const time = clock(writtenAt);
   const sender = fromStation
@@ -52,7 +56,7 @@ export function MessageBubble({
     <View
       style={[styles.row, fromStation ? styles.right : styles.left]}
       accessible
-      accessibilityLabel={`${sender}, ${time}: ${body}${failed ? `. ${failed}` : ""}`}
+      accessibilityLabel={`${sender}, ${time}: ${body}${failed ? `. ${failed}` : pending ? ". Afventer" : ""}`}
     >
       {showSender && (
         <Text style={[styles.who, !fromStation && styles.controlWho]}>
@@ -87,15 +91,28 @@ export function MessageBubble({
             <WarningIcon />
             <Text style={styles.failedText}>{failed}</Text>
           </View>
-          {onRetry && (
-            <Pressable accessibilityRole="button" onPress={onRetry}>
-              <Text style={styles.retry}>Send igen</Text>
-            </Pressable>
-          )}
         </>
+      )}
+      {failed === null && pending && (
+        <View style={styles.pendingRow} testID="message-pending">
+          <ClockIcon />
+          <Text style={styles.pendingText}>Afventer</Text>
+        </View>
       )}
       <Text style={styles.time}>{time}</Text>
     </View>
+  );
+}
+
+// Material Symbols' "schedule", next to a message still waiting on the phone.
+export function ClockIcon() {
+  return (
+    <Svg width={14} height={14} viewBox="0 -960 960 960">
+      <Path
+        d="m612-292 56-56-148-148v-184h-80v216l172 172ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q133 0 226.5-93.5T800-480q0-133-93.5-226.5T480-800q-133 0-226.5 93.5T160-480q0 133 93.5 226.5T480-160Z"
+        fill={steward.muted}
+      />
+    </Svg>
   );
 }
 
@@ -181,12 +198,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "right",
   },
-  retry: {
-    color: colors.text,
-    fontSize: 14,
+  pendingRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
+  },
+  pendingText: {
+    color: steward.muted,
+    fontSize: 12,
     fontWeight: "700",
-    paddingVertical: 4,
-    textDecorationLine: "underline",
   },
   time: {
     color: steward.muted,
