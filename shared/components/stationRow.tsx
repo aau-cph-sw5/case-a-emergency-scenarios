@@ -155,7 +155,13 @@ function LiveStationRow({
                 <View
                   key={index}
                   testID={`station-slot-${status}`}
-                  style={[styles.slot, { backgroundColor }]}
+                  style={[
+                    styles.slot,
+                    { backgroundColor },
+                    status === "UNMANNED" && {
+                      borderColor: colors.statusRedBorder,
+                    },
+                  ]}
                 />
               );
             })}

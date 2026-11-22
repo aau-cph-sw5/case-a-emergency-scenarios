@@ -1,5 +1,8 @@
 // Shared by the delivery of position reports (MET-A-006) and station messages (MET-A-029).
 
+// Waits before each new try after a send failed while live.
+export const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
+
 // Only domain/validation 4xx failures are terminal. Authentication and rate
 // limiting failures must leave the queue intact for another attempt.
 const RETRYABLE_HTTP_STATUSES = new Set([401, 403, 408, 429]);

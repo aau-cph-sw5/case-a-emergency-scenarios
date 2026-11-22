@@ -16,7 +16,11 @@ import { useNetwork } from "../../web/src/data/useNetwork";
 import { getLines, getStation } from "../../mockData/data";
 
 jest.mock("../../web/src/data/useNetwork", () => ({ useNetwork: jest.fn() }));
-const mapLines = getLines().map((line) => ({ ...line, tracks: [1, 2] }));
+const mapLines = getLines().map((line, index) => ({
+  ...line,
+  color: ["#123456", "#789ABC", "#B12345", "#C67890"][index],
+  tracks: [1, 2],
+}));
 const codes = [...new Set(mapLines.flatMap((line) => line.connections.flat()))];
 const testNetwork = {
   lines: mapLines,
@@ -147,7 +151,7 @@ const shownLines = () => {
     ...screen.UNSAFE_queryAllByType(Path),
   ].map((strip) => strip.props.stroke);
   return ["M1", "M2", "M3", "M4"].filter((_, index) =>
-    strokes.includes(lineColors[index]),
+    strokes.includes(mapLines[index].color),
   );
 };
 const viewBox = () => screen.UNSAFE_getByType(Svg).props.viewBox;

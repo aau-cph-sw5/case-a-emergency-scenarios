@@ -27,6 +27,7 @@ const network: Network = {
       operationType: "PENDULUM",
       maximumTrains: 1,
       did: "TEST",
+      color: "#123456",
       trackNumber: 1,
       stops: ["A", "B"],
     },
@@ -49,6 +50,7 @@ test("network map uses stored positions and connected normal stops", () => {
   assert.deepEqual(map.positions.A, [10, 20]);
   assert.equal(map.stationNames?.A, "Station Alpha");
   assert.deepEqual(map.lines[0].connections, [["A", "B"]]);
+  assert.equal(map.lines[0].color, "#123456");
   assert.equal(map.incomplete, false);
 });
 

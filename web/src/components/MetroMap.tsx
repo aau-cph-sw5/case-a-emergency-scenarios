@@ -5,7 +5,6 @@ import MapRender from "../../../shared/MapRenderer";
 import {
   colors as theme,
   DIDLineColors,
-  lineColors,
   palette,
   radius,
   text,
@@ -35,9 +34,6 @@ const lineGroups = [
   ["M1", "M2"],
   ["M3", "M4"],
 ] as const;
-const lineColor = Object.fromEntries(
-  ["M1", "M2", "M3", "M4"].map((line, index) => [line, lineColors[index]]),
-);
 
 function scenarioLines(
   scenario: Scenario,
@@ -110,9 +106,7 @@ function routeColor(
       line.connections.some((other) => same(connection, other)),
     ),
   );
-  return fits.length === 1 && lineColor[fits[0].name]
-    ? lineColor[fits[0].name]
-    : theme.text;
+  return fits.length === 1 && fits[0].color ? fits[0].color : theme.text;
 }
 
 // The covered segments that no running route already draws, as one line.
@@ -267,7 +261,12 @@ export function MetroMap({
   const missingScenarioRoutes = scenarioLineResult?.missingRoutes ?? false;
   const routeColors =
     scenarioId === null
-      ? lineColor
+      ? Object.fromEntries(
+          groupNetwork.map((line) => [
+            line.name,
+            line.color ?? palette.networkGrey,
+          ]),
+        )
       : {
           ...Object.fromEntries(
             runningLines.map((route, index) => [

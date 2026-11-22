@@ -86,7 +86,8 @@ function toggleWord(text: string, word: string): string {
   return trimmed ? `${trimmed}, ${word.toLowerCase()}` : word.toLowerCase();
 }
 
-// The API answers 404 until the suggestion endpoint exists (#371).
+// The server serves this endpoint (#371); a server without it, such as the
+// stub server, answers 404.
 const unavailable = (error: unknown) =>
   error instanceof ApiError && error.status === 404;
 
