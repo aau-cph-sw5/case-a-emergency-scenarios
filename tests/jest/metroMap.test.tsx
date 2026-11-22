@@ -191,8 +191,8 @@ describe("MetroMap", () => {
       ...screen.UNSAFE_queryAllByType(Line),
       ...screen.UNSAFE_queryAllByType(Path),
     ].map((segment) => segment.props.stroke);
-    expect(strokes).toContain(lineColors[0]);
-    expect(strokes).toContain(lineColors[1]);
+    expect(strokes).toContain(mapLines[0].color);
+    expect(strokes).toContain(mapLines[1].color);
     expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(64);
     expect(screen.getByText("TEST")).toBeTruthy();
     expect(screen.getByText("TEST-2")).toBeTruthy();
@@ -265,7 +265,11 @@ describe("MetroMap", () => {
       ...screen.UNSAFE_queryAllByType(Path),
     ].map((strip) => strip.props.stroke);
     expect(strokes).toEqual(
-      expect.arrayContaining([lineColors[0], lineColors[1], colors.text]),
+      expect.arrayContaining([
+        mapLines[0].color,
+        mapLines[1].color,
+        colors.text,
+      ]),
     );
   });
 
@@ -284,20 +288,20 @@ describe("MetroMap", () => {
         ...screen.UNSAFE_queryAllByType(Line),
         ...screen.UNSAFE_queryAllByType(Path),
       ].map((strip) => strip.props.stroke);
-    expect(strokes()).toContain(lineColors[0]);
+    expect(strokes()).toContain(mapLines[0].color);
     expect(strokes()).not.toContain(DIDLineColors[0]);
     chooseColours("Destination ID");
     expect(strokes()).toEqual(
       expect.arrayContaining(DIDLineColors.slice(0, 2)),
     );
-    expect(strokes()).not.toContain(lineColors[0]);
+    expect(strokes()).not.toContain(mapLines[0].color);
     // The destination ID palette is its own: it never reuses a Metro line colour.
     expect(new Set(DIDLineColors).size).toBe(DIDLineColors.length);
     expect(DIDLineColors).not.toEqual(
       expect.arrayContaining(lineColors.slice(0, 4)),
     );
     chooseColours("Metrolinje");
-    expect(strokes()).toContain(lineColors[0]);
+    expect(strokes()).toContain(mapLines[0].color);
   });
 
   it("shows an error instead of inventing a destination ID without routes", () => {
