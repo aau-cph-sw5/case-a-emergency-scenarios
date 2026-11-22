@@ -19,12 +19,14 @@ export function OperatorSections({
   coverage,
   mapControls,
   statusPopup,
+  messagePanel,
 }: {
   scenarioSelection: ReactNode;
   map: ReactNode;
   coverage: ReactNode;
   mapControls?: ReactNode;
   statusPopup?: ReactNode;
+  messagePanel?: ReactNode;
 }) {
   const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null);
   const coverageRef = useRef<HTMLElement>(null);
@@ -98,17 +100,10 @@ export function OperatorSections({
             {coverage}
           </div>
           <div ref={setActionsSlot} className="operator-actions-slot" />
-          {statusPopup && (
+          {(statusPopup || messagePanel) && (
             <div className="operator-status-footer">
               <div className="status-popup">{statusPopup}</div>
-              <button
-                type="button"
-                className="operator-message-button"
-                disabled
-                title="Beskeder er endnu ikke tilgængelige"
-              >
-                Beskeder
-              </button>
+              {messagePanel}
             </div>
           )}
         </section>

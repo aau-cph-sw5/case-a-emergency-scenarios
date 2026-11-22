@@ -1,8 +1,17 @@
 # Scenario State Contract Changelog
 
-## 8.10.1 - 2026-11-21
+## 8.11.1 - 2026-11-22
 
 No change to the shape. `POST /api/v1/scenario-suggestions` is no longer a draft: the server serves it (#371).
+
+## 8.11.0 - 2026-11-21
+
+Additive. Station inbox summaries expose unread-message metadata (MET-A-029, #337).
+
+- Add optional `stationMessageIds` to `station-thread.schema.json`. The server includes this array of received station-message IDs in HTTP summaries and details, without message text in summaries.
+- Operators count unread IDs against their local read state. A failed history request therefore cannot clear the inbox badge.
+- The operator inbox orders conversations by `lastMessageAt`, newest first, and fetches message history when a conversation is opened.
+- Existing socket event producers may omit the new field.
 
 ## 8.10.0 - 2026-11-18
 

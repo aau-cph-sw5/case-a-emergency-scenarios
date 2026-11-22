@@ -14,6 +14,7 @@ export function ScenarioWorkspace({
   onSelect,
   statusBar,
   statusPopup,
+  messagePanel,
 }: {
   token: string;
   selectedId: string | null;
@@ -21,6 +22,7 @@ export function ScenarioWorkspace({
   onSelect: (id: string | null) => void;
   statusBar?: ReactNode;
   statusPopup?: ReactNode;
+  messagePanel?: ReactNode;
 }) {
   const { activations } = useLiveData();
   const isActive =
@@ -34,6 +36,7 @@ export function ScenarioWorkspace({
   return (
     <OperatorSections
       statusPopup={statusPopup}
+      messagePanel={messagePanel}
       scenarioSelection={
         <>
           <ScenarioList
