@@ -1,7 +1,7 @@
 # Scenario suggestion: search and ranking
 
 An operator describes an incident in free text, for example "Der er ingen
-strøm mellem KGN og KK". The server ranks the scenarios in the operator's line
+strøm mellem KGN og KHC". The server ranks the scenarios in the operator's line
 group by how well they match the description.
 
 The ranking only suggests. The operator picks a scenario, and activating it
@@ -43,10 +43,34 @@ const ranker = new BM25Ranker(createDanishTokenize(stations));
 How the tokenizer splits Danish text is described in
 [scenario-suggestion-tokenization.md](scenario-suggestion-tokenization.md).
 
+## The endpoint
+
+`POST /api/v1/scenario-suggestions` (#371) takes `{ "description": "…" }` and
+answers 200 with `CONFIDENT` and up to five candidates, or
+`NO_CONFIDENT_CANDIDATE`. The shapes are in
+`contracts/v1/scenario-suggestion.schema.json`.
+
+| File                                            | What it does                                                   |
+| ----------------------------------------------- | -------------------------------------------------------------- |
+| `src/routes/scenario-suggestion-routes.ts`      | The route: token (401), `OPERATOR` role (403), body (400)      |
+| `src/controllers/scenario-suggestion-controller.ts` | Takes the line group from the signed-in user, not the body |
+| `src/services/scenario-suggestion-service.ts`   | Fetches the scenarios and stations and runs the ranking        |
+
+`suggestForOperator` fetches the operator's line group's scenarios
+(`getAllScenarios`) and the station list (`getStations`), builds one document
+per scenario, and passes them to `suggestScenarios` (#356) with
+`new BM25Ranker(createDanishTokenize(stations))`. The station list comes from
+the database, so the tokenizer knows the same stations as the scenarios.
+
+The stored scenario list gives the covered stations by name, while
+`toDocument` takes codes and the names separately. `buildDocuments` looks each
+station up by code or by name, so it works whichever the list gives. A station
+that isn't in the station list is kept as it is.
+
 ## What is searched
 
 `toDocument(scenario, coveredStationNames)` builds one text per scenario from
-the parts that say what happened and where:
+the parts that say where it applies, and what happened when the name says so:
 
 - the scenario name
 - the station codes of the covered segments
@@ -138,24 +162,26 @@ than falling back to the full list. The tokenizer removes filler words such as
 
 - Operators write in Danish.
 - A description names the place by station code or station name.
-- The scenario name says what kind of incident the scenario is for. The name
-  is the only searched text that can, so if names only give the place, the
-  ranking matches on place alone.
+- The scenario name is the only searched text that can say what kind of
+  incident the scenario is for. In the scenarios converted so far it often
+  doesn't, so the ranking mostly matches on place (see the known failure modes
+  below).
 
 ## Known failure modes
 
-- **Only exact words match.** BM25 doesn't know that two words mean the same,
+- **Only the same words match.** The tokenizer handles word forms and typos in
+  station names, but BM25 doesn't know that two different words mean the same,
   so "strømsvigt" doesn't match "ingen kørestrøm". A word that is in no
   scenario's text adds nothing.
-- **Numbers have no meaning.** A track number, a switch number and a time are
-  all just words.
+- **Numbers other than track numbers have no meaning.** "spor 1" is read as
+  one word, but a switch number or a time is just a word.
 - **Compound words aren't split**, so "signalfejl" doesn't match "fejl". See
   the tokenization doc for its other limits.
 - **Neighbouring segments share stations.** A description that names one
   station matches every scenario that covers it, with similar scores.
 - **IDF is weak with few scenarios.** With a few scenarios, most words are in
   one or all of them. How well the ranking works can't be judged before it is
-  measured on more scenarios, which the evaluation under MET-A-019 will do.
+  measured on more scenarios, which the evaluation (#421) will do.
 - **Scores are relative to the description.** They compare candidates for one
   description. They are not probabilities, and a score for one description
   can't be compared with a score for another.
@@ -163,9 +189,29 @@ than falling back to the full list. The tokenizer removes filler words such as
   document each time. That is fast for the number of scenarios a line group
   has, but a large catalogue would need the documents built once and kept.
 
+Found by testing the endpoint on the scenarios converted into the seed data so
+far:
+
+- **Incident words rarely match.** Scenarios don't record what kind of problem
+  they cover, so the search mostly matches place and track, plus any words in
+  the scenario's name. Words such as "signalfejl" or "strømsvigt" only help
+  when a name contains them. Unmatched words lower the score, so a correct
+  suggestion can show a low percentage.
+- **Station codes in lowercase aren't recognised.** The tokenizer only reads a
+  code as a station in capitals ("KN", not "kn"), because some codes are also
+  Danish words. An operator who writes "fejl mellem kn og kgn" gets no
+  confident suggestion and the full list. Accepting lowercase for codes that
+  aren't ordinary words would be a small change in the tokenizer (#354).
+- **Everyday names aren't recognised** when they differ from the station list,
+  for example "Hovedbanegården" for København H.
+- **Small catalogues give borderline scores.** With few scenarios, a station
+  that every candidate shares is worth little, so one station plus a few
+  unmatched words can fall just below the threshold, while a single vague word
+  that matches can score 1.
+
 ## Open questions
 
-- Whether the threshold in #356 still fits these scores with the Danish
-  tokenizer. It was chosen with a simpler stand-in.
-- The fields that are left out can be tried again once the evaluation under
-  MET-A-019 can measure the difference.
+- Whether scenarios should record what kind of problem they cover, either in a
+  consistent name or in a field of their own. Without it, the search can't
+  tell apart scenarios on the same stretch.
+- Whether M3/M4 scenarios can be converted with more information, such as what kind of problem they cover. If they can, the search can match on it, and the findings above should be checked again.

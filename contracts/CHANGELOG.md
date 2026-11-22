@@ -1,5 +1,9 @@
 # Scenario State Contract Changelog
 
+## 8.11.1 - 2026-11-22
+
+No change to the shape. `POST /api/v1/scenario-suggestions` is no longer a draft: the server serves it (#371).
+
 ## 8.11.0 - 2026-11-21
 
 Additive. Station inbox summaries expose unread-message metadata (MET-A-029, #337).

@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.11.0
+  version: 8.11.1
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -564,8 +564,7 @@ paths:
     post:
       summary: Suggests scenarios for a free-text incident description
       description: >
-        DRAFT (MET-A-019), to be approved by the owners of #355 and #356.
-        Requires a bearer token with the OPERATOR role. Returns up to 5
+        MET-A-019. Requires a bearer token with the OPERATOR role. Returns up to 5
         candidates, best first, when the match is confident, otherwise
         NO_CONFIDENT_CANDIDATE. Only suggests: it never activates.
       security:
