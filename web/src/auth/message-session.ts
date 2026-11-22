@@ -1,5 +1,8 @@
+import {
+  isPositiveInteger,
+  isStationMessage,
+} from "../../../shared/station-messages/validate";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
-import { isMessage } from "../station-threads";
 
 export function loadMessageSession(key: string | null, activationId?: number) {
   const empty = {
@@ -13,18 +16,15 @@ export function loadMessageSession(key: string | null, activationId?: number) {
     return {
       readIds: new Set<number>(
         Array.isArray(saved.readIds)
-          ? saved.readIds.filter(
-              (id: unknown) => Number.isSafeInteger(id) && Number(id) > 0,
-            )
+          ? saved.readIds.filter(isPositiveInteger)
           : [],
       ),
       pinned: new Map<number, StationMessage>(
         Array.isArray(saved.pinned)
           ? saved.pinned
-              .filter(isMessage)
+              .filter(isStationMessage)
               .filter(
                 (message: StationMessage) =>
-                  message.id > 0 &&
                   message.sender === "STATION" &&
                   message.activationId === activationId,
               )
@@ -56,5 +56,14 @@ export function saveMessageSession(
     );
   } catch {
     // The conversation remains usable when browser storage is unavailable.
+  }
+}
+
+export function clearMessageSession(key: string | null) {
+  if (key === null) return;
+  try {
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // Storage can be unavailable.
   }
 }

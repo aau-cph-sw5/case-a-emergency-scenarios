@@ -20,6 +20,16 @@ const stored: StationMessage = {
   receivedAt: "2026-11-17T08:20:01Z",
 };
 
+const validThread = {
+  activationId: 1,
+  station: "Station B",
+  state: "UNANSWERED" as const,
+  unansweredSince: stored.receivedAt,
+  lastMessageAt: stored.receivedAt,
+  stationMessageIds: [stored.id],
+  messages: [stored],
+};
+
 function answer(status: number, body: unknown): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -35,16 +45,40 @@ describe("readStationThread", () => {
   it("reads the station's thread with the steward's token", async () => {
     const fetchMock = jest
       .spyOn(global, "fetch")
-      .mockResolvedValue(
-        answer(200, { station: "Station B", messages: [stored] }),
-      );
+      .mockResolvedValue(answer(200, validThread));
 
     const result = await readStationThread("token", "Station B");
 
-    expect(result).toMatchObject({ ok: true, value: { messages: [stored] } });
+    expect(result).toEqual({ ok: true, value: validThread });
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toMatch(/\/api\/v1\/station-threads\/Station%20B$/);
     expect(options?.headers).toEqual({ Authorization: "Bearer token" });
+  });
+
+  it("rejects schema-invalid thread responses including leaked identity fields", async () => {
+    const invalidBodies: unknown[] = [
+      { station: "Station B", messages: [stored] },
+      { ...validThread, staff: "7" },
+      { ...validThread, messages: [{ ...stored, staff: "7" }] },
+      {
+        ...validThread,
+        messages: [{ ...stored, clientMessageId: "not-a-uuid" }],
+      },
+      { ...validThread, state: "ANSWERED" },
+      {
+        activationId: 1,
+        station: "Station B",
+        state: "ANSWERED",
+        unansweredSince: null,
+        lastMessageAt: null,
+      },
+    ];
+
+    for (const body of invalidBodies) {
+      jest.spyOn(global, "fetch").mockResolvedValueOnce(answer(200, body));
+      const result = await readStationThread("token", "Station B");
+      expect(result).toEqual({ ok: false, message: SERVER_FAILED });
+    }
   });
 
   it("gives the server's refusal in Danish with its code", async () => {
