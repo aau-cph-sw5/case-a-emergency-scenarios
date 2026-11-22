@@ -23,6 +23,7 @@ import { positionReportDelivery } from "../offline/position-report-delivery-inst
 import { RETRY_DELAYS_MS } from "../offline/queue-delivery";
 import { queuePositionReport } from "../offline/queue-position-report";
 import { snapshotStore } from "../offline/snapshot-store";
+import { forgetStationChatRead } from "../offline/station-chat-read";
 import { stationMessageQueueStore } from "../offline/station-message-store";
 import { useStationMessageRetry } from "../offline/useStationMessageRetry";
 import { reportRejection, waitingReport } from "../offline/waiting-report";
@@ -244,12 +245,14 @@ export function StewardView({
         : undefined;
   // A stood-down scenario's thread is removed, so the messages the server
   // refused for it are forgotten on the phone instead of piling up (MET-A-029).
+  // The chat read marker for ended activations is cleared here too (#446).
   useEffect(() => {
     const owner = userIdFromToken(token);
     if (owner === null || liveActivationId === undefined) return;
     void stationMessageQueueStore
       .discardEndedRejections(owner, liveActivationId)
       .catch(() => undefined);
+    void forgetStationChatRead(owner, liveActivationId).catch(() => undefined);
   }, [token, liveActivationId]);
 
   // Failed sends in a row while online; 0 means no retry is waiting.
