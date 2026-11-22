@@ -190,18 +190,13 @@ function sendFakeMessage(
     writtenAt: now,
     receivedAt: now,
   };
-  emitStationMessage(
-    app.locals.io as Server,
-    { activationId, lineGroup },
-    message,
-    {
-      activationId,
-      station,
-      state: "ANSWERED",
-      unansweredSince: null,
-      lastMessageAt: now,
-    },
-  );
+  emitStationMessage(app.locals.io as Server, lineGroup, message, {
+    activationId,
+    station,
+    state: "ANSWERED",
+    unansweredSince: null,
+    lastMessageAt: now,
+  });
   return message;
 }
 
