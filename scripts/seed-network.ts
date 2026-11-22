@@ -18,6 +18,7 @@ export interface NetworkSeed {
     trackNumber: 1 | 2 | 12;
     maximumTrains: number;
     did: string;
+    color: string;
     stops: string[];
   }[];
 }
@@ -93,6 +94,8 @@ export function validateNetwork(data: NetworkSeed): string[] {
       pattern.maximumTrains < 0 ||
       typeof pattern.did !== "string" ||
       !pattern.did.trim() ||
+      typeof pattern.color !== "string" ||
+      !/^#[0-9a-fA-F]{6}$/.test(pattern.color) ||
       typeof pattern.routeCode !== "string" ||
       !pattern.routeCode.trim() ||
       !Array.isArray(pattern.stops) ||
@@ -100,7 +103,7 @@ export function validateNetwork(data: NetworkSeed): string[] {
       pattern.stops.some((code) => !stationCodes.has(code))
     ) {
       errors.push(
-        `normalPatterns[${index}] needs a valid line, route, operation, track, train count, DID and at least two known stops.`,
+        `normalPatterns[${index}] needs a valid line, route, operation, track, train count, DID, hex color and at least two known stops.`,
       );
       return;
     }
@@ -164,12 +167,13 @@ export async function seedNetwork(
         pattern.trackNumber,
         pattern.maximumTrains,
         pattern.did,
+        pattern.color,
       ];
       let id: number;
       if (existing.rowCount) {
         id = existing.rows[0].id;
         await client.query(
-          "UPDATE operating_patterns SET operation_type = $1, track_number = $2, maximum_trains = $3, did = $4 WHERE id = $5",
+          "UPDATE operating_patterns SET operation_type = $1, track_number = $2, maximum_trains = $3, did = $4, color = $5 WHERE id = $6",
           [...values, id],
         );
         await client.query(
@@ -178,8 +182,8 @@ export async function seedNetwork(
         );
       } else {
         const created = await client.query(
-          `INSERT INTO operating_patterns (normal_line, route_code, operation_type, track_number, maximum_trains, did)
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          `INSERT INTO operating_patterns (normal_line, route_code, operation_type, track_number, maximum_trains, did, color)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
           [pattern.line, pattern.routeCode, ...values],
         );
         id = created.rows[0].id;

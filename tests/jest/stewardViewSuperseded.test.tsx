@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { AppState } from "react-native";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
 import {
-  RETRY_DELAYS_MS,
   StewardView,
   supersededMessage,
 } from "../../mobile/src/screens/StewardView";
+import { RETRY_DELAYS_MS } from "../../mobile/src/offline/queue-delivery";
 import { queuePositionReport } from "../../mobile/src/offline/queue-position-report";
 import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
 import {
+  notifyStationMessagesChanged,
   stationMessageDelivery,
   stationMessageQueueStore,
 } from "../../mobile/src/offline/station-message-store";
@@ -46,9 +48,23 @@ jest.mock("../../shared/socket/useSocketState", () => ({
 jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
   positionReportDelivery: { flush: jest.fn() },
 }));
+const mockMessageListeners = new Set<(result: unknown) => void>();
 jest.mock("../../mobile/src/offline/station-message-store", () => ({
   stationMessageDelivery: { flush: jest.fn() },
-  stationMessageQueueStore: { discardEndedRejections: jest.fn() },
+  stationMessageQueueStore: {
+    discardEndedRejections: jest.fn(),
+    getPending: jest.fn(async () => []),
+    getRejected: jest.fn(async () => []),
+  },
+  onStationMessagesChanged: (listener: (result: unknown) => void) => {
+    mockMessageListeners.add(listener);
+    return () => {
+      mockMessageListeners.delete(listener);
+    };
+  },
+  notifyStationMessagesChanged: jest.fn((result: unknown = null) => {
+    for (const listener of mockMessageListeners) listener(result);
+  }),
 }));
 jest.mock("../../mobile/src/offline/queue-position-report", () => ({
   queuePositionReport: jest.fn(),
@@ -90,6 +106,7 @@ const queued = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockMessageListeners.clear();
   flush.mockResolvedValue(nothingSent);
   flushMessages.mockResolvedValue(noMessagesSent);
   discardEnded.mockResolvedValue(undefined);
@@ -210,7 +227,16 @@ describe("StewardView station messages written offline (MET-A-029)", () => {
   it("tries again later while messages are waiting for the connection", async () => {
     jest.useFakeTimers();
     try {
-      flushMessages.mockResolvedValue({ ...noMessagesSent, blocked: true });
+      const blocked = {
+        ...noMessagesSent,
+        pending: 1,
+        blocked: true,
+        blockedBy: { status: "retry" as const },
+      };
+      flushMessages.mockImplementation(async () => {
+        notifyStationMessagesChanged(blocked);
+        return blocked;
+      });
       showView({ status: "live", notices: [], snapshot });
       render(stewardView(true));
       await act(async () => {});
@@ -221,6 +247,56 @@ describe("StewardView station messages written offline (MET-A-029)", () => {
       });
 
       expect(flushMessages.mock.calls.length).toBeGreaterThan(sends);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("pauses retries while the app is in the background and resumes when active (MET-A-029, #445)", async () => {
+    jest.useFakeTimers();
+    // The preset's AppState.addEventListener is a mock already, so its
+    // listeners are read from its calls instead of replacing it.
+    const handlers = () =>
+      jest
+        .mocked(AppState.addEventListener)
+        .mock.calls.map(([, listener]) => listener);
+    try {
+      const blockedMsg = {
+        ...noMessagesSent,
+        pending: 1,
+        blocked: true,
+        blockedBy: { status: "retry" as const },
+      };
+      flushMessages.mockImplementation(async () => {
+        notifyStationMessagesChanged(blockedMsg);
+        return blockedMsg;
+      });
+      flush.mockResolvedValue({
+        ...nothingSent,
+        pending: 1,
+        blockedBy: { status: "retry" },
+      });
+      showView({ status: "live", notices: [], snapshot });
+      render(stewardView(true));
+      await act(async () => {});
+      const messageSends = flushMessages.mock.calls.length;
+      const reportSends = flush.mock.calls.length;
+
+      act(() => {
+        for (const handler of handlers()) handler("background");
+      });
+      await act(async () => {
+        jest.advanceTimersByTime(60_000);
+      });
+      expect(flushMessages.mock.calls.length).toBe(messageSends);
+      expect(flush.mock.calls.length).toBe(reportSends);
+
+      act(() => {
+        for (const handler of handlers()) handler("active");
+      });
+      await act(async () => {});
+      expect(flushMessages.mock.calls.length).toBeGreaterThan(messageSends);
+      expect(flush.mock.calls.length).toBeGreaterThan(reportSends);
     } finally {
       jest.useRealTimers();
     }

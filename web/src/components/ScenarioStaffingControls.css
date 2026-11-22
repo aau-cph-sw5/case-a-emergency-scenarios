@@ -1,0 +1,167 @@
+.admin-staffing-window {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(100px, 1fr)) auto;
+  align-items: end;
+  gap: 10px;
+}
+.admin-time-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-weight: 700;
+}
+.admin-time-picker {
+  position: relative;
+  min-width: 0;
+}
+.admin-time-control {
+  position: relative;
+}
+.admin-staffing-details .admin-time-control input {
+  padding-right: 40px;
+}
+.admin-time-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: #465155;
+}
+.admin-time-menu {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 210px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d7dddd;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 25px #15292926;
+}
+.admin-time-hours,
+.admin-time-minutes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.admin-time-hours button,
+.admin-time-minutes button {
+  padding: 7px 0;
+  border: 1px solid #cbd5d3;
+  border-radius: 6px;
+  background: #fff;
+}
+.admin-time-hours button[aria-pressed="true"],
+.admin-time-minutes button[aria-pressed="true"] {
+  color: #fff;
+  border-color: #b42420;
+  background: #b42420;
+}
+.admin-time-hours {
+  grid-template-columns: repeat(6, 1fr);
+}
+.admin-time-back {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #465155;
+}
+.admin-weekday-menu {
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+}
+.admin-weekday-menu .admin-station-option {
+  font-weight: 400;
+}
+.admin-weekday-menu .admin-station-check {
+  margin-left: auto;
+}
+.admin-time-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.admin-add-window {
+  justify-self: start;
+  padding: 9px 12px;
+}
+@media (max-width: 900px) {
+  .admin-staffing-window {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.admin-task-row {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+.admin-task-row label {
+  flex: 1;
+  min-width: 0;
+}
+.admin-task-remove {
+  padding: 10px 0;
+}
+.admin-task-picker > .admin-secondary {
+  padding: 9px 12px;
+}
+.admin-task-picker-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid #dce3e2;
+  border-radius: 10px;
+  background: #f8faf9;
+}
+.admin-task-picker-heading {
+  font-weight: 700;
+}
+.admin-task-options {
+  display: grid;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.admin-staffing-details .admin-task-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 6px;
+  font-weight: 400;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.admin-task-option:hover {
+  background: #edf2f1;
+}
+.admin-staffing-details .admin-task-option input {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: #b42420;
+}
+.admin-task-option small {
+  color: #788785;
+}
+.admin-task-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.admin-task-picker-actions button {
+  padding: 9px 12px;
+}

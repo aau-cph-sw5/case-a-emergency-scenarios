@@ -15,7 +15,9 @@ import { useSession } from "../shared/auth/use-session";
 import { useAuthenticatedSocket } from "../shared/socket/useAuthenticatedSocket";
 import { apiBaseUrl } from "./src/api-base-url";
 import { mobileSessionStore } from "./src/auth/session-store";
+import { forgetOwnMessages } from "./src/offline/own-station-messages";
 import { snapshotStore } from "./src/offline/snapshot-store";
+import { stationMessageQueueStore } from "./src/offline/station-message-store";
 import { networkStore } from "./src/network/network-store";
 import { useConnectivity } from "./src/offline/useConnectivity";
 import { StewardView } from "./src/screens/StewardView";
@@ -64,13 +66,16 @@ export default function App() {
     }
   }, [online, state.status, restore]);
 
-  // A signed-out phone keeps no scenario data, however the session ended:
-  // logging out, or a token the server no longer accepts. The steward view
-  // has closed by then, so a fetch still in flight cannot save the copy again.
+  // A signed-out phone keeps no scenario data or station messages, however
+  // the session ended: logging out, or a token the server no longer accepts
+  // (MET-A-029, #445). The steward view has closed by then, so a fetch or
+  // send still in flight cannot save the copy or queue again.
   useEffect(() => {
     if (state.status === "signed-out") {
       void snapshotStore.clear().catch(() => undefined);
       void networkStore.clear().catch(() => undefined);
+      void stationMessageQueueStore.clear().catch(() => undefined);
+      void forgetOwnMessages();
     }
   }, [state.status]);
 

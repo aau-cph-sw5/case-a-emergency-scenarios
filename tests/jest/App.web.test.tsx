@@ -32,6 +32,21 @@ jest.mock("../../web/src/OperatorDashboard", () => ({
   ),
 }));
 jest.mock("../../web/src/socket", () => ({ socket: {} }));
+jest.mock("../../web/src/ScenarioBuilder", () => ({
+  ScenarioBuilder: ({
+    onLogout,
+    onUsers,
+  }: {
+    onLogout: () => void;
+    onUsers: () => void;
+  }) => (
+    <main>
+      <h1>Admin</h1>
+      <button onClick={onLogout}>Log ud</button>
+      <button onClick={onUsers}>Brugere</button>
+    </main>
+  ),
+}));
 jest.mock("../../web/src/components/UserAdmin", () => ({
   UserAdmin: () => <div>Brugeradministration</div>,
 }));

@@ -34,6 +34,7 @@ test("network seeding is repeatable and keeps station and segment identities", a
         trackNumber: 12,
         maximumTrains: 2,
         did: "TEST",
+        color: "#008D40",
         stops: ["NETWORK-TEST-A", "NETWORK-TEST-B"],
       },
     ],
@@ -49,6 +50,7 @@ test("network seeding is repeatable and keeps station and segment identities", a
       ["NETWORK-TEST-A"],
     );
     data.stations[0].x = 15;
+    data.normalPatterns[0].color = "#123ABC";
     data.segments[0] = {
       ...data.segments[0],
       stationA: "NETWORK-TEST-B",
@@ -60,6 +62,11 @@ test("network seeding is repeatable and keeps station and segment identities", a
       ["NETWORK-TEST-A"],
     );
     assert.deepEqual(after.rows, before.rows);
+    const patternColor = await client.query(
+      "SELECT color FROM operating_patterns WHERE normal_line = $1 AND route_code = $2",
+      ["M1", "NETWORK-TEST"],
+    );
+    assert.equal(patternColor.rows[0].color, "#123ABC");
     const loaded = await client.query(
       `SELECT p.x, (SELECT count(*)::int FROM operating_patterns WHERE normal_line = 'M1' AND route_code = 'NETWORK-TEST') AS patterns, (SELECT count(*)::int FROM line_stops ls JOIN operating_patterns op ON op.id = ls.operating_pattern_id WHERE op.normal_line = 'M1' AND op.route_code = 'NETWORK-TEST') AS stops FROM station_map_positions p JOIN stations s ON s.id = p.station_id WHERE s.code = $1`,
       ["NETWORK-TEST-A"],
@@ -68,8 +75,8 @@ test("network seeding is repeatable and keeps station and segment identities", a
     // An ambiguous existing pattern aborts the whole seed, including the
     // station-position update that ran before the duplicate was detected.
     await client.query(
-      `INSERT INTO operating_patterns (normal_line, route_code, operation_type, track_number, maximum_trains, did)
-       VALUES ('M1', 'NETWORK-TEST', 'ROUNDTRIP', 12, 1, 'DUPLICATE')`,
+      `INSERT INTO operating_patterns (normal_line, route_code, operation_type, track_number, maximum_trains, did, color)
+       VALUES ('M1', 'NETWORK-TEST', 'ROUNDTRIP', 12, 1, 'DUPLICATE', '#007D55')`,
     );
     data.stations[0].x = 99;
     await assert.rejects(
@@ -85,6 +92,12 @@ test("network seeding is repeatable and keeps station and segment identities", a
       "DELETE FROM operating_patterns WHERE normal_line = 'M1' AND route_code = 'NETWORK-TEST' AND did = 'DUPLICATE'",
     );
     const response = await getNetwork();
+    assert.equal(
+      response.normalPatterns.find(
+        (pattern) => pattern.routeCode === "NETWORK-TEST",
+      )?.color,
+      "#123ABC",
+    );
     assert.deepEqual(validate(response, "network.schema.json"), []);
     assert.deepEqual(
       response.normalPatterns.find(

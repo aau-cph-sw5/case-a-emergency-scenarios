@@ -25,6 +25,16 @@ import { appendStationMessageEvent } from "./incident-log-service.js";
 
 type Refusal = { kind: "refused"; code: ErrorCode };
 
+type ThreadView = {
+  activationId: number;
+  station: string;
+  state: "UNANSWERED" | "ANSWERED";
+  unansweredSince: string | null;
+  lastMessageAt: string | null;
+  stationMessageIds: number[];
+  messages?: StationMessage[];
+};
+
 function makeThread(
   activationId: number,
   station: string,
@@ -57,6 +67,9 @@ function makeThread(
     state: unansweredSince === null ? "ANSWERED" : "UNANSWERED",
     unansweredSince,
     lastMessageAt: last?.receivedAt ?? null,
+    stationMessageIds: messages
+      .filter((message) => message.sender === "STATION")
+      .map((message) => message.id),
     ...(includeMessages ? { messages } : {}),
   };
 }
