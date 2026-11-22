@@ -6,7 +6,17 @@ import type { StationMessage } from "../types/v1/station-message";
 import type { StationMessageRequest } from "../types/v1/station-message-request";
 import type { StationThread } from "../types/v1/station-thread";
 
-const MAX_MESSAGE_LENGTH = 1000;
+// The contract's limit for a message, counted in Unicode code points.
+export const MAX_MESSAGE_LENGTH = 1000;
+
+export type StationThreadSummary = Omit<StationThread, "messages"> & {
+  stationMessageIds: number[];
+};
+
+export type StationThreadWithMessages = StationThread & {
+  messages: StationMessage[];
+};
+
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_TIME_PATTERN =
@@ -38,8 +48,6 @@ const THREAD_KEYS = new Set([
   "stationMessageIds",
   "messages",
 ]);
-const MESSAGE_EVENT_KEYS = new Set(["message", "thread", "sentAt"]);
-const THREADS_CLOSED_KEYS = new Set(["activationId", "sentAt"]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -52,8 +60,17 @@ function hasOnlyAllowedKeys(
   return Object.keys(value).every((key) => allowed.has(key));
 }
 
-function isPositiveInteger(value: unknown): value is number {
+export function isPositiveInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 1;
+}
+
+export function messageLength(text: string): number {
+  return [...text].length;
+}
+
+export function isSendableText(text: string): boolean {
+  const length = messageLength(text);
+  return length >= 1 && length <= MAX_MESSAGE_LENGTH && /\S/.test(text);
 }
 
 function isUuid(value: unknown): value is string {
@@ -64,7 +81,7 @@ function isLeapYear(year: number): boolean {
   return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
 }
 
-// Validates RFC 3339 date-time strings, matching Ajv's date-time format.
+// Validates strict RFC 3339 date-time strings (YYYY-MM-DD[T|t| ]HH:MM:SS[.frac](Z|z|±HH:MM)).
 function isRfc3339DateTime(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const match = DATE_TIME_PATTERN.exec(value);
@@ -101,9 +118,9 @@ function isMessageText(
   requireNonWhitespace: boolean,
 ): value is string {
   if (typeof value !== "string") return false;
-  const length = [...value].length;
-  if (length < 1 || length > MAX_MESSAGE_LENGTH) return false;
-  return !requireNonWhitespace || /\S/.test(value);
+  if (requireNonWhitespace) return isSendableText(value);
+  const length = messageLength(value);
+  return length >= 1 && length <= MAX_MESSAGE_LENGTH;
 }
 
 export function isStationMessageRequest(
@@ -176,22 +193,35 @@ export function isStationThread(value: unknown): value is StationThread {
   return true;
 }
 
+export function isStationThreadSummary(
+  value: unknown,
+): value is StationThreadSummary {
+  return (
+    isStationThread(value) &&
+    Array.isArray(value.stationMessageIds) &&
+    value.messages === undefined
+  );
+}
+
 export function isStationThreadWithMessages(
   value: unknown,
-): value is StationThread & { messages: StationMessage[] } {
+): value is StationThreadWithMessages {
   return isStationThread(value) && Array.isArray(value.messages);
 }
 
+// Socket wrappers do not have a contract schema with additionalProperties: false,
+// so extra wrapper fields (such as sequence) stay allowed while inner message
+// and thread payloads are validated strictly against their schemas.
 export function isStationMessageEvent(
   value: unknown,
 ): value is StationMessageEvent {
-  if (!isPlainObject(value) || !hasOnlyAllowedKeys(value, MESSAGE_EVENT_KEYS)) {
-    return false;
-  }
+  if (!isPlainObject(value)) return false;
   return (
     isStationMessage(value.message) &&
     isStationThread(value.thread) &&
     value.thread.messages === undefined &&
+    value.thread.activationId === value.message.activationId &&
+    value.thread.station === value.message.station &&
     isRfc3339DateTime(value.sentAt)
   );
 }
@@ -199,12 +229,7 @@ export function isStationMessageEvent(
 export function isStationThreadsClosed(
   value: unknown,
 ): value is StationThreadsClosed {
-  if (
-    !isPlainObject(value) ||
-    !hasOnlyAllowedKeys(value, THREADS_CLOSED_KEYS)
-  ) {
-    return false;
-  }
+  if (!isPlainObject(value)) return false;
   return (
     isPositiveInteger(value.activationId) && isRfc3339DateTime(value.sentAt)
   );

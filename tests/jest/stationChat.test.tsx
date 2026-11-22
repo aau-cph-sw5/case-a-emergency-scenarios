@@ -925,11 +925,18 @@ describe("StationChat (MET-A-029, #335)", () => {
         thread: threadSummary([message(4, "CONTROL_ROOM", "Ugyldig sentAt.")]),
         sentAt: "",
       });
+      emit("station-message", {
+        message: message(5, "CONTROL_ROOM", "Forkert station i thread."),
+        thread: threadSummary(
+          [message(5, "CONTROL_ROOM", "Forkert station i thread.")],
+          { station: "Station C" },
+        ),
+        sentAt: t0820,
+      });
       emit("station-threads-closed", { activationId: 1, sentAt: "" });
       emit("station-threads-closed", {
-        activationId: 1,
+        activationId: 0,
         sentAt: t0825,
-        extra: true,
       });
     });
 

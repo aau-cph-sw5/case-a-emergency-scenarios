@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, jest } from "@jest/globals";
+import { FormatError } from "../../shared/api/http";
 import type { AppSocket } from "../../shared/socket/createSocket";
 import type { StationMessageEvent } from "../../shared/socket/events";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
@@ -10,7 +11,10 @@ import type { StationMessageRequest } from "../../shared/types/v1/station-messag
 import type { StationThread } from "../../shared/types/v1/station-thread";
 import { OperatorMessagePanel } from "../../web/src/components/OperatorMessagePanel";
 import { LiveDataContext } from "../../web/src/data/liveData";
-import { sendStationMessage } from "../../web/src/station-threads";
+import {
+  sendStationMessage,
+  stationMessageError,
+} from "../../web/src/station-threads";
 
 jest.mock("../../web/src/local-settings", () => ({
   notificationTestShortcuts: false,
@@ -75,7 +79,7 @@ function threadSummary(
 ): StationThread {
   const newest = messages.at(-1);
   return {
-    activationId: activation.activationId,
+    activationId: newest?.activationId ?? activation.activationId,
     station,
     state: newest?.sender === "STATION" ? "UNANSWERED" : "ANSWERED",
     unansweredSince:
@@ -287,6 +291,9 @@ it("loads station threads, refreshes on live events and reconnect, and removes t
   expect(socket.listenerCount("station-message")).toBe(0);
 
   await render(true, []);
+  expect(
+    container.querySelector<HTMLElement>(".operator-message-panel")?.hidden,
+  ).toBe(false);
   expect(container.querySelector("form")).toBeNull();
   expect(history()).toBeUndefined();
   expect(container.querySelectorAll("nav li button")).toHaveLength(0);
@@ -431,21 +438,18 @@ it("keeps read status and saved messages after remounting and isolates operators
   const otherToken = `header.${btoa(JSON.stringify({ userId: 2 }))}.signature`;
   await render(true, [activation], otherToken);
   expect(launcher().getAttribute("aria-label")).toContain("2 ulæste");
-  await click(launcher());
   await click(savedButton());
   expect(container.querySelector(".operator-thread")?.textContent).toContain(
     "Ingen gemte beskeder",
   );
 
   await render(true, [{ ...activation, activationId: 2 }]);
-  await click(launcher());
   await click(savedButton());
   expect(container.querySelector(".operator-thread")?.textContent).toContain(
     "Ingen gemte beskeder",
   );
 
   await render();
-  await click(launcher());
   await click(savedButton());
   expect(history()).toContain(messages[0].text);
   expect(stationButton("FOR").textContent).toBe("FOR");
@@ -654,7 +658,10 @@ it("removes threads, pins, unread badges, and sessionStorage when the activation
   await render(true, []);
   expect(sessionStorage.getItem("metro-station-messages:1:1")).toBeNull();
   expect(launcher().getAttribute("aria-label")).toBe("Beskeder");
-  await click(launcher());
+  // The already-open panel stays open showing the empty state instead of slamming shut.
+  expect(
+    container.querySelector<HTMLElement>(".operator-message-panel")?.hidden,
+  ).toBe(false);
   expect(container.querySelectorAll("nav li button")).toHaveLength(0);
   expect(history()).toBeUndefined();
   expect(container.textContent).toContain("Intet aktivt scenarie.");
@@ -668,15 +675,39 @@ it("removes threads, pins, unread badges, and sessionStorage when the activation
   );
 });
 
+it("clears the replaced activation's sessionStorage on a direct scenario switch", async () => {
+  const msg = stationMessage(1, "FOR", "Rulletrappen er stoppet");
+  fetchMock.mockImplementation(async (path) => {
+    if (path === threadsPath) return response([threadSummary("FOR", [msg])]);
+    if (path === forPath) {
+      return response({ ...threadSummary("FOR", [msg]), messages: [msg] });
+    }
+    throw new Error(`Unexpected request: ${path}`);
+  });
+
+  await render();
+  await click(launcher());
+  await click(stationButton("FOR"));
+  await click(
+    container.querySelector<HTMLButtonElement>(".operator-message-pin")!,
+  );
+  expect(sessionStorage.getItem("metro-station-messages:1:1")).not.toBeNull();
+
+  await render(true, [{ ...activation, activationId: 2 }]);
+  expect(sessionStorage.getItem("metro-station-messages:1:1")).toBeNull();
+});
+
 it("rejects schema-invalid HTTP payloads, requests, sessionStorage pins, and Socket.IO events", async () => {
-  await expect(
-    sendStationMessage(token, "FOR", {
-      activationId: 1,
-      clientMessageId: "not-a-uuid",
-      text: "Hej",
-      writtenAt: timestamp,
-    }),
-  ).rejects.toThrow();
+  const invalidRequestError = await sendStationMessage(token, "FOR", {
+    activationId: 1,
+    clientMessageId: "not-a-uuid",
+    text: "Hej",
+    writtenAt: timestamp,
+  }).catch((error: unknown) => error);
+  expect(invalidRequestError).toBeInstanceOf(FormatError);
+  expect(stationMessageError(invalidRequestError)).toBe(
+    "Beskeden har et ugyldigt format.",
+  );
   await expect(
     sendStationMessage(token, "FOR", {
       activationId: 1,
@@ -685,7 +716,7 @@ it("rejects schema-invalid HTTP payloads, requests, sessionStorage pins, and Soc
       writtenAt: timestamp,
       staff: "7",
     } as unknown as StationMessageRequest),
-  ).rejects.toThrow();
+  ).rejects.toBeInstanceOf(FormatError);
   expect(fetchMock).not.toHaveBeenCalled();
 
   const validMsg = stationMessage(1, "FOR", "Gyldig besked");
@@ -787,11 +818,17 @@ it("rejects schema-invalid HTTP payloads, requests, sessionStorage pins, and Soc
       ]),
       sentAt: "",
     });
+    socket.emit("station-message", {
+      message: stationMessage(5, "ORE", "Forkert station i thread"),
+      thread: threadSummary("FOR", [
+        stationMessage(5, "ORE", "Forkert station i thread"),
+      ]),
+      sentAt: timestamp,
+    });
     socket.emit("station-threads-closed", { activationId: 1, sentAt: "" });
     socket.emit("station-threads-closed", {
-      activationId: 1,
+      activationId: 0,
       sentAt: timestamp,
-      extra: true,
     });
   });
   expect(fetchMock).toHaveBeenCalledTimes(callsBeforeSocket);

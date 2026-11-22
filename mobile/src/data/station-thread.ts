@@ -1,22 +1,15 @@
 import { ERROR_CODES } from "../../../shared/error-codes";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
-import { isStationThreadWithMessages } from "../../../shared/station-messages/validate";
-import type { StationThread } from "../../../shared/types/v1/station-thread";
+import {
+  isSendableText,
+  isStationThreadWithMessages,
+  MAX_MESSAGE_LENGTH,
+  messageLength,
+  type StationThreadWithMessages,
+} from "../../../shared/station-messages/validate";
 import { apiBaseUrl } from "../api-base-url";
 
-// The contract's limit for a message, counted in Unicode code points.
-export const MAX_MESSAGE_LENGTH = 1000;
-
-// The number of characters in a message as the contract counts them.
-export function messageLength(text: string): number {
-  return [...text].length;
-}
-
-// True when the server would accept the text: something that is not
-// whitespace, and at most MAX_MESSAGE_LENGTH characters.
-export function isSendableText(text: string): boolean {
-  return text.trim().length > 0 && messageLength(text) <= MAX_MESSAGE_LENGTH;
-}
+export { isSendableText, MAX_MESSAGE_LENGTH, messageLength };
 
 // What the steward reads when the server refuses to read or take a message;
 // the server's own message is for developers. The codes that close the chat
@@ -62,7 +55,7 @@ export type ThreadResult<T> =
 export async function readStationThread(
   token: string,
   station: string,
-): Promise<ThreadResult<StationThread>> {
+): Promise<ThreadResult<StationThreadWithMessages>> {
   const path = `${apiBaseUrl}/api/v1/station-threads/${encodeURIComponent(station)}`;
   let response: Response;
   try {

@@ -13,9 +13,9 @@ import type { QueuedStationMessage } from "../../../shared/offline/station-messa
 import {
   isStationMessageEvent,
   isStationThreadsClosed,
+  type StationThreadWithMessages,
 } from "../../../shared/station-messages/validate";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
-import type { StationThread } from "../../../shared/types/v1/station-thread";
 import { colors, spacing, steward } from "../../../shared/Theme";
 import { ChatClosedNotice, ChatHeader } from "../components/ChatHeader";
 import { ChatTab } from "../components/ChatTab";
@@ -278,6 +278,10 @@ export function StationChat({
       messagesRef.current = [];
       setMessages([]);
       setOwn([]);
+      setLoaded(false);
+      setLoadError(null);
+      setDraft("");
+      setSaveFailed(false);
       setNotice(null);
       setClosedByServer(reason);
       onClosedByServer();
@@ -298,12 +302,12 @@ export function StationChat({
   // new unread reply from the control room also shows in the top note
   // (MET-A-029, #446).
   const showRead = useCallback(
-    (result: ThreadResult<StationThread>) => {
+    (result: ThreadResult<StationThreadWithMessages>) => {
       if (closedByServerRef.current !== null) return;
       setLoaded(true);
       if (result.ok) {
         setLoadError(null);
-        const incoming = result.value.messages ?? [];
+        const incoming = result.value.messages;
         if (!openRef.current) {
           const knownIds = new Set(
             messagesRef.current.map((message) => message.id),
@@ -504,9 +508,11 @@ export function StationChat({
       userId === null ||
       station === undefined ||
       activationId === undefined ||
+      closedByServerRef.current !== null ||
       savingRef.current
     )
       return;
+    const forThread = threadKey;
     savingRef.current = true;
     void (async () => {
       let message: QueuedStationMessage;
@@ -522,6 +528,12 @@ export function StationChat({
         return;
       } finally {
         savingRef.current = false;
+      }
+      if (
+        currentThreadRef.current !== forThread ||
+        closedByServerRef.current !== null
+      ) {
+        return;
       }
       setSaveFailed(false);
       // Text written while the message was saved stays.

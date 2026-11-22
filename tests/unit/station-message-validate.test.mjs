@@ -2,12 +2,16 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validate } from "../../src/validation/contract-validator.ts";
 import {
+  isPositiveInteger,
+  isSendableText,
   isStationMessage,
   isStationMessageEvent,
   isStationMessageRequest,
   isStationThread,
+  isStationThreadSummary,
   isStationThreadWithMessages,
   isStationThreadsClosed,
+  messageLength,
 } from "../../shared/station-messages/validate.ts";
 
 const validRequest = {
@@ -222,6 +226,22 @@ test("isStationThread matches Ajv across valid and invalid payloads", () => {
   ]);
 });
 
+test("isStationThreadSummary requires stationMessageIds and forbids messages", () => {
+  assert.equal(
+    isStationThreadSummary({ ...validThread, stationMessageIds: [1] }),
+    true,
+  );
+  assert.equal(isStationThreadSummary(validThread), false);
+  assert.equal(
+    isStationThreadSummary({
+      ...validThread,
+      stationMessageIds: [1],
+      messages: [validMessage],
+    }),
+    false,
+  );
+});
+
 test("isStationThreadWithMessages requires a valid messages array", () => {
   assert.equal(
     isStationThreadWithMessages({ ...validThread, messages: [validMessage] }),
@@ -248,7 +268,8 @@ test("isStationMessageEvent validates Socket.IO station-message payloads", () =>
     isStationMessageEvent({ ...validEvent, thread: validThread }),
     true,
   );
-  assert.equal(isStationMessageEvent({ ...validEvent, extra: true }), false);
+  // Extra outer wrapper keys (such as sequence) stay allowed for forward compatibility.
+  assert.equal(isStationMessageEvent({ ...validEvent, sequence: 42 }), true);
   assert.equal(isStationMessageEvent({ ...validEvent, sentAt: "" }), false);
   assert.equal(
     isStationMessageEvent({
@@ -264,6 +285,20 @@ test("isStationMessageEvent validates Socket.IO station-message payloads", () =>
     }),
     false,
   );
+  assert.equal(
+    isStationMessageEvent({
+      ...validEvent,
+      thread: { ...validThread, station: "Other Station" },
+    }),
+    false,
+  );
+  assert.equal(
+    isStationMessageEvent({
+      ...validEvent,
+      thread: { ...validThread, activationId: 2 },
+    }),
+    false,
+  );
   assert.equal(isStationMessageEvent({ ...validEvent, thread: {} }), false);
   assert.equal(isStationMessageEvent(null), false);
 });
@@ -271,11 +306,22 @@ test("isStationMessageEvent validates Socket.IO station-message payloads", () =>
 test("isStationThreadsClosed validates Socket.IO station-threads-closed payloads", () => {
   const validEvent = { activationId: 1, sentAt: "2026-11-11T12:05:00Z" };
   assert.equal(isStationThreadsClosed(validEvent), true);
+  assert.equal(isStationThreadsClosed({ ...validEvent, sequence: 7 }), true);
   assert.equal(
     isStationThreadsClosed({ activationId: 0, sentAt: validEvent.sentAt }),
     false,
   );
   assert.equal(isStationThreadsClosed({ activationId: 1, sentAt: "" }), false);
-  assert.equal(isStationThreadsClosed({ ...validEvent, extra: "x" }), false);
   assert.equal(isStationThreadsClosed(null), false);
+});
+
+test("shared text and integer helpers enforce contract rules", () => {
+  assert.equal(messageLength("🚇🚇"), 2);
+  assert.equal(isSendableText("Hej"), true);
+  assert.equal(isSendableText("  \n "), false);
+  assert.equal(isSendableText("🚇".repeat(1000)), true);
+  assert.equal(isSendableText("🚇".repeat(1001)), false);
+  assert.equal(isPositiveInteger(1), true);
+  assert.equal(isPositiveInteger(0), false);
+  assert.equal(isPositiveInteger(1.5), false);
 });

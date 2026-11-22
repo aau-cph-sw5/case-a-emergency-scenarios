@@ -1,4 +1,7 @@
-import { isStationMessage } from "../../../shared/station-messages/validate";
+import {
+  isPositiveInteger,
+  isStationMessage,
+} from "../../../shared/station-messages/validate";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
 
 export function loadMessageSession(key: string | null, activationId?: number) {
@@ -13,9 +16,7 @@ export function loadMessageSession(key: string | null, activationId?: number) {
     return {
       readIds: new Set<number>(
         Array.isArray(saved.readIds)
-          ? saved.readIds.filter(
-              (id: unknown) => Number.isSafeInteger(id) && Number(id) > 0,
-            )
+          ? saved.readIds.filter(isPositiveInteger)
           : [],
       ),
       pinned: new Map<number, StationMessage>(

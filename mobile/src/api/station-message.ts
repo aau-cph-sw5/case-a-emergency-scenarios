@@ -2,6 +2,7 @@ import { ERROR_CODES } from "../../../shared/error-codes";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
 import type { QueuedStationMessage } from "../../../shared/offline/station-message-queue";
 import {
+  isSendableText,
   isStationMessage,
   isStationMessageRequest,
 } from "../../../shared/station-messages/validate";
@@ -30,7 +31,9 @@ export async function deliverStationMessage(
     return {
       status: "rejected",
       httpStatus: 400,
-      code: ERROR_CODES.MISSING_PARAMETER,
+      ...(isSendableText(message.text)
+        ? {}
+        : { code: ERROR_CODES.MISSING_PARAMETER }),
     };
   }
   try {
@@ -49,8 +52,11 @@ export async function deliverStationMessage(
 
     if (response.status === 200 || response.status === 201) {
       const data: unknown = await response.json();
+      // A schema-invalid 2xx body must not return retry: the server already
+      // persisted the row and would return the same body forever, blocking
+      // every later queued message behind it.
       if (!isStationMessage(data)) {
-        return { status: "retry" };
+        return { status: "rejected", httpStatus: 422 };
       }
       return {
         status: "accepted",
