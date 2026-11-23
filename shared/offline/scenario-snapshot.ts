@@ -2,14 +2,17 @@
 // The steward's offline copy of the active scenario (MET-A-005). See
 // docs/adr/0011-offline-copy-of-the-active-scenario.md.
 import { FormatError } from "../api/http";
+import { isLineGroup } from "../auth/line-groups";
 import {
   isPassengerInformation,
   isScenarioState,
+  isSnapshotOperatingPattern,
   isStationRequirement,
   type ActiveScenario,
   type ScenarioDefinition,
   type ScenarioState,
   type ScenarioVersion,
+  type SnapshotOperatingPattern,
 } from "../scenario/active-scenario";
 
 // Placeholder until Metro answers how long a local copy can be trusted
@@ -18,15 +21,22 @@ export const STALE_AFTER_MS = 60 * 60 * 1000;
 
 export const STORAGE_KEY = "metro-active-scenario-copy";
 
-// The scenario as the copy keeps it: only the current version, without its
-// revision and operating plan.
+export type { SnapshotOperatingPattern };
+
+// The scenario as the copy keeps it: lineGroup and only the current version,
+// with its operating-plan pattern fields and without revision,
+// operatingPlan.name, maximumTrains, or description.
 export type SnapshotVersion = Pick<
   ScenarioVersion,
   "version" | "stationRequirements" | "passengerInformation"
->;
+> & {
+  operatingPlan: {
+    patterns: SnapshotOperatingPattern[];
+  };
+};
 export type SnapshotScenario = Pick<
   ScenarioDefinition,
-  "scenarioId" | "name" | "currentVersion" | "covers"
+  "scenarioId" | "name" | "lineGroup" | "currentVersion" | "covers"
 > & { versions: SnapshotVersion[] };
 
 export type ScenarioSnapshot = {
@@ -46,10 +56,11 @@ export type SnapshotStorage = {
 
 export type SnapshotStore = ReturnType<typeof createSnapshotStore>;
 
-// Keeps only what the steward reads: the activation and the scenario's
-// current version without its operating plan. One snapshot at a time.
-// loadActiveScenario already rejects a scenario without its current version;
-// this throws too, so no path can save an empty copy over a good one.
+// Keeps only what the steward reads: the activation, lineGroup, and the
+// scenario's current version with the pattern fields needed for the map. One
+// snapshot at a time. loadActiveScenario already rejects a scenario without
+// its current version; this throws too, so no path can save an empty copy over
+// a good one.
 export function buildSnapshot(
   active: Extract<ActiveScenario, { active: true }>,
   userId: string,
@@ -69,11 +80,22 @@ export function buildSnapshot(
     scenario: {
       scenarioId: scenario.scenarioId,
       name: scenario.name,
+      lineGroup: scenario.lineGroup,
       currentVersion: scenario.currentVersion,
       covers: scenario.covers ?? [],
       versions: [
         {
           version: current.version,
+          operatingPlan: {
+            patterns: current.operatingPlan.patterns.map((pattern) => ({
+              operationType: pattern.operationType,
+              routeCode: pattern.routeCode,
+              trackNumber: pattern.trackNumber,
+              did: pattern.did,
+              route: pattern.route,
+              ...(pattern.color !== undefined ? { color: pattern.color } : {}),
+            })),
+          },
           stationRequirements: current.stationRequirements,
           passengerInformation: current.passengerInformation ?? [],
         },
@@ -83,13 +105,14 @@ export function buildSnapshot(
 }
 
 const isObject = (data: unknown): data is Record<string, unknown> =>
-  typeof data === "object" && data !== null;
+  typeof data === "object" && data !== null && !Array.isArray(data);
 
 function isSnapshotScenario(data: unknown): data is SnapshotScenario {
   if (!isObject(data)) return false;
   return (
     typeof data.scenarioId === "string" &&
     typeof data.name === "string" &&
+    isLineGroup(data.lineGroup) &&
     typeof data.currentVersion === "string" &&
     Array.isArray(data.covers) &&
     data.covers.every(
@@ -105,6 +128,9 @@ function isSnapshotScenario(data: unknown): data is SnapshotScenario {
       (version) =>
         isObject(version) &&
         typeof version.version === "string" &&
+        isObject(version.operatingPlan) &&
+        Array.isArray(version.operatingPlan.patterns) &&
+        version.operatingPlan.patterns.every(isSnapshotOperatingPattern) &&
         Array.isArray(version.stationRequirements) &&
         version.stationRequirements.every(isStationRequirement) &&
         (version.passengerInformation === undefined ||

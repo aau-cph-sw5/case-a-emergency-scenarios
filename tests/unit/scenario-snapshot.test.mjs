@@ -34,31 +34,196 @@ function memoryStorage() {
 
 const active = { active: true, state, scenario };
 
-test("keeps only the current version, without the operating plan", () => {
-  const withOldVersion = {
+test("keeps lineGroup and current version operating-plan patterns while omitting excluded fields", () => {
+  const withPatternsAndOldVersion = {
     ...scenario,
     versions: [
-      ...scenario.versions,
+      {
+        ...scenario.versions[0],
+        operatingPlan: {
+          name: "Fallback operation",
+          patterns: [
+            {
+              operationType: "PENDULUM",
+              routeCode: "A-B",
+              trackNumber: 1,
+              maximumTrains: 2,
+              did: "DEMO-1",
+              description: "Synthetic pendulum service",
+              route: [
+                { sequence: 1, station: "Station A" },
+                { sequence: 2, station: "Station B" },
+              ],
+              color: "#FF080B",
+            },
+            {
+              operationType: "ROUNDTRIP",
+              routeCode: "B-C",
+              trackNumber: 12,
+              maximumTrains: 3,
+              did: "DEMO-2",
+              description: "Synthetic roundtrip service",
+              route: [{ sequence: 1, station: "Station B" }],
+            },
+          ],
+        },
+      },
       { ...scenario.versions[0], version: "0", revision: "Old" },
     ],
   };
 
   const snapshot = buildSnapshot(
-    { ...active, scenario: withOldVersion },
+    { ...active, scenario: withPatternsAndOldVersion },
     "steward-test",
     now,
   );
 
+  assert.equal(snapshot.scenario.lineGroup, scenario.lineGroup);
   assert.equal(snapshot.scenario.versions.length, 1);
-  assert.equal(snapshot.scenario.versions[0].version, scenario.currentVersion);
-  assert.equal("operatingPlan" in snapshot.scenario.versions[0], false);
+  const [version] = snapshot.scenario.versions;
+  assert.equal(version.version, scenario.currentVersion);
+  assert.equal("revision" in version, false);
+  assert.equal("name" in version.operatingPlan, false);
+  assert.deepEqual(version.operatingPlan.patterns, [
+    {
+      operationType: "PENDULUM",
+      routeCode: "A-B",
+      trackNumber: 1,
+      did: "DEMO-1",
+      route: [
+        { sequence: 1, station: "Station A" },
+        { sequence: 2, station: "Station B" },
+      ],
+      color: "#FF080B",
+    },
+    {
+      operationType: "ROUNDTRIP",
+      routeCode: "B-C",
+      trackNumber: 12,
+      did: "DEMO-2",
+      route: [{ sequence: 1, station: "Station B" }],
+    },
+  ]);
+  for (const pattern of version.operatingPlan.patterns) {
+    assert.equal("maximumTrains" in pattern, false);
+    assert.equal("description" in pattern, false);
+  }
+  assert.equal("color" in version.operatingPlan.patterns[1], false);
   assert.deepEqual(
-    snapshot.scenario.versions[0].stationRequirements,
+    version.stationRequirements,
     scenario.versions[0].stationRequirements,
   );
   assert.equal(snapshot.savedAt, now.toISOString());
   assert.equal(snapshot.userId, "steward-test");
   assert.deepEqual(snapshot.state, state);
+});
+
+test("reloads a valid copy with patterns both with and without color", async () => {
+  const store = createSnapshotStore(memoryStorage());
+  const withTwoPatterns = {
+    ...scenario,
+    versions: [
+      {
+        ...scenario.versions[0],
+        operatingPlan: {
+          name: "Fallback operation",
+          patterns: [
+            {
+              operationType: "PENDULUM",
+              routeCode: "A-B",
+              trackNumber: 1,
+              maximumTrains: 1,
+              did: "DEMO-1",
+              route: [
+                { sequence: 1, station: "Station A" },
+                { sequence: 2, station: "Station B" },
+              ],
+              color: "#FF080B",
+            },
+            {
+              operationType: "ROUNDTRIP",
+              routeCode: "B-C",
+              trackNumber: 12,
+              maximumTrains: 2,
+              did: "DEMO-2",
+              route: [],
+            },
+          ],
+        },
+      },
+    ],
+  };
+  const snapshot = buildSnapshot(
+    { ...active, scenario: withTwoPatterns },
+    "steward-test",
+    now,
+  );
+
+  await store.save(snapshot);
+  assert.deepEqual(await store.load("steward-test"), snapshot);
+});
+
+test("a legacy copy without lineGroup or with an invalid lineGroup counts as no copy", async () => {
+  const storage = memoryStorage();
+  const store = createSnapshotStore(storage);
+  const snapshot = buildSnapshot(active, "steward-test", now);
+
+  const withoutLineGroup = structuredClone(snapshot);
+  delete withoutLineGroup.scenario.lineGroup;
+  await storage.setItem(STORAGE_KEY, JSON.stringify(withoutLineGroup));
+  assert.equal(await store.load("steward-test"), null);
+
+  const invalidLineGroup = structuredClone(snapshot);
+  invalidLineGroup.scenario.lineGroup = "M5";
+  await storage.setItem(STORAGE_KEY, JSON.stringify(invalidLineGroup));
+  assert.equal(await store.load("steward-test"), null);
+});
+
+test("a legacy copy without operatingPlan or operatingPlan.patterns counts as no copy", async () => {
+  const storage = memoryStorage();
+  const store = createSnapshotStore(storage);
+  const snapshot = buildSnapshot(active, "steward-test", now);
+
+  const withoutOperatingPlan = structuredClone(snapshot);
+  delete withoutOperatingPlan.scenario.versions[0].operatingPlan;
+  await storage.setItem(STORAGE_KEY, JSON.stringify(withoutOperatingPlan));
+  assert.equal(await store.load("steward-test"), null);
+
+  const withoutPatterns = structuredClone(snapshot);
+  withoutPatterns.scenario.versions[0].operatingPlan = {};
+  await storage.setItem(STORAGE_KEY, JSON.stringify(withoutPatterns));
+  assert.equal(await store.load("steward-test"), null);
+});
+
+test("a copy with a malformed operating-plan pattern counts as no copy", async () => {
+  const storage = memoryStorage();
+  const store = createSnapshotStore(storage);
+  const base = buildSnapshot(active, "steward-test", now);
+  const validPattern = base.scenario.versions[0].operatingPlan.patterns[0];
+  const malformedPatterns = [
+    null,
+    { ...validPattern, operationType: "SHUTTLE" },
+    { ...validPattern, routeCode: 123 },
+    { ...validPattern, trackNumber: 1.5 },
+    { ...validPattern, did: null },
+    { ...validPattern, route: "A-B" },
+    { ...validPattern, route: ["Station A"] },
+    { ...validPattern, route: [[]] },
+    { ...validPattern, color: "red" },
+    { ...validPattern, color: "#FFF" },
+    { ...validPattern, color: 123 },
+  ];
+
+  for (const malformed of malformedPatterns) {
+    const broken = structuredClone(base);
+    broken.scenario.versions[0].operatingPlan.patterns = [malformed];
+    await storage.setItem(STORAGE_KEY, JSON.stringify(broken));
+    assert.equal(
+      await store.load("steward-test"),
+      null,
+      `Expected malformed pattern to be rejected: ${JSON.stringify(malformed)}`,
+    );
+  }
 });
 
 test("a scenario without its current version is never made a copy", () => {

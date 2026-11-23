@@ -175,6 +175,34 @@ test("rejects a scenario whose station requirement is malformed", async () => {
   );
 });
 
+test("rejects a scenario whose lineGroup is missing or invalid", async () => {
+  const broken = structuredClone(scenario);
+  broken.lineGroup = "M5";
+  const { fetchImpl } = mockFetch({
+    "/api/v1/scenario-state": [200, activeState],
+    [scenarioUrl]: [200, broken],
+  });
+
+  await assert.rejects(
+    loadActiveScenario(API, "abc", fetchImpl),
+    /unexpected format/,
+  );
+});
+
+test("rejects a scenario whose operating-plan patterns are malformed", async () => {
+  const broken = structuredClone(scenario);
+  broken.versions[0].operatingPlan.patterns[0].operationType = "INVALID";
+  const { fetchImpl } = mockFetch({
+    "/api/v1/scenario-state": [200, activeState],
+    [scenarioUrl]: [200, broken],
+  });
+
+  await assert.rejects(
+    loadActiveScenario(API, "abc", fetchImpl),
+    /unexpected format/,
+  );
+});
+
 test("accepts a scenario with passenger information", async () => {
   const withInformation = structuredClone(scenario);
   withInformation.versions[0].passengerInformation = [
