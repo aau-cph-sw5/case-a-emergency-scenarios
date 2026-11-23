@@ -1,5 +1,9 @@
 # Scenario State Contract Changelog
 
+## 8.11.2 - 2026-11-23
+
+No change to the shape. After an admin edits a user with `PATCH /api/v1/users/{userId}`, the user's sessions are ended and their sockets disconnected, so they sign in again with the new values (MET-A-030, #426).
+
 ## 8.11.1 - 2026-11-22
 
 No change to the shape. `POST /api/v1/scenario-suggestions` is no longer a draft: the server serves it (#371).

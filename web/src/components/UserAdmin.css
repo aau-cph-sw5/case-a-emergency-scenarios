@@ -38,6 +38,10 @@
   margin: 0;
   color: var(--admin-red);
 }
+.user-form-note {
+  margin: 0;
+  font-weight: 700;
+}
 .user-admin table {
   border-collapse: collapse;
   margin-bottom: 24px;

@@ -1,7 +1,9 @@
 import type { Request, Response } from "express";
+import type { Server } from "socket.io";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 import type { UserCreate } from "../../shared/types/v1/user-create.js";
 import type { UserUpdate } from "../../shared/types/v1/user-update.js";
+import { userRoom } from "../realtime/socket-server.js";
 import type { AuthUser } from "../services/auth-service.js";
 import { createUser, listUsers, updateUser } from "../services/user-service.js";
 
@@ -53,5 +55,9 @@ export async function editUser(
       );
     return;
   }
+  // The user's sessions were ended with the edit, so their open sockets are
+  // closed too.
+  const io = request.app.locals.io as Server | undefined;
+  io?.in(userRoom(id)).disconnectSockets(true);
   response.json(result.user);
 }

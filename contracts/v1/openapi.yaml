@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.11.1
+  version: 8.11.2
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -1040,6 +1040,8 @@ paths:
         Requires the ADMIN role (MET-A-030). Changes the password, the role
         and/or the line group; a field that is left out stays as it is. The
         username cannot be changed. An admin cannot change their own role.
+        After an edit, the user's sessions are ended and their sockets
+        disconnected, so they sign in again with the new values.
       security:
         - bearerAuth: []
       parameters:

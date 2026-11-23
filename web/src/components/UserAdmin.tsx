@@ -16,7 +16,13 @@ import "./UserAdmin.css";
 type OpenForm = { kind: "create" } | { kind: "edit"; user: User } | null;
 
 // The "Brugere" page: every account, and a form to create or edit one.
-export function UserAdmin({ token }: { token: string }) {
+export function UserAdmin({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
   const ownId = Number(userIdFromToken(token));
   const [users, setUsers] = useState<User[] | null>(null);
   const [form, setForm] = useState<OpenForm>(null);
@@ -66,6 +72,12 @@ export function UserAdmin({ token }: { token: string }) {
     setFormError(null);
     try {
       await updateUser(token, user.userId, changes);
+      // The server ended the admin's own session with the edit, so sign out
+      // here as the form warned.
+      if (user.userId === ownId) {
+        onLogout();
+        return;
+      }
       saved(`${user.username} er gemt.`);
     } catch (error) {
       setFormError(userAdminMessage(error));

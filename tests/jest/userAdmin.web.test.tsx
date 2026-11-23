@@ -62,9 +62,9 @@ function sentBody(method: string) {
 }
 
 // Opens the Brugere page from the admin's front page.
-async function mount() {
+async function mount(onLogout: () => void = () => {}) {
   await act(async () =>
-    root.render(<AdminDashboard token={token} onLogout={() => {}} />),
+    root.render(<AdminDashboard token={token} onLogout={onLogout} />),
   );
   await click("Brugere");
 }
@@ -319,6 +319,41 @@ describe("the Brugere page (MET-A-030)", () => {
     await mount();
     await editRow(0);
     expect(field<HTMLSelectElement>("Rolle").disabled).toBe(true);
+  });
+
+  it("warns only the admin editing their own account about being signed out", async () => {
+    const warning =
+      "Når du gemmer, bliver du logget ud og skal logge ind igen.";
+    await mount();
+    await editRow(1);
+    expect(container.textContent).not.toContain(warning);
+    await click("Annullér");
+    await editRow(0);
+    expect(container.querySelector(".user-form-note")?.textContent).toBe(
+      warning,
+    );
+  });
+
+  it("signs the admin out after saving their own account", async () => {
+    const onLogout = jest.fn();
+    await mount(onLogout);
+    await editRow(0);
+    await choose("Linjegruppe", "M3_M4");
+    await click("Gem ændringer");
+
+    expect(sentBody("PATCH")).toEqual({ lineGroup: "M3_M4" });
+    expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not sign the admin out after saving another account", async () => {
+    const onLogout = jest.fn();
+    await mount(onLogout);
+    await editRow(1);
+    await choose("Linjegruppe", "M3_M4");
+    await click("Gem ændringer");
+
+    expect(status()).toBe("operator er gemt.");
+    expect(onLogout).not.toHaveBeenCalled();
   });
 
   it("shows a message when the list cannot be fetched", async () => {

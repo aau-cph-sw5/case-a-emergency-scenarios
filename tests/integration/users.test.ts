@@ -2,8 +2,11 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { Server } from "socket.io";
+import { io as connect, type Socket } from "socket.io-client";
 import { app } from "../../src/app.js";
 import { getDatabase } from "../../src/db/client.js";
+import { attachSocketHandlers } from "../../src/realtime/socket-server.js";
 import { validate } from "../../src/validation/contract-validator.js";
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
@@ -17,6 +20,7 @@ const CREATED = `${PREFIX}created`;
 let server: HttpServer;
 let baseUrl: string;
 let adminId: number;
+const sockets: Socket[] = [];
 
 before(async () => {
   await owner`DELETE FROM users WHERE username LIKE ${`${CREATED}%`}`;
@@ -24,6 +28,9 @@ before(async () => {
   adminId = users.find((user) => user.role === "ADMIN")!.id;
 
   server = createServer(app);
+  const io = new Server(server);
+  app.locals.io = io;
+  attachSocketHandlers(io);
   await new Promise<void>((resolve) =>
     server.listen(0, "127.0.0.1", () => resolve()),
   );
@@ -31,6 +38,10 @@ before(async () => {
 });
 
 after(async () => {
+  sockets.forEach((socket) => socket.disconnect());
+  const io = app.locals.io as Server;
+  delete app.locals.io;
+  await new Promise<void>((resolve) => io.close(() => resolve()));
   await owner`DELETE FROM users WHERE username LIKE ${`${CREATED}%`}`;
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await getDatabase().end();
@@ -84,6 +95,20 @@ function request(
 function me(token: string) {
   return fetch(`${baseUrl}/api/v1/me`, {
     headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// Resolves with the connected socket, or rejects with connect_error.
+function open(token: string) {
+  const socket = connect(baseUrl, {
+    auth: { token },
+    transports: ["websocket"],
+    reconnection: false,
+  });
+  sockets.push(socket);
+  return new Promise<Socket>((resolve, reject) => {
+    socket.once("welcome", () => resolve(socket));
+    socket.once("connect_error", reject);
   });
 }
 
@@ -279,6 +304,54 @@ test("an edit that changes only the role keeps the password", async () => {
   assert.equal(response.status, 200);
   assert.equal((await response.json()).role, "ADMIN");
   assert.equal((await login(user.username, "first-password-1")).status, 200);
+});
+
+test("an edit signs the user out and closes their sockets, but no one else's", async () => {
+  const admin = await adminToken();
+  const user = await createAccount(admin, `${CREATED}-signed-out`);
+  const userToken = await tokenFor(user.username, "first-password-1");
+  const userSocket = await open(userToken);
+  const adminSocket = await open(admin);
+  const disconnected = new Promise<string>((resolve) =>
+    userSocket.once("disconnect", resolve),
+  );
+
+  const response = await request(
+    "PATCH",
+    `/api/v1/users/${user.userId}`,
+    admin,
+    { lineGroup: "M3_M4" },
+  );
+  assert.equal(response.status, 200);
+
+  // The old token is refused, and the open socket is closed by the server.
+  assert.equal((await me(userToken)).status, 401);
+  assert.equal(await disconnected, "io server disconnect");
+  await assert.rejects(open(userToken), { message: "E0001" });
+  // The admin who made the edit is not affected.
+  assert.equal((await me(admin)).status, 200);
+  assert.equal(adminSocket.connected, true);
+
+  // Signing in again gives the new line group.
+  const fresh = await tokenFor(user.username, "first-password-1");
+  assert.equal((await (await me(fresh)).json()).lineGroup, "M3_M4");
+});
+
+test("an admin who edits their own account is signed out", async () => {
+  const token = await adminToken();
+  const [before] = await owner<{ lineGroup: string }[]>`
+    SELECT line_group AS "lineGroup" FROM users WHERE id = ${adminId}
+  `;
+  const other = before.lineGroup === "M1_M2" ? "M3_M4" : "M1_M2";
+
+  const response = await request("PATCH", `/api/v1/users/${adminId}`, token, {
+    lineGroup: other,
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await me(token)).status, 401);
+
+  // Put the line group back for the other tests.
+  await owner`UPDATE users SET line_group = ${before.lineGroup} WHERE id = ${adminId}`;
 });
 
 test("an unknown user cannot be edited", async () => {

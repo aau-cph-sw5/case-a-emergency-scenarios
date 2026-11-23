@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import type { UserCreate } from "../../shared/types/v1/user-create.js";
 import type { UserUpdate } from "../../shared/types/v1/user-update.js";
 import type { User } from "../../shared/types/v1/user.js";
+import { getDatabase } from "../db/client.js";
+import { authSessionRepository } from "../repositories/auth-session-repository.js";
 import { userRepository } from "../repositories/user-repository.js";
 import type { AuthUser } from "./auth-service.js";
 
@@ -57,10 +59,16 @@ export async function updateUser(
     changes.password === undefined
       ? undefined
       : await bcrypt.hash(changes.password, SALT_ROUNDS);
-  const user = await userRepository.updateUser(userId, {
-    passwordHash,
-    role: changes.role,
-    lineGroup: changes.lineGroup,
+  const user = await getDatabase().begin(async (tx) => {
+    const updated = await userRepository.updateUser(
+      userId,
+      { passwordHash, role: changes.role, lineGroup: changes.lineGroup },
+      tx,
+    );
+    if (updated) {
+      await authSessionRepository.revokeAllSessionsForUser(userId, tx);
+    }
+    return updated;
   });
   if (!user) return { kind: "not-found" };
   return { kind: "updated", user };

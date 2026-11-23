@@ -1,4 +1,4 @@
-import { getDatabase } from "../db/client.js";
+import { getDatabase, type Db } from "../db/client.js";
 import type { LineGroup } from "../../shared/auth/line-groups.js";
 import type { Role } from "../../shared/auth/roles.js";
 import type { User } from "../../shared/types/v1/user.js";
@@ -50,9 +50,9 @@ async function createUser(
 async function updateUser(
   id: number,
   changes: { passwordHash?: string; role?: Role; lineGroup?: LineGroup },
+  db: Db = getDatabase(),
 ): Promise<User | null> {
-  const sql = getDatabase();
-  const [user] = await sql<User[]>`
+  const [user] = await db<User[]>`
     UPDATE users SET
       password_hash = COALESCE(${changes.passwordHash ?? null}, password_hash),
       role = COALESCE(${changes.role ?? null}, role),
