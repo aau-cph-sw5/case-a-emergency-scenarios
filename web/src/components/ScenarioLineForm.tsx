@@ -58,12 +58,15 @@ export function ScenarioLineForm({
 }: Props) {
   return (
     <form className="admin-line-form" onSubmit={addLine}>
-      <div className="admin-station-select">
-        <span className="admin-station-label">Fra station</span>
-        <output className="admin-station-display" aria-label="Fra station">
-          {from || "Vælges automatisk"}
-        </output>
-      </div>
+      <StationSelect
+        label="Fra station"
+        value={from}
+        stations={stations.filter((station) => station !== to)}
+        stationNames={stationNames}
+        onChange={(station) => {
+          updateSelectedStops(to ? [station, to] : [station]);
+        }}
+      />
       <StationSelect
         label="Til station"
         value={to}

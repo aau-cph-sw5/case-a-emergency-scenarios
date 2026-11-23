@@ -7,15 +7,6 @@
   margin-bottom: 5px;
   font-weight: 700;
 }
-.admin-station-display {
-  display: flex;
-  align-items: center;
-  min-height: 42px;
-  padding: 9px 12px;
-  border: 1px solid currentColor;
-  border-radius: 8px;
-  font-weight: 700;
-}
 .admin-station-trigger {
   display: flex;
   align-items: center;

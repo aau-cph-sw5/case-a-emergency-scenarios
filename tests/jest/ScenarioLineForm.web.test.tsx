@@ -14,6 +14,7 @@ jest.mock("../../web/src/components/StationSelect.css", () => ({}));
 describe("scenario line form", () => {
   let container: HTMLDivElement;
   let root: Root;
+  let currentStops: string[];
   const submit = jest.fn<(event: React.FormEvent<HTMLFormElement>) => void>(
     (event) => event.preventDefault(),
   );
@@ -21,9 +22,11 @@ describe("scenario line form", () => {
   function View({
     editing = false,
     roundtripAllowed = true,
+    initialStops = ["VAN", "FL"],
   }: {
     editing?: boolean;
     roundtripAllowed?: boolean;
+    initialStops?: string[];
   }) {
     const [type, setManualType] = useState<"PENDULUM" | "ROUNDTRIP" | null>(
       "ROUNDTRIP",
@@ -33,11 +36,12 @@ describe("scenario line form", () => {
     const [did, setDid] = useState("");
     const [maximumTrains, setMaximumTrains] = useState("");
     const [pathIndex, setPathIndex] = useState(0);
-    const [stops, updateSelectedStops] = useState(["VAN", "FL"]);
+    const [stops, updateSelectedStops] = useState(initialStops);
+    currentStops = stops;
     return (
       <ScenarioLineForm
-        from={stops[0]}
-        to={stops[1]}
+        from={stops[0] ?? ""}
+        to={stops.length > 1 ? stops.at(-1)! : ""}
         stations={["VAN", "FL", "LIT"]}
         stationNames={{ VAN: "Vanløse" }}
         updateSelectedStops={updateSelectedStops}
@@ -127,6 +131,43 @@ describe("scenario line form", () => {
     await act(async () => button("Annuller").click());
     expect(cancel).toHaveBeenCalled();
   });
+  it("allows choosing and changing the start while retaining the destination", async () => {
+    await act(async () => root.render(<View initialStops={[]} />));
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Fra station"]')!
+        .click(),
+    );
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Vælg VAN"]')!
+        .click(),
+    );
+    expect(
+      container.querySelector('button[aria-label="Fra station"]')?.textContent,
+    ).toContain("VAN");
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Til station"]')!
+        .click(),
+    );
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Vælg LIT"]')!
+        .click(),
+    );
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Fra station"]')!
+        .click(),
+    );
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Vælg FL"]')!
+        .click(),
+    );
+    expect(currentStops).toEqual(["FL", "LIT"]);
+  });
   it("disallows a two-track line without a turnback and labels edits", async () => {
     await act(async () =>
       root.render(<View editing roundtripAllowed={false} />),
@@ -142,10 +183,7 @@ describe("scenario line form", () => {
     });
     expect(select.value).toBe("1");
     expect(
-      container.querySelector('button[aria-label="Fra station"]'),
-    ).toBeNull();
-    expect(
-      container.querySelector('output[aria-label="Fra station"]')?.textContent,
+      container.querySelector('button[aria-label="Fra station"]')?.textContent,
     ).toContain("VAN");
     await act(async () =>
       container
@@ -160,5 +198,22 @@ describe("scenario line form", () => {
     expect(
       container.querySelector('button[aria-label="Til station"]')?.textContent,
     ).toContain("LIT");
+  });
+  it("clears intermediate stops when changing the start, like changing the destination", async () => {
+    await act(async () =>
+      root.render(<View initialStops={["VAN", "FL", "LIT"]} />),
+    );
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Fra station"]')!
+        .click(),
+    );
+    expect(container.querySelector('button[aria-label="Vælg LIT"]')).toBeNull();
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Vælg VAN"]')!
+        .click(),
+    );
+    expect(currentStops).toEqual(["VAN", "LIT"]);
   });
 });
