@@ -1,0 +1,1056 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sprint 5 review</title>
+<style>
+/* 1920x1080 slides scaled to fit the window. Builds are click fragments driven by data-b (in) and data-e (out). */
+:root {
+  --red: #E90035;
+  --ink: #1C252E;
+  --grey: #59656E;
+  --card: #F3F5F7;
+  --white: #FFFFFF;
+  --hair: #E1E5E9;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --fast: 220ms;
+  --base: 300ms;
+  --slow: 420ms;
+  --stagger: 60ms;
+  color-scheme: light;
+}
+html, body { margin: 0; height: 100%; background: var(--ink); }
+body { overflow: hidden; font-family: Arial, Helvetica, sans-serif; }
+#viewport { position: fixed; inset: 0; overflow: hidden; background: var(--ink); }
+#stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: 50% 50%; transform: translate(-50%, -50%); cursor: pointer; background: var(--white); }
+
+/* Slide frame */
+.slide { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--white); color: var(--grey); font-family: Arial, Helvetica, sans-serif; opacity: 0; visibility: hidden; transition: opacity var(--fast) var(--ease), visibility 0s linear var(--fast); }
+.slide.active { opacity: 1; visibility: visible; transition: opacity var(--fast) var(--ease), visibility 0s; }
+.slide :where(p, h1, h2, ol, ul) { margin: 0; }
+.slide :where(ol, ul) { padding: 0; list-style: none; }
+.abs { position: absolute; }
+.hd { position: absolute; left: 0; top: 0; width: 1920px; height: 150px; background: var(--red); display: flex; align-items: center; padding-left: 100px; box-sizing: border-box; }
+.hd h1 { font-size: 52px; font-weight: 400; color: var(--white); line-height: 1.1; }
+.ft { position: absolute; left: 0; top: 996px; width: 1920px; height: 84px; background: var(--red); }
+.aauw { position: absolute; overflow: hidden; }
+.aauw img { display: block; max-width: none; mix-blend-mode: lighten; }
+.ft .aauw { left: 48px; top: 12px; height: 57.6px; }
+.ft .aauw img { height: 60px; }
+.ft .num { position: absolute; right: 60px; top: 0; line-height: 84px; font-size: 34px; color: var(--white); }
+.ft .parts { position: absolute; left: 960px; top: 0; height: 84px; transform: translateX(-50%); display: flex; align-items: center; gap: 44px; font-size: 22px; color: var(--white); white-space: nowrap; }
+.ft .parts span { display: inline-flex; flex-direction: column; align-items: center; padding: 6px 0; border-bottom: 2px solid transparent; }
+.ft .parts span::after { content: attr(data-t); font-weight: 700; height: 0; overflow: hidden; visibility: hidden; }
+.ft .parts span.cur { font-weight: 700; border-bottom-color: var(--white); }
+
+/* Type */
+.sub { position: absolute; left: 110px; top: 180px; font-size: 48px; font-weight: 700; color: var(--ink); line-height: 1.15; }
+.lbl { font-size: 22px; font-weight: 700; text-transform: uppercase; color: var(--red); letter-spacing: 0.04em; line-height: 1.25; }
+.h { font-size: 36px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.p, .p li { font-size: 26px; line-height: 1.35; color: var(--grey); }
+.p24, .p24 li { font-size: 24px; line-height: 1.35; color: var(--grey); }
+.meta { font-size: 24px; line-height: 1.3; color: var(--grey); }
+.ink { color: var(--ink); }
+b, strong { font-weight: 700; }
+
+/* Components */
+.card { background: var(--card); border-radius: 16px; padding: 32px; box-sizing: border-box; }
+.stack { display: flex; flex-direction: column; }
+.card > .lbl + .h { margin-top: 12px; }
+.card > .lbl + .p, .card > .lbl + .p24, .card > .lbl + ol, .card > .lbl + ul { margin-top: 14px; }
+.card > .h + .p, .card > .h + .p24, .card > .h + ul { margin-top: 16px; }
+.bul li { position: relative; padding-left: 30px; }
+.bul li::before { content: "\2022"; position: absolute; left: 4px; top: 0; color: var(--grey); }
+.bul li + li { margin-top: 8px; }
+.num-list { counter-reset: n; }
+.num-list > li { position: relative; padding-left: 38px; counter-increment: n; }
+.num-list > li::before { content: counter(n) "."; position: absolute; left: 0; top: 0; color: var(--grey); }
+.num-list > li + li { margin-top: 16px; }
+.strip { display: flex; align-items: center; height: 100px; padding: 0 32px; font-size: 32px; font-weight: 700; color: var(--ink); }
+.tagbox { position: absolute; right: 110px; top: 184px; display: flex; flex-direction: column; align-items: flex-end; }
+.tag { display: inline-block; font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.2; padding: 8px 20px; border-radius: 999px; border: 2px solid var(--ink); white-space: nowrap; }
+.tag.done { background: var(--ink); color: var(--white); }
+.tag.prog { background: var(--white); color: var(--red); border-color: var(--red); }
+.left { margin-top: 16px; font-size: 22px; line-height: 1.3; color: var(--grey); text-align: right; }
+.step .p, .step .p24 { margin-top: 6px; }
+.rowlist { display: flex; flex-direction: column; gap: 14px; }
+.row { height: 130px; display: flex; align-items: center; padding: 0 32px; gap: 32px; box-sizing: border-box; }
+.row .no { font-size: 36px; font-weight: 700; color: var(--red); width: 56px; flex: none; }
+.row .tt { font-size: 36px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.shot { position: relative; }
+.shot > img { display: block; width: 100%; height: 100%; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 12px; background: var(--white); }
+.cap { margin-top: 12px; font-size: 24px; line-height: 1.25; color: var(--grey); text-align: center; white-space: nowrap; }
+.mock { font-size: 22px; color: var(--grey); line-height: 1.25; }
+.ac .lbl + ul { margin-top: 10px; }
+.acl li { display: flex; gap: 14px; font-size: 22px; line-height: 1.35; color: var(--grey); }
+.acl li + li { margin-top: 4px; }
+.mk { flex: none; display: inline-block; width: 22px; text-align: center; font-weight: 700; }
+.mk.ok { color: var(--ink); }
+.mk.no { color: var(--grey); }
+
+/* Callouts on screenshots: percent of the image box */
+.co { position: absolute; border: 3px solid var(--red); border-radius: 8px; box-sizing: border-box; pointer-events: none; }
+.pill { position: absolute; background: var(--red); color: var(--white); font-size: 22px; font-weight: 700; line-height: 1.2; padding: 6px 14px; border-radius: 999px; white-space: nowrap; }
+.pill.in { left: 10px; top: 10px; }
+.pill.r { left: calc(100% + 10px); top: -3px; }
+.pill.l { right: calc(100% + 10px); top: -3px; }
+.pill.b { left: -3px; top: calc(100% + 10px); }
+.pill.br { right: -3px; top: calc(100% + 10px); }
+.pill.a { left: -3px; bottom: calc(100% + 10px); }
+.pill.ar { right: -3px; bottom: calc(100% + 10px); }
+
+/* Builds */
+[data-b] { --i: 0; --w: 0ms; --dl: calc(var(--i) * var(--stagger) + var(--w)); }
+.f { transition: opacity var(--base) var(--ease) var(--dl), transform var(--base) var(--ease) var(--dl); }
+.f:not(.on) { opacity: 0; transition-delay: 0ms; }
+.f.up:not(.on) { transform: translateY(20px); }
+.f.dn:not(.on) { transform: translateY(-20px); }
+.f.rt:not(.on) { transform: translateX(24px); }
+.f.lt:not(.on) { transform: translateX(-24px); }
+.f.zm:not(.on) { transform: scale(0.97); }
+.f.tk:not(.on) { transform: scale(0.6); }
+.f.tk { transition-duration: var(--fast); }
+.dr .ln { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset var(--base) var(--ease) var(--dl); }
+.dr.on .ln { stroke-dashoffset: 0; }
+.dr .tip { opacity: 0; transition: opacity var(--fast) var(--ease) calc(var(--dl) + 240ms); }
+.dr.on .tip { opacity: 1; }
+.dm { transition: opacity var(--fast) var(--ease); }
+.dm.on { opacity: 0.45; }
+.hl { position: relative; transition: color var(--fast) var(--ease) var(--dl); }
+.hl::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; background: var(--red); opacity: 0; transform: scaleX(0); transform-origin: left center; transition: transform var(--base) var(--ease) var(--dl), opacity 0s linear var(--dl); }
+.hl.on { color: var(--ink); }
+.hl.on::after { opacity: 1; transform: scaleX(1); }
+.st { position: relative; }
+.st > span { transition: opacity var(--base) var(--ease) var(--dl); }
+.st::after { content: ""; position: absolute; left: -2px; right: -2px; top: 52%; height: 3px; background: var(--grey); transform: scaleX(0); transform-origin: left center; transition: transform var(--base) var(--ease) var(--dl); }
+.st.on > span { opacity: 0.45; }
+.st.on::after { transform: scaleX(1); }
+.ty { display: inline-block; white-space: nowrap; clip-path: inset(-12px 100% -12px 0); transition: clip-path var(--slow) var(--ease) var(--dl); }
+.ty.on { clip-path: inset(-12px 0 -12px 0); }
+.instant, .instant * { transition: none !important; animation: none !important; }
+
+/* Presenter notes (N) */
+#notes { position: fixed; left: 0; right: 0; bottom: 0; max-height: 42vh; overflow: auto; background: var(--ink); color: var(--white); font: 18px/1.5 Arial, Helvetica, sans-serif; padding: 14px max(24px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px)); border-top: 4px solid var(--red); z-index: 10; }
+#notes .nh { font-weight: 700; color: var(--hair); margin-bottom: 6px; }
+#notes p { margin: 0 0 10px; max-width: 110ch; }
+#notes ul { margin: 0 0 10px; padding-left: 22px; }
+#notes .ck { display: inline-block; padding: 0 6px; border-radius: 4px; border: 1px solid var(--grey); color: var(--hair); font-weight: 700; font-size: 15px; }
+#notes .ck.done { opacity: 0.55; }
+#notes .ck.next { background: var(--red); border-color: var(--red); color: var(--white); }
+.notes { display: none; }
+
+@media (max-width: 700px) {
+  #viewport { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide, .slide * { transition: none !important; animation: none !important; }
+}
+
+/* ---------- Slide-specific layout ---------- */
+/* 1 · title */
+#s1 .redblock { left: 0; top: 0; width: 768px; height: 1080px; background: var(--red); }
+#s1 .aauw { left: 64px; top: 944px; height: 69.2px; }
+#s1 .aauw img { height: 72px; }
+#s1 .tb { left: 878px; top: 0; width: 932px; height: 1080px; display: flex; flex-direction: column; justify-content: center; }
+#s1 .metro { width: 140px; height: 140px; overflow: hidden; position: relative; margin-left: -14px; margin-bottom: 52px; }
+#s1 .metro img { position: absolute; width: 168px; height: 168.56px; left: -12.04px; top: -13.16px; display: block; max-width: none; }
+#s1 .t1 { font-size: 96px; font-weight: 700; color: var(--ink); line-height: 1.1; }
+#s1 .t2 { font-size: 40px; color: var(--grey); line-height: 1.25; margin-top: 24px; }
+#s1 .t3 { font-size: 26px; color: var(--grey); line-height: 1.35; margin-top: 40px; }
+
+/* 2 · agenda */
+#s2 .rowlist { left: 110px; top: 212px; width: 1700px; }
+
+/* 3 · goal */
+#s3 .goal { left: 110px; top: 180px; width: 1700px; }
+#s3 .goal .h { font-size: 40px; max-width: 1500px; }
+#s3 .chlbl { left: 110px; top: 436px; }
+#s3 .changes { left: 110px; top: 480px; width: 1700px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+#s3 .changes .card { min-height: 300px; }
+#s3 .changes .no { font-size: 36px; font-weight: 700; color: var(--red); line-height: 1.2; }
+#s3 .changes .p { margin-top: 16px; }
+
+/* 4 · operator */
+#s4 .s4a { left: 110px; top: 340px; width: 834px; }
+#s4 .s4b { left: 976px; top: 340px; width: 834px; }
+#s4 .shot { width: 834px; height: 469px; }
+
+/* 5 · steward */
+#s5 .ph { top: 270px; width: 286px; }
+#s5 .ph .shot { width: 286px; height: 636px; }
+
+/* 6 · demo */
+#s6 .demo { left: 110px; top: 180px; width: 1700px; height: 770px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+#s6 .demo .big { font-size: 120px; font-weight: 700; color: var(--ink); line-height: 1.1; }
+#s6 .demo .p32 { font-size: 32px; color: var(--grey); margin-top: 24px; line-height: 1.3; }
+
+/* 7 · overview */
+#s7 .grid { left: 110px; top: 219px; width: 1700px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+#s7 .card { height: 330px; display: flex; flex-direction: column; justify-content: space-between; }
+#s7 .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+#s7 .top .lbl { padding-top: 10px; }
+
+/* 8 · 006 */
+#s8 .mockup { left: 110px; top: 260px; width: 1144px; height: 473px; }
+#s8 .pan { position: absolute; top: 47px; width: 333px; height: 426px; background: var(--card); border-radius: 16px; }
+#s8 .pan .pt { position: absolute; left: 26px; top: 24px; right: 20px; font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+#s8 .arr { position: absolute; top: 237px; width: 73px; height: 47px; }
+#s8 .phone { position: absolute; background: var(--white); border: 2px solid var(--ink); border-radius: 18px; box-sizing: border-box; }
+#s8 .dot { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); border: 2px solid var(--ink); box-sizing: border-box; transition: background-color var(--fast) var(--ease) calc(var(--dl) + 200ms), border-color var(--fast) var(--ease) calc(var(--dl) + 200ms); }
+#s8 .dot.drop::after { content: ""; position: absolute; left: -8px; right: -8px; top: 8px; height: 4px; background: var(--red); opacity: 0; transform: rotate(-45deg) scaleX(0); transition: transform var(--base) var(--ease) calc(var(--dl) + 200ms), opacity 0s linear calc(var(--dl) + 200ms); }
+#s8 .dot.drop.on { background: var(--white); border-color: var(--grey); }
+#s8 .dot.drop.on::after { opacity: 1; transform: rotate(-45deg) scaleX(1); }
+#s8 .rep { position: absolute; height: 23px; border-radius: 6px; background: var(--ink); }
+#s8 .box { position: absolute; border: 2px solid var(--ink); border-radius: 13px; background: var(--white); box-sizing: border-box; }
+#s8 .rj { position: absolute; inset: 0; border-radius: 6px; background: var(--ink); transition: opacity var(--base) var(--ease) 0ms; }
+#s8 .dup::after { content: ""; position: absolute; left: -3px; right: -3px; top: 9px; height: 5px; background: var(--red); opacity: 0; transform: scaleX(0); transform-origin: left center; transition: transform var(--fast) var(--ease) 0ms, opacity 0s linear 0ms; }
+#s8 .dup.on > .rj { opacity: 0.3; transition-delay: 320ms; }
+#s8 .dup.on::after { opacity: 1; transform: scaleX(1); transition-delay: 220ms; }
+#s8 .steps { left: 1302px; top: 307px; width: 508px; height: 426px; display: flex; flex-direction: column; justify-content: center; gap: 40px; }
+
+/* 9 · 018 */
+#s9 .mockup { left: 110px; top: 340px; width: 480px; height: 610px; }
+#s9 .lock { position: absolute; left: 0; top: 40px; width: 480px; height: 570px; background: var(--ink); border-radius: 40px 40px 0 0; overflow: hidden; }
+#s9 .lock .slot { position: absolute; left: 210px; top: 28px; width: 60px; height: 8px; border-radius: 4px; background: var(--white); }
+#s9 .banner { position: absolute; left: 28px; right: 28px; background: var(--card); border-radius: 14px; padding: 24px 28px; font-size: 26px; font-weight: 700; color: var(--ink); line-height: 1.25; }
+#s9 .steps { left: 638px; top: 380px; width: 1172px; height: 570px; display: flex; flex-direction: column; justify-content: center; gap: 40px; }
+
+/* 10 · 019 */
+#s10 .steps { left: 842px; top: 262px; width: 968px; height: 640px; display: flex; flex-direction: column; justify-content: center; gap: 40px; }
+#s10 .crops { left: 110px; top: 262px; width: 684px; display: flex; justify-content: space-between; align-items: flex-start; }
+#s10 .crop { display: flex; flex-direction: column; align-items: center; }
+#s10 .crop .shot { height: 640px; }
+
+/* 11 · learned */
+#s11 .learn { left: 110px; top: 312px; width: 1700px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+#s11 .learn > li + li { margin-top: 0; }
+#s11 .learn > li { background: var(--card); border-radius: 16px; padding: 32px 32px 32px 78px; box-sizing: border-box; }
+#s11 .learn > li::before { left: 32px; top: 32px; }
+
+
+/* 13 · replaces */
+#s13 .lead { left: 110px; top: 252px; font-size: 26px; font-style: italic; color: var(--grey); line-height: 1.35; }
+#s13 .old { position: absolute; left: 110px; width: 730px; height: 168px; overflow: hidden; }
+#s13 .old .h { margin-top: 12px; }
+#s13 .old .lbl { color: var(--grey); }
+#s13 .old svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+#s13 .arrow { left: 872px; top: 470px; width: 176px; height: 56px; }
+#s13 .new { left: 1080px; top: 378px; width: 730px; height: 240px; border: 3px solid var(--red); display: flex; flex-direction: column; justify-content: center; }
+#s13 .steps { left: 110px; top: 724px; width: 1700px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+
+/* 14 · 029 */
+#s14 .flow { left: 110px; top: 260px; width: 1700px; height: 480px; }
+#s14 .flow > .shot { position: absolute; top: 0; height: 480px; }
+#s14 .flow .arr { position: absolute; top: 222px; width: 56px; height: 36px; }
+#s14 .msg { position: absolute; top: 235px; width: 16px; height: 10px; border-radius: 3px; opacity: 0; }
+#s14 .msg.on { animation: travel 300ms var(--ease) var(--dl) both; }
+@keyframes travel { 0% { opacity: 0; transform: translateX(0); } 25% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateX(36px); } }
+#s14 .steps { left: 110px; top: 780px; width: 1700px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+
+/* 15 · 029 criteria */
+#s15 .cols { left: 110px; top: 264px; width: 1700px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+#s15 .col { display: flex; flex-direction: column; gap: 20px; }
+#s15 .crit { padding: 20px 28px; display: flex; gap: 16px; font-size: 22px; line-height: 1.35; color: var(--grey); }
+#s15 .crit .mk { font-size: 22px; }
+
+/* Definition of Done */
+.dod { left: 110px; top: 184px; width: 1700px; height: 766px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 1fr); grid-auto-flow: column; gap: 24px 32px; }
+.dod .card { padding: 28px 32px; display: grid; grid-template-columns: 40px 1fr; column-gap: 24px; align-content: center; align-items: baseline; }
+.dod .no { font-size: 26px; font-weight: 700; color: var(--red); }
+.dod .p { color: var(--ink); }
+/* Criteria and question slides that follow a PBI slide */
+.aclbl { left: 110px; top: 194px; }
+.critlist { left: 110px; top: 264px; width: 1700px; display: flex; flex-direction: column; gap: 20px; }
+.critlist .crit { padding: 28px; display: flex; gap: 16px; font-size: 26px; line-height: 1.35; color: var(--grey); }
+.critlist .mk { width: 26px; font-size: 26px; }
+.qs { left: 110px; top: 180px; width: 1700px; height: 770px; display: flex; flex-direction: column; justify-content: center; }
+.qs { gap: 24px; }
+.qs .card { padding: 32px 40px; display: flex; align-items: baseline; gap: 28px; font-size: 36px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+.qs .qn { flex: none; width: 64px; font-size: 40px; color: var(--red); }
+
+/* 16 · 027 plan */
+#s16 .lead { left: 110px; top: 186px; font-size: 32px; line-height: 1.3; color: var(--grey); }
+#s16 .three { left: 110px; top: 396px; width: 1700px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+#s16 .three .card { height: 422px; }
+#s16 .fieldtest { left: 774px; bottom: 664px; width: 464px; border: 6px solid var(--white); padding: 24px 28px; }
+#s16 .callout { left: 110px; top: 850px; width: 1700px; }
+
+/* 17 · 027 structure */
+#s17 .total { right: 110px; top: 192px; font-size: 32px; font-weight: 700; color: var(--ink); line-height: 1.3; text-align: right; }
+#s17 .total span { position: absolute; right: 0; top: 0; white-space: nowrap; }
+#s17 .track { left: 110px; top: 258px; width: 1700px; height: 12px; border-radius: 6px; background: var(--card); overflow: hidden; }
+#s17 .seg { position: absolute; top: 0; height: 12px; transform-origin: left center; transition: transform var(--base) var(--ease) var(--dl); }
+#s17 .seg:not(.on) { transform: scaleX(0); }
+#s17 .rowlist { left: 110px; top: 294px; width: 1700px; }
+#s17 .row .tcol { width: 660px; flex: none; }
+#s17 .row .meta { margin-top: 6px; }
+#s17 .row .p { flex: 1; min-width: 0; }
+#s17 .staff { left: 110px; top: 880px; }
+
+/* 18 · discussion */
+#s18 .two { left: 110px; top: 272px; width: 1700px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+#s18 .two .card { height: 548px; }
+#s18 .two .p + .p { margin-top: 16px; }
+#s18 .callout { left: 110px; top: 850px; width: 1700px; font-size: 28px; }
+
+/* 19 · up next */
+#s19 .two { left: 110px; top: 272px; width: 1700px; display: grid; grid-template-columns: 1084px 584px; gap: 32px; }
+#s19 .two .p + .p { margin-top: 16px; }
+#s19 .status { left: 110px; top: 880px; }
+
+/* 20 · access */
+#s20 .two { left: 110px; top: 272px; width: 1700px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+
+/* Print: one slide per page, final state, no callouts or focus dimming */
+@page { size: 1920px 1080px; margin: 0; }
+@media print {
+  html, body { height: auto; overflow: visible; background: var(--white); }
+  #viewport { position: static; overflow: visible; }
+  #stage { position: static; transform: none !important; width: 1920px; height: auto; }
+  .slide { position: relative; opacity: 1 !important; visibility: visible !important; break-after: page; page-break-after: always; }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+  .slide, .slide * { transition: none !important; animation: none !important; }
+  .co, #notes { display: none !important; }
+  .dm.on { opacity: 1 !important; }
+}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="stage">
+
+<!-- 1 · Title -->
+<section class="slide" id="s1">
+  <div class="abs redblock"></div>
+  <div class="aauw"><img src="img/aau-logo-white.png" alt="Aalborg Universitet"></div>
+  <div class="abs tb">
+    <div class="metro"><img src="img/metro-logo.png" alt="Metro"></div>
+    <h1 class="t1">Sprint 5 review</h1>
+    <p class="t2">Emergency scenarios for Metro Service</p>
+    <p class="t3">Groups 7, 9 and 10 · Aalborg University Copenhagen · 23 November 2026</p>
+  </div>
+  <aside class="notes" data-time="15 s">
+    <p>Welcome to the sprint 5 review. I will start with a short overview of what has changed in the app. Then Karsten gets to try it himself. After that, Kenneth goes through the PBIs, and Kathrine ends with the usability test plan and what comes next.</p>
+  </aside>
+</section>
+
+<!-- 2 · Agenda -->
+<section class="slide" id="s2">
+  <div class="hd"><h1>Agenda</h1></div>
+  <div class="abs rowlist">
+    <div class="row card f up" data-b="0" style="--i:0"><div class="no">01</div><div class="tt">App overview</div></div>
+    <div class="row card f up" data-b="0" style="--i:1"><div class="no">02</div><div class="tt">Live demo with Karsten</div></div>
+    <div class="row card f up" data-b="0" style="--i:2"><div class="no">03</div><div class="tt">This sprint</div></div>
+    <div class="row card f up" data-b="0" style="--i:3"><div class="no">04</div><div class="tt">Usability test and up next</div></div>
+    <div class="row card f up" data-b="0" style="--i:4"><div class="no">05</div><div class="tt">Discussion</div></div>
+  </div>
+  <aside class="notes" data-time="15 s">
+    <p>The rows come in by themselves when the slide opens.</p>
+    <p>This is the plan for today. We have put the questions for you on the slide of the PBI they belong to, so we can discuss them as we go.</p>
+  </aside>
+</section>
+
+<!-- 3 · Sprint goal -->
+<section class="slide" id="s3" data-part="1">
+  <div class="hd"><h1>Sprint 5 · Goal and changes</h1></div>
+  <div class="abs card goal">
+    <div class="lbl">Sprint 5 goal</div>
+    <p class="h">Finish the remaining MVP functionality and integrate it end to end, so we are ready to run a usability test.</p>
+  </div>
+  <div class="abs lbl chlbl f" data-b="1">Changes we chose to make</div>
+  <div class="abs changes">
+    <div class="card f up" data-b="1"><div class="no">01</div><p class="p">016 and 017 are replaced by 029 Station chat, based on your feedback at the last review.</p></div>
+    <div class="card f up" data-b="2"><div class="no">02</div><p class="p">013 is merged into the revised station status flow in 015.</p></div>
+    <div class="card f up" data-b="3"><div class="no">03</div><p class="p">030 Admin dashboard is a new PBI that we created.</p></div>
+  </div>
+  <aside class="notes" data-time="60 s">
+    <p>Our goal for this sprint was to finish the remaining MVP functionality, especially in the steward app, and to make the frontend and backend work together as one system. That way we can run a real usability test.</p>
+    <p>We also took ownership of the backlog. When your feedback or our own work showed that a PBI no longer fit, we changed it. [click: change 01] The biggest change is that 016 and 017, sending and acknowledging instructions, are replaced by a station chat, 029. That came from your feedback last time, that messages which are not urgent should not go over the radio. Kenneth will go through it. [click: change 02] We also merged 013 into the revised station status flow, [click: change 03] and we created a new PBI for an admin dashboard, which Kathrine will talk about.</p>
+  </aside>
+</section>
+
+<!-- 4 · What changed · Operator -->
+<section class="slide" id="s4" data-part="1">
+  <div class="hd"><h1>What changed · Operator</h1></div>
+  <h2 class="sub">The operator screen</h2>
+  <div class="abs s4a f up" data-b="0">
+    <div class="shot">
+      <img src="img/op-1-pick.png" alt="Operator web app, picking a scenario">
+      <div class="co f zm" data-b="1" data-e="2" style="left:1.1%;top:10%;width:15%;height:88%"><span class="pill r" style="top:40%">Pick a scenario</span></div>
+      <div class="co f zm" data-b="2" data-e="3" style="left:17%;top:10%;width:63.9%;height:88%"><span class="pill in" style="left:auto;right:10px">Map</span></div>
+      <div class="co f zm" data-b="3" data-e="4" style="left:81.8%;top:10%;width:17.1%;height:80.5%"><span class="pill l">Action card</span></div>
+      <div class="co f zm" data-b="3" data-e="4" style="left:90.4%;top:85.4%;width:7.9%;height:4.4%;--w:160ms"></div>
+      <div class="co f zm" data-b="4" data-e="5" style="left:78.8%;top:2%;width:7.7%;height:4%"><span class="pill ar">Line-group switch</span></div>
+    </div>
+    <p class="cap">Picking a scenario</p>
+  </div>
+  <div class="abs s4b f rt" data-b="5">
+    <div class="shot">
+      <img src="img/op-2-active.png" alt="Operator web app, scenario active">
+      <div class="co f zm" data-b="5" style="left:86.7%;top:85.4%;width:11.6%;height:4.6%;--w:420ms"><span class="pill ar">STOP</span></div>
+    </div>
+    <p class="cap">Scenario active</p>
+  </div>
+  <aside class="notes" data-time="75 s">
+    <p>This is the operator screen as it looks now. The layout has three columns. [click: left column] On the left you pick a scenario, either from the list or by describing the incident in text. [click: middle column] The map is in the middle. [click: action card] On the right is the action card with START and STOP.</p>
+    <p>[click: line-group switch] The list only shows scenarios for the operator's own line group, M1/M2 or M3/M4. The line-group switch is in the top bar. The scenario list can be searched by name or by station, and each scenario shows its route under the name.</p>
+    <p>[click: second screenshot, STOP] On the right, you can see the scenario is active. The map now colours each required station green, yellow or red, depending on whether it has enough stewards. The map zooms to the active scenario, and it is drawn from the real network in the database instead of mock data. There is also a new login screen in the Metro style.</p>
+  </aside>
+</section>
+
+<!-- 5 · What changed · Steward -->
+<section class="slide" id="s5" data-part="1">
+  <div class="hd"><h1>What changed · Steward</h1></div>
+  <h2 class="sub">The steward app</h2>
+  <div class="abs ph f up" data-b="0" style="left:435px">
+    <div class="shot">
+      <img src="img/st-1-on-the-way.png" alt="Steward phone, on the way to a station">
+      <div class="co f zm" data-b="1" data-e="2" style="left:2.6%;top:12%;width:94.8%;height:36.8%"><span class="pill l" style="top:40%">Status card</span></div>
+    </div>
+    <p class="cap">On the way</p>
+  </div>
+  <div class="abs ph f rt" data-b="2" style="left:817px">
+    <div class="shot">
+      <img src="img/st-2-station-tasks.png" alt="Steward phone, station tasks after check-in">
+      <div class="co f zm" data-b="3" data-e="4" style="left:2.6%;top:53.9%;width:94.8%;height:42.3%"><span class="pill r" style="top:40%">Station tasks</span></div>
+      <div class="co f zm" data-b="4" data-e="5" style="left:91.6%;top:57%;width:8.4%;height:11%"><span class="pill r">Chat tab</span></div>
+    </div>
+    <p class="cap">Station tasks</p>
+  </div>
+  <div class="abs ph f rt" data-b="5" style="left:1199px">
+    <div class="shot">
+      <img src="img/st-3-chat.png" alt="Steward phone, station chat">
+    </div>
+    <p class="cap">Station chat</p>
+  </div>
+  <aside class="notes" data-time="75 s">
+    <p>This is the steward app. It now uses the Metro look, with the exact line colours and the Metro arrows on the slide buttons.</p>
+    <p>[click: status card] Everything about the steward's current job is in one status card: the station, the status, the scenario and a small map. [click: second phone] The card changes colour when the status changes. The app follows the server's status, so a steward who restarts the phone is back where they were. Going on the way also works without a connection, because the report is saved on the phone and sent when the connection is back.</p>
+    <p>[click: station tasks] After check-in, the lower half shows that station's own tasks. Check-out takes two steps, so you cannot do it by accident. [click: chat tab] And once checked in, the steward gets a chat tab on the right edge to write to the control room.</p>
+    <p>[click: third phone] The last PRs for 019 and 029 were merged this weekend. They add live delivery of chat messages, real answers in the suggestion box and offline chat messages. So what Karsten tries in a moment is the complete flow.</p>
+  </aside>
+</section>
+
+<!-- 6 · Live demo -->
+<section class="slide" id="s6" data-part="2">
+  <div class="hd"><h1></h1></div>
+  <div class="abs demo">
+    <p class="big">Live demo</p>
+    <p class="p32">Karsten tries the operator and the steward app</p>
+  </div>
+  <aside class="notes" data-time="12 min">
+    <p>Now we would like you to try it yourself, Karsten. We will give you a short task as an operator and one as a steward, and we ask you to think aloud while you do it. We are testing the app, not you, so anything that is unclear is useful for us.</p>
+    <p>Before the review, check that:</p>
+    <ul><li>Staging runs the build from dev with all 019 and 029 PRs merged.</li><li>An operator account and a steward account are logged in, one on a laptop and one on a phone.</li><li>A screen recording of the same flow is ready as a backup in case the network fails.</li></ul>
+    <p>If the suggestion endpoint or live chat is not on staging on Monday, use "Vælg fra liste" for the operator task and leave the chat out of the steward task.</p>
+  </aside>
+</section>
+
+<!-- 7 · This sprint -->
+<section class="slide" id="s7" data-part="3">
+  <div class="hd"><h1>This sprint</h1></div>
+  <div class="abs grid">
+    <div class="f up" data-b="0" style="--i:0"><div class="card"><div class="top"><div class="lbl">PBI 006</div><span class="tag done f zm" data-b="1">Done</span></div><p class="h">Offline reports</p></div></div>
+    <div class="f up" data-b="0" style="--i:1"><div class="card"><div class="top"><div class="lbl">PBI 018</div><span class="tag prog f zm" data-b="1" style="--w:140ms">In progress</span></div><p class="h">Notifications</p></div></div>
+    <div class="f up" data-b="0" style="--i:2"><div class="card"><div class="top"><div class="lbl">PBI 019</div><span class="tag prog f zm" data-b="1" style="--w:140ms">In progress</span></div><p class="h">Scenario suggestions</p></div></div>
+    <div class="f up" data-b="0" style="--i:3"><div class="card"><div class="top"><div class="lbl">PBI 027</div><span class="tag done f zm" data-b="1">Done</span></div><p class="h">Usability test plan</p></div></div>
+    <div class="f up" data-b="0" style="--i:4"><div class="card"><div class="top"><div class="lbl">PBI 029</div><span class="tag prog f zm" data-b="1" style="--w:140ms">In progress</span></div><p class="h">Station chat · replaces 016 and 017</p></div></div>
+    <div class="f up" data-b="0" style="--i:5"><div class="card"><div class="top"><div class="lbl">PBI 030</div><span class="tag prog f zm" data-b="1" style="--w:140ms">In progress</span></div><p class="h">Admin dashboard</p></div></div>
+  </div>
+  <aside class="notes" data-time="40 s">
+    <p>These are the six PBIs we worked on this sprint. [click: status tags] Two are done and four are in progress. I will go through 006, 018, 019 and 029. Kathrine takes 027, the usability test plan, and 030, the admin dashboard.</p>
+  </aside>
+</section>
+
+<!-- 8 · PBI 006 -->
+<section class="slide" id="s8" data-part="3">
+  <div class="hd"><h1>PBI 006 · Offline reports</h1></div>
+  <h2 class="sub">No lost reports and no duplicates</h2>
+  <div class="tagbox"><span class="tag done">Done</span></div>
+  <div class="abs mockup">
+    <div class="abs mock" style="left:0;top:0">Mock-up</div>
+    <div class="pan" style="left:0">
+      <div class="pt">Connected</div>
+      <div class="phone" style="left:99px;top:136px;width:135px;height:260px"><div class="dot" style="right:16px;top:16px"></div></div>
+    </div>
+    <svg class="arr dr" data-b="1" style="left:333px" viewBox="0 0 56 36" aria-hidden="true"><line class="ln" pathLength="1" x1="6" y1="18" x2="44" y2="18" stroke="#59656E" stroke-width="3"/><path class="tip" d="M40 10 L50 18 L40 26" fill="none" stroke="#59656E" stroke-width="3" stroke-linejoin="round"/></svg>
+    <div class="pan f rt" data-b="1" style="left:406px">
+      <div class="pt">Offline and saved</div>
+      <div class="shot" style="position:absolute;left:31px;top:120px;width:127px;height:283px"><img src="img/006-1-offline-queued.png" alt="Steward phone, report saved offline"></div>
+      <div class="dot drop" data-b="1" style="left:198px;top:136px"></div>
+      <div class="rep f dn" data-b="1" style="left:198px;top:190px;width:99px;--w:260ms"></div>
+    </div>
+    <svg class="arr dr" data-b="2" style="left:739px" viewBox="0 0 56 36" aria-hidden="true"><line class="ln" pathLength="1" x1="6" y1="18" x2="44" y2="18" stroke="#59656E" stroke-width="3"/><path class="tip" d="M40 10 L50 18 L40 26" fill="none" stroke="#59656E" stroke-width="3" stroke-linejoin="round"/></svg>
+    <div class="pan f rt" data-b="2" style="left:812px">
+      <div class="pt">Back online and sent once</div>
+      <div class="phone" style="left:26px;top:151px;width:109px;height:234px"><div class="dot" style="right:13px;top:13px"></div></div>
+      <div class="box" style="left:203px;top:177px;width:104px;height:182px">
+        <div class="rep f rt" data-b="2" style="left:16px;top:31px;width:68px;--w:260ms"></div>
+        <div class="mk ok f tk" data-b="2" style="position:absolute;left:36px;top:80px;width:30px;font-size:30px;--w:400ms">✓</div>
+      </div>
+      <svg class="dr" data-b="2" style="position:absolute;left:135px;top:250px;width:68px;height:26px;--w:140ms" viewBox="0 0 68 26" aria-hidden="true"><line class="ln" pathLength="1" x1="4" y1="13" x2="64" y2="13" stroke="#1C252E" stroke-width="3"/></svg>
+      <div class="dup f lt" data-b="3" style="position:absolute;left:146px;top:310px;width:46px;height:23px"><div class="rj"></div></div>
+    </div>
+  </div>
+  <div class="abs steps">
+    <div class="step f up" data-b="1" style="--w:120ms"><div class="lbl">01 · Offline</div><p class="p">The phone saves the report.</p></div>
+    <div class="step f up" data-b="2" style="--w:200ms"><div class="lbl">02 · Back online</div><p class="p">The phone sends the saved report automatically.</p></div>
+    <div class="step f up" data-b="3" style="--w:200ms"><div class="lbl">03 · Exactly once</div><p class="p">The control room never sees the same report twice.</p></div>
+  </div>
+  <aside class="notes" data-time="60 s">
+    <p>Stations underground often have no connection. [click: offline, report saved] With 006, a steward can report position and status without a connection. The phone saves the report [click: back online, sent] and sends it automatically when the connection is back. [click: second copy rejected] The server applies each report exactly once, so the control room never sees duplicates. We test that by sending the same queue twice.</p>
+  </aside>
+</section>
+
+<!-- 8b · PBI 006 · Acceptance criteria -->
+<section class="slide" data-part="3">
+  <div class="hd"><h1>PBI 006 · Acceptance criteria</h1></div>
+  <div class="abs lbl aclbl">Acceptance criteria (issue #6)</div>
+  <div class="tagbox"><span class="tag done">Done</span></div>
+  <div class="abs critlist">
+    <div class="card crit"><span class="mk ok f tk" data-b="0" style="--i:0;--w:200ms">✓</span><p>Position and status reports made with no connection are queued locally and survive an application restart.</p></div>
+    <div class="card crit"><span class="mk ok f tk" data-b="0" style="--i:1;--w:200ms">✓</span><p>On reconnection the client reconciles to the current server scenario within 5 seconds without user action.</p></div>
+    <div class="card crit"><span class="mk ok f tk" data-b="0" style="--i:2;--w:200ms">✓</span><p>Each queued report is applied server-side exactly once, verified by a test that replays the same queue twice.</p></div>
+    <div class="card crit"><span class="mk ok f tk" data-b="0" style="--i:3;--w:200ms">✓</span><p>If the scenario changed while the client was offline, queued reports against the superseded scenario are rejected and the steward is told why.</p></div>
+    <div class="card crit"><span class="mk ok f tk" data-b="0" style="--i:4;--w:200ms">✓</span><p>Conflict resolution rules are recorded in an architecture decision record.</p></div>
+  </div>
+  <aside class="notes" data-time="10 s">
+    <p>If the scenario was stopped or switched while the steward was offline, the report is rejected and the app tells the steward why.</p>
+  </aside>
+</section>
+
+<!-- 9 · PBI 018 -->
+<section class="slide" id="s9" data-part="3">
+  <div class="hd"><h1>PBI 018 · Notifications</h1></div>
+  <h2 class="sub">The phone tells you, even when it's in your pocket</h2>
+  <div class="tagbox"><span class="tag prog">In progress</span><p class="left" style="width:900px">The ADR is done (#412). The scenario start and end notification is coded but not yet tested on a phone (#413). The chat notification is not started (#414).</p></div>
+  <div class="abs mockup">
+    <div class="abs mock" style="left:0;top:0">Mock-up</div>
+    <div class="lock">
+      <div class="slot"></div>
+      <div class="banner f dn" data-b="1" style="top:84px">Scenarie aktiveret</div>
+      <div class="banner f dn" data-b="2" style="top:204px">Ny besked på Nørreport</div>
+    </div>
+  </div>
+  <div class="abs steps">
+    <div class="step f up" data-b="1" style="--w:120ms"><div class="lbl">01 · Scenario starts</div><p class="p">The steward gets a notification.</p></div>
+    <div class="step f up" data-b="1" style="--w:190ms"><div class="lbl">02 · Scenario ends</div><p class="p">The steward gets a notification.</p></div>
+    <div class="step f up" data-b="2" style="--w:120ms"><div class="lbl">03 · New message</div><p class="p">Stewards who have checked in at the station get a notification.</p></div>
+  </div>
+  <aside class="notes" data-time="60 s">
+    <p>018 is about notifications on the steward's phone, also when the phone is in a pocket. [click: scenario start and end] We have chosen how to deliver them and written it down in an ADR. The notification when a scenario starts and ends is coded but not tested on a real phone yet, [click: new message] and the chat notification is not started.</p>
+  </aside>
+</section>
+
+<!-- 9b · PBI 018 · Acceptance criteria -->
+<section class="slide" data-part="3">
+  <div class="hd"><h1>PBI 018 · Acceptance criteria</h1></div>
+  <div class="abs lbl aclbl">Acceptance criteria (issue #18)</div>
+  <div class="tagbox"><span class="tag prog">In progress</span></div>
+  <div class="abs critlist">
+    <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:0;--w:200ms">✓</span><p>The delivery channel is chosen, and the alternatives and the reason for the choice are recorded in an architecture decision record.</p></div>
+    <div class="card crit"><span class="mk no f tk" data-b="0" style="--i:1;--w:200ms">○</span><p>The steward receives a visible notification when a scenario starts and when it ends, also when the application is in the background.</p></div>
+    <div class="card crit"><span class="mk no f tk" data-b="0" style="--i:2;--w:200ms">○</span><p>The steward receives a visible notification when a message is sent to the chat of the station they are checked in at (MET-A-029).</p></div>
+    <div class="card crit"><span class="mk no f tk" data-b="0" style="--i:3;--w:200ms">○</span><p>Behavior when the device has no connection at send time is specified and tested.</p></div>
+    <div class="card crit"><span class="mk no f tk" data-b="0" style="--i:4;--w:200ms">○</span><p>Any dependency on a third-party service is named, together with what happens when it is unavailable.</p></div>
+  </div>
+  <aside class="notes" data-time="15 s">
+    <p>[click: open criteria stand out] So this one continues next sprint.</p>
+  </aside>
+</section>
+
+<!-- 9c · PBI 018 · Questions -->
+<section class="slide" data-part="3">
+  <div class="hd"><h1>PBI 018 · Questions for Karsten</h1></div>
+  <div class="abs qs">
+    <div class="card f up" data-b="0"><span class="qn">01</span><span>Would notifications on the steward's phone be useful when a scenario starts, ends, or when a new message arrives for their station? Are there other situations where a notification would help more?</span></div>
+  </div>
+  <aside class="notes" data-time="open">
+    <p>Karsten, we would like to know whether these are the right moments to notify a steward, or whether other situations matter more.</p>
+  </aside>
+</section>
+
+<!-- 10 · PBI 019 -->
+<section class="slide" id="s10" data-part="3">
+  <div class="hd"><h1>PBI 019 · Scenario suggestions</h1></div>
+  <h2 class="sub">Describe the incident. Get a suggestion.</h2>
+  <div class="tagbox"><span class="tag prog">In progress</span></div>
+  <div class="abs steps">
+    <div class="step f up" data-b="0"><div class="lbl">01 · Describe</div><p class="p">The operator writes where: stations and track, for example <span style="white-space:nowrap">"<span class="ty" data-b="0" style="--w:160ms"><span class="hl" data-b="1">Forum</span> - <span class="hl" data-b="1" style="--i:1">Kongens Nytorv</span> <span class="hl" data-b="1" style="--i:2">spor 1</span></span>"</span>, in the "Beskriv hændelse" tab next to "Vælg fra liste".</p></div>
+    <div class="step f up" data-b="1" style="--w:240ms"><div class="lbl">02 · Match</div><p class="p">The system finds the stations and the track in the text and ranks the operator's own scenarios. It suggests up to 5, or says "Ingen sikre forslag" and shows the full list.</p></div>
+    <div class="step f up" data-b="3" style="--w:200ms"><div class="lbl">03 · Confirm</div><p class="p">A suggestion only selects the scenario. Starting it still takes START and the confirmation.</p></div>
+  </div>
+  <div class="abs crops">
+    <div class="crop">
+      <div class="shot" style="width:195px"><img src="img/019-1-suggestion-crop.png" alt="Operator, text box with suggestions">
+        <div class="co f zm" data-b="0" data-e="1" style="left:9%;top:19%;width:82%;height:10%;--w:300ms"></div>
+        <div class="co f zm" data-b="1" data-e="2" style="left:9%;top:51.6%;width:82%;height:28.2%;--w:300ms"></div>
+      </div>
+      <p class="cap">Suggestions</p>
+    </div>
+    <div class="crop f rt" data-b="2">
+      <div class="shot" style="width:195px"><img src="img/019-2-no-confident-crop.png" alt="Operator, no confident suggestions">
+        <div class="co f zm" data-b="2" data-e="3" style="left:9%;top:48.9%;width:82%;height:15.3%;--w:300ms"></div>
+      </div>
+      <p class="cap">Ingen sikre forslag</p>
+    </div>
+    <div class="crop f rt" data-b="3">
+      <div class="shot" style="width:222px"><img src="img/019-3-preview-crop.png" alt="Operator, preview of a suggested scenario">
+        <div class="co f zm" data-b="3" style="left:49.5%;top:85%;width:48%;height:6.2%;--w:300ms"></div>
+      </div>
+      <p class="cap">Preview</p>
+    </div>
+  </div>
+  <aside class="notes" data-time="75 s">
+    <p>019 lets the operator describe the incident in text instead of searching the list. The operator writes where it is, for example the stations and the track. [click: match, stations and track underlined] The system finds the stations and the track in the text and ranks the operator's own scenarios. It shows up to five suggestions. [click: Ingen sikre forslag] If none of them is a good enough match, it says so and shows the full list, instead of a poor guess. [click: confirm, START] A suggestion only selects the scenario. Starting it still takes START and the confirmation, so nothing starts by accident.</p>
+  </aside>
+</section>
+
+<!-- 10b · PBI 019 · Acceptance criteria -->
+<section class="slide" data-part="3">
+  <div class="hd"><h1>PBI 019 · Acceptance criteria</h1></div>
+  <div class="abs lbl aclbl">Acceptance criteria (issue #19)</div>
+  <div class="tagbox"><span class="tag prog">In progress</span></div>
+  <div class="abs critlist">
+    <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:0;--w:200ms">✓</span><p>A deterministic method maps a free-text description to a ranked shortlist of at most five candidate scenarios.</p></div>
+    <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:1;--w:200ms">✓</span><p>The method is exposed behind an interface that permits a second implementation to be swapped in without changing callers.</p></div>
+    <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:2;--w:200ms">✓</span><p>A suggested scenario is never activated without the explicit confirmation required by A-007.</p></div>
+    <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:3;--w:200ms">✓</span><p>When no candidate exceeds the agreed confidence threshold, the operator is told so and offered the full list instead of a poor ranking.</p></div>
+    <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:4;--w:200ms">✓</span><p>The approach, its assumptions and its known failure modes are documented</p></div>
+    <div class="card crit"><span class="mk no f tk" data-b="0" style="--i:5;--w:200ms">○</span><p>The method is compared with a station filter on a self-labelled set, reproducible from one command, and the result and its limitations are documented.</p></div>
+  </div>
+  <aside class="notes" data-time="10 s">
+    <p>[click: open criterion stands out]</p>
+  </aside>
+</section>
+
+<!-- 11 · PBI 019 · What we learned -->
+<section class="slide" id="s11" data-part="3">
+  <div class="hd"><h1>PBI 019 · What we learned</h1></div>
+  <div class="abs lbl" style="left:110px;top:184px">What we learned</div>
+  <h2 class="sub" style="top:222px">It finds where, not what</h2>
+  <ol class="abs p num-list learn">
+    <li>In practice, the search only uses the stations and the track number. In "<span class="st" data-b="1"><span>Signalfejl</span></span> mellem <span class="hl" data-b="1" style="--w:200ms">Kongens Nytorv</span> og <span class="hl" data-b="1" style="--w:270ms">Christianshavn</span> <span class="hl" data-b="1" style="--w:340ms">spor 2</span>", only the two stations and "spor 2" are used. "Signalfejl" is ignored, because the scenarios don't record what kind of problem they cover. The limit is the data, and possibly how scenarios are defined.</li>
+    <li class="f rt" data-b="2"><b class="ink">Known weaknesses.</b> Station codes in lowercase and everyday names like "Hovedbanegården" aren't recognised, and vague text like "Spor 1" can score high.</li>
+  </ol>
+  <aside class="notes" data-time="60 s">
+    <p>The main thing we learned is that the search finds where, not what. It only uses the stations and the track number, because the scenarios don't say what kind of problem they cover. [click: "Signalfejl" struck out, stations and track underlined] So "signal fault" in the text makes no difference. That is a limit of the data, and maybe of how scenarios are defined. [click: known weaknesses] We also know it misses lowercase station codes and everyday names like "Hovedbanegården".</p>
+  </aside>
+</section>
+
+<!-- 11b · PBI 019 · Questions -->
+<section class="slide" data-part="3">
+  <div class="hd"><h1>PBI 019 · Questions for Karsten</h1></div>
+  <div class="abs qs">
+    <div class="card f up" data-b="0"><span class="qn">01</span><span>What is the difference between operators picking a scenario on M1/M2 and M3/M4?</span></div>
+    <div class="card f up" data-b="1"><span class="qn">02</span><span>Do operators find a scenario by name or number, or from the incident?<br>Would selecting an area on the map work better than typing a description?</span></div>
+  </div>
+  <aside class="notes" data-time="open">
+    <p>That leads to two questions for you, Karsten. [click: question 2] If operators think in terms of a place on the map, selecting the area on the map might work better than typing.</p>
+    <p>We will note your answers and turn them into issues, so please answer as briefly or as fully as you like.</p>
+  </aside>
+</section>
+
+<!-- 13 · 029 replaces 016 and 017 -->
+<section class="slide" id="s13" data-part="3">
+  <div class="hd"><h1>PBI 029 replaces 016 and 017</h1></div>
+  <h2 class="sub">One chat instead of instructions and acknowledgements</h2>
+  <p class="abs lead">We create new features from your feedback and from what we discover. 029 comes from the sprint 4 review.</p>
+  <div class="old card" style="top:314px">
+    <div class="lbl f" data-b="1" style="--w:200ms">Replaced</div>
+    <p class="h">016 · Send an instruction</p>
+    <svg class="dr" data-b="1" viewBox="0 0 730 168" preserveAspectRatio="none" aria-hidden="true"><line class="ln" pathLength="1" x1="0" y1="168" x2="730" y2="0" stroke="#59656E" stroke-width="3"/></svg>
+  </div>
+  <div class="old card" style="top:514px">
+    <div class="lbl f" data-b="1" style="--w:270ms">Dropped</div>
+    <p class="h">017 · Acknowledge the instruction</p>
+    <svg class="dr" data-b="1" style="--w:70ms" viewBox="0 0 730 168" preserveAspectRatio="none" aria-hidden="true"><line class="ln" pathLength="1" x1="0" y1="168" x2="730" y2="0" stroke="#59656E" stroke-width="3"/></svg>
+  </div>
+  <svg class="abs arrow dr" data-b="2" viewBox="0 0 176 56" aria-hidden="true"><line class="ln" pathLength="1" x1="8" y1="28" x2="156" y2="28" stroke="#E90035" stroke-width="6"/><path class="tip" d="M146 12 L168 28 L146 44 Z" fill="#E90035"/></svg>
+  <div class="abs card new f rt" data-b="2" style="--w:260ms">
+    <div class="lbl">New this sprint</div>
+    <p class="h">029 · Station chat</p>
+  </div>
+  <div class="abs steps">
+    <div class="step"><div class="lbl">01 · From the last review</div><p class="p">Messages that are not urgent should not go over the radio.</p></div>
+    <div class="step f up" data-b="2" style="--w:360ms"><div class="lbl">02 · The chat belongs to the station</div><p class="p">The operator writes to "Nørreport", not to a single person.</p></div>
+    <div class="step f up" data-b="3"><div class="lbl">03 · Nothing left to acknowledge</div><p class="p">017 depended on 016, so we dropped it.</p></div>
+  </div>
+  <aside class="notes" data-time="45 s">
+    <p>This is an example of us taking ownership of the backlog. At the last review, you told us that messages which are not urgent should not go over the radio. 016 was about sending an instruction to a steward, and 017 about acknowledging it. [click: 016 and 017 crossed out] Instead, [click: arrow to 029] we made a chat that belongs to the station. The operator writes to Nørreport, not to one person, so whoever is checked in there sees it. [click: step 03] Since 017 depended on 016, we dropped it.</p>
+  </aside>
+</section>
+
+<!-- 13b · PBI 029 · Question -->
+<section class="slide" data-part="3">
+  <div class="hd"><h1>PBI 029 · Question for Karsten</h1></div>
+  <div class="abs qs">
+    <div class="card f up" data-b="0"><span class="qn">01</span><span>We assume that stations and operators need to write to each other in both directions.<br>Is that assumption right?</span></div>
+  </div>
+  <aside class="notes" data-time="open">
+    <p>Before we show the chat, we want to check the assumption behind it. Karsten, is it right that stations and operators need to write to each other in both directions?</p>
+  </aside>
+</section>
+
+<!-- 14 · PBI 029 -->
+<section class="slide" id="s14" data-part="3">
+  <div class="hd"><h1>PBI 029 · Station chat</h1></div>
+  <h2 class="sub">Messages that are not urgent, without the radio</h2>
+  <div class="tagbox"><span class="tag prog">In progress</span></div>
+  <div class="abs flow">
+    <div class="shot" style="left:0;width:216px"><img src="img/029-1-steward-sent.png" alt="Steward phone, message sent">
+      <div class="co f zm" data-b="0" data-e="1" style="left:2.5%;top:6.4%;width:40%;height:6.4%;--w:300ms"><span class="pill r">Checked in</span></div>
+    </div>
+    <svg class="arr dr" data-b="1" style="left:220px" viewBox="0 0 56 36" aria-hidden="true"><line class="ln" pathLength="1" x1="4" y1="18" x2="44" y2="18" stroke="#59656E" stroke-width="3"/><path class="tip" d="M40 10 L50 18 L40 26" fill="none" stroke="#59656E" stroke-width="3" stroke-linejoin="round"/></svg>
+    <div class="msg" data-b="1" style="left:226px;background:var(--ink)"></div>
+    <div class="shot f rt" data-b="1" style="left:280px;width:853px;--w:120ms"><img src="img/029-2-operator-reply.png" alt="Operator messages panel with a reply">
+      <div class="co f zm" data-b="1" data-e="2" style="left:69%;top:49.6%;width:29.4%;height:42.4%;--w:240ms"><span class="pill l">Stationsbeskeder</span></div>
+    </div>
+    <svg class="arr dr" data-b="2" style="left:1137px" viewBox="0 0 56 36" aria-hidden="true"><line class="ln" pathLength="1" x1="4" y1="18" x2="44" y2="18" stroke="#59656E" stroke-width="3"/><path class="tip" d="M40 10 L50 18 L40 26" fill="none" stroke="#59656E" stroke-width="3" stroke-linejoin="round"/></svg>
+    <div class="msg" data-b="2" style="left:1143px;background:var(--red)"></div>
+    <div class="shot f rt" data-b="2" style="left:1197px;width:216px;--w:120ms"><img src="img/029-3-steward-reply.png" alt="Steward phone, sees the reply"></div>
+    <div class="abs f up" data-b="3" style="right:0;top:0;width:230px;display:flex;flex-direction:column;align-items:center">
+      <div class="shot" style="width:196px;height:436px"><img src="img/029-4-offline-pending.png" alt="Steward phone, message pending while offline"></div>
+      <p class="cap">Afventer while offline</p>
+    </div>
+  </div>
+  <div class="abs steps">
+    <div class="step"><div class="lbl">01 · Check in</div><p class="p">Only a steward who has checked in at the station can open its chat.</p></div>
+    <div class="step f up" data-b="1" style="--w:200ms"><div class="lbl">02 · Write</div><p class="p">The message is shown as coming from the station, not from the steward.</p></div>
+    <div class="step f up" data-b="2" style="--w:200ms"><div class="lbl">03 · Answer</div><p class="p">The operator answers, and every steward at the station sees the answer.</p></div>
+  </div>
+  <aside class="notes" data-time="75 s">
+    <p>This is the station chat. Only a steward who is checked in at the station can open it. [click: message to the operator] When they write, the operator sees the message as coming from the station, not from the person. The operator has a messages panel with every station's chat and can reply, or write first. [click: reply back to the steward] Every steward at that station sees the reply, also someone who checks in later. [click: offline inset] If the steward has no connection, the message shows "Afventer" and is sent when the connection is back.</p>
+  </aside>
+</section>
+
+<!-- 15 · PBI 029 · Acceptance criteria -->
+<section class="slide" id="s15" data-part="3">
+  <div class="hd"><h1>PBI 029 · Acceptance criteria</h1></div>
+  <div class="abs lbl aclbl">Acceptance criteria (issue #331)</div>
+  <div class="tagbox"><span class="tag prog">In progress</span></div>
+  <div class="abs cols">
+    <div class="col">
+      <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:0;--w:200ms">✓</span><p><b class="ink">Access:</b> A steward checked in (ARRIVED) at a station can open the station's thread from the main screen in one tap. A steward who is not checked in cannot read or send, and the server rejects the attempt with a message the client can display.</p></div>
+      <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:1;--w:200ms">✓</span><p><b class="ink">Messages:</b> A message is free text, is shown as coming from the station, and shows the time it was written. The steward's identity is not shown to the operator.</p></div>
+      <div class="card crit"><span class="mk no f tk" data-b="0" style="--i:2;--w:200ms">○</span><p><b class="ink">Operator:</b> An operator can write to any station's thread during an active scenario, as a reply or as the first message. It reaches the stewards checked in at that station within the timings in A-004, with a visible in-app notification, and messages only reach operators in the station's line group (#315).</p></div>
+      <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:3;--w:200ms">✓</span><p><b class="ink">Pinning:</b> An operator can pin a station message and unpin it again. Pinned messages are collected in one saved view. A pin belongs to the operator who made it and lasts until their browser session ends.</p></div>
+    </div>
+    <div class="col">
+      <div class="card crit"><span class="mk no f tk" data-b="0" style="--i:4;--w:200ms">○</span><p><b class="ink">Lifetime:</b> The thread stays at the station while the scenario is live, so a steward who checks in later sees the earlier messages. At stand-down it is closed and removed from both clients.</p></div>
+      <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:5;--w:200ms">✓</span><p><b class="ink">Offline:</b> A message written without connection is queued, sent once on reconnection (A-006) and shown as pending, and it keeps its original time written.</p></div>
+      <div class="card crit dm" data-b="1"><span class="mk ok f tk" data-b="0" style="--i:6;--w:200ms">✓</span><p><b class="ink">Incident log:</b> Every message writes an event to the incident log (A-023) with the station as the source, the text and both timestamps (written and received by the server), and without the steward's identity.</p></div>
+    </div>
+  </div>
+  <aside class="notes" data-time="30 s">
+    <p>Here are all seven criteria in full, for reference. I won't read them out. [click: open criteria stand out] Five are met. The operator criterion and the lifetime criterion are still open, so 029 continues next sprint.</p>
+    <p>Now Kathrine takes over with the usability test.</p>
+  </aside>
+</section>
+
+<!-- 16 · PBI 027 · Usability test plan -->
+<section class="slide" id="s16" data-part="4">
+  <div class="hd"><h1>PBI 027 · Usability test plan</h1></div>
+  <p class="abs lead">Proposed session:<br>1 operator + 3 stewards · 1.5 to 2 hours<br>simulated fallback scenario</p>
+  <div class="abs three">
+    <div class="card f up" data-b="1">
+      <div class="lbl">01 · Introduce</div>
+      <p class="p">First introduce the testers to the plan for the day and what they can expect. After this we would like to separate each person and ask preliminary questions.</p>
+    </div>
+    <div class="card f up" data-b="2">
+      <div class="lbl">02 · Observe</div>
+      <p class="h">Individual tasks</p>
+      <p class="p">Operator and stewards complete realistic tasks while thinking aloud. This allows them to look at and try the system before a possible field test.</p>
+    </div>
+    <div class="card f up" data-b="4">
+      <div class="lbl">03 · Discuss</div>
+      <p class="h">Feedback &amp; improvements</p>
+      <p class="p">Semistructured individual interviews. Compare with current practices and identify what should change. How did they like the system?</p>
+    </div>
+  </div>
+  <div class="abs card fieldtest f dn" data-b="3">
+    <div class="lbl">02.1 · Field test?</div>
+    <p class="p24" style="margin-top:10px">Go out in the metro and try the system. Needs more clarification.</p>
+  </div>
+  <div class="abs card strip callout f up" data-b="5">We are testing the application, not the participants</div>
+  <aside class="notes" data-time="90 s">
+    <p>We have planned a usability evaluation of the actual operator and steward workflows. [click: 01 Introduce] We hope to have one operator and three stewards, using a simulated scenario that cannot affect live operations. [click: 02 Observe] The total time available is approximately two hours. [click: 02.1 Field test?] [click: 03 Discuss] [click: callout] We want feedback on whether our plan matches how Metro Service really works.</p>
+  </aside>
+</section>
+
+<!-- 17 · PBI 027 · Proposed test structure -->
+<section class="slide" id="s17" data-part="4">
+  <div class="hd"><h1>PBI 027 · Proposed test structure</h1></div>
+  <h2 class="sub">Four parts, within a two-hour session</h2>
+  <div class="abs total">
+    <span class="f" style="--w:180ms" data-b="0" data-e="1">15 to 20 min</span>
+    <span class="f" style="--w:180ms" data-b="1" data-e="3">40 to 50 min</span>
+    <span class="f" style="--w:180ms" data-b="3" data-e="4">60 to 80 min</span>
+    <span class="f" style="--w:180ms" data-b="4">75 to 100 min</span>
+  </div>
+  <div class="abs track">
+    <div class="seg" data-b="0" style="left:0;width:16.667%;background:var(--red)"></div>
+    <div class="seg" data-b="1" style="left:16.667%;width:25%;background:var(--red);border-left:3px solid var(--white);box-sizing:border-box"></div>
+    <div class="seg" data-b="3" style="left:41.667%;width:25%;background:var(--grey);border-left:3px solid var(--white);box-sizing:border-box"></div>
+    <div class="seg" data-b="4" style="left:66.667%;width:16.667%;background:var(--red);border-left:3px solid var(--white);box-sizing:border-box"></div>
+  </div>
+  <div class="abs rowlist">
+    <div class="row card f up" data-b="0"><div class="no">01</div><div class="tcol"><div class="tt">Introduction &amp; existing workflows</div><div class="meta">15 to 20 min</div></div><p class="p">Short interview on procedures and pain points. Introduce think-aloud and ask for recording consent.</p></div>
+    <div class="row card f up" data-b="1"><div class="no">02</div><div class="tcol"><div class="tt">Individual task-based testing</div><div class="meta">25 to 30 min</div></div><p class="p">Participants work separately: scenario activation, assignment, arrival, station status and messages.</p></div>
+    <div class="row card f up" data-b="3"><div class="no">03</div><div class="tcol"><div class="tt">Field test or office simulation</div><div class="meta">20 to 30 min?</div></div><p class="p">Observe use while moving between locations, if travel time permits. Decision needed from Metro.</p></div>
+    <div class="row card f up" data-b="4"><div class="no">04</div><div class="tcol"><div class="tt">Semistructured feedback</div><div class="meta">15 to 20 min</div></div><p class="p">Open questions on usability, missing information and differences from current routines.</p></div>
+  </div>
+  <p class="abs meta staff f up" data-b="2">Staffing: ideally 2 students per steward, a facilitator and a note-taker or technical support. One or more operator observers.</p>
+  <aside class="notes" data-time="90 s">
+    <p>First, around 15 to 20 minutes of introduction and open questions about existing workflows, including consent for any recording. [click: row 02] Next, 25 to 30 minutes of individual tasks. We want participants separated so they do not influence one another, and to think aloud while we time tasks and record difficulties. [click: staffing] Ideally, two students accompany each steward. One facilitates and keeps the conversation flowing. The other takes notes, tracks times and manages technical issues. One or more students observe the operator. [click: row 03] Third, we need Karsten's input on whether travelling out to the Metro is feasible. [click: row 04, total] Finally, 15 to 20 minutes of semistructured feedback. The activities add up to 75 to 100 minutes, before travel and transitions.</p>
+  </aside>
+</section>
+
+<!-- 18 · PBI 027 · For discussion with Metro -->
+<section class="slide" id="s18" data-part="4">
+  <div class="hd"><h1>PBI 027 · For discussion with Metro</h1></div>
+  <h2 class="sub">Does this work in practice?</h2>
+  <div class="abs two">
+    <div class="card">
+      <div class="lbl">Main decision</div>
+      <p class="h">Field test or simulate indoors?</p>
+      <p class="p">With only two hours available, would walking from the Metro Service building to a station leave enough time to test and interview participants? How far apart are the planned test locations?</p>
+      <p class="p">Would a simulation in the office be more realistic to organise?</p>
+    </div>
+    <div class="card f rt" data-b="1">
+      <div class="lbl">Practical confirmations</div>
+      <p class="h">What do we need?</p>
+      <ul class="p bul">
+        <li class="f up" data-b="1" style="--i:1">1 operator and ideally 3 stewards</li>
+        <li class="f up" data-b="1" style="--i:2">Separate participants for individual tasks</li>
+        <li class="f up" data-b="1" style="--i:3">Android phones and operator access</li>
+        <li class="f up" data-b="1" style="--i:4">Permission for audio recording, with the participants' consent</li>
+        <li class="f up" data-b="2">Metro tickets or other access for the students who accompany stewards</li>
+        <li class="f up" data-b="3">Any operational, security or confidentiality restrictions: what should we not ask participants to do, observe, record or discuss?</li>
+      </ul>
+    </div>
+  </div>
+  <div class="abs card strip callout f up" data-b="4">Our main request: Is the structure realistic, and which workflows or situations would you like us to include?</div>
+  <aside class="notes" data-time="2 min">
+    <p>This is the most important discussion point. We have about two hours, and we also want to leave time to interview participants afterwards. Do you think a field test is realistic once we account for travel from the Metro Service office to the stations? Or should we simulate the scenario inside the building? [click: what we need] We would also like to confirm an operator, three stewards, separate tasks, access to devices, and whether audio recording is acceptable with the participants' consent. [click: tickets] If students go with the stewards into the Metro, do we need tickets or other access? [click: restrictions] Are there restrictions we should know about, things we should not ask participants to do, observe, record or discuss? [click: main request] And are there specific workflows or situations you would like us to include? Please tell us if the planned tasks do not represent real work.</p>
+  </aside>
+</section>
+
+<!-- 19 · Up next -->
+<section class="slide" id="s19" data-part="4">
+  <div class="hd"><h1>Up next · Started &amp; in progress</h1></div>
+  <h2 class="sub">Useful additions beyond the core steward workflow</h2>
+  <div class="abs two">
+    <div class="card">
+      <div class="lbl">PBI 030 · Admin dashboard</div>
+      <p class="h">Managing users and scenarios</p>
+      <p class="p">An administration view is being implemented to let authorised administrators manage user accounts and roles, create or edit scenarios, and review relevant activity.</p>
+      <p class="p">This is additional functionality we consider valuable for maintaining and operating the system, even though it is not central to the usability test.</p>
+    </div>
+    <div class="card f rt" data-b="2">
+      <div class="lbl">Next steps</div>
+      <p class="h">Implementation &amp; evaluation</p>
+      <ul class="p bul">
+        <li class="f up" data-b="2" style="--i:1">Continue the admin work</li>
+        <li class="f up" data-b="2" style="--i:2">Finalise the test setup</li>
+        <li class="f up" data-b="2" style="--i:3">Run usability evaluation</li>
+        <li class="f up" data-b="2" style="--i:4">Turn findings into prioritised issues</li>
+      </ul>
+    </div>
+  </div>
+  <p class="abs meta status f up" data-b="1">Status: PBI 030 is in progress, not presented as completed functionality.</p>
+  <aside class="notes" data-time="60 s">
+    <p>Finally, looking ahead, we have also started work on an admin dashboard, PBI 030. It's not part of the core steward usability test, but we think it's valuable. Authorised administrators will be able to manage accounts and roles, create and edit scenarios, and see relevant activity. [click: status line] This is still in progress, not a completed feature. [click: next steps] Alongside that, our next steps are finalising the usability setup, conducting the test and turning what we find into issues for subsequent work.</p>
+  </aside>
+</section>
+
+<!-- 20 · PBI 030 · Questions -->
+<section class="slide" id="s20" data-part="4">
+  <div class="hd"><h1>PBI 030 · Questions for Karsten</h1></div>
+  <h2 class="sub">Accounts and access</h2>
+  <div class="abs two">
+    <div class="card f up" data-b="0">
+      <div class="lbl">01 · Login</div>
+      <p class="p">Stewards may sign in through their work phone rather than in each app. How important is it that our app supports the same login? Should we consider that integration for future development?</p>
+    </div>
+    <div class="card f up" data-b="1">
+      <div class="lbl">02 · Lines</div>
+      <p class="p">Should operators and stewards only see information for their own Metro lines, or are there situations where they need to see several lines?</p>
+    </div>
+  </div>
+  <aside class="notes" data-time="60 s">
+    <p>Since the admin dashboard is where accounts and roles are managed, we have two questions about access. First, stewards may sign in through their work phone instead of in each app. How important is it that our app works with that login, and should we plan for it? [click: lines] Second, today an operator only sees their own line group. Should operators and stewards only see their own lines, or do they sometimes need to see across lines?</p>
+    <p>That was everything from us. Thank you, and we are happy to take any further questions.</p>
+  </aside>
+</section>
+
+<!-- 21 · Definition of Done -->
+<section class="slide">
+  <div class="hd"><h1>Sprint 5 · Definition of Done</h1></div>
+  <div class="abs dod">
+    <div class="card"><span class="no">01</span><p class="p">Merged and run on the dev branch.</p></div>
+    <div class="card"><span class="no">02</span><p class="p">Whenever an acceptance criterion in an issue is fulfilled, check it off on the PBI and point to how and where it was solved.</p></div>
+    <div class="card"><span class="no">03</span><p class="p">New features, fixes and bugs are linked to issues. Documentation and chores do not need to be.</p></div>
+    <div class="card"><span class="no">04</span><p class="p">The PR passes all required CI checks, including test coverage.</p></div>
+    <div class="card"><span class="no">05</span><p class="p">Any decision a future reader would find surprising is recorded as an architecture decision record (ADR).</p></div>
+    <div class="card"><span class="no">06</span><p class="p">Documentation that the changes make wrong is corrected in the same pull request.</p></div>
+    <div class="card"><span class="no">07</span><p class="p">The PR is approved by at least 1 external reviewer and merged by the PR owner.</p></div>
+    <div class="card"><span class="no">08</span><p class="p">Every requested change is either fixed or answered with a reason it won't be. Those are listed under "Noticed, not fixed" in the PR, with a linked issue.</p></div>
+  </div>
+  <aside class="notes" data-time="reference">
+    <p>Reference slide. Show it if Karsten asks what Done means for us.</p>
+  </aside>
+</section>
+
+
+</div></div>
+<div id="notes" hidden><div class="nh"></div><div class="nb"></div></div>
+
+<script>
+(() => {
+  const PARTS = ["App overview", "Live demo", "This sprint", "Usability test and up next", "Discussion"];
+  const stage = document.getElementById("stage");
+  const slides = [...document.querySelectorAll(".slide")];
+  const notes = document.getElementById("notes");
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  let cur = 0;
+  let step = 0;
+
+  slides.forEach((s, i) => {
+    if (i === 0) return;
+    const part = Number(s.dataset.part || 0);
+    const ft = document.createElement("div");
+    ft.className = "ft";
+    ft.innerHTML = '<div class="aauw"><img src="img/aau-logo-white.png" alt="Aalborg Universitet"></div>' +
+      (part ? '<div class="parts">' + PARTS.map((p, k) => '<span data-t="' + p + '"' + (k + 1 === part ? ' class="cur"' : '') + '>' + p + '</span>').join("") + '</div>' : '') +
+      '<div class="num">' + (i + 1) + '</div>';
+    s.appendChild(ft);
+  });
+
+  const maxStep = s => {
+    let m = 0;
+    s.querySelectorAll("[data-b]").forEach(e => {
+      m = Math.max(m, Number(e.dataset.b));
+      if (e.dataset.e !== undefined) m = Math.max(m, Number(e.dataset.e));
+    });
+    return m;
+  };
+  const apply = (s, k) => {
+    s.querySelectorAll("[data-b]").forEach(e => {
+      const end = e.dataset.e === undefined ? Infinity : Number(e.dataset.e);
+      e.classList.toggle("on", k >= Number(e.dataset.b) && k < end);
+    });
+  };
+  const instant = (s, fn) => {
+    s.classList.add("instant");
+    fn();
+    void s.offsetWidth;
+    s.classList.remove("instant");
+  };
+
+  function show(i, atEnd, atStep) {
+    const prev = slides[cur];
+    const s = slides[i];
+    if (prev !== s) {
+      prev.classList.remove("active");
+      setTimeout(() => { if (slides[cur] !== prev) instant(prev, () => apply(prev, maxStep(prev))); }, 400);
+    }
+    cur = i;
+    const m = maxStep(s);
+    if (atStep !== undefined) {
+      step = Math.min(atStep, m);
+      instant(s, () => apply(s, step));
+      s.classList.add("active");
+    } else if (atEnd || reduced.matches) {
+      step = m;
+      instant(s, () => apply(s, m));
+      s.classList.add("active");
+    } else {
+      step = 0;
+      instant(s, () => apply(s, -1));
+      s.classList.add("active");
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (slides[cur] === s && step === 0) apply(s, 0); }));
+    }
+    const hash = "#" + (i + 1);
+    if (location.hash !== hash) history.replaceState(null, "", hash);
+    renderNotes();
+  }
+  function setStep(k) {
+    step = k;
+    apply(slides[cur], k);
+    renderNotes();
+  }
+  function next() {
+    if (!reduced.matches && step < maxStep(slides[cur])) setStep(step + 1);
+    else if (cur < slides.length - 1) show(cur + 1, false);
+  }
+  function prev() {
+    if (!reduced.matches && step > 0) setStep(step - 1);
+    else if (cur > 0) show(cur - 1, true);
+  }
+
+  function renderNotes() {
+    if (notes.hidden) return;
+    const s = slides[cur];
+    const aside = s.querySelector(".notes");
+    const m = maxStep(s);
+    notes.querySelector(".nh").textContent = "Slide " + (cur + 1) + " of " + slides.length +
+      (aside && aside.dataset.time ? " · " + aside.dataset.time : "") + " · build " + step + " of " + m;
+    let n = 0;
+    const html = aside ? aside.innerHTML.replace(/\[click(?::\s*([^\]]*))?\]/g, (_, label) => {
+      n += 1;
+      const cls = n <= step ? "ck done" : n === step + 1 ? "ck next" : "ck";
+      return '<span class="' + cls + '">click ' + n + (label ? ": " + label : "") + '</span>';
+    }) : "";
+    notes.querySelector(".nb").innerHTML = html;
+    fit();
+  }
+
+  function fit() {
+    const pad = innerWidth <= 700 ? 32 : 0;
+    const h = innerHeight - (notes.hidden ? 0 : notes.offsetHeight);
+    const k = Math.min((innerWidth - pad) / 1920, h / 1080);
+    stage.style.top = h / 2 + "px";
+    stage.style.transform = "translate(-50%, -50%) scale(" + k + ")";
+  }
+
+  function finalAll() {
+    slides.forEach(s => instant(s, () => apply(s, maxStep(s))));
+  }
+  window.addEventListener("beforeprint", finalAll);
+  window.addEventListener("afterprint", () => slides.forEach((s, i) => instant(s, () => apply(s, i === cur ? step : maxStep(s)))));
+  window.deck = { finalAll, go: (i, k) => show(i, false, k), maxStep: i => maxStep(slides[i]), count: slides.length };
+
+  document.addEventListener("keydown", e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    if (k === "ArrowRight" || k === "PageDown" || k === " " || k === "Enter") { e.preventDefault(); next(); }
+    else if (k === "ArrowLeft" || k === "PageUp" || k === "Backspace") { e.preventDefault(); prev(); }
+    else if (k === "Home") show(0, false);
+    else if (k === "End") show(slides.length - 1, true);
+    else if (k === "n" || k === "N") { notes.hidden = !notes.hidden; renderNotes(); fit(); }
+    else if (k === "f" || k === "F") {
+      try {
+        const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+        if (p && p.catch) p.catch(() => {});
+      } catch (err) {}
+    }
+  });
+  stage.addEventListener("click", e => { if (e.shiftKey) prev(); else next(); });
+  stage.addEventListener("contextmenu", e => { e.preventDefault(); prev(); });
+  window.addEventListener("resize", fit);
+  window.addEventListener("hashchange", () => {
+    const m = /^#(\d+)(?:-(\d+))?$/.exec(location.hash);
+    if (m && Number(m[1]) - 1 !== cur) show(Math.min(Math.max(Number(m[1]) - 1, 0), slides.length - 1), false, m[2] !== undefined ? Number(m[2]) : undefined);
+  });
+
+  fit();
+  finalAll();
+  const m = /^#(\d+)(?:-(\d+))?$/.exec(location.hash);
+  const start = m ? Math.min(Math.max(Number(m[1]) - 1, 0), slides.length - 1) : 0;
+  cur = start;
+  show(start, false, m && m[2] !== undefined ? Number(m[2]) : undefined);
+})();
+</script>
+</body>
+</html>
