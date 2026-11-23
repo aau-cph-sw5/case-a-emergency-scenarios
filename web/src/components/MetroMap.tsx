@@ -9,7 +9,11 @@ import {
   radius,
   text,
 } from "../../../shared/Theme";
-import { LINE_GROUP_LINES } from "../../../shared/auth/line-groups";
+import {
+  LINE_GROUP_LABELS,
+  LINE_GROUP_LINES,
+  LINE_GROUPS,
+} from "../../../shared/auth/line-groups";
 import {
   affectedStretchAsMapLine,
   areaAroundStations,
@@ -38,6 +42,61 @@ const COLOUR_MODES: { id: ColourBy; label: string }[] = [
   { id: "line", label: "Metrolinje" },
   { id: "did", label: "Destination ID" },
 ];
+
+type MapLines = {
+  runningLines: MapNetwork["lines"];
+  closedLine: MapNetwork["lines"][number] | null;
+  missingScenarioRoutes: boolean;
+  routeColors: Record<string, string>;
+};
+
+// Without a scenario, the map draws the line group's network in line colours.
+function networkLines(groupNetwork: MapNetwork["lines"]): MapLines {
+  return {
+    runningLines: groupNetwork,
+    closedLine: null,
+    missingScenarioRoutes: false,
+    routeColors: Object.fromEntries(
+      groupNetwork.map((line) => [
+        line.name,
+        line.color ?? palette.networkGrey,
+      ]),
+    ),
+  };
+}
+
+// With a scenario, the map draws its routes once the scenario has loaded.
+function scenarioMapLines(
+  scenario: Scenario | null,
+  groupNetwork: MapNetwork["lines"],
+  segments: MapNetwork["segments"],
+  colourBy: ColourBy,
+): MapLines {
+  const result = scenario
+    ? scenarioLines(scenario, groupNetwork, segments)
+    : null;
+  const runningLines = result?.lines ?? [];
+  return {
+    runningLines,
+    // The operating plan only holds the routes that still run, so the stretch
+    // the scenario closes is on no route and would not be drawn at all,
+    // leaving its staffed stations floating. It is drawn as its own line,
+    // dashed by blockedTracks.
+    closedLine: result?.closedLine ?? null,
+    missingScenarioRoutes: result?.missingRoutes ?? false,
+    routeColors: {
+      ...Object.fromEntries(
+        runningLines.map((route, index) => [
+          route.name,
+          colourBy === "did"
+            ? (route.color ?? DIDLineColors[index % DIDLineColors.length])
+            : routeColor(route, groupNetwork, theme.text),
+        ]),
+      ),
+      [CLOSED_LINE]: theme.blockedTrack,
+    },
+  };
+}
 
 // Scenario data determines staffing markers and the optional close-up view.
 // The operator chooses the visible line group separately in the header.
@@ -130,37 +189,17 @@ export function MetroMap({
   const network = mapNetwork.lines;
   const position = (station: string) => mapNetwork.positions[station];
   const view = mapView(scenario, deployments, network, position);
+  const groupLineNames = LINE_GROUPS.filter(
+    (group) => LINE_GROUP_LABELS[group] === lineGroup,
+  ).flatMap((group) => LINE_GROUP_LINES[group]);
   const groupNetwork = network.filter((line) =>
-    lineGroup.split("/").includes(line.name),
+    groupLineNames.includes(line.name),
   );
-  const scenarioLineResult =
-    scenarioId === null || scenario === null
-      ? null
-      : scenarioLines(scenario, groupNetwork, mapNetwork.segments);
-  const runningLines =
-    scenarioId === null ? groupNetwork : (scenarioLineResult?.lines ?? []);
-  const closedLine = scenarioLineResult?.closedLine ?? null;
-  const groupLines = closedLine ? [...runningLines, closedLine] : runningLines;
-  const missingScenarioRoutes = scenarioLineResult?.missingRoutes ?? false;
-  const routeColors =
+  const { runningLines, closedLine, missingScenarioRoutes, routeColors } =
     scenarioId === null
-      ? Object.fromEntries(
-          groupNetwork.map((line) => [
-            line.name,
-            line.color ?? palette.networkGrey,
-          ]),
-        )
-      : {
-          ...Object.fromEntries(
-            runningLines.map((route, index) => [
-              route.name,
-              colourBy === "did"
-                ? (route.color ?? DIDLineColors[index % DIDLineColors.length])
-                : routeColor(route, groupNetwork, theme.text),
-            ]),
-          ),
-          [CLOSED_LINE]: theme.blockedTrack,
-        };
+      ? networkLines(groupNetwork)
+      : scenarioMapLines(scenario, groupNetwork, mapNetwork.segments, colourBy);
+  const groupLines = closedLine ? [...runningLines, closedLine] : runningLines;
   const groupStations = new Set([
     ...groupNetwork.flatMap((line) => line.connections.flat()),
     ...groupLines.flatMap((line) => line.connections.flat()),
