@@ -49,6 +49,36 @@ rejects incomplete network responses to preserve a usable offline map, while web
 displays the partial network with a warning. Crossovers are not loaded by this
 endpoint.
 
+### Derive scenario map lines with `shared/scenario/map-lines.ts`
+
+Web and mobile derive map lines from a scenario through
+`shared/scenario/map-lines.ts`. Using one module keeps routes and closed
+stretches aligned across both clients. The file has no `react-native` or
+`Theme` imports, so Node unit tests import it directly.
+
+- `scenarioLines(scenario, groupLines, segments)` resolves the current
+  version's operating patterns for the selected line group. It skips blank
+  destination IDs, sorts patterns numerically by destination ID, and expands
+  `trackNumber: 12` to tracks 1 and 2. It returns `{ lines, closedLine, missingRoutes }`.
+  When `groupLines` does not match `scenario.lineGroup`, it returns empty
+  `lines`, `closedLine: null`, and `missingRoutes: false`.
+- `closedStretchLine(covers, running)` collects covered track segments that no
+  running route draws on the same track. It builds one map line with name
+  `CLOSED_LINE`, whose value is `"Spærret"`, or returns `null` when no covered
+  track remains undrawn.
+- `routeColor(route, lines, fallbackColor)` returns the colour of the single
+  Metro line that contains every connection in `route`. It returns
+  `fallbackColor` when `route` has no connections, matches zero or multiple
+  lines, or matches a line without a colour.
+
+`shared/scenario/affected-stations.ts` provides two helpers that
+`shared/scenario/map-lines.ts` builds on:
+
+- `coversAsMapLine(name, covers)` groups covered track segments into unique
+  station pairs with per-pair `connectionTracks` metadata.
+- `samePiece(pairA, pairB)` checks whether two station pairs represent the same
+  track piece regardless of direction.
+
 ## What things mean
 
 | Issue | Hook | Fields |
