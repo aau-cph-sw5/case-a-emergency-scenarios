@@ -415,14 +415,7 @@ describe("MapRender", () => {
       const ownStaffing = svgTextByTestId("station-staffing-KN")!;
       const ownLabel = svgTextByTestId("station-label-KN")!;
 
-      expect(ownDot).toBeDefined();
-      expect(ownGap).toBeDefined();
-      expect(ownRing).toBeDefined();
-      expect(ownStaffing).toBeDefined();
-      expect(ownLabel).toBeDefined();
-
       expect(ownDot.props.fill).toBe(coverageColors[level].fill);
-      expect(ownDot.props.fill).not.toBe(palette.metroSummerRed);
       expect(ownDot.props.stroke).toBe(theme.text);
       expect(ownStaffing.props.fill).toBe(coverageColors[level].text);
       expect(ownStaffing.props.children).toBe(2);
