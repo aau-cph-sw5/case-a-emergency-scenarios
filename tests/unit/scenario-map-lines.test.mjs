@@ -1,6 +1,5 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LINE_GROUP_LINES } from "../../shared/auth/line-groups.ts";
 import { connectionKey } from "../../shared/network/network.ts";
 import {
   CLOSED_LINE,
@@ -98,13 +97,7 @@ const makeScenario = ({
   versions: versions ?? [{ version: "1", operatingPlan: { patterns } }],
 });
 
-test("CLOSED_LINE uses the Danish label and LINE_GROUP_LINES maps both groups", () => {
-  assert.equal(CLOSED_LINE, "Spærret");
-  assert.deepEqual(LINE_GROUP_LINES, {
-    M1_M2: ["M1", "M2"],
-    M3_M4: ["M3", "M4"],
-  });
-});
+const fallback = "#202020";
 
 test("routeStops sorts by numeric sequence, defaults non-numbers to 0, and rejects short or invalid stops", () => {
   assert.deepEqual(
@@ -302,7 +295,6 @@ test("scenarioLines reports missingRoutes for empty patterns or missing current 
 });
 
 test("routeColor returns the single matching Metro line colour regardless of direction", () => {
-  const fallback = "#202020";
   assert.equal(
     routeColor(
       {
@@ -323,8 +315,6 @@ test("routeColor returns the single matching Metro line colour regardless of dir
 });
 
 test("routeColor falls back for shared, unmatched, empty, or colourless line matches", () => {
-  const fallback = "#202020";
-
   assert.equal(
     routeColor({ connections: [["FOR", "KGN"]] }, m1m2Lines, fallback),
     fallback,

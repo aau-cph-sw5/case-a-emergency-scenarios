@@ -10,8 +10,7 @@ export type CoveredSegment = Pick<
   "trackNumber" | "stationA" | "stationB"
 >;
 
-// Builds a map line from covered track segments, deduplicating station pairs by
-// connectionKey and preserving per-connection track metadata.
+// One connection per station pair, with the tracks covered on each pair.
 export function coversAsMapLine(
   name: string,
   covers: readonly CoveredSegment[] | undefined,
@@ -52,11 +51,10 @@ export function affectedStretchAsMapLine(
   const positioned = (scenario.covers ?? []).filter(
     (segment) => position(segment.stationA) && position(segment.stationB),
   );
-  const { name, connections } = coversAsMapLine(scenario.name, positioned);
   return {
-    name,
+    name: scenario.name,
     tracks: [1, 2],
-    connections,
+    connections: coversAsMapLine(scenario.name, positioned).connections,
   };
 }
 
