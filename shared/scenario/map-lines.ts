@@ -1,16 +1,15 @@
 // No react-native or Theme imports here, so tests/unit can import this file in Node.
-import { LINE_GROUP_LABELS, type LineGroup } from "../auth/line-groups";
+import { LINE_GROUP_LINES, type LineGroup } from "../auth/line-groups";
 import {
   connectionKey,
   resolveStops,
   type MapNetwork,
 } from "../network/network";
 import {
-  affectedStretchAsMapLine,
+  coversAsMapLine,
   samePiece,
   type CoveredSegment,
 } from "./affected-stations";
-import { routeConnections } from "./route-connections";
 
 export const CLOSED_LINE = "Spærret";
 
@@ -32,7 +31,7 @@ export type MapScenario = {
   covers?: readonly CoveredSegment[];
   versions: readonly {
     version: string;
-    operatingPlan?: {
+    operatingPlan: {
       patterns: readonly MapOperatingPattern[];
     };
   }[];
@@ -45,6 +44,23 @@ export type ScenarioLinesResult = {
   closedLine: MapLine | null;
   missingRoutes: boolean;
 };
+
+// Sorts route stops by numeric sequence (non-numbers default to 0) and returns
+// their station codes, or null if fewer than two stops or any station is invalid.
+export function routeStops(route: readonly MapRouteStop[]): string[] | null {
+  if (route.length < 2) return null;
+  const sorted = [...route].sort(
+    (a, b) =>
+      (typeof a.sequence === "number" ? a.sequence : 0) -
+      (typeof b.sequence === "number" ? b.sequence : 0),
+  );
+  const stations: string[] = [];
+  for (const stop of sorted) {
+    if (typeof stop.station !== "string") return null;
+    stations.push(stop.station);
+  }
+  return stations;
+}
 
 // A route takes the colour of the single Metro line that contains all of its
 // connections. Empty routes, routes shared by multiple lines, or routes that
@@ -86,7 +102,7 @@ export function closedStretchLine(
     (cover) => !drawn(cover.stationA, cover.stationB, cover.trackNumber),
   );
   if (open.length === 0) return null;
-  return affectedStretchAsMapLine({ name: CLOSED_LINE, covers: open }, null);
+  return coversAsMapLine(CLOSED_LINE, open);
 }
 
 // Resolves the scenario's current operating patterns and remaining closed
@@ -96,7 +112,7 @@ export function scenarioLines(
   groupLines: MapNetwork["lines"],
   segments: MapNetwork["segments"],
 ): ScenarioLinesResult {
-  const expectedLines = LINE_GROUP_LABELS[scenario.lineGroup].split("/");
+  const expectedLines = LINE_GROUP_LINES[scenario.lineGroup];
   if (!groupLines.some((line) => expectedLines.includes(line.name))) {
     return { lines: [], closedLine: null, missingRoutes: false };
   }
@@ -107,32 +123,26 @@ export function scenarioLines(
 
   let missingRoutes = false;
   const routes: MapNetwork["lines"] =
-    current?.operatingPlan?.patterns
+    current?.operatingPlan.patterns
       .filter((pattern) => pattern.did.trim() !== "")
       .sort((a, b) => a.did.localeCompare(b.did, undefined, { numeric: true }))
       .map((pattern) => {
         const tracks =
           pattern.trackNumber === 12 ? [1, 2] : [pattern.trackNumber];
-        const stops = routeConnections(pattern.route);
-        const stopList = stops.length
-          ? [stops[0][0], ...stops.map(([, station]) => station)]
-          : [];
-        if (stopList.length < 2 || stops.length !== pattern.route.length - 1) {
+        const stops = routeStops(pattern.route);
+        let connections: MapLine["connections"] = [];
+        if (stops === null) {
           missingRoutes = true;
-          return {
-            name: pattern.did,
-            color: pattern.color,
-            tracks,
-            connections: [],
-          };
+        } else {
+          const result = resolveStops(stops, groupLines, segments, tracks);
+          if (result.incomplete) missingRoutes = true;
+          connections = result.connections;
         }
-        const result = resolveStops(stopList, groupLines, segments, tracks);
-        if (result.incomplete) missingRoutes = true;
         return {
           name: pattern.did,
           color: pattern.color,
           tracks,
-          connections: result.connections,
+          connections,
         };
       }) ?? [];
 

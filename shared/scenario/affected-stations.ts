@@ -10,38 +10,53 @@ export type CoveredSegment = Pick<
   "trackNumber" | "stationA" | "stationB"
 >;
 
-// Turns covered track segments into a map line with per-track metadata,
-// deduplicating station pairs by connectionKey. When position is provided,
-// only pairs where both endpoints have a map position are kept.
-export function affectedStretchAsMapLine(
-  scenario: { name: string; covers?: readonly CoveredSegment[] },
-  position:
-    ((station: string) => [number, number] | undefined) | null = getStation,
+// Builds a map line from covered track segments, deduplicating station pairs by
+// connectionKey and preserving per-connection track metadata.
+export function coversAsMapLine(
+  name: string,
+  covers: readonly CoveredSegment[] | undefined,
 ) {
   const connections: StationPair[] = [];
   const connectionTracks: Record<string, number[]> = {};
-  const tracks: number[] = [];
+  const tracks = new Set<number>();
 
-  for (const { stationA, stationB, trackNumber } of scenario.covers ?? []) {
-    if (position && (!position(stationA) || !position(stationB))) continue;
-    const key = connectionKey(stationA, stationB);
-    if (!connectionTracks[key]) {
-      connectionTracks[key] = [];
-      connections.push([stationA, stationB]);
+  for (const segment of covers ?? []) {
+    const key = connectionKey(segment.stationA, segment.stationB);
+    let segmentTracks = connectionTracks[key];
+    if (!segmentTracks) {
+      segmentTracks = [];
+      connectionTracks[key] = segmentTracks;
+      connections.push([segment.stationA, segment.stationB]);
     }
-    if (!connectionTracks[key].includes(trackNumber)) {
-      connectionTracks[key].push(trackNumber);
+    if (!segmentTracks.includes(segment.trackNumber)) {
+      segmentTracks.push(segment.trackNumber);
     }
-    if (!tracks.includes(trackNumber)) {
-      tracks.push(trackNumber);
-    }
+    tracks.add(segment.trackNumber);
   }
 
   return {
-    name: scenario.name,
-    tracks,
+    name,
+    tracks: [...tracks],
     connections,
     connectionTracks,
+  };
+}
+
+// Turns a scenario's covered segments into a map line for pairs where both
+// stations have map positions. Keeps both tracks so callers pairing this with
+// networkWithoutStretch continue drawing the full affected stretch.
+export function affectedStretchAsMapLine(
+  scenario: { name: string; covers?: readonly CoveredSegment[] },
+  position: (station: string) => [number, number] | undefined = getStation,
+) {
+  const positioned = (scenario.covers ?? []).filter(
+    (segment) => position(segment.stationA) && position(segment.stationB),
+  );
+  const { name, connections } = coversAsMapLine(scenario.name, positioned);
+  return {
+    name,
+    tracks: [1, 2],
+    connections,
   };
 }
 

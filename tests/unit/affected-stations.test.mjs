@@ -5,6 +5,7 @@ import {
   affectedStations,
   affectedStretchAsMapLine,
   areaAroundStations,
+  coversAsMapLine,
   linesThrough,
   networkWithoutStretch,
   requiredStations,
@@ -141,16 +142,13 @@ test("lists no stations when the current version requires none", () => {
   );
 });
 
-test("builds per-track connectionTracks and deduplicates reversed connections", () => {
-  const stretch = affectedStretchAsMapLine({
-    name: "Single and double track",
-    covers: [
-      { trackNumber: 1, stationA: "FOR", stationB: "KN" },
-      { trackNumber: 2, stationA: "KN", stationB: "FOR" },
-      { trackNumber: 1, stationA: "FOR", stationB: "KN" },
-      { trackNumber: 2, stationA: "KN", stationB: "KGN" },
-    ],
-  });
+test("coversAsMapLine builds per-track connectionTracks and deduplicates reversed connections", () => {
+  const stretch = coversAsMapLine("Single and double track", [
+    { trackNumber: 1, stationA: "FOR", stationB: "KN" },
+    { trackNumber: 2, stationA: "KN", stationB: "FOR" },
+    { trackNumber: 1, stationA: "FOR", stationB: "KN" },
+    { trackNumber: 2, stationA: "KN", stationB: "KGN" },
+  ]);
 
   assert.deepEqual(stretch, {
     name: "Single and double track",
@@ -166,30 +164,46 @@ test("builds per-track connectionTracks and deduplicates reversed connections", 
   });
 });
 
-test("returns empty stretch metadata when scenario has no covers", () => {
-  assert.deepEqual(affectedStretchAsMapLine(scenarioWithoutStations), {
-    name: "no covers",
+test("coversAsMapLine keeps unpositioned stations and handles empty or missing covers", () => {
+  assert.deepEqual(
+    coversAsMapLine("Synthetic", [
+      { trackNumber: 2, stationA: "A", stationB: "B" },
+    ]),
+    {
+      name: "Synthetic",
+      tracks: [2],
+      connections: [["A", "B"]],
+      connectionTracks: {
+        [connectionKey("A", "B")]: [2],
+      },
+    },
+  );
+  assert.deepEqual(coversAsMapLine("Empty", undefined), {
+    name: "Empty",
     tracks: [],
     connections: [],
     connectionTracks: {},
   });
 });
 
-test("keeps synthetic stations when position filtering is disabled", () => {
-  const stretch = affectedStretchAsMapLine(
-    {
-      name: "Synthetic",
-      covers: [{ trackNumber: 2, stationA: "A", stationB: "B" }],
-    },
-    null,
-  );
+test("affectedStretchAsMapLine preserves tracks [1, 2] and deduplicates positioned connections", () => {
+  const stretch = affectedStretchAsMapLine({
+    name: "Single track cover",
+    covers: [
+      { trackNumber: 1, stationA: "FOR", stationB: "KN" },
+      { trackNumber: 1, stationA: "KN", stationB: "FOR" },
+    ],
+  });
+
   assert.deepEqual(stretch, {
-    name: "Synthetic",
-    tracks: [2],
-    connections: [["A", "B"]],
-    connectionTracks: {
-      [connectionKey("A", "B")]: [2],
-    },
+    name: "Single track cover",
+    tracks: [1, 2],
+    connections: [["FOR", "KN"]],
+  });
+  assert.deepEqual(affectedStretchAsMapLine(scenarioWithoutStations), {
+    name: "no covers",
+    tracks: [1, 2],
+    connections: [],
   });
 });
 

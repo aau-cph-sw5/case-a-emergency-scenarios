@@ -1,10 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { LINE_GROUP_LINES } from "../../shared/auth/line-groups.ts";
 import { connectionKey } from "../../shared/network/network.ts";
 import {
   CLOSED_LINE,
   closedStretchLine,
   routeColor,
+  routeStops,
   scenarioLines,
 } from "../../shared/scenario/map-lines.ts";
 
@@ -73,65 +75,92 @@ const segments = allPairs.flatMap(([stationA, stationB], index) => [
   { id: index * 2 + 2, trackNumber: 2, stationA, stationB },
 ]);
 
-test("CLOSED_LINE uses the Danish label", () => {
+const makeRoute = (...stations) =>
+  stations.map((station, index) => ({ sequence: index + 1, station }));
+
+const makePattern = (did, trackNumber, route, extra = {}) => ({
+  did,
+  trackNumber,
+  route,
+  ...extra,
+});
+
+const makeScenario = ({
+  lineGroup = "M1_M2",
+  currentVersion = "1",
+  covers,
+  versions,
+  patterns = [],
+}) => ({
+  lineGroup,
+  currentVersion,
+  covers,
+  versions: versions ?? [{ version: "1", operatingPlan: { patterns } }],
+});
+
+test("CLOSED_LINE uses the Danish label and LINE_GROUP_LINES maps both groups", () => {
   assert.equal(CLOSED_LINE, "Spærret");
+  assert.deepEqual(LINE_GROUP_LINES, {
+    M1_M2: ["M1", "M2"],
+    M3_M4: ["M3", "M4"],
+  });
+});
+
+test("routeStops sorts by numeric sequence, defaults non-numbers to 0, and rejects short or invalid stops", () => {
+  assert.deepEqual(
+    routeStops([
+      { sequence: 2, station: "FOR" },
+      { sequence: 1, station: "FB" },
+    ]),
+    ["FB", "FOR"],
+  );
+  assert.deepEqual(
+    routeStops([
+      { sequence: 2, station: "FOR" },
+      { sequence: "first", station: "VAN" },
+      { station: "FL" },
+    ]),
+    ["VAN", "FL", "FOR"],
+  );
+  assert.equal(routeStops([]), null);
+  assert.equal(routeStops([{ sequence: 1, station: "VAN" }]), null);
+  assert.equal(
+    routeStops([
+      { sequence: 1, station: "VAN" },
+      { sequence: 2, station: 42 },
+    ]),
+    null,
+  );
 });
 
 test("scenarioLines resolves patterns sorted by numeric did, skips blank did, and expands track 12", () => {
-  const scenario = {
-    lineGroup: "M1_M2",
+  const scenario = makeScenario({
     currentVersion: "2",
     covers: [{ trackNumber: 2, stationA: "FB", stationB: "FOR" }],
     versions: [
       {
         version: "1",
         operatingPlan: {
-          patterns: [
-            {
-              did: "99",
-              trackNumber: 1,
-              route: [
-                { sequence: 1, station: "VAN" },
-                { sequence: 2, station: "FL" },
-              ],
-            },
-          ],
+          patterns: [makePattern("99", 1, makeRoute("VAN", "FL"))],
         },
       },
       {
         version: "2",
         operatingPlan: {
           patterns: [
-            {
-              did: "   ",
-              trackNumber: 1,
-              route: [
-                { sequence: 1, station: "VAN" },
-                { sequence: 2, station: "FL" },
-              ],
-            },
-            {
-              did: "10",
-              trackNumber: 12,
+            makePattern("   ", 1, makeRoute("VAN", "FL")),
+            makePattern("10", 12, makeRoute("FOR", "ISB"), {
               color: "#112233",
-              route: [
-                { sequence: 1, station: "FOR" },
-                { sequence: 2, station: "ISB" },
-              ],
-            },
-            {
-              did: "2",
-              trackNumber: 1,
-              route: [
-                { sequence: 2, station: "FOR" },
-                { sequence: 1, station: "FB" },
-              ],
-            },
+            }),
+            makePattern("2", 1, [
+              { sequence: 2, station: "FOR" },
+              { sequence: 1, station: "FB" },
+            ]),
           ],
         },
       },
     ],
-  };
+  });
 
   const result = scenarioLines(scenario, m1m2Lines, segments);
 
@@ -164,28 +193,11 @@ test("scenarioLines resolves patterns sorted by numeric did, skips blank did, an
 });
 
 test("scenarioLines resolves M3_M4 scenarios against M3/M4 group lines", () => {
-  const scenario = {
+  const scenario = makeScenario({
     lineGroup: "M3_M4",
-    currentVersion: "1",
     covers: [{ trackNumber: 1, stationA: "RAD", stationB: "ORI" }],
-    versions: [
-      {
-        version: "1",
-        operatingPlan: {
-          patterns: [
-            {
-              did: "1",
-              trackNumber: 2,
-              route: [
-                { sequence: 1, station: "KBH" },
-                { sequence: 2, station: "GLS" },
-              ],
-            },
-          ],
-        },
-      },
-    ],
-  };
+    patterns: [makePattern("1", 2, makeRoute("KBH", "GLS"))],
+  });
 
   const result = scenarioLines(scenario, m3m4Lines, segments);
 
@@ -212,28 +224,11 @@ test("scenarioLines resolves M3_M4 scenarios against M3/M4 group lines", () => {
 });
 
 test("scenarioLines returns empty routes, null closedLine, and missingRoutes false on line-group mismatch", () => {
-  const scenario = {
+  const scenario = makeScenario({
     lineGroup: "M3_M4",
-    currentVersion: "1",
     covers: [{ trackNumber: 1, stationA: "KBH", stationB: "RAD" }],
-    versions: [
-      {
-        version: "1",
-        operatingPlan: {
-          patterns: [
-            {
-              did: "1",
-              trackNumber: 1,
-              route: [
-                { sequence: 1, station: "KBH" },
-                { sequence: 2, station: "RAD" },
-              ],
-            },
-          ],
-        },
-      },
-    ],
-  };
+    patterns: [makePattern("1", 1, makeRoute("KBH", "RAD"))],
+  });
 
   assert.deepEqual(scenarioLines(scenario, m1m2Lines, segments), {
     lines: [],
@@ -243,41 +238,17 @@ test("scenarioLines returns empty routes, null closedLine, and missingRoutes fal
 });
 
 test("scenarioLines reports missingRoutes for short, invalid, and unresolvable routes", () => {
-  const scenario = {
-    lineGroup: "M1_M2",
-    currentVersion: "1",
-    versions: [
-      {
-        version: "1",
-        operatingPlan: {
-          patterns: [
-            {
-              did: "1",
-              trackNumber: 1,
-              route: [{ sequence: 1, station: "VAN" }],
-            },
-            {
-              did: "2",
-              trackNumber: 1,
-              route: [
-                { sequence: 1, station: "VAN" },
-                { sequence: 2, station: "FL" },
-                { sequence: 3 },
-              ],
-            },
-            {
-              did: "3",
-              trackNumber: 1,
-              route: [
-                { sequence: 1, station: "VAN" },
-                { sequence: 2, station: "UNKNOWN" },
-              ],
-            },
-          ],
-        },
-      },
+  const scenario = makeScenario({
+    patterns: [
+      makePattern("1", 1, [{ sequence: 1, station: "VAN" }]),
+      makePattern("2", 1, [
+        { sequence: 1, station: "VAN" },
+        { sequence: 2, station: "FL" },
+        { sequence: 3 },
+      ]),
+      makePattern("3", 1, makeRoute("VAN", "UNKNOWN")),
     ],
-  };
+  });
 
   const result = scenarioLines(scenario, m1m2Lines, segments);
 
@@ -290,41 +261,44 @@ test("scenarioLines reports missingRoutes for short, invalid, and unresolvable r
   ]);
 });
 
-test("scenarioLines reports missingRoutes when there are zero running patterns and still builds closedLine", () => {
+test("scenarioLines reports missingRoutes for empty patterns or missing current version and still builds closedLine", () => {
   const baseCovers = [{ trackNumber: 1, stationA: "VAN", stationB: "FL" }];
-
-  const emptyPatterns = scenarioLines(
-    {
-      lineGroup: "M1_M2",
-      currentVersion: "1",
-      covers: baseCovers,
-      versions: [{ version: "1", operatingPlan: { patterns: [] } }],
-    },
-    m1m2Lines,
-    segments,
-  );
-  assert.equal(emptyPatterns.missingRoutes, true);
-  assert.deepEqual(emptyPatterns.lines, []);
-  assert.deepEqual(emptyPatterns.closedLine, {
+  const expectedClosedLine = {
     name: CLOSED_LINE,
     tracks: [1],
     connections: [["VAN", "FL"]],
     connectionTracks: { [connectionKey("VAN", "FL")]: [1] },
-  });
+  };
 
-  const missingOperatingPlan = scenarioLines(
+  assert.deepEqual(
+    scenarioLines(
+      makeScenario({ covers: baseCovers, patterns: [] }),
+      m1m2Lines,
+      segments,
+    ),
     {
-      lineGroup: "M1_M2",
-      currentVersion: "1",
-      covers: baseCovers,
-      versions: [{ version: "1" }],
+      lines: [],
+      closedLine: expectedClosedLine,
+      missingRoutes: true,
     },
-    m1m2Lines,
-    segments,
   );
-  assert.equal(missingOperatingPlan.missingRoutes, true);
-  assert.deepEqual(missingOperatingPlan.lines, []);
-  assert.equal(missingOperatingPlan.closedLine?.name, CLOSED_LINE);
+
+  assert.deepEqual(
+    scenarioLines(
+      makeScenario({
+        currentVersion: "missing",
+        covers: baseCovers,
+        patterns: [makePattern("1", 1, makeRoute("VAN", "FL"))],
+      }),
+      m1m2Lines,
+      segments,
+    ),
+    {
+      lines: [],
+      closedLine: expectedClosedLine,
+      missingRoutes: true,
+    },
+  );
 });
 
 test("routeColor returns the single matching Metro line colour regardless of direction", () => {
@@ -351,25 +325,18 @@ test("routeColor returns the single matching Metro line colour regardless of dir
 test("routeColor falls back for shared, unmatched, empty, or colourless line matches", () => {
   const fallback = "#202020";
 
-  // Shared between M1 and M2.
   assert.equal(
     routeColor({ connections: [["FOR", "KGN"]] }, m1m2Lines, fallback),
     fallback,
   );
-
-  // Unmatched segment.
   assert.equal(
     routeColor({ connections: [["KBH", "RAD"]] }, m1m2Lines, fallback),
     fallback,
   );
-
-  // Empty connections must not vacuously match a single line.
   assert.equal(
     routeColor({ connections: [] }, [m1m2Lines[0]], fallback),
     fallback,
   );
-
-  // Matching line without a colour.
   assert.equal(
     routeColor(
       { connections: [["KGN", "ISB"]] },
@@ -381,20 +348,12 @@ test("routeColor falls back for shared, unmatched, empty, or colourless line mat
 });
 
 test("closedStretchLine keeps a single-track closure on track 2 next to a running route on track 1", () => {
-  const running = [
-    {
-      name: "1",
-      tracks: [1],
-      connections: [["FB", "FOR"]],
-    },
-  ];
-
   const closed = closedStretchLine(
     [
       { trackNumber: 1, stationA: "FB", stationB: "FOR" },
       { trackNumber: 2, stationA: "FB", stationB: "FOR" },
     ],
-    running,
+    [{ name: "1", tracks: [1], connections: [["FB", "FOR"]] }],
   );
 
   assert.deepEqual(closed, {
@@ -408,27 +367,25 @@ test("closedStretchLine keeps a single-track closure on track 2 next to a runnin
 });
 
 test("closedStretchLine respects per-connection connectionTracks on running routes", () => {
-  const running = [
-    {
-      name: "1",
-      tracks: [1, 2],
-      connections: [
-        ["FB", "FOR"],
-        ["FOR", "KGN"],
-      ],
-      connectionTracks: {
-        [connectionKey("FB", "FOR")]: [1],
-        [connectionKey("FOR", "KGN")]: [1, 2],
-      },
-    },
-  ];
-
   const closed = closedStretchLine(
     [
       { trackNumber: 2, stationA: "FOR", stationB: "FB" },
       { trackNumber: 2, stationA: "FOR", stationB: "KGN" },
     ],
-    running,
+    [
+      {
+        name: "1",
+        tracks: [1, 2],
+        connections: [
+          ["FB", "FOR"],
+          ["FOR", "KGN"],
+        ],
+        connectionTracks: {
+          [connectionKey("FB", "FOR")]: [1],
+          [connectionKey("FOR", "KGN")]: [1, 2],
+        },
+      },
+    ],
   );
 
   assert.deepEqual(closed, {
@@ -442,13 +399,7 @@ test("closedStretchLine respects per-connection connectionTracks on running rout
 });
 
 test("closedStretchLine returns null when every covered segment is drawn on the same track or covers are absent", () => {
-  const running = [
-    {
-      name: "1",
-      tracks: [1, 2],
-      connections: [["FB", "FOR"]],
-    },
-  ];
+  const running = [{ name: "1", tracks: [1, 2], connections: [["FB", "FOR"]] }];
 
   assert.equal(
     closedStretchLine(
