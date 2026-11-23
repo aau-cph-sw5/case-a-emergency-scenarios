@@ -207,42 +207,57 @@ const LABEL_BELOW_RIGHT = ["GLS", "HOL", "EBR", "SLU", "MOP", "NEL"];
 const LABEL_BELOW_LEFT = ["FBA", "EHP"];
 const LABEL_HORIZONTAL_RIGHT = ["ISB", "UNI", "KHS", "BC", "ØRE", "VEA"];
 
+const BASE_STATION_RADIUS = 10;
+const DOT_STROKE_WIDTH = 5;
+const RING_GAP_WIDTH = 3;
+const OUTER_RING_WIDTH = 3;
+const LABEL_GAP = 6;
+const BASE_OUTER_RING_EDGE =
+  BASE_STATION_RADIUS +
+  DOT_STROKE_WIDTH / 2 +
+  RING_GAP_WIDTH +
+  OUTER_RING_WIDTH;
+
+type StationAppearance =
+  | { kind: "plain" }
+  | { kind: "highlight"; color: string }
+  | { kind: "coverage"; colors: { fill: string; text: string }; own: boolean };
+
 function Station({
   name,
   x,
   y,
-  highlightColor,
+  appearance,
   requiredStaffing,
   isStop = false,
   ringOnly = false,
-  coverage,
-  ownStationRing = false,
   onPress,
 }: {
   name: string;
   x: number;
   y: number;
-  // Set only for the station to highlight, e.g. the steward's own (MET-A-010).
-  highlightColor?: string;
+  appearance: StationAppearance;
   requiredStaffing?: number;
   isStop?: boolean;
   ringOnly?: boolean;
-  // The live coverage fills the dot instead of the highlight (#310).
-  coverage?: { fill: string; text: string };
-  // Concentric Metro Black outer ring separated by a white gap for the own
-  // station when live coverage fills the dot (MET-A-031, #464).
-  ownStationRing?: boolean;
   onPress?: (station: string) => void;
 }) {
   const [hover, setHover] = useState(false);
-  const baseRadius = 10;
-  const dotRadius = hover ? baseRadius + 3 : baseRadius;
-  const dotStrokeWidth = 5;
-  const ringGapWidth = 3;
-  const outerRingWidth = 3;
-  const ringGapRadius = dotRadius + dotStrokeWidth / 2 + ringGapWidth / 2;
+  const ownStationRing = appearance.kind === "coverage" && appearance.own;
+  const dotRadius = hover ? BASE_STATION_RADIUS + 3 : BASE_STATION_RADIUS;
+  const ringGapRadius = dotRadius + DOT_STROKE_WIDTH / 2 + RING_GAP_WIDTH / 2;
   const outerRingRadius =
-    dotRadius + dotStrokeWidth / 2 + ringGapWidth + outerRingWidth / 2;
+    dotRadius + DOT_STROKE_WIDTH / 2 + RING_GAP_WIDTH + OUTER_RING_WIDTH / 2;
+  const dotFill =
+    appearance.kind === "coverage"
+      ? appearance.colors.fill
+      : appearance.kind === "highlight"
+        ? appearance.color
+        : theme.background;
+  const staffingFill =
+    appearance.kind === "coverage" ? appearance.colors.text : theme.text;
+  const labelFill =
+    appearance.kind === "highlight" ? appearance.color : theme.text;
   // Tilted and placed beside the dot, clear of the tracks. A track rising to
   // the right would lie along the usual label, so those stations mirror it.
   const mirrored =
@@ -253,7 +268,8 @@ function Station({
   const belowRight =
     LABEL_BELOW_RIGHT.includes(name) || (ringOnly && name === "RHP");
   const belowLeft = LABEL_BELOW_LEFT.includes(name);
-  const labelOffset = ownStationRing ? baseRadius + 11 : baseRadius + 6;
+  const labelOffset =
+    (ownStationRing ? BASE_OUTER_RING_EDGE : BASE_STATION_RADIUS) + LABEL_GAP;
   const labelX =
     mirrored || insideRing || belowLeft
       ? x - labelOffset - (ringOnly && name === "FB" ? 7 : 0)
@@ -263,7 +279,7 @@ function Station({
       ? y + 5
       : belowRight || belowLeft
         ? y + 20
-        : y - baseRadius - 2 - (name === "NØ" ? 5 : 0);
+        : y - BASE_STATION_RADIUS - 2 - (name === "NØ" ? 5 : 0);
   return (
     <G>
       {ownStationRing && (
@@ -275,7 +291,7 @@ function Station({
             r={ringGapRadius}
             fill="none"
             stroke={theme.background}
-            strokeWidth={ringGapWidth}
+            strokeWidth={RING_GAP_WIDTH}
             pointerEvents="none"
           />
           <Circle
@@ -285,7 +301,7 @@ function Station({
             r={outerRingRadius}
             fill="none"
             stroke={theme.text}
-            strokeWidth={outerRingWidth}
+            strokeWidth={OUTER_RING_WIDTH}
             pointerEvents="none"
           />
         </>
@@ -295,9 +311,9 @@ function Station({
         cx={x}
         cy={y}
         r={dotRadius}
-        fill={coverage?.fill ?? highlightColor ?? theme.background}
+        fill={dotFill}
         stroke={theme.text}
-        strokeWidth={dotStrokeWidth}
+        strokeWidth={DOT_STROKE_WIDTH}
         onPress={onPress ? () => onPress(name) : undefined}
         accessibilityLabel={onPress ? `Vælg station ${name}` : undefined}
         {...({
@@ -316,7 +332,7 @@ function Station({
           textAnchor="middle"
           fontSize={14}
           fontWeight="bold"
-          fill={coverage?.text ?? theme.text}
+          fill={staffingFill}
         >
           {requiredStaffing}
         </Text>
@@ -331,7 +347,7 @@ function Station({
         textAnchor={mirrored || insideRing || belowLeft ? "end" : "start"}
         transform={`rotate(${insideRing || outsideRight || horizontalRight ? 0 : mirrored || belowRight ? 45 : -45} ${labelX} ${labelY})`}
         onPress={onPress ? () => onPress(name) : undefined}
-        fill={highlightColor ?? theme.text}
+        fill={labelFill}
       >
         {name}
       </Text>
@@ -626,6 +642,7 @@ export default function MapRender({
     ),
     ...(highlightStation !== undefined ? [highlightStation] : []),
   ];
+  const highlightedSet = new Set(highlighted);
   const [hidden, setHidden] = useState<string[]>(initiallyHidden);
   const visible = lines.filter((l) => !hidden.includes(l.name));
   const connections = new Map<string, [string, string]>();
@@ -646,6 +663,22 @@ export default function MapRender({
       ),
     ),
   ];
+  const orderedStations = [
+    ...visibleStations.filter((station) => !highlightedSet.has(station)),
+    ...highlighted,
+  ].filter((station) => position(station) !== undefined);
+  const stationAppearance = (station: string): StationAppearance => {
+    if (!highlightedSet.has(station)) return { kind: "plain" };
+    const level = stationCoverage[station];
+    if (level) {
+      return {
+        kind: "coverage",
+        colors: coverageColors[level],
+        own: station === highlightStation,
+      };
+    }
+    return { kind: "highlight", color: highlightColor };
+  };
   const lineButtons = showLineButtons ? (
     <LineButtons
       colors={colors}
@@ -790,47 +823,25 @@ export default function MapRender({
           );
         })}
         {/* Stations and labels sit above every track, including shared lines. */}
-        {visibleStations
-          .filter((station) => !highlighted.includes(station))
-          .map((station) => {
-            const level = stationCoverage[station];
-            return (
-              <Station
-                key={station}
-                name={station}
-                x={position(station)![0]}
-                y={position(station)![1]}
-                coverage={level ? coverageColors[level] : undefined}
-                requiredStaffing={requiredStaffing[station]}
-                isStop={stopStations.includes(station)}
-                ringOnly={ringOnly}
-                onPress={onStationPress}
-              />
-            );
-          })}
-        {highlighted
-          .filter((station) => position(station) !== undefined)
-          .map((station) => {
-            const level = stationCoverage[station];
-            return (
-              <Station
-                key={`highlight-${station}`}
-                name={station}
-                x={position(station)![0]}
-                y={position(station)![1]}
-                {...(level
-                  ? {
-                      coverage: coverageColors[level],
-                      ownStationRing: station === highlightStation,
-                    }
-                  : { highlightColor })}
-                requiredStaffing={requiredStaffing[station]}
-                isStop={stopStations.includes(station)}
-                ringOnly={ringOnly}
-                onPress={onStationPress}
-              />
-            );
-          })}
+        {orderedStations.map((station) => {
+          const isHighlighted = highlightedSet.has(station);
+          const [x, y] = position(station)!;
+          return (
+            <Station
+              key={station}
+              name={station}
+              x={x}
+              y={y}
+              appearance={stationAppearance(station)}
+              requiredStaffing={
+                isHighlighted ? requiredStaffing[station] : undefined
+              }
+              isStop={stopStations.includes(station)}
+              ringOnly={ringOnly}
+              onPress={onStationPress}
+            />
+          );
+        })}
       </Svg>
     </View>
   );

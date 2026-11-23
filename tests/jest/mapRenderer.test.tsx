@@ -433,6 +433,7 @@ describe("MapRender", () => {
       const gapInnerEdge = ownGap.props.r - ownGap.props.strokeWidth / 2;
       const gapOuterEdge = ownGap.props.r + ownGap.props.strokeWidth / 2;
       const ringInnerEdge = ownRing.props.r - ownRing.props.strokeWidth / 2;
+      const ringOuterEdge = ownRing.props.r + ownRing.props.strokeWidth / 2;
 
       expect(ownGap.props.cx).toBe(ownDot.props.cx);
       expect(ownGap.props.cy).toBe(ownDot.props.cy);
@@ -449,6 +450,7 @@ describe("MapRender", () => {
       expect(ringInnerEdge).toBeGreaterThanOrEqual(gapOuterEdge);
 
       expect(ownLabel.props.fill).toBe(theme.text);
+      expect(ownLabel.props.x).toBeGreaterThan(ownDot.props.cx + ringOuterEdge);
 
       // Other covered stations keep their coverage fill without an outer ring.
       expect(circleByTestId("station-dot-FOR")?.props.fill).toBe(
@@ -458,18 +460,19 @@ describe("MapRender", () => {
         coverageColors.covered.text,
       );
       expect(svgTextByTestId("station-label-FOR")?.props.fill).toBe(theme.text);
-      expect(screen.queryByTestId("own-station-gap-FOR")).toBeNull();
-      expect(screen.queryByTestId("own-station-ring-FOR")).toBeNull();
+      expect(circleByTestId("own-station-gap-FOR")).toBeUndefined();
+      expect(circleByTestId("own-station-ring-FOR")).toBeUndefined();
     },
   );
 
-  it("renders live coverage without an outer ring on a non-highlighted station", () => {
+  it("renders live coverage without an outer ring on a marked station and keeps unmarked stations plain", () => {
     render(
       <MapRender
         lines={[{ name: "M2", tracks: [1, 2], connections: [["FOR", "KN"]] }]}
         colors={colors}
-        requiredStaffing={{ FOR: 3 }}
-        stationCoverage={{ FOR: "partial" }}
+        markedStations={["FOR"]}
+        requiredStaffing={{ FOR: 3, KN: 1 }}
+        stationCoverage={{ FOR: "partial", KN: "gap" }}
       />,
     );
 
@@ -479,9 +482,17 @@ describe("MapRender", () => {
     expect(svgTextByTestId("station-staffing-FOR")?.props.fill).toBe(
       coverageColors.partial.text,
     );
+    expect(svgTextByTestId("station-staffing-FOR")?.props.children).toBe(3);
     expect(svgTextByTestId("station-label-FOR")?.props.fill).toBe(theme.text);
-    expect(screen.queryByTestId("own-station-gap-FOR")).toBeNull();
-    expect(screen.queryByTestId("own-station-ring-FOR")).toBeNull();
+    expect(circleByTestId("own-station-gap-FOR")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-FOR")).toBeUndefined();
+
+    // Unmarked ordinary stations stay plain without coverage fill, staffing or outer ring.
+    expect(circleByTestId("station-dot-KN")?.props.fill).toBe(theme.background);
+    expect(svgTextByTestId("station-staffing-KN")).toBeUndefined();
+    expect(svgTextByTestId("station-label-KN")?.props.fill).toBe(theme.text);
+    expect(circleByTestId("own-station-gap-KN")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-KN")).toBeUndefined();
   });
 
   it("keeps highlightColor fill and label when highlighted or marked stations have no coverage", () => {
@@ -501,8 +512,8 @@ describe("MapRender", () => {
     expect(svgTextByTestId("station-label-KN")?.props.fill).toBe(
       palette.metroSummerRed,
     );
-    expect(screen.queryByTestId("own-station-gap-KN")).toBeNull();
-    expect(screen.queryByTestId("own-station-ring-KN")).toBeNull();
+    expect(circleByTestId("own-station-gap-KN")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-KN")).toBeUndefined();
 
     expect(circleByTestId("station-dot-FOR")?.props.fill).toBe(
       palette.metroSummerRed,
@@ -510,8 +521,8 @@ describe("MapRender", () => {
     expect(svgTextByTestId("station-label-FOR")?.props.fill).toBe(
       palette.metroSummerRed,
     );
-    expect(screen.queryByTestId("own-station-gap-FOR")).toBeNull();
-    expect(screen.queryByTestId("own-station-ring-FOR")).toBeNull();
+    expect(circleByTestId("own-station-gap-FOR")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-FOR")).toBeUndefined();
 
     // Inactive operator preview: marked stations without live coverage keep
     // their requiredStation highlight fill and label colour.
@@ -530,7 +541,7 @@ describe("MapRender", () => {
     expect(svgTextByTestId("station-label-KN")?.props.fill).toBe(
       theme.requiredStation,
     );
-    expect(screen.queryByTestId("own-station-gap-KN")).toBeNull();
-    expect(screen.queryByTestId("own-station-ring-KN")).toBeNull();
+    expect(circleByTestId("own-station-gap-KN")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-KN")).toBeUndefined();
   });
 });
