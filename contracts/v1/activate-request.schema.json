@@ -1,0 +1,12 @@
+{
+  "$id": "activate-request.schema.json",
+  "title": "Activate Request",
+  "type": "object",
+  "properties": {
+    "replaces": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The activationId of the active activation to stand down."
+    }
+  }
+}

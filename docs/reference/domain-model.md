@@ -1,0 +1,602 @@
+# Scenario Entity Model
+
+This document contains the Mermaid entity model together with traceability and notes for each entity.  
+The Mermaid diagram is kept focused on the data model; source references, assumptions, and open questions are documented below it instead of being stored as fake class attributes.
+
+---
+
+## Entity model
+```mermaid
+%%{init: {"nodeSpacing": 80, "rankSpacing": 90, "flowchart": {"curve": "linear", "nodeSpacing": 80, "rankSpacing": 90}}}%%
+classDiagram
+direction TB
+ 
+%% ============================================
+%% PERMANENT METRO NETWORK
+%% ============================================
+ 
+class MetroNetwork:::entity {
+  name : String
+}
+ 
+class MetroLine:::entity {
+  name : String
+}
+ 
+class LineStop:::entity {
+  sequence : Int
+}
+ 
+class Station:::entity {
+  name : String
+}
+ 
+class TrackSegment:::entity {
+  trackLabel : String
+}
+ 
+ 
+%% ============================================
+%% SCENARIO DEFINITION
+%% ============================================
+ 
+class Scenario:::entity {
+  scenarioId : String
+  name : String
+}
+ 
+class ScenarioVersion:::entity {
+  version : String
+  revision : String
+}
+ 
+class OperatingPlan:::entity {
+  name : String
+}
+ 
+class OperatingPattern:::entity {
+  operationType : OperationType
+  routeCode : String
+  track : String
+  maximumTrains : Int
+  did : String
+  description : String
+}
+ 
+class OperationType:::enum {
+  PENDULUM
+  ROUNDTRIP
+}
+ 
+class StationRequirement:::entity {
+  placement : String
+  minimumStaffing : Int
+}
+ 
+class StationDeployment:::entity {
+  status : DeploymentStatus
+  reportedAt : DateTime
+  arrivedAt : DateTime
+}
+ 
+class StaffingWindow:::entity {
+  dayPattern : String
+  startTime : Time
+  endTime : Time
+}
+ 
+class Action:::entity {
+  sequence : Int
+  instruction : String
+}
+ 
+class PassengerInformation:::entity {
+  channel : PassengerInfoChannel
+  language : String
+  message : String
+}
+ 
+class PassengerInfoChannel:::enum {
+  PA
+  PID
+}
+ 
+ 
+%% ============================================
+%% LIVE SCENARIO ACTIVATION
+%% ============================================
+ 
+class ScenarioActivation:::entity {
+  activationId : String
+  startedAt : DateTime
+  endedAt : DateTime
+  status : ActivationStatus
+  actor : String
+}
+ 
+class ActivationStatus:::enum {
+  ACTIVE
+  CLOSED
+}
+ 
+class StaffMember:::entity {
+  name : String
+}
+ 
+class DeploymentStatus:::enum {
+  UNMANNED
+  PENDING
+  MANNED
+}
+ 
+ 
+
+
+%% ============================================
+%% SCENARIO
+%% ============================================
+MetroNetwork "1" *-- "0..*" Scenario : scenarios
+
+%% ============================================
+%% LIVE SCENARIO ACTIVATION
+%% ============================================
+ScenarioActivation "0..*" --> "1" Scenario : uses
+Scenario "1" *-- "1..*" ScenarioVersion : versions
+Scenario "1" --> "0..1" ScenarioVersion : currentVersion
+ScenarioActivation "1" *-- "0..*" StationDeployment : deployments
+StationDeployment "0..*" --> "1" StaffMember : staff
+StationDeployment "0..*" --> "1" StationRequirement : fulfills
+
+%% ============================================
+%% SCENARIO VERSION CONTENT
+%% ============================================
+ScenarioVersion "1" *-- "0..*" PassengerInformation : passengerInformation
+ScenarioVersion "1" *-- "1" OperatingPlan : operatingPlan
+ScenarioVersion "1" *-- "1..*" StationRequirement : stationRequirements
+StationRequirement "1" *-- "0..*" Action : actions
+StationRequirement "1" *-- "0..*" StaffingWindow : activeDuring
+OperatingPlan "1" *-- "1..*" OperatingPattern : patterns
+
+%% ============================================
+%% PERMANENT NETWORK STRUCTURE
+%% ============================================
+MetroNetwork "1" *-- "1..*" MetroLine : contains
+MetroLine "1" *-- "2..*" LineStop : stops
+MetroLine "1..*" -- "1..*" TrackSegment : uses
+Scenario "1" -- "1..*" TrackSegment : covers
+OperatingPattern "1" --> "1..*" LineStop : route
+LineStop "0..*" --> "1" Station : station
+TrackSegment "0..*" --> "2" Station : endpoints
+StationRequirement "0..*" --> "1" Station : station
+
+
+%% ============================================
+%% STYLING
+%% ============================================
+classDef entity fill:#FFE86D,stroke:#A28E26,color:#574900
+classDef enum fill:#E8E8E8,stroke:#777777,color:#333333
+```
+
+---
+
+# Documentation and traceability
+
+## Source naming used in this document
+
+**FBS 1 VAN-FB-CCR** (M1/M2)  
+*Fallbackscenarie 1: VAN-FB - CCR - Fallbackscenarier.*
+
+**FBS 1 VAN-FB-CCR-STW** (M1/M2)  
+*Fallbackscenarie 1: VAN-FB - CCR - Fallbackscenarier STW placering / STW opgaver.*
+
+**ATD - Alternativ TogDrift M3-M4 v2.1** (M3/M4)  
+*Contains both CCR and STW material.*
+
+**Case A PowerPoint**  
+Metro stakeholder presentation for Case A.
+
+**MET-A-007**  
+[Operator selects and activates a scenario from the predefined list](https://github.com/aau-cph-sw5/semester-docs/blob/main/backlog/case-a-emergency-scenarios.md#met-a-007--operator-selects-and-activates-a-scenario-from-the-predefined-list)
+
+---
+## MetroNetwork, MetroLine, Station and LineStop
+
+| Entity | Description | Source |
+|---|---|---|
+| `MetroNetwork` | The whole metro system; top-level container for all lines and scenarios. | FBS 1 VAN-FB-CCR (M1/M2), ATD - Alternativ TogDrift M3-M4 v2.1 (M3/M4) |
+| `MetroLine` | A single metro line (e.g. M1, M3) made up of an ordered list of stops. | FBS 1 VAN-FB-CCR (M1/M2), ATD - Alternativ TogDrift M3-M4 v2.1 (M3/M4) |
+| `Station` | A physical station, which can be shared by several lines. | FBS 1 VAN-FB-CCR-STW (M1/M2), ATD - Alternativ TogDrift M3-M4 v2.1 (M3/M4) |
+| `LineStop` | A station's position (`sequence`) on a specific line. | FBS 1 VAN-FB-CCR-STW (M1/M2), ATD - Alternativ TogDrift M3-M4 v2.1 (M3/M4) |
+
+---
+## Scenario
+
+Scenarios are version controlled with [ScenarioVersion](##ScenarioVersion)
+
+| Attribute | Meaning | Traceability |
+|---|---|---|
+| `ScenarioId : String` | Unique identifier for this particular Scenario. | Model decision. |
+| `Name : String` | Display name for the the scenario. | Model decision. |
+
+The reason we separated the identifier and name is to avoid using the display name as the stable identifier for a scenario. 
+The ScenarioId remains unchanged even if the scenario is renamed, allowing references to the scenario to remain stable across versions.
+
+
+## ScenarioActivation
+
+### Purpose
+
+Represents one real activation of a predefined scenario.
+
+The relationship
+
+```text
+ScenarioActivation --> Scenario : uses
+```
+
+identifies which predefined scenario was activated.
+
+### Source
+
+**MET-A-007**
+
+The backlog states that activation writes an event to the incident log carrying the **actor** and **timestamp**.
+
+### Attributes
+
+| Attribute | Meaning | Traceability |
+|---|---|---|
+| `activationId : String` | Unique identifier for this particular activation. | Model decision. |
+| `startedAt : DateTime` | Timestamp for when the scenario was activated. | Supported by MET-A-007 activation-event timestamp. |
+| `endedAt : DateTime` | Timestamp for when the activation was closed. | Assumption / requires confirmation from a close/deactivation requirement. |
+| `status : ActivationStatus` | Whether the activation is currently active or closed. | Model decision based on lifecycle requirements. |
+| `actor : String` | Work ID of the operator who activated the scenario. | MET-A-007 states the actor is written to the incident log. |
+
+### Identifier note
+
+`scenarioId` should remain an attribute of `Scenario`, not the identifier of `ScenarioActivation`.
+
+An activation needs its own identifier because the same scenario may be activated multiple times.
+
+For example:
+
+```text
+Scenario:
+scenarioId = "VAN-FB"
+
+ScenarioActivation:
+activationId = "VAN-FB-2026-09-22-001"
+```
+
+The exact format is an implementation decision. It could instead be a UUID or database-generated ID. The important part is that the `ScenarioActivation -> Scenario` relationship tells us which scenario was activated.
+
+---
+
+## PassengerInformation
+
+### Purpose
+
+Stores passenger-facing information belonging to a scenario version.
+
+### Sources
+
+**M1/M2 — FBS 1 VAN-FB-CCR, pages 3–4**
+
+The material contains passenger announcements, for example a PA message informing passengers that they must change trains at Frederiksberg and that travel time between VAN and FB may be longer.
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1, page 6**
+
+### Attributes
+
+| Attribute | Meaning | Traceability |
+|---|---|---|
+| `channel : PassengerInfoChannel` | Where the information is presented. | PA/PID are present in the source material. |
+| `language : String` | Language of the message, e.g. Danish or English. | Source contains passenger information in language-specific form. |
+| `message : String` | The actual passenger-information text. | Directly supported by the passenger announcement material. |
+
+### Channel
+
+```text
+PA  = Passenger Announcement
+PID = Passenger Information Display
+```
+
+`channel` should therefore be kept.
+
+### Language note
+
+A Boolean should **not** be used for language. A Boolean such as `isDanish` becomes unclear as soon as another language is introduced.
+
+For now `String` is acceptable. An enum could later be introduced, for example:
+
+```text
+DA
+EN
+```
+
+---
+
+## ScenarioVersion
+
+### Purpose
+
+Represents a specific version/revision of an emergency scenario definition.
+
+### Source status
+
+**Assumption based on the Metro stakeholder presentation.**
+
+The stakeholder discussion indicated problems when steward-facing material does not align with newly changed emergency plans, and also discussed being able to return to previous versions.
+
+This needs confirmation with the stakeholder before it is treated as a confirmed domain requirement.
+
+### Attributes
+
+| Attribute | Meaning |
+|---|---|
+| `version : String` | Version identifier/number. |
+| `revision : String` | Description of what changed in this version. |
+
+---
+
+## StationRequirement
+ 
+### Purpose
+ 
+Represents the station-specific staffing requirement and task list defined by a scenario version. This is definition-time data: it describes what a station *should* look like whenever the scenario is activated, independent of any particular activation.
+ 
+### Sources
+ 
+**M1/M2 — FBS 1 VAN-FB-CCR, page 1**
+ 
+Shows which stations must be manned during the fallback scenario.
+ 
+**M1/M2 — FBS 1 VAN-FB-CCR-STW**
+ 
+Provides the staffing requirement for individual stations and the steward tasks associated with those stations.
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1**
+
+Shows which stations must be manned during the fallback scenario.
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1 (boxes containing STW information)**
+
+Provides the staffing requirement for individual stations and the steward tasks associated with those stations.
+ 
+### Attributes
+ 
+| Attribute | Meaning | Traceability |
+|---|---|---|
+| `minimumStaffing : Int` | Minimum number of stewards needed at the station. | Supported by station staffing requirements in the scenario material. |
+ 
+---
+ 
+## StationDeployment
+ 
+### Purpose
+ 
+Represents the live staffing state of one station during one specific `ScenarioActivation`. Each activation gets its own set of `StationDeployment` records, so staffing history is preserved independently across repeated activations of the same scenario.
+ 
+### Sources
+ 
+**M1/M2 — Case A PowerPoint, slides 5–7**
+ 
+Shows station manning visually, including stations that are unmanned, pending, or manned.
+
+**M3/M4 — Assumption based on M1/M2 - Case A PowerPoint, slides 5–7**
+
+Since M1/M2 have to show live StationDeployment we assume M3/M4 have the same requirement.
+
+
+ 
+### Attributes
+ 
+| Attribute | Meaning | Traceability |
+|---|---|---|
+| `status : DeploymentStatus` | Current station staffing state. | Based on the live manning state shown in Case A. |
+| `reportedAt : DateTime` | Time at which a steward reports/checks in for the deployment. | Assumption from the proposed digital workflow. |
+| `arrivedAt : DateTime` | Time at which a steward arrives and the station becomes manned. | Assumption from the proposed digital workflow. |
+ 
+### Relationships
+ 
+```text
+StationDeployment --> StationRequirement : fulfills
+StationDeployment --> StaffMember : staff
+```
+ 
+`fulfills` links each live deployment record back to the predefined requirement it is satisfying, so `minimumStaffing`, `StaffingWindow`, and `Action` data can still be looked up from a deployment without duplicating them per activation.
+ 
+
+### DeploymentStatus
+
+```text
+UNMANNED
+PENDING
+MANNED
+```
+
+These values represent the live staffing state shown in the proposed workflow.
+
+---
+
+## StaffingWindow
+
+### Purpose
+
+Defines periods in which a particular station staffing requirement applies.
+
+### Source
+
+**M1/M2 — FBS 1 VAN-FB-CCR-STW**
+
+Some stations are only required to be manned during specific periods, for example:
+
+```text
+Man-tor: 7-9 og 14-18
+Fre:     7-9 og 13-19
+```
+**M3/M4 — Assumption based on M1/M2 — FBS 1 VAN-FB-CCR-STW**
+
+Since M1/M2 have a Staffingwindow we assume M3/M4 have the same requirement
+
+### Attributes
+
+| Attribute | Meaning |
+|---|---|
+| `dayPattern : String` | Day or day range, for example `Man-tor`. |
+| `startTime : Time` | Start of the staffing interval. |
+| `endTime : Time` | End of the staffing interval. |
+
+A station can have multiple `StaffingWindow` entries because a single day pattern may have more than one interval.
+
+---
+
+## StaffMember
+
+### Purpose
+
+Identifies the steward currently assigned to a station.
+
+### Source status
+
+M1/M2 and M3/M4 - **Assumption based on the Metro stakeholder presentation.**
+
+The stakeholder briefly mentioned that it would be useful to know which steward is manning a station so that the person can be contacted.
+
+This should be confirmed with the stakeholder.
+
+### Attributes
+
+| Attribute | Meaning |
+|---|---|
+| `name : String` | Name of the steward. |
+
+A future version may require a work ID or another contact identifier instead of, or in addition to, the name.
+
+---
+
+## Action
+
+### Purpose
+
+Stores the station-specific tasks that a steward/operator must carry out.
+
+### Sources
+
+**M1/M2 — FBS 1 VAN-FB-CCR-STW**
+
+Each staffed station contains a list of instructions/tasks.
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1**
+
+Each staffed station contains a list of instructions and solution suggestions, however not as extensive as M1/M2.
+
+**Have to confirm with metro if there is more material with instructions/tasks 
+for the M3/M4**
+
+### Attributes
+
+| Attribute | Meaning |
+|---|---|
+| `sequence : Int` | Defines the order/prioritisation of the task. |
+| `instruction : String` | The instruction to carry out. |
+
+Example tasks in the material include putting on a yellow vest, making passenger announcements, directing passengers, and emptying trains.
+
+---
+
+## OperatingPlan
+
+### Purpose
+
+Represents the complete operating solution for a scenario version.
+
+An `OperatingPlan` contains one or more `OperatingPattern` entries.
+
+### Source status
+
+The operating solution is present in **FBS 1 VAN-FB-CCR** (M1/M2) and **ATD - Alternativ TogDrift M3-M4 v2.1** (M3/M4).
+
+`OperatingPlan` itself is a modelling abstraction used to group the individual operating patterns into one scenario solution.
+
+---
+
+## OperatingPattern
+
+### Purpose
+
+Represents one train-operation pattern within an operating plan.
+
+For example, one pattern may describe a pendulum operation between two points while another pattern describes the remaining train service.
+
+### Sources
+
+**M1/M2 — FBS 1 VAN-FB-CCR**
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1**
+
+### Attributes
+
+| Attribute | Meaning | Traceability |
+|---|---|---|
+| `operationType : OperationType` | Type of service, e.g. pendulum. | Pendulum operation is explicitly present in the VAN-FB material (M1/M2) and the ATD - Alternativ TogDrift M3-M4 v2.1 PowerPoint (M3/M4). |
+| `routeCode : String` | Route/section, e.g. `VAN-FB` (M1/M2) or `STK-OSO` (M3/M4). | Derived from the operating-plan material. |
+| `track : String` | Track used by the operating pattern. | Present in the operational material. |
+| `maximumTrains : Int` | Maximum number of trains for the pattern. | Present in the operational material; exact interpretation should be confirmed where the source gives a range. |
+| `did : String` | Destination ID used for the train operation. | Present in the CCR operating material (M1/M2) and the ATD - Alternativ TogDrift M3-M4 v2.1 PowerPoint (M3/M4). |
+| `description : String` | Additional explanation of the operating pattern. | Model field; optional unless required by the source. |
+
+### OperationType
+
+```text
+PENDULUM
+ROUNDTRIP
+```
+
+`PENDULUM` is supported by the VAN-FB fallback material (M1/M2) and the ATD - Alternativ TogDrift M3-M4 v2.1 PowerPoint/fallback material (M3/M4).
+
+`ROUNDTRIP` should remain marked for confirmation unless a specific M1/M2 or M3/M4 source explicitly uses that term.
+
+---
+
+## TrackSegment
+
+### Purpose
+
+Represents one physical track between two stations.
+
+A scenario can cover one or more track segments.
+
+### Sources
+
+**M1/M2 — FBS 1 VAN-FB-CCR, page 3**
+
+**M1/M2 — Case A PowerPoint, page/slide 7**
+
+**M3/M4 — ATD - Alternativ TogDrift M3-M4 v2.1, page 1**
+
+### Attributes
+
+| Attribute | Meaning |
+|---|---|
+| `trackLabel : String` | Identifier/label for the physical track. |
+
+The two stations at either end of the track are represented through a single relationship with multiplicity 2:
+
+```text
+TrackSegment "0..*" --> "2" Station : endpoints
+```
+
+---
+
+# Open questions for stakeholder
+
+1. **ScenarioVersion:** Whether scenario versioning and rollback is a required system feature, and what exactly constitutes a new `ScenarioVersion`.
+2. **ScenarioActivation:** Whether there is a requirement for closing/deactivating a scenario, which would make `endedAt` and the `CLOSED` status necessary.
+3. **StationDeployment (M3/M4):** Whether M3/M4 has the same need as M1/M2 to show live station manning (unmanned, pending, manned).
+4. **StationDeployment:** Whether `reportedAt` (steward reports/checks in) and `arrivedAt` (steward arrives, station becomes manned) are the right points in time to record in the digital workflow.
+5. **StaffingWindow (M3/M4):** Whether M3/M4 stations also have staffing windows where they only need to be manned in certain periods, as in M1/M2.
+6. **StaffMember:** Whether it is required to see which steward is manning a station, and whether stewards should be identified by name, work ID or another contact identifier.
+7. **Action (M3/M4):** Is there more material with steward instructions/tasks for M3/M4 than what is in the ATD PowerPoint?
+8. **OperatingPattern:** How `maximumTrains` should be interpreted where the source gives a range for the number of trains.
+9. **OperationType:** Whether `ROUNDTRIP` is a term Metro actually uses in M1/M2 or M3/M4, or whether it should be removed or renamed.

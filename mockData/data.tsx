@@ -1,0 +1,171 @@
+const lines: { name: string; connections: [string, string][] }[] = [
+  {
+    name: "M1",
+    connections: [
+      ["VAN", "FL"],
+      ["FL", "LIT"],
+      ["LIT", "SOT"],
+      ["SOT", "FB"],
+      ["FB", "FOR"],
+      ["FOR", "KN"],
+      ["KN", "KGN"],
+      ["KGN", "KHC"],
+      ["KHC", "ISB"],
+      ["ISB", "UNI"],
+      ["UNI", "KHS"],
+      ["KHS", "BC"],
+      ["BC", "ØRE"],
+      ["ØRE", "VEA"],
+    ],
+  },
+  {
+    name: "M2",
+    connections: [
+      ["VAN", "FL"],
+      ["FL", "LIT"],
+      ["LIT", "SOT"],
+      ["SOT", "FB"],
+      ["FB", "FOR"],
+      ["FOR", "KN"],
+      ["KN", "KGN"],
+      ["KGN", "KHC"],
+      ["KHC", "AMB"],
+      ["AMB", "LGP"],
+      ["LGP", "ØSV"],
+      ["ØSV", "AMS"],
+      ["AMS", "FEØ"],
+      ["FEØ", "KSA"],
+      ["KSA", "CPH"],
+    ],
+  },
+  {
+    name: "M3",
+    connections: [
+      ["KGN", "MMK"],
+      ["MMK", "KK"],
+      ["KK", "TRI"],
+      ["TRI", "PHP"],
+      ["PHP", "VHR"],
+      ["VHR", "SKP"],
+      ["SKP", "NØ"],
+      ["NØ", "NØR"],
+      ["NØR", "NUK"],
+      ["NUK", "AMH"],
+      ["AMH", "FB"],
+      ["FB", "FBA"],
+      ["FBA", "EHP"],
+      ["EHP", "KH"],
+      ["KH", "RHP"],
+      ["RHP", "GLS"],
+      ["GLS", "KGN"],
+    ],
+  },
+  {
+    name: "M4",
+    connections: [
+      ["NEL", "MOP"],
+      ["MOP", "SLU"],
+      ["SLU", "EBR"],
+      ["EBR", "HOL"],
+      ["HOL", "KH"],
+      ["KH", "RHP"],
+      ["RHP", "GLS"],
+      ["GLS", "KGN"],
+      ["KGN", "MMK"],
+      ["MMK", "KK"],
+      ["KK", "NHT"],
+      ["NHT", "ORK"],
+    ],
+  },
+];
+
+export type Crossover = {
+  lineGroup: "M1/M2" | "M3/M4";
+  between: [string, string];
+};
+
+// Locations supplied on the M1/M2 and M3/M4 infrastructure diagrams.
+// The BUV depot crossover is not shown: the depot is not in this map's network.
+const crossovers: Crossover[] = [
+  ...(
+    [
+      ["VAN", "FL"],
+      ["FB", "FOR"],
+      ["KN", "KGN"],
+      ["LGP", "ØSV"],
+      ["AMS", "FEØ"],
+      ["ISB", "UNI"],
+      ["KHS", "BC"],
+      ["ØRE", "VEA"],
+      ["KSA", "CPH"],
+    ] as [string, string][]
+  ).map((between): Crossover => ({ lineGroup: "M1/M2", between })),
+  ...(
+    [
+      ["NEL", "MOP"],
+      ["EBR", "HOL"],
+      ["NØ", "NØR"],
+      ["TRI", "KK"],
+      ["NHT", "ORK"],
+    ] as [string, string][]
+  ).map((between): Crossover => ({ lineGroup: "M3/M4", between })),
+];
+
+const stationData: Record<string, [number, number]> = {
+  ORK: [782, 111],
+  NHT: [746, 147],
+  KK: [654, 239],
+  HOL: [435, 500],
+  EBR: [398, 537],
+  SLU: [361, 574],
+  MOP: [324, 611],
+  NEL: [287, 648],
+  MMK: [662, 285],
+  GLS: [592, 419],
+  RHP: [540, 441],
+  KH: [491, 444],
+  TRI: [618, 189],
+  PHP: [586, 163],
+  VHR: [540, 143],
+  SKP: [491, 141],
+  NØ: [442, 155],
+  NØR: [405, 181],
+  NUK: [379, 215],
+  AMH: [361, 266],
+  FB: [369, 343],
+  FBA: [398, 388],
+  EHP: [434, 417],
+  KGN: [648, 347],
+  VAN: [100, 343],
+  FL: [160, 343],
+  LIT: [218, 343],
+  SOT: [290, 343],
+  FOR: [465, 343],
+  KN: [565, 343],
+  KHC: [688, 387],
+  AMB: [728, 427],
+  LGP: [758, 457],
+  ØSV: [788, 487],
+  AMS: [818, 517],
+  FEØ: [848, 547],
+  KSA: [878, 577],
+  CPH: [908, 607],
+  ISB: [688, 453],
+  UNI: [688, 508],
+  KHS: [688, 556],
+  BC: [688, 594],
+  ØRE: [688, 635],
+  VEA: [688, 680],
+};
+
+export function getLines() {
+  return lines;
+}
+
+export function getCrossovers(): readonly Crossover[] {
+  return crossovers;
+}
+
+export function getStation(name: string): [number, number] {
+  return stationData[name];
+}

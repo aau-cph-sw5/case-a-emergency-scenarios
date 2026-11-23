@@ -1,0 +1,774 @@
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from "@jest/globals";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
+import { Profiler } from "react";
+import { sendPositionReport } from "../../mobile/src/api/position-report";
+import { ERROR_CODES } from "../../shared/error-codes";
+import { motion } from "../../shared/Theme";
+import { resetRememberedStatuses } from "../../mobile/src/data/steward-status";
+import { StewardView } from "../../mobile/src/screens/StewardView";
+import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
+import { queuePositionReport } from "../../mobile/src/offline/queue-position-report";
+import {
+  reportRejection,
+  waitingReport,
+} from "../../mobile/src/offline/waiting-report";
+import { socket } from "../../mobile/src/socket";
+import activeState from "../../fixtures/v1/scenario-state.json";
+import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
+import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
+import { useActiveScenario } from "../../shared/offline/use-active-scenario";
+import type { Scenario } from "../../shared/types/v1/scenario";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state";
+
+// Choosing a station is a tap on its row and the yellow BEKRÆFT slide, and
+// cancelling is the cross next to CHECK IND and the red BEKRÆFT ANNULLÉR
+// slide (#376). Each step is its own act, so the screen has the new state
+// before the next. A new status turns the whole status card (Swap), which
+// shows the new content once it is on its edge, so the steps wait for the
+// turn to end (settle).
+async function settle() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, motion.flipMs + 100));
+  });
+}
+
+async function slide() {
+  await act(async () => {
+    fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+      nativeEvent: { actionName: "activate" },
+    });
+  });
+  await settle();
+}
+
+async function chooseStation(station: string) {
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText(`Vælg ${station}`));
+  });
+  await slide();
+}
+
+// TJEK UD, then the red BEKRÆFT TJEK UD slide (#377).
+async function checkOut() {
+  await act(async () => {
+    fireEvent.press(await screen.findByText("TJEK UD"));
+  });
+  await screen.findByText("BEKRÆFT TJEK UD");
+  await slide();
+}
+
+async function cancelStation() {
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText("Annullér tildeling"));
+  });
+  await screen.findByText("BEKRÆFT ANNULLÉR");
+  await slide();
+}
+
+// The view is driven by a given scenario view and a mocked position report,
+// so no server, socket or storage is needed.
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);
+jest.mock("../../shared/offline/use-active-scenario", () => ({
+  useActiveScenario: jest.fn(),
+}));
+jest.mock("../../shared/socket/useSocketState", () => ({
+  useSocketState: () => ({ isConnected: true, messages: [] }),
+}));
+jest.mock("../../mobile/src/socket", () => ({
+  socket: { on: jest.fn(), off: jest.fn() },
+}));
+jest.mock("../../mobile/src/network/useNetwork", () => ({
+  useNetwork: () => ({ network: null, usingCached: false }),
+}));
+jest.mock("../../mobile/src/offline/snapshot-store", () => ({
+  snapshotStore: {},
+}));
+jest.mock("../../mobile/src/api/position-report", () => ({
+  ...jest.requireActual<object>("../../mobile/src/api/position-report"),
+  sendPositionReport: jest.fn(),
+}));
+jest.mock("../../mobile/src/offline/waiting-report", () => ({
+  waitingReport: jest.fn(async () => null),
+  reportRejection: jest.fn(async () => null),
+}));
+jest.mock("../../mobile/src/offline/queue-position-report", () => ({
+  queuePositionReport: jest.fn(),
+}));
+// Station messages are sent with the reports; none are queued in these tests.
+jest.mock("../../mobile/src/offline/station-message-store", () => ({
+  stationMessageQueueStore: {
+    discardEndedRejections: jest.fn(async () => {}),
+    getPending: jest.fn(async () => []),
+    getRejected: jest.fn(async () => []),
+  },
+  onStationMessagesChanged: () => () => undefined,
+  notifyStationMessagesChanged: jest.fn(),
+  stationMessageDelivery: {
+    flush: jest.fn(async () => ({
+      delivered: [],
+      rejected: 0,
+      pending: 0,
+      blocked: false,
+    })),
+  },
+}));
+jest.mock("../../mobile/src/offline/position-report-delivery-instance", () => ({
+  positionReportDelivery: {
+    flush: jest.fn(async () => ({
+      acknowledged: 0,
+      rejected: 0,
+      pending: 0,
+      superseded: [],
+    })),
+  },
+}));
+
+const report = sendPositionReport as jest.MockedFunction<
+  typeof sendPositionReport
+>;
+const queue = jest.mocked(queuePositionReport);
+const flush = jest.mocked(positionReportDelivery.flush);
+const waiting = jest.mocked(waitingReport);
+const rejection = jest.mocked(reportRejection);
+
+// Steward 9's report to Station B as it is saved on the phone.
+const queuedReport = {
+  id: "report-9",
+  userId: "9",
+  station: "Station B",
+  reportedAt: "2026-11-08T10:00:00Z",
+  scenarioId: "DEMO-001",
+  activationId: 1,
+  event: "EN_ROUTE" as const,
+};
+const activeScenario = useActiveScenario as jest.MockedFunction<
+  typeof useActiveScenario
+>;
+
+// User 9 has no deployment in the fixture, so the steward starts with no status.
+const snapshot = buildSnapshot(
+  {
+    active: true,
+    state: activeState as ScenarioState,
+    scenario: scenario as Scenario,
+  },
+  "9",
+  new Date(),
+);
+
+const refresh = jest.fn(async () => {});
+
+function showView(view: ReturnType<typeof useActiveScenario>["view"]) {
+  activeScenario.mockReturnValue({
+    view,
+    refresh,
+    dismissNotice: jest.fn(),
+  } as unknown as ReturnType<typeof useActiveScenario>);
+}
+
+// The same scenario as the server sends it after steward 9 arrived at
+// Station B, while the app has nothing in memory (#310).
+const arrivedOnServer = buildSnapshot(
+  {
+    active: true,
+    state: {
+      ...(activeState as ScenarioState),
+      deployments: [
+        {
+          status: "MANNED",
+          staff: "9",
+          fulfills: "Station B",
+          reportedAt: "2026-11-08T10:00:00Z",
+          arrivedAt: "2026-11-08T10:00:00Z",
+        },
+      ],
+    },
+    scenario: scenario as Scenario,
+  },
+  "9",
+  new Date(),
+);
+
+async function renderView(online = true) {
+  render(
+    <StewardView
+      token="token"
+      online={online}
+      onLogout={jest.fn()}
+      onUnauthorized={jest.fn()}
+    />,
+  );
+  // Lets the fetch of the current status settle.
+  await act(async () => {});
+}
+
+beforeEach(() => {
+  report.mockResolvedValue({ ok: true, message: "Position sendt: Station B" });
+  queue.mockResolvedValue(queuedReport);
+  waiting.mockResolvedValue(null);
+  rejection.mockResolvedValue(null);
+});
+
+afterEach(() => {
+  resetRememberedStatuses();
+  refresh.mockClear();
+});
+
+describe("StewardView status (MET-A-015, #263, #305)", () => {
+  // The steps wait in real time for the status card to turn (settle). A test
+  // with three turns takes about 2 s on a laptop, and the CI runner with
+  // coverage on is slower, so Jest's 5 s default cut the first test off and
+  // left its screen mounted for the tests after it.
+  jest.setTimeout(20000);
+
+  it("goes from no status, via on the way and arrived, to checked out", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
+
+    await chooseStation("Station B");
+
+    expect(queue).toHaveBeenCalledWith({
+      userId: "9",
+      station: "Station B",
+      scenarioId: "DEMO-001",
+      activationId: 1,
+      event: "EN_ROUTE",
+    });
+    expect(report).not.toHaveBeenCalledWith(
+      "token",
+      "Station B",
+      1,
+      "EN_ROUTE",
+    );
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
+    expect(screen.queryByLabelText("Vælg Station B")).toBeNull();
+    // The chat opens only once checked in, and the steward is told so (#335).
+    expect(screen.queryByLabelText("Åbn chat med kontrolrummet")).toBeNull();
+    expect(
+      screen.getByText(
+        "Tjek ind på stationen for at skrive til kontrolrummet.",
+      ),
+    ).toBeTruthy();
+
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+
+    expect(report).toHaveBeenLastCalledWith("token", "Station B", 1, "ARRIVED");
+    expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
+    expect(screen.getByLabelText("Åbn chat med kontrolrummet")).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "Tjek ind på stationen for at skrive til kontrolrummet.",
+      ),
+    ).toBeNull();
+
+    await checkOut();
+
+    expect(report).toHaveBeenLastCalledWith(
+      "token",
+      "Station B",
+      1,
+      "CHECKED_OUT",
+    );
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
+    expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
+    expect(screen.queryByLabelText("Åbn chat med kontrolrummet")).toBeNull();
+  });
+
+  // Without a station the card shows no bar; a chosen station shows its
+  // staffing bar there before BEKRÆFT (#376).
+  it("shows the chosen station's staffing on the card", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
+    expect(screen.queryByTestId("staffing-bar")).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Vælg Station B"));
+    });
+
+    expect(screen.getByTestId("staffing-bar")).toBeTruthy();
+  });
+
+  it("cancels while on the way and offers + again", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+
+    await chooseStation("Station B");
+    await cancelStation();
+
+    expect(report).toHaveBeenLastCalledWith(
+      "token",
+      "Station B",
+      1,
+      "CANCELLED",
+    );
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
+    expect(screen.getByLabelText("Vælg Station B")).toBeTruthy();
+  });
+
+  it("checks in after cancelling and choosing a station again", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+
+    await chooseStation("Station B");
+    await cancelStation();
+    await chooseStation("Station B");
+
+    // The CHECK IND slide is free: no spinner left from the slides before.
+    expect(await screen.findByText("TJEK IND")).toBeTruthy();
+    expect(screen.queryAllByTestId("slide-spinner")).toHaveLength(0);
+
+    await slide();
+    expect(report).toHaveBeenLastCalledWith("token", "Station B", 1, "ARRIVED");
+    expect(await screen.findByText(/ANKOMMET/)).toBeTruthy();
+  });
+
+  // A slow server (longer than the spinner's delay) and a second shift in
+  // the same session: the slides must not keep a spinner from the first.
+  it("checks in a second time in a session with a slow server", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    report.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ ok: true, message: "" }), 500),
+        ),
+    );
+    await renderView();
+    const wait = (ms: number) =>
+      act(async () => {
+        await new Promise((r) => setTimeout(r, ms));
+      });
+
+    for (const round of [1, 2]) {
+      await chooseStation("Station B");
+      await wait(900);
+      expect(await screen.findByText("TJEK IND")).toBeTruthy();
+      expect(screen.queryAllByTestId("slide-spinner")).toHaveLength(0);
+      await slide();
+      await wait(1500);
+      expect(screen.getByText(/ANKOMMET/)).toBeTruthy();
+      expect(screen.queryAllByTestId("slide-spinner")).toHaveLength(0);
+      await checkOut();
+      await wait(1500);
+      expect(screen.getByText("IKKE VALGT")).toBeTruthy();
+      expect(round).toBeGreaterThan(0);
+    }
+  });
+
+  it("shows the refusal and keeps the status when arriving is refused", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+    await chooseStation("Station B");
+    report.mockResolvedValue({
+      ok: false,
+      message: "Stationen er ikke en del af det aktive scenarie.",
+    });
+
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+
+    expect(
+      screen.getByText("Stationen er ikke en del af det aktive scenarie."),
+    ).toBeTruthy();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
+  });
+
+  it("shows the refusal and keeps no status when going on the way is refused", async () => {
+    rejection.mockResolvedValue({
+      httpStatus: 409,
+      code: ERROR_CODES.STATION_NOT_IN_SCENARIO,
+    });
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+
+    await chooseStation("Station B");
+
+    expect(rejection).toHaveBeenCalledWith("9", "report-9");
+    expect(
+      screen.getByText("Stationen er ikke en del af det aktive scenarie."),
+    ).toBeTruthy();
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("PÅ VEJ")).toBeNull());
+  });
+
+  it("keeps the status from a waiting report when the saved copy is loaded again", async () => {
+    waiting.mockResolvedValue(queuedReport);
+    showView({ status: "copy", snapshot, reason: "offline" });
+    await renderView(false);
+
+    expect(waiting).toHaveBeenCalledWith("9", 1);
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("IKKE VALGT")).toBeNull());
+  });
+
+  it("blocks arriving and cancelling while a report waits to be sent", async () => {
+    waiting.mockResolvedValue(queuedReport);
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+
+    expect(
+      screen.getByText(
+        "Din position er ikke sendt endnu. Du kan ændre status, når den er modtaget.",
+      ),
+    ).toBeTruthy();
+    // The red BEKRÆFT ANNULLÉR slide shows, but it cannot be slid (#376).
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Annullér tildeling"));
+    });
+    await screen.findByText("BEKRÆFT ANNULLÉR");
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+    expect(report).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Fortryd annullering"));
+    });
+    await screen.findByText("TJEK IND");
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+
+    expect(report).not.toHaveBeenCalled();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
+  });
+
+  it("offers + on the saved copy and keeps the report on the phone", async () => {
+    showView({ status: "copy", snapshot, reason: "offline" });
+    await renderView(false);
+
+    expect(
+      screen.getByText(
+        "Uden forbindelse kan du kun melde dig på vej. Du ser den gemte kopi.",
+      ),
+    ).toBeTruthy();
+    await chooseStation("Station B");
+
+    expect(queue).toHaveBeenCalledWith({
+      userId: "9",
+      station: "Station B",
+      scenarioId: "DEMO-001",
+      activationId: 1,
+      event: "EN_ROUTE",
+    });
+    // Saved on the phone; the status box shows the change, no extra line.
+    expect(screen.queryByText("Position gemt. Afventer levering.")).toBeNull();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
+    expect(flush).not.toHaveBeenCalled();
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's status after a reload instead of no status (#310)", async () => {
+    showView({ status: "live", notices: [], snapshot: arrivedOnServer });
+    await renderView();
+
+    await waitFor(() => expect(screen.queryByText("IKKE VALGT")).toBeNull());
+    expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
+    expect(await screen.findByText("TJEK UD")).toBeTruthy();
+
+    await checkOut();
+    expect(report).toHaveBeenLastCalledWith(
+      "token",
+      "Station B",
+      1,
+      "CHECKED_OUT",
+    );
+  });
+
+  it("shows the slide for a steward the server has on the way (#310)", async () => {
+    // User 7 is on the way to Station B in the fixture.
+    const onTheWay = buildSnapshot(
+      {
+        active: true,
+        state: activeState as ScenarioState,
+        scenario: scenario as Scenario,
+      },
+      "7",
+      new Date(),
+    );
+    showView({ status: "live", notices: [], snapshot: onTheWay });
+    await renderView();
+
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
+    expect(screen.getByTestId("slide-to-confirm")).toBeTruthy();
+  });
+
+  it("explains an E1006 refusal and fetches the scenario again (#310)", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+    await chooseStation("Station B");
+    report.mockResolvedValue({
+      ok: false,
+      message:
+        "Din status er ændret et andet sted. Vi henter din aktuelle status.",
+      code: ERROR_CODES.INVALID_STATUS_TRANSITION,
+    });
+
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+
+    expect(
+      screen.getByText(
+        "Din status er ændret et andet sted. Vi henter din aktuelle status.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("Positionen blev ikke modtaget.")).toBeNull();
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  // + and the slide report the position, so the old picker and its button,
+  // which sent a report the status did not know about, are gone (#310).
+  it("has no separate station picker or Rapportér position button", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+
+    expect(screen.queryByText("Rapportér position")).toBeNull();
+    expect(screen.queryByText(/Vælg station/)).toBeNull();
+  });
+
+  // Another steward's report changes the coverage; the phone fetches the
+  // scenario again so its numbers and map follow (#310).
+  it("fetches the scenario again when the coverage changes", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    await renderView();
+
+    const on = socket.on as jest.Mock;
+    const handler = on.mock.calls.find(
+      ([name]) => name === "activations-changed",
+    )?.[1] as (() => void) | undefined;
+    expect(handler).toBeDefined();
+    refresh.mockClear();
+    await act(async () => handler?.());
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  // The same login checked out on another phone. The next copy of the
+  // scenario must win over what this phone remembers (#310).
+  it("follows a change made on another phone with the same login", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    // A new element each time, so React renders again with the new copy.
+    const element = () => (
+      <StewardView
+        token="token"
+        online
+        onLogout={jest.fn()}
+        onUnauthorized={jest.fn()}
+      />
+    );
+    const view = render(element());
+    await act(async () => {});
+    await chooseStation("Station B");
+    await act(async () => {
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    });
+    expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
+
+    const checkedOutElsewhere = buildSnapshot(
+      {
+        active: true,
+        state: {
+          ...(activeState as ScenarioState),
+          deployments: [
+            {
+              status: "CHECKED_OUT",
+              staff: "9",
+              fulfills: "Station B",
+              reportedAt: "2026-11-08T11:00:00Z",
+              arrivedAt: "2026-11-08T10:00:00Z",
+            },
+          ],
+        },
+        scenario: scenario as Scenario,
+      },
+      "9",
+      new Date(),
+    );
+    showView({ status: "live", notices: [], snapshot: checkedOutElsewhere });
+    view.rerender(element());
+    await act(async () => {});
+
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
+    expect(screen.queryByText(/^ANKOMMET/)).toBeNull();
+  });
+
+  // SMOOTH TRANSITIONS (#376): through a whole shift, no text may show for a
+  // moment and go again within one action (a flash), and the control at the
+  // bottom may never be missing while the steward has no station or is on
+  // the way (the list above it would jump). Every render is checked.
+  it("never flashes text or loses the bottom control through a shift", async () => {
+    showView({ status: "live", notices: [], snapshot });
+    report.mockResolvedValue({ ok: true, message: "" });
+    const visible = () => {
+      const out = new Set<string>();
+      const walk = (node: unknown) => {
+        if (typeof node === "string") out.add(node);
+        else if (Array.isArray(node)) node.forEach(walk);
+        else if (node && typeof node === "object")
+          walk((node as { children?: unknown }).children);
+      };
+      walk(screen.toJSON());
+      return out;
+    };
+    let action = "";
+    let seen = new Map<string, number>();
+    let commit = 0;
+    const problems: string[] = [];
+    let last = new Set<string>();
+    const check = () => {
+      commit += 1;
+      if (action === "") return;
+      const now = visible();
+      for (const t of now) if (!last.has(t)) seen.set(t, commit);
+      for (const t of last)
+        if (!now.has(t) && seen.get(t) !== undefined)
+          problems.push(`${action}: "${t}" showed and went again`);
+      // The control may be a slide or TJEK UD; there is always one of them.
+      if (
+        screen.queryAllByTestId("slide-to-confirm", {
+          includeHiddenElements: true,
+        }).length === 0 &&
+        !now.has("TJEK UD")
+      )
+        problems.push(`${action}: no control at the bottom (render ${commit})`);
+      last = now;
+    };
+    const step = async (name: string, act1: () => void) => {
+      action = name;
+      last = visible();
+      seen = new Map();
+      await act(async () => act1());
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 900));
+      });
+      // Under load the card's turn alone can take the 900 ms, and the list
+      // then changes after it. Every frame of a motion renders, so the step
+      // ends only once nothing has rendered for a while; otherwise the tail
+      // of this step is counted as a flash in the next.
+      for (let tries = 0; tries < 20; tries += 1) {
+        const before = commit;
+        await act(async () => {
+          await new Promise((r) => setTimeout(r, 250));
+        });
+        if (commit === before) break;
+      }
+      action = "";
+    };
+    const slide = () =>
+      fireEvent(screen.getByTestId("slide-to-confirm"), "accessibilityAction", {
+        nativeEvent: { actionName: "activate" },
+      });
+    render(
+      <Profiler id="shift" onRender={check}>
+        <StewardView
+          token="token"
+          online
+          onLogout={jest.fn()}
+          onUnauthorized={jest.fn()}
+        />
+      </Profiler>,
+    );
+    await act(async () => {});
+    await step("choose", () =>
+      fireEvent.press(screen.getByLabelText("Vælg Station B")),
+    );
+    await step("assign", slide);
+    await step("ask to cancel", () =>
+      fireEvent.press(screen.getByLabelText("Annullér tildeling")),
+    );
+    await step("cancel", slide);
+    await step("choose again", () =>
+      fireEvent.press(screen.getByLabelText("Vælg Station B")),
+    );
+    await step("assign again", slide);
+    await step("check in", slide);
+    await screen.findByText("TJEK UD");
+    await step("ask to check out", () =>
+      fireEvent.press(screen.getByText("TJEK UD")),
+    );
+    await step("check out", slide);
+    expect(problems).toEqual([]);
+  }, 40000);
+
+  // A chat open when the control room switches scenario says so (#335).
+  it("says the scenario was switched in a chat that was open", async () => {
+    const fetchMock = jest
+      .spyOn(global, "fetch")
+      .mockRejectedValue(new Error("offline"));
+    showView({ status: "live", notices: [], snapshot: arrivedOnServer });
+    const element = () => (
+      <StewardView
+        token="token"
+        online
+        onLogout={jest.fn()}
+        onUnauthorized={jest.fn()}
+      />
+    );
+    const view = render(element());
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.press(
+        await screen.findByLabelText("Åbn chat med kontrolrummet"),
+      );
+    });
+
+    const switched = buildSnapshot(
+      {
+        active: true,
+        state: {
+          ...(activeState as ScenarioState),
+          activationId: 2,
+          deployments: [],
+        },
+        scenario: { ...(scenario as Scenario), name: "Signalfejl" },
+      },
+      "9",
+      new Date(),
+    );
+    showView({ status: "live", notices: [], snapshot: switched });
+    view.rerender(element());
+    await act(async () => {});
+
+    expect(screen.getByText("Chatten er lukket")).toBeTruthy();
+    expect(
+      screen.getByText("Scenariet er skiftet til “Signalfejl”."),
+    ).toBeTruthy();
+    fetchMock.mockRestore();
+  });
+});

@@ -1,0 +1,298 @@
+# Scenario State Contract Changelog
+
+## 8.11.1 - 2026-11-22
+
+No change to the shape. `POST /api/v1/scenario-suggestions` is no longer a draft: the server serves it (#371).
+
+## 8.11.0 - 2026-11-21
+
+Additive. Station inbox summaries expose unread-message metadata (MET-A-029, #337).
+
+- Add optional `stationMessageIds` to `station-thread.schema.json`. The server includes this array of received station-message IDs in HTTP summaries and details, without message text in summaries.
+- Operators count unread IDs against their local read state. A failed history request therefore cannot clear the inbox badge.
+- The operator inbox orders conversations by `lastMessageAt`, newest first, and fetches message history when a conversation is opened.
+- Existing socket event producers may omit the new field.
+
+## 8.10.0 - 2026-11-18
+
+Additive. Scenario suggestions from a free-text incident description (MET-A-019, #357). A draft: the owners of #355 and #356 still have to approve it, and the server does not serve the endpoint yet (#371).
+
+- New `scenario-suggestion.schema.json`: the request `description` (1 to 2000 characters) and the response. `status` is `CONFIDENT` with one to five `candidates` (`scenarioId` and a `score` from 0 to 1, best first), or `NO_CONFIDENT_CANDIDATE` without candidates.
+- New `POST /api/v1/scenario-suggestions`. Only `OPERATOR` may use it; other roles get 403 `E0002`. A missing, empty or too long `description` gets 400 `E0006`, and a missing or expired token gets 401 `E0001`.
+- It only suggests. Activating a scenario still goes through the activation endpoint and its confirmation.
+
+## 8.9.0 - 2026-11-18
+
+Additive. Normal network patterns include their stored display color.
+
+## 8.8.0 - 2026-11-18
+
+Additive. Admins can create a scenario and its first version with operating patterns, staffing, tasks and covered track segments.
+
+- New `POST /api/v1/scenarios` validates the request and saves it atomically.
+- New `create-scenario-request.schema.json` describes the request; non-admins receive 403 and duplicate scenario IDs receive 409.
+- The server emits `scenarios-changed` to operators in the scenario's line group.
+
+## 8.7.0 - 2026-11-18
+
+Additive. Operating patterns store a required display colour, and scenario responses include it. Clients accept responses from older servers without a colour.
+
+## 8.6.0 - 2026-11-16
+
+Additive. Admins create and edit user accounts (MET-A-030).
+
+- New `user.schema.json`: `userId`, `username`, `role` and `lineGroup`.
+- New `GET /api/v1/users`: every account, ordered by username.
+- New `POST /api/v1/users` with `user-create.schema.json` (`username`, `password` of at least 12 characters including a digit, `role`, `lineGroup`). Answers 201 with the account, and 409 `E0007` when the username is taken, regardless of casing.
+- New `PATCH /api/v1/users/{userId}` with `user-update.schema.json`: changes `password` (same rule as on create), `role` and/or `lineGroup`, at least one of them. The username cannot be changed. Answers 200 with the account, and 404 `E0004` for an unknown id. An admin changing their own role gets 409 `E0007`.
+- Only `ADMIN` may use the three endpoints. Other roles get 403 `E0002`.
+
+## 8.5.0 - 2026-11-16
+
+Additive. The shared metro network is available to authenticated clients (#381).
+
+- New `GET /api/v1/network` returns stations and schematic positions, track segments, and normal-service patterns with their stops in sequence. Station positions can be null when not configured.
+- New `network.schema.json` describes the response. Empty network collections are returned as arrays. Crossovers are not included.
+- `info.version` in `openapi.yaml` is now 8.5.0.
+
+## 8.4.0 - 2026-11-13
+
+Additive. Station messages between stewards and the control room (MET-A-029, #332). The server does not serve the endpoints or send the events yet.
+
+- New `station-message.schema.json`: `id`, `clientMessageId`, `activationId`, `station`, `sender` (`STATION` or `CONTROL_ROOM`), `text`, `writtenAt` and `receivedAt`. Neither a message nor a thread carries the steward's identity or allows other fields, so the operator never receives it. The identity is not stored with the message or written to its incident-log event either, so the steward who wrote a message cannot be found from it afterwards.
+- New `station-thread.schema.json`: a station's thread in one activation, with `state` (`UNANSWERED` or `ANSWERED`), `unansweredSince`, `lastMessageAt` and, when one thread is read, `messages`.
+- New `GET /api/v1/station-threads`, for the OPERATOR role: the threads with messages in the active activation of the operator's own line group, unanswered first with the oldest at the top. An empty list while nothing is active.
+- New `GET /api/v1/station-threads/{station}`: the thread with its messages. A steward must be checked in at the station, an operator can read any station that requires manning in the activation. While nothing is active it answers 409 `E1001`, unlike the list.
+- New `POST /api/v1/station-threads/{station}/messages` with `station-message-request.schema.json` (`clientMessageId`, `activationId`, `text`, `writtenAt`), for a steward checked in at the station and for an operator. `sender` is taken from the token. Answers 201 with the stored message.
+- Checked in means the steward's latest position report in the activation is `ARRIVED` at the station. Before arriving, after task done and after checking out the answer is 409 with the new code `E1007`.
+- The thread lives as long as the activation. A message whose `activationId` is not an active activation in the user's own line group gets 409 `E1003`, and `E1001` only when the id is unknown and nothing is active, as for position reports. A station that does not require manning in the activation gets 409 `E1004`, as for position reports.
+- `clientMessageId` is unique across all messages. A repeat with the same `clientMessageId` and content (station, `activationId`, `text` and `writtenAt`) answers 200 with the stored message, and stores, logs and pushes nothing more. The same `clientMessageId` with different content gets 409 `E0007`.
+- The checks are made in this order: the body (400 `E0006`), a repeat (200 or `E0007`), the activation (`E1001` or `E1003`), the station (`E1004`) and the check-in (`E1007`). A repeat therefore answers 200 also after stand-down and after the steward has checked out.
+- A 400 or 409 answer is final: the client drops the message and tells the user. Everything else is retried: no connection, 5xx answers, and 401 once the session is renewed.
+- `writtenAt` comes from the device and is kept as sent, but is only shown. Message order, the thread state and `unansweredSince` follow `receivedAt`, because a device's clock is not trusted. A steward message makes the thread `UNANSWERED` and an operator message makes it `ANSWERED`, in the order the server received them. A thread with only operator messages is `ANSWERED`.
+- `text` is plain text, 1 to 1000 characters counted as Unicode code points, and not only whitespace (400 `E0006`). It is stored exactly as sent.
+- `clientMessageId` is returned on the message so a client can recognise its own pending message. It is never written to the incident log.
+- New `station-message` socket event with the message, the thread after it (without messages) and `sentAt`: to operators in the activation's line group and to stewards checked in at the station.
+- New `station-threads-closed` socket event with `activationId` and `sentAt`, to both roles in the activation's line group when the activation is stood down, also when it is replaced in a switch. The new activation starts with empty threads. Socket events are not replayed, so after a reconnect clients read the thread again.
+- An `ADMIN` gets 403 `E0002` on all three endpoints.
+- `info.version` in `openapi.yaml` is now 8.4.0.
+
+## 8.3.0 - 2026-11-12
+
+Additive. Add the admin role (MET-A-030, #359).
+
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/renew` and `GET /api/v1/me` can return `ADMIN` as the user's role. Clients must accept the new value.
+- Admins can log in on the web, but cannot use operator-only actions.
+- `info.version` in `openapi.yaml` is now 8.3.0.
+
+## 8.2.0 - 2026-11-11
+
+Additive. Operators only see their own line group's scenarios (#319), and socket events only reach the activation's line group (#318).
+
+- `GET /api/v1/scenarios` only returns scenarios in the user's own line group.
+- Socket events are sent to one room per role and line group, so they only reach users in the activation's line group. Event names and payloads are unchanged.
+- `info.version` in `openapi.yaml` is now 8.2.0.
+
+## 8.1.0 - 2026-11-10
+
+Additive. One active scenario per line group (#317).
+
+- Each line group (M1/M2, M3/M4) can have one active scenario at the same time.
+- `GET /api/v1/activations` and `GET /api/v1/scenario-state` only return the user's own line group, and each activation has `lineGroup`.
+- Activating or switching to a scenario, or standing down an activation, in another line group answers 404 `E0004`.
+- `GET /api/v1/scenarios/{scenarioId}` answers 404 for a scenario in another line group.
+- A position report's `activationId` must be an activation in the steward's own line group. Another line group's activation is treated as unknown: E1001 while the steward's own line group has nothing active, otherwise E1003.
+- `info.version` in `openapi.yaml` is now 8.1.0.
+
+## 8.0.0 - 2026-11-09
+
+Breaking. Reports against a superseded scenario are rejected (MET-A-006, #267).
+
+- `position-report.schema.json` has a required integer `activationId`: the activation the steward saw when making the report. Clients must send it.
+- `POST /api/v1/position-reports` answers 409 `E1003` when `activationId` is not an active activation, for example because the scenario was stood down or switched while the steward was offline. Nothing is stored and operators are not told. E1001 is answered only when the id is unknown and no scenario is active.
+- The station is checked against the report's own activation (E1004).
+- A replay of an accepted report (same `id`) still answers 202, also after the scenario has changed.
+- `info.version` in `openapi.yaml` is now 8.0.0.
+
+## 7.3.0 - 2026-11-09
+
+Additive. Users belong to a line group, M1/M2 or M3/M4 (#316).
+
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/renew` and `GET /api/v1/me` return `lineGroup` (`M1_M2` or `M3_M4`).
+- The token carries the user's line group. A token without one is refused with 401 `E0001`.
+- `users` stores the line group in a new `line_group` column.
+- `info.version` in `openapi.yaml` is now 7.3.0.
+
+## 7.2.0 - 2026-11-05
+
+Additive. Client-generated position report identity for offline retries (MET-A-006, #266).
+
+- `POST /api/v1/position-reports` accepts an optional `id` (UUID), generated by the client when the original action is recorded.
+- The client keeps the same `id` and original `reportedAt` across retries.
+- An already accepted request with the same `id` and action data returns 202 without creating another position report, incident-log event or operator notification.
+- Reusing an `id` for different action data returns 409 `E0007`.
+- Previously accepted reports can be acknowledged after scenario stand-down.
+- Reports without `id` remain supported for backward compatibility.
+- `position_reports` stores the client ID and a request hash separately from its server-generated primary key.
+- `info.version` in `openapi.yaml` is now 7.2.0.
+
+## 7.1.0 - 2026-11-05
+
+Additive. The steward can arrive, cancel and check out (MET-A-015, #263). Agreed with the integration team.
+
+- A position report can carry `event`: `EN_ROUTE`, `ARRIVED`, `CANCELLED` or `CHECKED_OUT`. Left out, it is `EN_ROUTE`, so a report without it means on the way, as before.
+- `ARRIVED` and `CANCELLED` are only allowed after `EN_ROUTE`, and `CHECKED_OUT` only after `ARRIVED` or `taskDone`, all at the station of the steward's latest report in the activation. Anything else gets 409 `E1006`. Sending the same event again is a harmless repeat.
+- `CANCELLED` frees the station: its deployment goes back to `UNMANNED` with `staff` null.
+- `EN_ROUTE` at the station of the steward's latest report, while on the way or arrived there, is a harmless repeat and does not change the status. A report without `event`, for example a tap in the station list or a report sent late from an offline queue, therefore never moves an arrived steward back to on the way.
+- While on the way, the steward can change their mind in two ways: `CANCELLED` (no station at all) or `EN_ROUTE` to another station, which frees the old one as with `CANCELLED`.
+- After arriving or task done, the steward checks out first (`CHECKED_OUT`) and then reports the new station, as the flow in the PBI describes. `EN_ROUTE` to another station before checking out is rejected with 409 `E1006`.
+- `event` and `taskDone` cannot be sent together (400 `E0006`).
+- `deployments[].status` can be `CHECKED_OUT`. Clients must handle the new value. The server does not act on `event` yet.
+- `info.version` in `openapi.yaml` is now 7.1.0.
+
+## 7.0.0 - 2026-11-04
+
+- Active and closed activations are stored in the database and survive server restarts. Activation, stand-down, and switch events commit with their activation changes.
+- Breaking: `activationId` and the switch request's `replaces` field are now positive integers corresponding to `incident_activations.id`. Clients must use numbers rather than strings.
+- Existing in-memory activations are not migrated during deployment.
+- `GET /api/v1/scenarios/{scenarioId}?activationId=...` returns the version captured by the active activation. It returns 404 if the activation is no longer active or belongs to another scenario; without the parameter it returns the scenario's current version.
+- `info.version` in `openapi.yaml` is now 7.0.0.
+
+## 6.5.0 - 2026-11-04
+
+Additive. Stewards are told when a scenario is stood down (MET-A-009, #278).
+
+- New `scenario-stood-down` socket event to stewards, sent after `POST /api/v1/activations/{activationId}/stand-down`. It has no payload; the steward app refetches `GET /api/v1/scenario-state`, which is `null` afterwards.
+- `info.version` in `openapi.yaml` is now 6.5.0.
+
+## 6.4.0 - 2026-11-03
+
+Additive. Task done for stewards (MET-A-015).
+
+- A position report can carry `taskDone: true`: the steward has finished the task at the station. Without it, a report means on the way or arrived, as before.
+- Task done is only allowed at the station of the steward's latest position report in the activation. Anything else gets 409 `E1006`. Sending it again is a harmless repeat.
+- `deployments[].status` can be `TASK_DONE`. Clients must handle the new value. The server does not set it on deployments yet.
+- `info.version` in `openapi.yaml` is now 6.4.0.
+
+## 6.3.0 - 2026-11-03
+
+- Scenario list and detail responses include `lineGroup`, either `M1_M2` or `M3_M4`. Scenario seed files use the same field.
+- `info.version` in `openapi.yaml` is now 6.3.0.
+
+## 6.2.0 - 2026-11-02
+
+Additive. Standing down and switching scenarios (MET-A-009).
+
+- New `POST /api/v1/activations/{activationId}/stand-down`, for the OPERATOR role. It sets the activation to `CLOSED` with `endedAt`, writes a `SCENARIO_STOOD_DOWN` event with the actor and time, and answers 200 with the closed activation. Afterwards no scenario is active. An activation that is already `CLOSED` answers 409 `E1003`, an unknown id 404 `E0004`.
+- `POST /api/v1/scenarios/{scenarioId}/activate` takes an optional body, `activate-request.schema.json`, with `replaces`: the `activationId` of the active activation. The server then stands it down and activates the new scenario together, so a failed switch never leaves no scenario active. If `replaces` is not the active activation, nothing changes and it answers 409 `E0007`.
+- Without `replaces`, activating while a scenario is active is still refused with 409 `E0007`, as in 5.1.0, so nothing is replaced by accident. The 5.1.0 rule that an activation never stands down the active one now holds only for requests without `replaces`.
+- `info.version` in `openapi.yaml` is now 6.2.0
+
+## 6.1.1 - 2026-10-30
+
+Documents what `deployments[].staff` holds (no change to the shape).
+
+- `staff` is the `userId` of the steward who reported to the station, the same id `GET /api/v1/me` and the login token return, written as text (for example `"7"`), as the server already does for position reports. The steward app matches it against the logged-in user to highlight the steward's own assignment (MET-A-010, issue #158).
+- `info.version` in `openapi.yaml` is now 6.1.1
+
+## 6.1.0 - 2026-10-28
+
+Additive. Activations carry the incident log `sequence` of their `SCENARIO_ACTIVATED` event (MET-A-004).
+
+- `scenario-state.schema.json` has a required integer `sequence`. `POST /api/v1/scenarios/{scenarioId}/activate`, `GET /api/v1/scenario-state` and `GET /api/v1/activations` return it. A higher sequence is a newer activation. Clients only gain a field, so this is not breaking.
+- The `scenario-activated` socket event carries the same `sequence`.
+- `info.version` in `openapi.yaml` is now 6.1.0
+
+## 6.0.0 - 2026-10-27
+
+Breaking.
+
+- Login requests now require `client` (`web` or `mobile`) instead of `expectedRole`.
+  The server checks the account's role against the roles allowed for that client.
+- `info.version` in `openapi.yaml` is now 6.0.0.
+
+## 5.1.0 - 2026-10-28
+
+Only one scenario can be active at a time. Behaviour change to `POST /api/v1/scenarios/{scenarioId}/activate`: it now answers 409 (`E0007`) while any scenario is active, not only when the same scenario is active. `GET /api/v1/activations` therefore holds at most one `ACTIVE` entry. The server and stub start with no active scenario. Standing a scenario down is a separate action (MET-A-009).
+
+`GET /api/v1/scenario-state` now returns the active activation from the same store as `GET /api/v1/activations`, and answers 200 with `null` while no scenario is active, instead of always returning the fixture.
+
+Includes:
+
+- `info.version` in `openapi.yaml` is now 5.1.0
+
+## 5.0.0 - 2026-10-24
+
+Breaking.
+
+- `POST /api/v1/auth/login` and `POST /api/v1/auth/renew` now return a required
+  `expiresAt` timestamp. Clients that validate these responses must accept and
+  persist this field.
+- `info.version` in `openapi.yaml` is now 5.0.0.
+
+## 4.0.0 - 2026-10-21
+
+Breaking.
+
+- `GET /api/v1/me` now returns `userId` as an integer database identifier, where it previously returned a string username. Clients must update any parsing, storage, or comparisons of this field.
+- `POST /api/v1/auth/login` now requires `expectedRole` (`STEWARD` or `OPERATOR`). Clients must send the role for the interface they are opening.
+
+Also includes the additive activation and position-report changes that were prepared as 3.3.0 and 3.2.0:
+
+Adds the activations list (additive, no breaking change).
+
+Includes:
+
+- `GET /api/v1/activations`, which requires a bearer token and returns an array of `scenario-state` objects. The optional `status` query parameter is `ACTIVE` or `CLOSED`; any other value, or a repeated `status`, answers 400 with error code `E0005`
+- `info.version` in `openapi.yaml` is now 4.0.0
+
+## 3.2.0 - 2026-10-20
+
+`POST /api/v1/position-reports` documents its 403 (`E0002`, not a steward) and 409 (`E1001` no active scenario, `E1004` station not in an active scenario) responses. The server takes `staff` from the token and sets `reportedAt` to the time it accepted the report, ignoring the client's clock. Accepted reports go to connected operators only, and the Socket.IO connection needs the bearer token in `auth.token`.
+
+## 3.1.0 - 2026-10-15
+
+Adds the scenario activation call (additive, no breaking change).
+
+Includes:
+
+- `POST /api/v1/scenarios/{scenarioId}/activate`, which requires a bearer token with the `OPERATOR` role and takes the actor from the token
+
+## 3.0.0 - 2026-10-15
+
+- `GET /api/v1/scenarios`, `GET /api/v1/scenarios/{scenarioId}`, `GET /api/v1/scenario-state`, `GET /api/v1/metro-lines/{lineId}` and `POST /api/v1/position-reports` now require a bearer token from `POST /api/v1/auth/login`. Without a valid token they answer 401 with error code `E0001`. A client that calls them without a token gets 401 instead of data.
+- `POST /api/v1/position-reports` documents its 400 response for an invalid body (error code `E0006`).
+- `GET /api/v1/metro-lines/{lineId}` documents its 404 response for an unknown line.
+- `info.version` in `openapi.yaml` now matches this changelog; it still said 1.0.0.
+
+## 2.0.0 - 2026-10-06
+
+Breaking. Announced at the integration meeting on.
+
+- The pattern field `track`, a string, is renamed to `trackNumber`, an integer: the physical track, 1 or 2, with the same numbering as `TrackSegment.trackNumber`. A client that reads `track` gets nothing. Issue #121.
+- `covers` holds `TrackSegment` objects with `trackNumber`, `stationA` and `stationB`, where it held station codes. Pull request 101.
+- Descriptions added to both `trackNumber` fields.
+
+## 1.1.0 - 2026-10-05
+
+Adds the authentication contract (additive, no breaking change).
+
+Includes:
+
+- `login-request.schema.json`
+- `login-response.schema.json`
+- `me.schema.json`
+
+## 1.0.0 - 2026-09-23
+
+Initial scenario-state contract.
+
+Includes:
+
+- Scenario identity
+- Scenario version
+- Activation state
+- Required stations
+- Station staffing state
+- Steward assignments
+- Position report

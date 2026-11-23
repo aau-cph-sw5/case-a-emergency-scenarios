@@ -1,0 +1,484 @@
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
+import { describe, expect, it, jest } from "@jest/globals";
+import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
+import { colors, DIDLineColors, lineColors } from "../../shared/Theme";
+import type { Scenario } from "../../shared/types/v1/scenario";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state";
+import { areaAroundStations } from "../../shared/scenario/affected-stations";
+import { closedStretchLine, MetroMap } from "../../web/src/components/MetroMap";
+import { LiveDataContext } from "../../web/src/data/liveData";
+import { useNetwork } from "../../web/src/data/useNetwork";
+import { getLines, getStation } from "../../mockData/data";
+
+jest.mock("../../web/src/data/useNetwork", () => ({ useNetwork: jest.fn() }));
+const mapLines = getLines().map((line, index) => ({
+  ...line,
+  color: ["#123456", "#789ABC", "#B12345", "#C67890"][index],
+  tracks: [1, 2],
+}));
+const codes = [...new Set(mapLines.flatMap((line) => line.connections.flat()))];
+const testNetwork = {
+  lines: mapLines,
+  positions: Object.fromEntries(codes.map((code) => [code, getStation(code)])),
+  segments: mapLines.flatMap((line) =>
+    line.connections.flatMap(([stationA, stationB]) =>
+      [1, 2].map((trackNumber) => ({
+        id: 1,
+        trackNumber: trackNumber as 1 | 2,
+        stationA,
+        stationB,
+      })),
+    ),
+  ),
+  incomplete: false,
+};
+jest
+  .mocked(useNetwork)
+  .mockReturnValue({ network: testNetwork, error: null, retry: () => {} });
+
+// A synthetic scenario on the map's own station codes: it covers ISB–UNI,
+// which only M1 runs through, and needs staff at UNI.
+const scenario: Scenario = {
+  scenarioId: "TEST-MAP",
+  name: "Map test",
+  lineGroup: "M1_M2",
+  currentVersion: "1",
+  covers: [{ trackNumber: 1, stationA: "ISB", stationB: "UNI" }],
+  versions: [
+    {
+      version: "1",
+      revision: "Test revision",
+      operatingPlan: {
+        name: "Test plan",
+        patterns: [
+          {
+            operationType: "PENDULUM",
+            routeCode: "VAN-VEA",
+            trackNumber: 1,
+            maximumTrains: 1,
+            did: "TEST",
+            route: [
+              { sequence: 1, station: "VAN" },
+              { sequence: 2, station: "FL" },
+              { sequence: 3, station: "LIT" },
+              { sequence: 4, station: "SOT" },
+              { sequence: 5, station: "FB" },
+              { sequence: 6, station: "FOR" },
+              { sequence: 7, station: "KN" },
+              { sequence: 8, station: "KGN" },
+              { sequence: 9, station: "KHC" },
+              { sequence: 10, station: "ISB" },
+              { sequence: 11, station: "UNI" },
+              { sequence: 12, station: "KHS" },
+              { sequence: 13, station: "BC" },
+              { sequence: 14, station: "ØRE" },
+              { sequence: 15, station: "VEA" },
+            ],
+          },
+          {
+            operationType: "ROUNDTRIP",
+            routeCode: "FB-CPH",
+            trackNumber: 12,
+            maximumTrains: 1,
+            did: "TEST-2",
+            route: [
+              { sequence: 1, station: "FB" },
+              { sequence: 2, station: "FOR" },
+              { sequence: 3, station: "KN" },
+              { sequence: 4, station: "KGN" },
+              { sequence: 5, station: "KHC" },
+              { sequence: 6, station: "AMB" },
+              { sequence: 7, station: "LGP" },
+              { sequence: 8, station: "ØSV" },
+              { sequence: 9, station: "AMS" },
+              { sequence: 10, station: "FEØ" },
+              { sequence: 11, station: "KSA" },
+              { sequence: 12, station: "CPH" },
+            ],
+          },
+        ],
+      },
+      stationRequirements: [
+        { station: "UNI", placement: "Platform", minimumStaffing: 2 },
+      ],
+    },
+  ],
+};
+
+// The data layer as LiveDataProvider would hand it out, without a server.
+function withScenario(
+  scenarioId: string | null,
+  loadScenario: () => Promise<Scenario>,
+  preview?: Scenario | null,
+  lineGroup?: "M1/M2" | "M3/M4",
+  deployments: ScenarioState["deployments"] | null = null,
+) {
+  const value = {
+    live: {
+      activations: [],
+      scenarios: [],
+      isConnected: true,
+      isLoading: false,
+      lastUpdatedAt: null,
+      error: null,
+      scenariosError: null,
+      reloadScenarios: () => {},
+    },
+    loadScenario,
+  };
+  return (
+    <LiveDataContext value={value}>
+      <MetroMap
+        token="test-token"
+        scenarioId={scenarioId}
+        scenario={preview}
+        lineGroup={lineGroup}
+        deployments={deployments === null ? null : { deployments }}
+      />
+    </LiveDataContext>
+  );
+}
+
+// The lines actually drawn, told apart by their colour.
+const shownLines = () => {
+  const strokes = [
+    ...screen.UNSAFE_queryAllByType(Line),
+    ...screen.UNSAFE_queryAllByType(Path),
+  ].map((strip) => strip.props.stroke);
+  return ["M1", "M2", "M3", "M4"].filter((_, index) =>
+    strokes.includes(mapLines[index].color),
+  );
+};
+const viewBox = () => screen.UNSAFE_getByType(Svg).props.viewBox;
+const markedDots = () =>
+  screen
+    .UNSAFE_queryAllByType(Circle)
+    .filter((dot) => dot.props.fill === colors.requiredStation);
+
+describe("MetroMap", () => {
+  it("starts with the M1/M2 network fitted to the map", () => {
+    render(withScenario(null, async () => scenario));
+    expect(shownLines()).toEqual(["M1", "M2"]);
+    expect(markedDots()).toHaveLength(0);
+    expect(viewBox()).not.toBe("0 0 950 700");
+    expect(screen.queryByText("M1")).toBeNull();
+  });
+
+  it("zooms to the affected stretch, excluding distant staffing stations", () => {
+    const scenarioWithDistantStaffing = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        stationRequirements: [
+          ...(version.stationRequirements ?? []),
+          { station: "CPH", placement: "Platform", minimumStaffing: 1 },
+        ],
+      })),
+    };
+    render(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenarioWithDistantStaffing,
+        scenarioWithDistantStaffing,
+      ),
+    );
+    const strokes = [
+      ...screen.UNSAFE_queryAllByType(Line),
+      ...screen.UNSAFE_queryAllByType(Path),
+    ].map((segment) => segment.props.stroke);
+    expect(strokes).toContain(mapLines[0].color);
+    expect(strokes).toContain(mapLines[1].color);
+    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(64);
+    expect(screen.getByText("TEST")).toBeTruthy();
+    expect(screen.getByText("TEST-2")).toBeTruthy();
+    expect(markedDots().length).toBeGreaterThan(0);
+    const fullView = viewBox();
+    fireEvent.press(screen.getByText("Zoom ind"));
+    expect(viewBox()).toBe(areaAroundStations(["ISB", "UNI"], 160));
+    fireEvent.press(screen.getByText("Zoom ud"));
+    expect(viewBox()).toBe(fullView);
+  });
+
+  it("draws the saved colour of each route when coloured by destination ID", () => {
+    const savedColors = ["#D65A00", "#019CD3"];
+    const coloredScenario = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        operatingPlan: {
+          ...version.operatingPlan,
+          patterns: version.operatingPlan.patterns.map((pattern, index) => ({
+            ...pattern,
+            color: savedColors[index],
+          })),
+        },
+      })),
+    };
+    render(
+      withScenario(
+        scenario.scenarioId,
+        async () => coloredScenario,
+        coloredScenario,
+      ),
+    );
+    fireEvent(
+      screen
+        .UNSAFE_getAllByType("button" as never)
+        .find((item) => item.props.children === "Destination ID")!,
+      "click",
+    );
+    const strokes = [
+      ...screen.UNSAFE_queryAllByType(Line),
+      ...screen.UNSAFE_queryAllByType(Path),
+    ].map((strip) => strip.props.stroke);
+    expect(strokes).toEqual(expect.arrayContaining(savedColors));
+  });
+
+  it("colours a route by its Metro line, and a route on several lines black", () => {
+    const route = (did: string, stations: string[]) => ({
+      ...scenario.versions[0].operatingPlan.patterns[0],
+      did,
+      route: stations.map((station, i) => ({ sequence: i + 1, station })),
+    });
+    const patterns = [
+      route("ONLY-M1", ["KHC", "ISB", "UNI"]),
+      route("ONLY-M2", ["KHC", "AMB", "LGP"]),
+      route("BOTH", ["FOR", "KN"]),
+    ];
+    const withRoutes = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        operatingPlan: { ...version.operatingPlan, patterns },
+      })),
+    };
+    render(
+      withScenario(scenario.scenarioId, async () => withRoutes, withRoutes),
+    );
+    const strokes = [
+      ...screen.UNSAFE_queryAllByType(Line),
+      ...screen.UNSAFE_queryAllByType(Path),
+    ].map((strip) => strip.props.stroke);
+    expect(strokes).toEqual(
+      expect.arrayContaining([
+        mapLines[0].color,
+        mapLines[1].color,
+        colors.text,
+      ]),
+    );
+  });
+
+  it("colours routes by destination ID when asked, and back by Metro line", () => {
+    render(withScenario(scenario.scenarioId, async () => scenario, scenario));
+    // The switch is the shared DOM switch (.operator-line-switcher).
+    const chooseColours = (label: string) => {
+      const option = screen
+        .UNSAFE_getAllByType("button" as never)
+        .find((item) => item.props.children === label)!;
+      expect(option.parent!.props.className).toBe("operator-line-switcher");
+      fireEvent(option, "click");
+    };
+    const strokes = () =>
+      [
+        ...screen.UNSAFE_queryAllByType(Line),
+        ...screen.UNSAFE_queryAllByType(Path),
+      ].map((strip) => strip.props.stroke);
+    expect(strokes()).toContain(mapLines[0].color);
+    expect(strokes()).not.toContain(DIDLineColors[0]);
+    chooseColours("Destination ID");
+    expect(strokes()).toEqual(
+      expect.arrayContaining(DIDLineColors.slice(0, 2)),
+    );
+    expect(strokes()).not.toContain(mapLines[0].color);
+    // The destination ID palette is its own: it never reuses a Metro line colour.
+    expect(new Set(DIDLineColors).size).toBe(DIDLineColors.length);
+    expect(DIDLineColors).not.toEqual(
+      expect.arrayContaining(lineColors.slice(0, 4)),
+    );
+    chooseColours("Metrolinje");
+    expect(strokes()).toContain(mapLines[0].color);
+  });
+
+  it("shows an error instead of inventing a destination ID without routes", () => {
+    const scenarioWithoutRoutes = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        operatingPlan: { ...version.operatingPlan, patterns: [] },
+      })),
+    };
+
+    render(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenarioWithoutRoutes,
+        scenarioWithoutRoutes,
+      ),
+    );
+
+    expect(screen.getByRole("alert").props.children).toContain(
+      "En eller flere ruter kan ikke vises på kortet.",
+    );
+    expect(screen.queryByText("M1")).toBeNull();
+  });
+
+  it("switches to the M3/M4 group with a centered view and separate tracks", () => {
+    const view = render(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenario,
+        scenario,
+        "M1/M2",
+      ),
+    );
+    fireEvent.press(screen.getByText("Zoom ind"));
+    view.rerender(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenario,
+        scenario,
+        "M3/M4",
+      ),
+    );
+    expect(shownLines()).toEqual([]);
+    expect(viewBox()).not.toBe(areaAroundStations(["ISB", "UNI"], 160));
+    expect(markedDots()).toHaveLength(0);
+    expect(screen.UNSAFE_queryAllByType(Path)).toHaveLength(0);
+    view.rerender(
+      withScenario(
+        scenario.scenarioId,
+        async () => scenario,
+        scenario,
+        "M1/M2",
+      ),
+    );
+    expect(screen.getByText("Zoom ud")).toBeTruthy();
+  });
+
+  it("shows blocked track and the required staffing count", () => {
+    render(withScenario(scenario.scenarioId, async () => scenario, scenario));
+    const blocked = screen
+      .UNSAFE_queryAllByType(Line)
+      .filter((strip) => strip.props.strokeDasharray !== undefined);
+    expect(blocked).toHaveLength(2);
+    expect(blocked[0].props.stroke).toBe(colors.blockedTrack);
+    expect(markedDots().some((dot) => dot.props.stroke === colors.text)).toBe(
+      true,
+    );
+    expect(
+      screen
+        .UNSAFE_queryAllByType(SvgText)
+        .some((label) => label.props.children === 2),
+    ).toBe(true);
+  });
+
+  it("uses the preview without fetching, and clears markers when it is removed", () => {
+    const loadScenario = jest.fn<() => Promise<Scenario>>();
+    const view = render(
+      withScenario(scenario.scenarioId, loadScenario, scenario),
+    );
+    expect(loadScenario).not.toHaveBeenCalled();
+    expect(markedDots().length).toBeGreaterThan(0);
+    view.rerender(withScenario(scenario.scenarioId, loadScenario, null));
+    expect(shownLines()).toEqual([]);
+    expect(markedDots()).toHaveLength(0);
+  });
+
+  it("does not show the mock network while a selected scenario fails to load", async () => {
+    const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+    render(
+      withScenario("TEST-MAP", () => Promise.reject(new Error("Serverfejl"))),
+    );
+    expect(shownLines()).toEqual([]);
+    await waitFor(() => expect(logged).toHaveBeenCalled());
+    expect(shownLines()).toEqual([]);
+    expect(markedDots()).toHaveLength(0);
+    logged.mockRestore();
+  });
+
+  // The map follows the live coverage of the active scenario, like the
+  // coverage cards beside it (MET-A-011, #310).
+  it("colours a required station by its live coverage", async () => {
+    const uniDot = () =>
+      screen
+        .UNSAFE_queryAllByType(Circle)
+        .filter((dot) =>
+          [
+            colors.statusRed,
+            colors.statusYellow,
+            colors.statusGreen,
+            colors.requiredStation,
+          ].includes(dot.props.fill),
+        )
+        .at(-1)?.props.fill;
+    const manned = (count: number) =>
+      Array.from({ length: count }, () => ({
+        status: "MANNED" as const,
+        staff: "1",
+        fulfills: "UNI",
+      }));
+
+    const view = render(
+      withScenario("TEST-MAP", async () => scenario, scenario, undefined, []),
+    );
+    await waitFor(() => expect(uniDot()).toBe(colors.statusRed));
+
+    view.rerender(
+      withScenario(
+        "TEST-MAP",
+        async () => scenario,
+        scenario,
+        undefined,
+        manned(1),
+      ),
+    );
+    expect(uniDot()).toBe(colors.statusYellow);
+
+    view.rerender(
+      withScenario(
+        "TEST-MAP",
+        async () => scenario,
+        scenario,
+        undefined,
+        manned(2),
+      ),
+    );
+    expect(uniDot()).toBe(colors.statusGreen);
+  });
+});
+
+describe("closedStretchLine", () => {
+  const running = [
+    {
+      name: "1",
+      tracks: [1],
+      connections: [["FB", "FOR"]] as [string, string][],
+    },
+  ];
+
+  it("draws a covered segment that no running route draws", () => {
+    const line = closedStretchLine(
+      [
+        { trackNumber: 1, stationA: "VAN", stationB: "FL" },
+        { trackNumber: 1, stationA: "FB", stationB: "FOR" },
+      ],
+      running,
+    );
+    expect(line?.connections).toEqual([["VAN", "FL"]]);
+    expect(line?.tracks).toEqual([1]);
+  });
+
+  it("draws nothing when every covered segment is already on a route", () => {
+    expect(
+      closedStretchLine(
+        [{ trackNumber: 1, stationA: "FOR", stationB: "FB" }],
+        running,
+      ),
+    ).toBeNull();
+  });
+});

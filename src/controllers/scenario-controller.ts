@@ -1,0 +1,274 @@
+import type { Server } from "socket.io";
+import type { Request, Response } from "express";
+import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
+import { roleRoom } from "../realtime/socket-server.js";
+import { emitThreadsClosed } from "../realtime/station-messages.js";
+
+import {
+  ACTIVATION_STATUSES,
+  findActiveScenarioVersion,
+  type ActivationStatus,
+  findActiveActivation,
+  findActivation,
+  listActivations,
+  type StoredActivation,
+} from "../repositories/activation-repository.js";
+import {
+  findScenario,
+  getAllScenarios,
+} from "../repositories/scenario-repository.js";
+import { userRepository } from "../repositories/user-repository.js";
+import {
+  activateAndLog,
+  standDownAndLog,
+  switchAndLog,
+} from "../services/activation-service.js";
+import type { ActivateRequest } from "../../shared/types/v1/activate-request.js";
+
+// Users only see their own line group's scenarios
+export async function getScenarios(_request: Request, response: Response) {
+  response.json(await getAllScenarios(response.locals.user.lineGroup));
+}
+
+export async function getScenario(
+  request: Request<{ scenarioId: string }>,
+  response: Response,
+) {
+  const { activationId } = request.query;
+  if (
+    activationId !== undefined &&
+    (typeof activationId !== "string" || !/^[1-9]\d*$/.test(activationId))
+  ) {
+    response
+      .status(400)
+      .json(
+        errorBody(
+          ERROR_CODES.INVALID_REQUEST,
+          "activationId must be a positive integer",
+        ),
+      );
+    return;
+  }
+  const versionId =
+    activationId === undefined
+      ? undefined
+      : await findActiveScenarioVersion(
+          Number(activationId),
+          request.params.scenarioId,
+        );
+  if (activationId !== undefined && versionId === undefined) {
+    response
+      .status(404)
+      .json({ error: "Active scenario activation not found" });
+    return;
+  }
+  const scenario = await findScenario(request.params.scenarioId, versionId);
+  // Another line group's scenario is treated as not existing.
+  if (
+    scenario === undefined ||
+    scenario.lineGroup !== response.locals.user.lineGroup
+  ) {
+    response.status(404).json({ error: "Scenario not found" });
+    return;
+  }
+  response.json(scenario);
+}
+
+// Reads the same store as GET /api/v1/activations, so the two never disagree.
+// No active scenario is a normal state, so it answers 200 with null, not 404.
+export async function getCurrentScenarioState(
+  _request: Request,
+  response: Response,
+) {
+  const active = await findActiveActivation(response.locals.user.lineGroup);
+  response.json(active ?? null);
+}
+
+export async function getActivations(request: Request, response: Response) {
+  const { status } = request.query;
+  // Users only see their own line group's activations.
+  const inOwnLineGroup = (activations: StoredActivation[]) =>
+    activations.filter(
+      (activation) => activation.lineGroup === response.locals.user.lineGroup,
+    );
+  if (status === undefined) {
+    response.json(inOwnLineGroup(await listActivations()));
+    return;
+  }
+  // A repeated or unknown status is refused, not silently treated as no filter.
+  if (
+    typeof status !== "string" ||
+    !ACTIVATION_STATUSES.includes(status as ActivationStatus)
+  ) {
+    response
+      .status(400)
+      .json(
+        errorBody(
+          ERROR_CODES.INVALID_REQUEST,
+          `status must be one of ${ACTIVATION_STATUSES.join(", ")}`,
+        ),
+      );
+    return;
+  }
+  response.json(
+    inOwnLineGroup(await listActivations(status as ActivationStatus)),
+  );
+}
+
+// Metro on MET-A-026: "All in CCR can activate a scenario". The full role
+// matrix is #25's; this only keeps stewards out.
+export async function activate(
+  request: Request<{ scenarioId: string }>,
+  response: Response,
+) {
+  const { userId, role } = response.locals.user;
+  const { scenarioId } = request.params;
+  const { replaces } = (request.body ?? {}) as ActivateRequest;
+
+  if (role !== "OPERATOR") {
+    response
+      .status(403)
+      .json(
+        errorBody(
+          ERROR_CODES.ROLE_NOT_PERMITTED,
+          `Role ${role} may not activate a scenario`,
+        ),
+      );
+    return;
+  }
+
+  const user = await userRepository.getUserById(userId);
+
+  if (!user) {
+    response
+      .status(401)
+      .json(
+        errorBody(ERROR_CODES.AUTH_TOKEN_INVALID, "Invalid or expired token"),
+      );
+    return;
+  }
+
+  const scenario = await findScenario(scenarioId);
+  if (
+    scenario === undefined ||
+    scenario.lineGroup !== response.locals.user.lineGroup
+  ) {
+    response
+      .status(404)
+      .json(
+        errorBody(
+          ERROR_CODES.NOT_FOUND,
+          `No scenario with id '${scenarioId}' exists`,
+        ),
+      );
+    return;
+  }
+
+  const result =
+    replaces === undefined
+      ? await activateAndLog(response.locals.user, scenario, user.username)
+      : await switchAndLog(
+          response.locals.user,
+          scenario,
+          user.username,
+          replaces,
+        );
+  if (result.kind === "replaces-not-active") {
+    response
+      .status(409)
+      .json(
+        errorBody(
+          ERROR_CODES.CONFLICT,
+          `'${replaces}' is not the active activation`,
+        ),
+      );
+  } else if (result.kind === "already-active") {
+    response
+      .status(409)
+      .json(
+        errorBody(
+          ERROR_CODES.CONFLICT,
+          `A scenario is already active in this line group, so '${scenarioId}' cannot be activated`,
+        ),
+      );
+  } else {
+    // Push the whole activated scenario to the connected stewards. Operators
+    // get an empty signal, so their active-scenario banner refetches at once.
+    const io = request.app.locals.io as Server | undefined;
+    const { lineGroup } = result.activation;
+    if (!io) {
+      console.warn("Socket.IO not attached; scenario-activated not sent");
+    }
+    if (io && replaces !== undefined) {
+      const replaced = await findActivation(replaces);
+      if (replaced) emitThreadsClosed(io, replaced);
+    }
+    io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-activated", {
+      scenario,
+      sentAt: new Date().toISOString(),
+      sequence: result.sequence,
+    });
+    io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
+    console.log("Scenario activated:", result.activation);
+    response.status(201).json(result.activation);
+  }
+}
+
+// Standing down returns every client to normal
+export async function standDown(
+  request: Request<{ activationId: string }>,
+  response: Response,
+) {
+  const { role } = response.locals.user;
+  const { activationId } = request.params;
+
+  if (role !== "OPERATOR") {
+    response
+      .status(403)
+      .json(
+        errorBody(
+          ERROR_CODES.ROLE_NOT_PERMITTED,
+          `Role ${role} may not stand down a scenario`,
+        ),
+      );
+    return;
+  }
+
+  const numericId = /^[1-9]\d*$/.test(activationId)
+    ? Number(activationId)
+    : Number.NaN;
+  const result = await standDownAndLog(response.locals.user, numericId);
+  if (result.kind === "not-found") {
+    response
+      .status(404)
+      .json(
+        errorBody(
+          ERROR_CODES.NOT_FOUND,
+          `No activation with id '${activationId}' exists`,
+        ),
+      );
+    return;
+  }
+  if (result.kind === "already-closed") {
+    response
+      .status(409)
+      .json(
+        errorBody(
+          ERROR_CODES.SCENARIO_STOOD_DOWN,
+          `'${activationId}' is already stood down`,
+        ),
+      );
+    return;
+  }
+
+  const io = request.app.locals.io as Server | undefined;
+
+  const { lineGroup } = result.activation;
+  io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-stood-down");
+  io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
+  if (io) {
+    emitThreadsClosed(io, result.activation);
+  }
+
+  response.json(result.activation);
+}

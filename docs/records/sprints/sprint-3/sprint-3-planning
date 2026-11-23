@@ -1,0 +1,95 @@
+# Sprint 3 planning
+
+**Group:** 7,9,10, Case A
+
+**Date:** 12-10-2026  
+**Present:** {Names}
+
+## 1. Sprint Goal
+
+Implement real-time scenario activation and log when a scenario has been activated.
+
+## 2. Selected PBIs
+
+| PBI | Short title | Owner(s) | Estimate |
+|---|---|---|---|
+| PBI-23 | {Title} – Highest priority | {Group} | {Estimate} |
+| PBI-04 | {Title} – High priority | {Group} | {Estimate} |
+| PBI-07 | {Title} | {Group} | {Estimate} |
+| PBI-08 | {Title} | {Group} | {Estimate} |
+| PBI-05 | {Title} | {Group} | {Estimate} |
+
+**Additional items if time allows**
+
+| PBI | Short title | Owner(s) | Estimate |
+|---|---|---|---|
+| PBI-12 | {Title} | {Group} | {Estimate} |
+| PBI-26 | {Title} | {Group} | {Estimate} |
+
+The final selection and distribution of PBIs between the teams still need to be confirmed.
+
+## 3. Cross-group dependencies
+
+| Our PBI | We need | From group | Needed by | Agreed action |
+|---|---|---|---|---|
+| {PBI} | {Dependency} | {Group} | {Date} | {Action} |
+
+- We need an overview of what each team is currently working on.
+- Cross-group dependencies should be identified before work begins.
+- The Integration Team meet on 13-10-2026 to coordinate the PBIs and clarify dependencies between teams
+- After the PBIs have been coordinated they will be available for the groups to take ownership of and start working on
+
+## 4. Blocking or Metro questions
+
+| PBI | Question | Impact | Who raises it |
+|---|---|---|---|
+| {PBI} | {Question} | Blocking / Shaping / Detail | {Name} |
+
+No specific blocking questions were recorded at this time 
+Might come up during work
+
+## 5. Risks and assumptions
+
+**Risk or assumption**
+
+Unclear distribution of PBIs and dependencies between teams could result in duplicated work or integration issues.
+
+**What we will do**
+
+- Establish what each team is working on.
+- Coordinate the distribution of PBIs between the teams.
+- Identify dependencies and communicate them through the Integration Team.
+
+**Risk or assumption**
+
+Issues and PRs are still not consistently organized, which could make it difficult to follow progress and review work.
+
+**What we will do**
+
+- Improve the organization of issues and PRs.
+- Establish clearer expectations for reviews and communication.
+- Make sure acceptance criteria and DoD are considered during reviews.
+
+## 6. Integration expectations
+
+### We expect to provide
+
+- An overview of the PBIs our group is working on.
+- Information about relevant dependencies and changes affecting other teams.
+- Clear communication of progress and potential blockers.
+
+### We expect to receive
+
+- An overview of what the other teams are working on.
+- Information about dependencies affecting our PBIs.
+- Clear communication about changes to shared functionality and interfaces.
+- Coordination through the Integration Team when cross-team decisions are needed.
+
+## 7. Before planning ends
+
+- [ ] Selected PBIs meet the Definition of Ready
+- [ ] Dependencies are visible
+- [ ] Blocking questions are known
+- [ ] Owners are agreed
+- [ ] Cross-group dependencies have been discussed
+- [ ] The Sprint Goal is understood by the group

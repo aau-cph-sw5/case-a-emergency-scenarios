@@ -1,0 +1,41 @@
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "web/**"
+          - "mobile/**"
+          - "shared/**"
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/**"
+          - "stub-server/**"
+          - "contracts/**"
+          - "fixtures/**"
+          - "scripts/**"
+
+database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/db/**"
+          - "**/*.sql"
+          - "compose.yaml"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "test/**"
+          - "tests/**"
+          - "**/__tests__/**"
+          - "**/*.{test,spec}.{js,jsx,ts,tsx}"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"

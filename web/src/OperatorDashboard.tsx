@@ -1,0 +1,138 @@
+import { useEffect, useState, type CSSProperties } from "react";
+import { operatorCssVars } from "../../shared/Theme";
+import { StewardPositions } from "./components/StewardPositions";
+import { ScenarioWorkspace } from "./components/ScenarioWorkspace";
+import { LiveStatusBar } from "./components/LiveStatusBar";
+import { OperatorMessagePanel } from "./components/OperatorMessagePanel";
+import {
+  mockStewardPositions,
+  notificationTestShortcuts,
+} from "./local-settings";
+import { ActiveScenarioBanner } from "./ActiveScenarioBanner";
+import { LINE_GROUP_LABELS } from "../../shared/auth/line-groups";
+import { lineGroupFromToken } from "../../shared/auth/login";
+
+// The control-room dashboard. App opens the socket. Each section is filled by
+// its own sub-issue of MET-A-011, so the dashboard keeps working until then.
+export function OperatorDashboard({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
+  // The map and requirements preview share the selected scenario.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const ownLineGroup = lineGroupFromToken(token);
+  const [testNotifications, setTestNotifications] = useState<{
+    status?: number;
+    messages?: number;
+  }>();
+  useEffect(() => {
+    if (!notificationTestShortcuts) return;
+
+    function handleTestShortcut(event: KeyboardEvent) {
+      if (!event.ctrlKey || event.shiftKey || event.metaKey) return;
+      const key = event.key.toLowerCase();
+      if (event.altKey && key === "," && !event.repeat) {
+        setTestNotifications(
+          (counts) => counts && { ...counts, messages: undefined },
+        );
+        return;
+      }
+      if (key !== "n" && key !== "m") return;
+
+      event.preventDefault();
+      if (event.repeat) return;
+      setTestNotifications((counts) =>
+        key === "n"
+          ? {
+              status: (counts?.status ?? 0) + 1,
+              messages: (counts?.messages ?? 0) + 1,
+            }
+          : { status: 0, messages: 0 },
+      );
+    }
+
+    window.addEventListener("keydown", handleTestShortcut);
+    return () => window.removeEventListener("keydown", handleTestShortcut);
+  }, []);
+  // The map starts on the operator's own line group.
+  const [lineGroup, setLineGroup] = useState<"M1/M2" | "M3/M4">(
+    ownLineGroup ? LINE_GROUP_LABELS[ownLineGroup] : "M1/M2",
+  );
+  return (
+    <main
+      className="operator-dashboard"
+      style={operatorCssVars as CSSProperties}
+    >
+      <header className="operator-topbar">
+        <div className="operator-brand">
+          <span className="brand-mark" aria-hidden="true">
+            M
+          </span>
+          <strong>Metro Service</strong>
+        </div>
+        <ActiveScenarioBanner />
+        <div className="operator-profile">
+          <div
+            className="operator-line-switcher"
+            role="group"
+            aria-label="Vælg metrolinjer"
+          >
+            <button
+              type="button"
+              aria-pressed={lineGroup === "M1/M2"}
+              onClick={() => setLineGroup("M1/M2")}
+            >
+              M1 / M2
+            </button>
+            <button
+              type="button"
+              aria-pressed={lineGroup === "M3/M4"}
+              onClick={() => setLineGroup("M3/M4")}
+            >
+              M3 / M4
+            </button>
+          </div>
+          <span className="operator-avatar" aria-hidden="true">
+            OP
+          </span>
+          <strong>
+            {ownLineGroup
+              ? `Operator (${LINE_GROUP_LABELS[ownLineGroup]})`
+              : "Operator"}
+          </strong>
+          <button className="logout-button" onClick={onLogout} type="button">
+            Log ud
+          </button>
+        </div>
+      </header>
+      <ScenarioWorkspace
+        token={token}
+        selectedId={selectedId}
+        lineGroup={lineGroup}
+        onSelect={setSelectedId}
+        statusBar={<LiveStatusBar />}
+        statusPopup={
+          <StewardPositions
+            mock={mockStewardPositions}
+            testNotificationCount={testNotifications?.status}
+            onOpen={() =>
+              setTestNotifications(
+                (counts) => counts && { ...counts, status: 0 },
+              )
+            }
+          />
+        }
+        messagePanel={
+          <OperatorMessagePanel
+            token={token}
+            lineGroup={ownLineGroup}
+            testNotificationCount={testNotifications?.messages}
+          />
+        }
+      />
+    </main>
+  );
+}

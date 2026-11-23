@@ -1,0 +1,212 @@
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
+import App from "../../mobile/App";
+import activeState from "../../fixtures/v1/scenario-state.json";
+import { network } from "../helpers/network";
+import { NETWORK_STORAGE_KEY } from "../../shared/network/cache";
+import { STATION_MESSAGE_QUEUE_KEY } from "../../shared/offline/station-message-queue";
+import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
+import {
+  ownMessageIds,
+  rememberOwnMessage,
+} from "../../mobile/src/offline/own-station-messages";
+import {
+  STORAGE_KEY,
+  buildSnapshot,
+} from "../../shared/offline/scenario-snapshot";
+import { markStationChatRead } from "../../mobile/src/offline/station-chat-read";
+import type { Scenario } from "../../shared/types/v1/scenario";
+import type { ScenarioState } from "../../shared/types/v1/scenario-state";
+
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);
+jest.mock("@react-native-community/netinfo", () =>
+  require("@react-native-community/netinfo/jest/netinfo-mock.js"),
+);
+jest.mock(
+  "react-native-safe-area-context",
+  () => require("react-native-safe-area-context/jest/mock").default,
+);
+jest.mock("expo-secure-store", () => {
+  const items = new Map<string, string>();
+  return {
+    getItemAsync: async (key: string) => items.get(key) ?? null,
+    setItemAsync: async (key: string, value: string) => {
+      items.set(key, value);
+    },
+    deleteItemAsync: async (key: string) => {
+      items.delete(key);
+    },
+  };
+});
+
+// A stored steward session whose token carries user id 7.
+async function storeSession() {
+  const payload = Buffer.from(JSON.stringify({ userId: 7 })).toString(
+    "base64url",
+  );
+  await SecureStore.setItemAsync(
+    "metro-scenario-session",
+    JSON.stringify({
+      token: `header.${payload}.signature`,
+      role: "STEWARD",
+      expiresAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
+    }),
+  );
+}
+
+async function storeCopy() {
+  const snapshot = buildSnapshot(
+    {
+      active: true,
+      state: activeState as ScenarioState,
+      scenario: scenario as Scenario,
+    },
+    "7",
+    new Date(),
+  );
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+}
+
+function response(status: number, body: unknown = {}) {
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    json: async () => body,
+  } as Response;
+}
+
+afterEach(async () => {
+  jest.restoreAllMocks();
+  await AsyncStorage.clear();
+  await SecureStore.deleteItemAsync("metro-scenario-session");
+});
+
+describe("App", () => {
+  it("opens on the saved copy when the session cannot be confirmed offline", async () => {
+    await storeSession();
+    await storeCopy();
+    jest
+      .spyOn(global, "fetch")
+      .mockRejectedValue(new TypeError("Network request failed"));
+
+    render(<App />);
+
+    expect(await screen.findByText(/gemt kopi/)).toBeTruthy();
+    expect(screen.getByText(scenario.name)).toBeTruthy();
+    expect(screen.queryByText("Rapportér position")).toBeNull();
+  });
+
+  it("keeps the copy while the session is being verified and removes it at sign-out", async () => {
+    await storeSession();
+    await storeCopy();
+    await AsyncStorage.setItem(NETWORK_STORAGE_KEY, JSON.stringify(network));
+    await AsyncStorage.setItem(
+      STATION_MESSAGE_QUEUE_KEY,
+      JSON.stringify([
+        {
+          clientMessageId: "msg-1",
+          userId: "7",
+          station: "Station B",
+          activationId: 1,
+          text: "Hej",
+          writtenAt: "2026-11-15T20:00:00Z",
+        },
+      ]),
+    );
+    await rememberOwnMessage("7", 1, "Station B", "msg-1");
+    jest
+      .spyOn(global, "fetch")
+      .mockRejectedValue(new TypeError("Network request failed"));
+
+    render(<App />);
+
+    expect(await screen.findByText(scenario.name)).toBeTruthy();
+    expect(await AsyncStorage.getItem(STORAGE_KEY)).not.toBeNull();
+    expect(await AsyncStorage.getItem(NETWORK_STORAGE_KEY)).not.toBeNull();
+    expect(
+      await AsyncStorage.getItem(STATION_MESSAGE_QUEUE_KEY),
+    ).not.toBeNull();
+    expect(await ownMessageIds("7", 1, "Station B")).toEqual(
+      new Set(["msg-1"]),
+    );
+
+    fireEvent.press(screen.getByText("Log ud"));
+
+    expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull(),
+    );
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(NETWORK_STORAGE_KEY)).toBeNull(),
+    );
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(STATION_MESSAGE_QUEUE_KEY)).toBeNull(),
+    );
+    await waitFor(async () =>
+      expect(await ownMessageIds("7", 1, "Station B")).toEqual(new Set()),
+    );
+  });
+
+  it("removes the copy and station messages when the server no longer accepts the session", async () => {
+    await storeSession();
+    await storeCopy();
+    await AsyncStorage.setItem(
+      STATION_MESSAGE_QUEUE_KEY,
+      JSON.stringify([
+        {
+          clientMessageId: "msg-2",
+          userId: "7",
+          station: "Station B",
+          activationId: 1,
+          text: "Hej",
+          writtenAt: "2026-11-15T20:00:00Z",
+        },
+      ]),
+    );
+    await rememberOwnMessage("7", 1, "Station B", "msg-2");
+    jest.spyOn(global, "fetch").mockResolvedValue(response(401));
+
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull(),
+    );
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(STATION_MESSAGE_QUEUE_KEY)).toBeNull(),
+    );
+    await waitFor(async () =>
+      expect(await ownMessageIds("7", 1, "Station B")).toEqual(new Set()),
+    );
+  });
+
+  it("clears station chat read markers on sign-out (MET-A-029, #446)", async () => {
+    await storeSession();
+    await storeCopy();
+    await markStationChatRead("7", 1, "Station B", 5);
+    jest
+      .spyOn(global, "fetch")
+      .mockRejectedValue(new TypeError("Network request failed"));
+
+    render(<App />);
+
+    expect(await screen.findByText(scenario.name)).toBeTruthy();
+    expect(await AsyncStorage.getItem("station-chat-read/7")).not.toBeNull();
+
+    fireEvent.press(screen.getByText("Log ud"));
+
+    expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem("station-chat-read/7")).toBeNull(),
+    );
+  });
+});

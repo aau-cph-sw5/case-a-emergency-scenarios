@@ -1,0 +1,66 @@
+{
+  "scenarioId": "DEMO-001",
+  "lineGroup": "M1_M2",
+  "name": "Synthetic fallback scenario",
+  "currentVersion": "1",
+  "covers": [
+    { "trackNumber": 1, "stationA": "Station A", "stationB": "Station B" }
+  ],
+  "versions": [
+    {
+      "version": "1",
+      "revision": "Initial version",
+      "operatingPlan": {
+        "name": "Fallback operation",
+        "patterns": [
+          {
+            "operationType": "PENDULUM",
+            "routeCode": "A-B",
+            "trackNumber": 1,
+            "maximumTrains": 1,
+            "did": "DEMO",
+            "description": "Synthetic pendulum service",
+            "route": [],
+            "color": "#FF080B"
+          }
+        ]
+      },
+      "stationRequirements": [
+        {
+          "station": "Station B",
+          "placement": "Platform 1, near the elevators",
+          "minimumStaffing": 1,
+          "activeDuring": [
+            {
+              "dayPattern": "MON-THU",
+              "startTime": "07:00:00",
+              "endTime": "09:00:00"
+            }
+          ],
+          "actions": [
+            {
+              "sequence": 1,
+              "instruction": "Synthetic example instruction"
+            },
+            {
+              "sequence": 2,
+              "instruction": "Synthetic example instruction 2"
+            },
+            {
+              "sequence": 3,
+              "instruction": "Synthetic example instruction 3"
+            },
+            {
+              "sequence": 4,
+              "instruction": "Synthetic example instruction 4"
+            },
+            {
+              "sequence": 5,
+              "instruction": "Synthetic example instruction 5"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

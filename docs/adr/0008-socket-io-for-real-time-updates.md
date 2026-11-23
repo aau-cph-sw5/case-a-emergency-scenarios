@@ -1,0 +1,100 @@
+# ADR 0008. Push updates to clients over Socket.IO and send client changes over HTTP
+
+**Status.** Accepted
+**Date.** 2026-10-19
+**Deciders.** group 7
+**Related backlog items.** MET-A-004, MET-A-007, MET-A-029
+
+## Context
+
+MET-A-004 requires two kinds of change to reach other clients quickly. A
+scenario activated by an operator must reach a connected steward client, and a
+steward's position report must reach the control-room overview. Both must
+arrive within 3 seconds at the 95th percentile on staging with 25 simulated
+clients connected. A client that loses its connection must be detected within
+30 seconds and shown as stale, and messages for one steward must be applied in
+the order they were generated.
+
+In both cases the client that must react does not know when the change will
+happen. Plain HTTP only lets the client start a request, so without another
+transport the receiving client has to poll.
+
+## Decision
+
+The server pushes changes to clients over Socket.IO, and clients send their own
+changes to the server over the HTTP API.
+
+An operator activates a scenario with `POST /api/v1/scenarios/{scenarioId}/activate`,
+and the server then emits `scenario-activated` to the connected stewards and an
+empty `activations-changed` to the connected operators, who refetch the active
+activations for their banner.
+
+A steward sends `POST /api/v1/position-reports`, and the server forwards the
+report to the connected operators as `position-report`. When the report
+changes the deployments, it also emits an empty `activations-changed` to the
+connected operators and stewards, who refetch, so the coverage on the
+dashboard and on every steward's phone follows the report (#310).
+
+An operator stands down a scenario with
+`POST /api/v1/activations/{activationId}/stand-down`, and the server emits an
+empty `scenario-stood-down` to the connected stewards of that line group, who refetch the scenario
+state, and `activations-changed` to the connected operators of that line group.
+
+A client sends its bearer token when it opens the socket, and the server
+refuses the connection without a valid token (error code `E0001`). Each socket
+joins one room for its role and line group: `OPERATOR:M1_M2`, `STEWARD:M1_M2`, `OPERATOR:M3_M4` or `STEWARD:M3_M4`. Every event is sent to the role it is for, in the line group of the activation it is about, so M1/M2 and M3/M4 never receive each other's events.
+
+Station messages (MET-A-029) are delivered more narrowly. A steward checked in
+at a station, meaning their latest report in the active activation is `ARRIVED`
+and not task done, is also in a room for that station and activation,
+`station:<activationId>:<station>`. The server never joins or leaves this room
+directly. After every accepted position report, and when a steward's socket
+connects, it syncs all of that steward's sockets with the database: into the
+room the latest report puts them in, and out of every other station room. Syncs
+for one steward run one at a time, and each reads the newest state, so reports
+that arrive close together cannot leave a steward in the wrong room. On connect
+the sync finishes before `welcome`, because clients treat `welcome` as ready. A
+new message is emitted as `station-message` to the operators of the
+activation's line group and to the station's room, the sender included, so the
+writer can match it by `clientMessageId`. When the activation is stood down or
+replaced in a switch, the server emits `station-threads-closed` to both roles in
+the line group and empties the room of each station the activation deploys
+staff to.
+
+## Consequences
+
+What becomes easier:
+
+- A change reaches the receiving clients as soon as the server has it, without
+  polling. The latency is roughly one network trip, and no requests are sent
+  while nothing changes.
+- Client changes keep using the existing HTTP endpoints.
+- Socket.IO reconnects automatically, which matters on a phone, because the app can be left running in the background
+- Event payloads are typed in `shared/socket/events.ts`, so the server, web and
+  mobile agree on what an event contains.
+
+
+## Alternatives considered
+
+**Polling over HTTP.** Every client asks for the current state at a fixed
+interval. The delay depends on the interval: with 2 seconds, a change can be up
+to 2 seconds old before the request even starts, so staying under 3 seconds at
+the 95th percentile needs polling about every second. With 25 clients that is
+at least 25 requests per second, almost all answered with no change.
+
+
+**Server-sent events.** One-way push from server to client over HTTP, which is
+enough for these events. React Native has no built-in `EventSource`, so the
+mobile app would need a third-party library, and reconnection and per-role
+delivery would have to be built by hand.
+
+**Plain WebSocket.** The same latency as Socket.IO, but reconnection, the
+heartbeat, rooms for sending to one role, and the event format would all have to
+be written and tested by us.
+
+**Sending position reports over the socket as well.** Would save the time to
+open an HTTP request, a few milliseconds per report. It would mean rebuilding
+authentication, validation and acknowledgements for the socket, which the HTTP
+endpoint already has.
+
+

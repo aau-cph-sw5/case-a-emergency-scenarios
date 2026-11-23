@@ -1,0 +1,119 @@
+import { readdirSync, readFileSync } from "node:fs";
+import pg from "pg";
+import postgres from "postgres";
+import { seedScenarios, type Scenario } from "../../scripts/seed-scenarios.js";
+import type { SeededTestUser } from "../../scripts/seed-test-users.js";
+import type { LineGroup } from "../../shared/auth/line-groups.js";
+import { getDatabase, type Db } from "../../src/db/client.js";
+import type { NewIncidentEvent } from "../../src/services/incident-log-service.js";
+
+class Rollback extends Error {}
+
+let owner: postgres.Sql | undefined;
+
+// A connection as the table owner, the user Flyway migrates as. The application
+// connects as metro_app, which may not delete users or position reports, so a
+// test that cleans up after itself does it through this one. Close it with
+// closeOwnerDatabase() in after().
+export function getOwnerDatabase(): postgres.Sql {
+  const url = process.env.OWNER_DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      "OWNER_DATABASE_URL is set by tests/integration/setup-env.ts",
+    );
+  }
+  // The same column naming as getDatabase(), so a test reads rows the same way.
+  owner ??= postgres(url, {
+    transform: { column: { from: postgres.toCamel, to: postgres.fromCamel } },
+  });
+  return owner;
+}
+
+export async function closeOwnerDatabase() {
+  await owner?.end();
+  owner = undefined;
+}
+
+const SCENARIO_FIXTURES = new URL(
+  "../../fixtures/v1/scenarios/",
+  import.meta.url,
+);
+
+// Synthetic stations for the DEMO fixtures, shared with `npm run seed:demo`.
+const TEST_STATIONS = JSON.parse(
+  readFileSync(
+    new URL("../../fixtures/v1/demo-stations.json", import.meta.url),
+    "utf8",
+  ),
+) as { code: string; name: string }[];
+
+// Loads the synthetic DEMO scenarios from fixtures/v1/scenarios/ into the test database
+export async function seedTestScenarios() {
+  const scenarios = readdirSync(SCENARIO_FIXTURES)
+    .filter((file) => file.endsWith(".json"))
+    .map(
+      (file) =>
+        JSON.parse(
+          readFileSync(new URL(file, SCENARIO_FIXTURES), "utf8"),
+        ) as Scenario,
+    );
+
+  const client = new pg.Client({
+    connectionString: process.env.OWNER_DATABASE_URL,
+  });
+  await client.connect();
+  try {
+    // Each test file starts with the same empty activation state as the server.
+    // This is the dedicated test database and the test runner is serial.
+    // Reports point at their activation, so they go first.
+    await client.query("DELETE FROM position_reports");
+    await client.query("DELETE FROM incident_activations");
+    await seedScenarios(client, scenarios, TEST_STATIONS);
+  } finally {
+    await client.end();
+  }
+}
+
+// Runs the test in a transaction that is always rolled back, so it leaves no
+// rows behind. The incident log is append-only, so a committed test event could
+// never be removed again. Runs as the application's role unless `connection` says
+// otherwise.
+export async function inRolledBackTransaction(
+  run: (tx: Db) => Promise<void>,
+  connection: postgres.Sql = getDatabase(),
+) {
+  try {
+    await connection.begin(async (tx) => {
+      await run(tx);
+      throw new Rollback();
+    });
+  } catch (error) {
+    if (!(error instanceof Rollback)) throw error;
+  }
+}
+
+export function anEvent(
+  overrides: Partial<NewIncidentEvent> = {},
+): NewIncidentEvent {
+  return {
+    type: "SCENARIO_ACTIVATED",
+    schemaVersion: 1,
+    subject: { type: "activation", id: "ACT-TEST-1" },
+    activationId: "ACT-TEST-1",
+    line: "M1",
+    payload: { scenarioId: "DEMO-001", some_key: 1 },
+    ...overrides,
+  };
+}
+
+export function seededUser(
+  users: SeededTestUser[],
+  role: SeededTestUser["role"],
+  lineGroup: LineGroup,
+): SeededTestUser {
+  const user = users.find(
+    (candidate) => candidate.role === role && candidate.lineGroup === lineGroup,
+  );
+  if (!user) throw new Error(`No seeded ${role} in ${lineGroup}`);
+  return user;
+}

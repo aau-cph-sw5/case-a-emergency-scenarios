@@ -1,6 +1,6 @@
 # Case A. Emergency Scenarios
 
-*Nød-scenarier*  ·  5th Semester, BSc Software Engineering, AAU Copenhagen  ·  Autumn 2026
+_Nød-scenarier_ · 5th Semester, BSc Software Engineering, AAU Copenhagen · Autumn 2026
 
 A shared situational-awareness tool that lets the control room select the active emergency or alternative-operation scenario and gives both the control room and the stewards a live graphical overview, replacing a document that is hard to navigate under pressure and reducing radio traffic.
 
@@ -38,24 +38,132 @@ This case now carries the semester's machine-intelligence work: `MET-A-019`, sce
 > and get the system running by following this README alone. Test that by handing it to
 > somebody on another team and watching where they get stuck.
 
+Requires Node.js 20.19 or later and a running Docker Desktop.
+
 ```bash
-# prerequisites
-# install
-# run
-# test
+npm run setup
+npm run dev:web
 ```
+
+`npm run setup` installs dependencies, creates `.env` and a local JWT secret,
+starts the local PostgreSQL database and applies the migrations. When
+`NETWORK_SEED_FILE` is configured in `.env`, it loads the network first and
+then loads scenarios if `SEED_SCENARIOS_DIR` is also configured. Without the
+network file, automatic network and scenario seeding is skipped; see [the seed
+loader guide](scripts/README.md). It is safe to re-run, for example after
+pulling new migrations. `npm run db:reset` deletes the local database and
+rebuilds it using the same seed order.
+
+The browser-based web client opens at `http://localhost:5173`; the API and
+Socket.IO server run at `http://localhost:3000`. Use
+`http://localhost:3000/healthcheck` to confirm the API is running. Start the
+separate native Expo mobile app in a second terminal with `npm run mobile`.
+`npm run stub` continues to run the fixture-backed mock API on port 4010.
+
+`npm run build` compiles the API to `dist/` and builds the browser app to
+`web/dist/`. `npm start` runs the compiled server, which serves the API,
+Socket.IO, and browser app from one port.
+
+## Hosted staging and production
+
+Each existing Render Node service serves its matching browser-based web client,
+API, and Socket.IO endpoint from a single URL. The staging service deploys the
+`staging` branch; the production service deploys `main`.
+
+Configure each Render service with:
+
+```text
+Build Command: npm ci && npm run build
+Start Command: npm start
+```
+
+Render provides `PORT`; do not set it manually. Visit the relevant Render URL
+to use the browser-based web client. The deployed web client connects to
+Socket.IO on that same origin, so it needs no deployment-specific URL variable.
+
+Set `DATABASE_URL` on each service to the connection string of that
+environment's own database, the one the Database migrations workflow migrates.
+Routes that use the database fail without it; `POST /api/v1/position-reports`
+is the first.
+
+For Expo to connect to a hosted environment, set `API_URL` in the repository
+root `.env` before starting or building the mobile app, then restart Expo:
+
+```env
+# Staging example
+API_URL=https://case-a-emergency-scenarios-staging.onrender.com
+```
+
+Use the production service URL when making a production mobile build. Do not
+commit `.env`.
+
+## Local database
+
+The project has a local PostgreSQL database and Flyway Open Source migrations
+for development. See [the local database guide](src/db/README.md).
 
 ## Layout
 
 ```
-contracts/     published interfaces other teams build against, versioned
-docs/adr/      architecture decision records
-fixtures/      synthetic test data. Never anything Metro supplied.
+contracts/      published interfaces other teams build against, versioned
+fixtures/       synthetic test data. Never anything Metro supplied.
+src/            production Node.js API (application, routes, database access)
+  db/           database client, Flyway configuration, and migrations
+web/            Vite/React browser-based web client
+mobile/         Expo/React Native native mobile app (installable as an Android APK)
+shared/         socket event types and cross-platform connection state
+stub-server/    fixture-backed mock API for contract and frontend development
+tests/          automated unit and integration tests
+docs/           instructions, reference, architecture decisions, records and templates
+.github/        the pull request template and the automated checks
 ```
 
 ## Branches
 
-`main` protected, only what has been demonstrated at a review. `staging` integration, should always run. `development` the shared working branch. One feature branch per item, named for it.
+`main` is production, `staging` is the integration branch and should always
+run, and `dev` is the shared working branch. One feature branch per item is
+named for that item.
+
+## Pull requests
+
+All pull requests must follow the naming convention and use the provided PR description template. GitHub Actions automatically validates both the title and description.
+
+### PR title
+
+Titles must use the following format:
+
+`<type>: <description> [<ticket>]`
+
+**Allowed types:**
+
+- `feat` — New feature
+- `fix` — Bug fix
+- `docs` — Documentation changes
+- `refactor` — Code changes that do not alter functionality
+- `test` — Adding or updating tests
+- `chore` — Maintenance, dependencies, configuration and CI changes
+
+The ticket must be either `MET-A-<number>` or `NO-PBI` if there is no related backlog item.
+
+**Examples:**
+
+```text
+feat: add emergency scenario endpoint [MET-A-025]
+fix: handle invalid station data [MET-A-003]
+test: add contract tests [MET-A-003]
+chore: update dependencies [NO-PBI]
+```
+
+### PR description
+
+All pull requests must use the repository's PR template and complete the following sections:
+
+- **Description:** Explain what was changed and why.
+- **Context:** Link to the related GitHub issue, or specify `NO-PBI` if there is no related issue.
+- **Testing:** Explain how the changes were tested. Use `N/A` with an explanation if testing is not applicable.
+- **Type of change:** Select at least one checkbox that describes the changes.
+
+The automated description checker verifies that the required sections are completed, that Context contains an issue reference or `NO-PBI`, and that at least one change type is selected.
 
 ## AI assistants
 
@@ -64,3 +172,26 @@ fixtures/      synthetic test data. Never anything Metro supplied.
 ## Licence
 
 MIT, per Section 7 of the AAU and Metro Service collaboration framework.
+
+### Authentication
+
+```bash
+npm run setup # creates .env and a local JWT_SECRET when needed
+npm run seed:users
+npm run dev
+```
+
+```text
+POST /api/v1/auth/login
+body: username, password, client → token, role, lineGroup, expiresAt
+
+GET  /api/v1/me  (Authorization: Bearer <token>)
+
+POST /api/v1/auth/logout  (Authorization: Bearer <token>)
+```
+
+`client` is `mobile` for the steward app or `web` for the operator dashboard.
+The server checks that the account's database role is allowed for that client
+before creating a session. The client value does not prove which device made the
+request; protected actions still check the account's role. Test accounts are created by `npm run seed:users`; see
+[COMMANDS.md](COMMANDS.md#seed-users) for the usernames and passwords.

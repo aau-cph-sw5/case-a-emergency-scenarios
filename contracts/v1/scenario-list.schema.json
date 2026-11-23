@@ -1,0 +1,39 @@
+{
+  "$id": "scenario-list.schema.json",
+  "title": "Scenario List",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "scenarioId",
+      "name",
+      "lineGroup",
+      "currentVersion",
+      "covers",
+      "versions"
+    ],
+    "properties": {
+      "scenarioId": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "lineGroup": {
+        "type": "string",
+        "enum": ["M1_M2", "M3_M4"]
+      },
+      "currentVersion": {
+        "type": "string"
+      },
+      "covers": {
+        "type": "array",
+        "description": "Track segments covered by the scenario.",
+        "items": { "$ref": "scenario.schema.json#/definitions/TrackSegment" }
+      },
+      "versions": {
+        "type": "array"
+      }
+    }
+  }
+}

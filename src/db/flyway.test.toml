@@ -1,0 +1,13 @@
+[flyway]
+environment = "test"
+locations = ["filesystem:migrations"]
+defaultSchema = "public"
+# This configuration can only reach the disposable db-test Compose service.
+cleanDisabled = false
+validateMigrationNaming = true
+
+[environments.test]
+url = "jdbc:postgresql://db-test:5432/metro_test"
+user = "metro"
+password = "metro"
+schemas = ["public"]

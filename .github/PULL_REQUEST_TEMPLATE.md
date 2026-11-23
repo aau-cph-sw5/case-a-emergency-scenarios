@@ -1,29 +1,49 @@
-# READY FOR REVIEW/NOT READY
-- (Edit the above to reflect status)
+## Description
 
-# Summary
-- TL;DR - what's this PR for?
+<!--
+Briefly describe what this PR changes, why it is needed, and why this approach was chosen.
 
-# Needed By (Date)
-- When does this need to be merged by?
+Example:
+Validate every fixture against its contract schema before the stub serves it.
+A fixture that drifted from the schema used to fail silently in the consuming
+client, so the check belongs next to the contract rather than in a client test.
+-->
 
-# Urgency
-- How critical is this PR?
+## Context
 
-# Steps to Test
+<!-- Link to the related GitHub issue, or write NO-PBI. -->
 
-1. Do this
-1. Then this
-2. Then this
+## How was it verified
 
-# Affected Projects or Products
-- Does this PR impact any particular projects, products, or modules?
+<!--
+Describe how the changes were verified.
+Include relevant test cases, commands, or manual testing.
+Write N/A with a reason if not applicable.
+-->
 
-# Associated Issues and/or People
-- Other PRs
-- Any other contextual information that might be helpful (e.g., description of a bug that this PR fixes, new functionality that it adds, etc.)
-- Anyone who should be notified? (`@mention` them here)
+## Screenshots / Evidence
 
-## Review
-- [ ] Minimum 2 reviews
-- [ ] Minimum 1 review from another group 
+<!--
+Required for UI/layout/CSS changes (before/after screenshots) and for
+performance changes (EXPLAIN output, before/after request duration).
+Otherwise delete this section.
+-->
+
+## Noticed, not fixed
+
+<!--
+Mention anything discovered while working on this PR that was intentionally left out because it belongs in a separate issue.
+Link the follow-up issue if one was created.
+Delete this section if it does not apply.
+-->
+
+## Type of change
+
+<!-- Select the option(s) that apply. -->
+
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Refactor
+- [ ] Tests
+- [ ] Documentation
+- [ ] Chore

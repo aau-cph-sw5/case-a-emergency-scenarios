@@ -1,0 +1,1912 @@
+/* Operator-only styling. Shared React Native/mobile styles stay unchanged. */
+body {
+  margin: 0;
+}
+.login-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+}
+.login-page > div {
+  flex: 1;
+}
+.login-page input:focus-visible,
+.login-page [role="button"]:focus-visible {
+  outline: 3px solid #00a4bf;
+  outline-offset: 2px;
+}
+.login-page [role="button"]:not([aria-disabled="true"]):hover {
+  filter: brightness(0.88);
+  cursor: pointer;
+}
+/* The --operator-* colours come from operatorCssVars in shared/Theme.tsx. */
+.operator-dashboard {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  background: transparent;
+  color: var(--operator-ink);
+  font:
+    13px "Metro",
+    Arial,
+    Helvetica,
+    sans-serif;
+}
+.operator-dashboard *,
+.operator-dashboard *::before,
+.operator-dashboard *::after {
+  box-sizing: border-box;
+}
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.operator-dashboard button,
+.operator-dashboard input,
+.operator-dashboard textarea {
+  font: inherit;
+}
+.operator-dashboard button,
+.operator-dashboard [role="button"] {
+  cursor: pointer;
+}
+.operator-dashboard button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+/* Focus uses the darker teal: M4 blue is too light on white for a focus ring. */
+.operator-dashboard :is(button, input, [tabindex]):focus-visible {
+  outline: 3px solid var(--operator-focus);
+  outline-offset: 3px;
+}
+.operator-topbar {
+  background: var(--operator-ink);
+  min-height: 88px;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  color: white;
+  border-bottom: 1px solid #454545;
+}
+.operator-brand,
+.operator-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.operator-brand > strong {
+  font-size: 19px;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--operator-red);
+  color: white;
+  font-size: 24px;
+  font-weight: 900;
+}
+.operator-line-switcher {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #566167;
+  border-radius: 8px;
+  background: #252a2c;
+}
+.operator-line-switcher button {
+  border: 0;
+  border-radius: 5px;
+  padding: 8px 10px;
+  background: transparent;
+  color: #d5dee0;
+  font-weight: 700;
+}
+.operator-line-switcher button[aria-pressed="true"] {
+  background: #fff;
+  color: #1e1e1e;
+}
+.operator-line-switcher button:hover:not([aria-pressed="true"]) {
+  background: #465155;
+}
+.operator-avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #666;
+  border-radius: 50%;
+  font-size: 12px;
+}
+.logout-button {
+  margin-left: 8px;
+  padding: 8px 10px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  color: #ddd;
+  background: transparent;
+}
+.logout-button:hover {
+  background: #ffffff15;
+  color: white;
+}
+.active-scenario-banner {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  color: #c8c8c8;
+  font-size: 14px;
+}
+.active-scenario-banner p {
+  margin: 0;
+}
+.active-scenario-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.active-scenario-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--operator-red);
+}
+.is-running .active-scenario-label {
+  margin-left: 19px;
+}
+.active-scenario-label {
+  position: relative;
+  min-width: 0;
+}
+.active-scenario-label strong {
+  display: block;
+  font-size: 15px;
+  color: white;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.active-start-time {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
+  font-size: 12px;
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+}
+.scenario-orbit {
+  position: absolute;
+  inset: -7px -12px -7px -16px;
+  pointer-events: none;
+}
+.scenario-orbit::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  offset-path: var(--scenario-orbit-path);
+  background: var(--operator-green);
+  animation: scenario-orbit 1.6s ease-in-out forwards;
+}
+@keyframes scenario-orbit {
+  0% {
+    offset-distance: 100%;
+    background: var(--operator-red);
+    box-shadow: 3px 0 7px #e6140f60;
+  }
+  100% {
+    offset-distance: 0%;
+    background: var(--operator-green);
+    box-shadow: none;
+  }
+}
+.operator-sections {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr) 290px;
+  gap: 16px;
+  padding: 20px;
+  height: calc(100dvh - 88px);
+  min-height: 660px;
+  align-items: stretch;
+}
+.operator-sections > section {
+  min-width: 0;
+  min-height: 0;
+}
+.operator-map-panel,
+.operator-coverage-content,
+.operator-status-footer,
+.scenario-picker,
+.operator-metric,
+.scenario-actions {
+  background: white;
+  border: 1px solid #1e1e1e;
+  border-radius: 15px;
+}
+.operator-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+.scenario-selection {
+  overflow-x: clip;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  height: 100%;
+}
+.scenario-picker {
+  display: flex;
+  flex-direction: column;
+  padding: 22px 18px;
+  flex: 1;
+  min-height: 180px;
+  /* The describe box, suggestions and full list scroll together, so a long
+     suggestion list never squeezes the full list to nothing. */
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.operator-eyebrow {
+  display: block;
+  margin: 0;
+  /* 11px is the smallest text in the column; it is all caps, so it stays
+     readable. */
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: #656565;
+}
+.scenario-picker h2,
+.map-heading h1,
+.coverage-heading {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.6px;
+  margin: 0;
+}
+.scenario-picker h2 {
+  /* 700, not 800: heavy weights blur together at this size. */
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+/* Fields are white with a #686868 edge (5.5:1). The old white-on-M4-blue
+   fields failed contrast (2.9:1), and two identical teal fields looked like
+   the same kind of input although one submits and one filters. */
+.scenario-picker :is(input, textarea) {
+  width: 100%;
+  padding: 12px 10px;
+  border: 1px solid var(--operator-muted);
+  border-radius: var(--operator-radius-control);
+  color: var(--operator-ink);
+  background: white;
+  font-size: 14px;
+}
+.scenario-picker :is(input, textarea)::placeholder {
+  color: var(--operator-muted);
+  opacity: 1;
+}
+/* Visible labels above each field; the placeholder is only an example. */
+.suggest-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--operator-ink);
+}
+.scenario-picker input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+/* The picker scrolls as a whole, so the list keeps its full height. */
+.scenario-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  /* Design guide: a 3px rule on top, a 1px rule under every row. */
+  border-top: 3px solid var(--operator-ink);
+}
+.scenario-list li {
+  display: flex;
+  align-items: center;
+  position: relative;
+  border-bottom: 1px solid var(--operator-ink);
+}
+.scenario-option {
+  width: 100%;
+  text-align: left;
+  padding: 12px 36px 12px 16px;
+  line-height: 1.4;
+  border: 0;
+  border-radius: 0;
+  color: var(--operator-ink);
+  background: transparent;
+  font-weight: 700;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+/* Names are bold and 16px so a scenario is recognised at a glance. The longer
+   selector wins over ".operator-dashboard button { font: inherit }". */
+.scenario-picker .scenario-option {
+  font-size: 16px;
+  font-weight: 700;
+}
+.scenario-picker .scenario-option.suggest-result {
+  font-weight: normal;
+}
+.scenario-option:not(:disabled):hover {
+  background: var(--operator-well);
+}
+/* Selected row: a 6px black bar and a grey ground, like a highlighted line in
+   a timetable (design guide, Scenarieliste). Yellow is kept for status. */
+.scenario-option[aria-pressed="true"] {
+  background: var(--operator-well);
+  box-shadow: inset 6px 0 0 var(--operator-ink);
+  color: var(--operator-ink);
+}
+.scenario-dot {
+  position: absolute;
+  right: 11px;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid #aaa;
+  border-radius: 50%;
+  pointer-events: none;
+}
+/* The dot of the selected row fills with ink together with the black bar, so
+   both say "this one". Live (green) keeps its own colour. */
+.scenario-dot {
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.scenario-list
+  li:has(.scenario-option[aria-pressed="true"])
+  .scenario-dot:not(.scenario-dot--live) {
+  background: var(--operator-ink);
+  border-color: var(--operator-ink);
+}
+.scenario-dot--live {
+  background: var(--operator-green);
+  border-color: var(--operator-green);
+}
+.scenario-actions {
+  display: flex;
+  align-items: center;
+  /* The action card names its target above the buttons. */
+  flex-wrap: wrap;
+  height: auto;
+  gap: 8px;
+  padding: 10px 12px;
+  flex-shrink: 0;
+  margin-top: auto;
+}
+.scenario-actions button {
+  flex: 1;
+  height: 44px;
+  padding: 0 8px;
+  color: white;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.scenario-actions .scenario-switch {
+  flex: 0 0 26%;
+  max-width: 76px;
+  font-size: 14px;
+}
+.scenario-start {
+  background: var(--operator-green);
+}
+.scenario-stop {
+  background: var(--operator-red);
+}
+/* Red and yellow are kept for stop/errors and selection, so a harmless
+   cancel or switch doesn't look like an alarm. White with an ink edge, still
+   flat like the other buttons. */
+.scenario-actions .scenario-cancel,
+.scenario-actions .scenario-switch {
+  background: white;
+  color: var(--operator-ink);
+}
+.scenario-actions button:not(:disabled):hover {
+  filter: brightness(0.9);
+}
+/* Buttons are flat with a 4px corner. .scenario-picker raises the two suggestion buttons above
+   ".operator-dashboard button { font: inherit }", which would reset bold. */
+.scenario-actions button,
+.scenario-picker .suggest-submit,
+.scenario-picker .suggest-goto {
+  border: 1px solid var(--operator-ink);
+  border-radius: var(--operator-radius-control);
+  font-weight: bold;
+  /* Design guide: no shadows, no gradients. */
+  transition: filter 120ms ease-out;
+}
+.operator-summaries:empty {
+  display: none;
+}
+.scenario-picker[hidden] {
+  display: none;
+}
+.scenario-selection--active .operator-summaries {
+  flex: 1;
+  max-height: none;
+}
+.scenario-selection--active .active-metrics {
+  min-height: 100%;
+}
+.scenario-selection--active .operator-metric {
+  flex: 1;
+}
+.operator-summaries {
+  min-height: 0;
+  overflow: auto;
+  flex-shrink: 1;
+  max-height: 64%;
+  scrollbar-width: thin;
+}
+.active-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: summary-enter 0.4s ease-out;
+}
+.operator-metric {
+  padding: 15px;
+}
+.metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 8px 0;
+}
+.metric-value strong {
+  font-size: 32px;
+  letter-spacing: -1px;
+  color: var(--metric-color);
+}
+.metric-value > span,
+.metric-note {
+  font-size: 12px;
+  color: var(--operator-muted);
+}
+.metric-note {
+  margin: 8px 0 0;
+}
+.tone-green {
+  --metric-color: var(--operator-green);
+}
+.tone-yellow {
+  --metric-color: #8a6a00;
+}
+.tone-red {
+  --metric-color: var(--operator-red);
+}
+.metric-meter {
+  height: 5px;
+  background: #e5e5e5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.metric-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--metric-color);
+  transition: width 0.35s ease;
+}
+.scenario-information-name {
+  display: block;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: bold;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.scenario-information dl {
+  margin: 12px 0;
+  color: var(--operator-muted);
+  font-size: 12px;
+}
+.scenario-information dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
+}
+.scenario-information dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.connection-state {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--operator-green);
+  margin: 10px 0 0;
+}
+.connection-state.is-offline {
+  color: #a30e0b;
+}
+.operator-map-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 22px;
+}
+.map-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 46px;
+}
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 14px 0 12px;
+  color: var(--operator-muted);
+  font-size: 12px;
+  line-height: 12px;
+  min-height: 12px;
+}
+.map-legend-colour {
+  margin-left: auto;
+}
+.map-legend > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.map-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6a00;
+}
+.map-legend .legend-blocked {
+  border-radius: 0;
+  width: 18px;
+  height: 0;
+  background: none;
+  border-top: 2px dashed #940024;
+}
+.operator-map-frame {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 350px;
+  border: 1px solid var(--operator-ink);
+  border-radius: 15px;
+  overflow: hidden;
+  background: white;
+}
+.operator-map-frame > div {
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+}
+.operator-map-frame svg {
+  display: block;
+}
+.operator-map-renderer {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.operator-map-renderer > div {
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+.operator-map-controls {
+  flex-shrink: 0;
+}
+.operator-map-controls [data-testid="metro-line-controls"] {
+  /* Override the shared renderer's inline React Native Web layout. */
+  position: static !important;
+  gap: 6px;
+}
+.operator-map-controls [data-testid="metro-line-controls"] [role="button"] {
+  width: auto !important;
+  height: 46px !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px !important;
+  padding: 3px !important;
+  margin: 0 !important;
+}
+.operator-map-controls
+  [data-testid="metro-line-controls"]
+  [role="button"]
+  > div {
+  font-size: 12px;
+  font-weight: 700;
+}
+.operator-map-panel [data-testid="map-zoom-toggle"] {
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  border-radius: 8px !important;
+  background: var(--operator-blue) !important;
+  border: 0;
+  padding: 9px 10px;
+  margin: 0;
+  box-shadow: 0 2px 8px #0002;
+}
+.operator-map-panel [data-testid="map-zoom-toggle"] > :is(div, span) {
+  color: white !important;
+  font-size: 12px;
+  font-weight: bold;
+}
+.operator-map-caption {
+  padding: 12px;
+  background: #f5f5f5;
+  border-top: 1px solid #e5e5e5;
+  color: var(--operator-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.operator-coverage-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: visible;
+}
+.operator-coverage-content {
+  padding: 22px 16px;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.coverage-heading {
+  margin-bottom: 38px;
+}
+/* The start/stop card is drawn here by ScenarioList (see ActionsSlotContext).
+   With it, the column is one box: the content above and the buttons below share
+   the frame, split by a 1px rule. */
+.operator-actions-slot:empty {
+  display: none;
+}
+.operator-coverage-panel {
+  gap: 0;
+}
+.operator-coverage-content:has(+ .operator-actions-slot:not(:empty)) {
+  border-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.operator-actions-slot .scenario-actions {
+  border-top: 1px solid var(--operator-ink);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.operator-status-footer {
+  flex-shrink: 0;
+  height: 68px;
+  min-height: 68px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.operator-messages {
+  position: relative;
+}
+.operator-messages button,
+.operator-messages textarea {
+  font: inherit;
+}
+.operator-messages .operator-message-button,
+.operator-thread form button {
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--message-ink);
+  color: var(--message-background);
+  font-weight: 700;
+}
+.operator-message-button {
+  width: 100%;
+}
+.operator-message-button,
+.operator-status-footer [data-testid="status-launcher"] {
+  position: relative;
+}
+.operator-notification {
+  position: absolute;
+  z-index: 1;
+  top: -8px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding-inline: 4px;
+  border-radius: 999px;
+  font:
+    700 11px/1 Arial,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.operator-notification[data-motion="in"] {
+  animation: notification-pop 160ms ease-out both;
+}
+.operator-notification[data-motion="out"] {
+  animation: notification-pop 160ms ease-in reverse both;
+}
+.operator-notification[data-motion="wiggle"] {
+  animation: notification-wiggle 260ms ease-in-out;
+}
+@keyframes notification-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes notification-wiggle {
+  25% {
+    transform: rotate(-16deg) scale(1.14);
+  }
+  50% {
+    transform: rotate(13deg) scale(1.14);
+  }
+  75% {
+    transform: rotate(-8deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .operator-notification[data-motion="out"] {
+    visibility: hidden;
+  }
+}
+.operator-message-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  z-index: 31;
+  width: min(560px, calc(100vw - 48px));
+  overflow: hidden;
+  border: 1px solid var(--message-ink);
+  border-radius: 16px;
+  background: var(--message-background);
+  color: var(--message-ink);
+  box-shadow: 0 12px 40px
+    color-mix(in srgb, var(--message-ink) 32%, transparent);
+  font-size: 14px;
+}
+.operator-message-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  color: var(--message-background);
+  background: var(--message-ink);
+}
+.operator-message-panel h2,
+.operator-message-panel h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.operator-message-panel header button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+}
+.operator-message-panel > p {
+  margin: 12px 16px;
+}
+.operator-message-body {
+  display: grid;
+  grid-template-columns: minmax(90px, 2fr) minmax(0, 3fr);
+  height: min(400px, 63dvh);
+}
+.operator-thread-list,
+.operator-thread {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+.operator-thread-list {
+  border-inline-end: 1px solid var(--message-ink);
+}
+.operator-saved-toolbar,
+.operator-thread h3 {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: 53px;
+  border-bottom: 1px solid var(--message-ink);
+  background: var(--message-selected);
+}
+.operator-saved-toolbar {
+  padding: 8px 12px;
+}
+.operator-saved-toolbar button {
+  min-height: 36px;
+  padding: 4px 9px;
+  border: 1px solid var(--message-ink);
+  border-radius: 7px;
+  background: var(--message-background);
+  color: var(--message-ink);
+  font-weight: 700;
+}
+.operator-saved-toolbar button[aria-pressed="true"] {
+  background: var(--message-ink);
+  color: var(--message-background);
+}
+.operator-thread-list ul,
+.operator-thread ol {
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.operator-thread-list li {
+  border-bottom: 1px solid var(--message-divider);
+}
+.operator-thread-list li button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.operator-thread-list li button:is(:hover, [aria-pressed="true"]) {
+  background: var(--message-selected);
+}
+.operator-thread-list li button:focus-visible {
+  outline-offset: -3px;
+}
+.station-thread-unread {
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: var(--message-attention);
+  color: var(--message-ink);
+  white-space: nowrap;
+}
+.operator-thread h3 {
+  padding: 8px 14px;
+}
+.operator-thread > p,
+.operator-thread-list > p {
+  margin: 10px 12px;
+}
+.operator-thread ol {
+  flex: 1;
+  padding: 10px 12px;
+}
+.operator-thread li {
+  display: flex;
+}
+.operator-thread li + li {
+  margin-top: 10px;
+}
+.operator-chat-outgoing {
+  justify-content: flex-end;
+  text-align: right;
+}
+.operator-chat-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 94%;
+  min-width: 0;
+  gap: 3px;
+}
+.operator-chat-outgoing .operator-chat-message {
+  align-items: flex-end;
+}
+.operator-chat-message strong,
+.operator-chat-message time {
+  padding-inline: 4px;
+  font-size: 12px;
+}
+.operator-chat-message time {
+  font-variant-numeric: tabular-nums;
+}
+.operator-chat-bubble {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.operator-chat-bubble p {
+  min-width: 0;
+  margin: 0;
+  padding: 8px 11px;
+  border-radius: 12px;
+  background: var(--message-station);
+  color: var(--message-background);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  text-align: left;
+}
+.operator-chat-outgoing .operator-chat-bubble p {
+  background: var(--message-ink);
+}
+.operator-message-pin {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+}
+.operator-message-pin:hover {
+  background: var(--message-selected);
+}
+.operator-message-pin[aria-pressed="true"] {
+  background: var(--message-action);
+  border-color: var(--message-ink);
+}
+.operator-thread form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px 8px;
+  margin-top: auto;
+  padding: 8px 12px;
+  border-top: 1px solid var(--message-ink);
+  background: var(--message-selected);
+}
+.operator-thread textarea {
+  width: 100%;
+  min-height: 44px;
+  max-height: 6rem;
+  padding: 10px 8px;
+  border: 1px solid var(--message-ink);
+  border-radius: 7px;
+  background: var(--message-background);
+  color: var(--message-ink);
+  resize: vertical;
+}
+.operator-thread form button {
+  background: var(--message-action);
+  color: var(--message-ink);
+}
+.operator-thread form p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.operator-coverage-panel .operator-message-panel [role="alert"] {
+  color: var(--message-error);
+}
+@media (max-width: 520px) {
+  .operator-message-body {
+    grid-template-columns: minmax(86px, 1fr) minmax(0, 2fr);
+  }
+  .operator-thread-list li button,
+  .operator-saved-toolbar {
+    padding-inline: 7px;
+  }
+  .operator-thread ol,
+  .operator-thread form {
+    padding-inline: 7px;
+  }
+}
+/* Scenario preview (right column). Design notes are in ScenarioPreview.tsx. */
+.scenario-preview > p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--operator-muted);
+}
+.preview-title {
+  margin: 0 0 16px;
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  overflow-wrap: anywhere;
+}
+/* Label left, number right: every number ends in the same column. */
+.preview-stats {
+  margin: 0;
+  border-top: 3px solid var(--operator-ink);
+}
+.preview-stats > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--operator-ink);
+  font-size: 15px;
+}
+.preview-stats dt {
+  white-space: pre-wrap;
+}
+.preview-stats dd {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* The scenario name above replaces the column heading; it stays for screen
+   readers. When live coverage is shown it is still there, as before. */
+.coverage-heading:has(+ .scenario-preview) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* Section subtitles are black bars with white capitals, like the guide's
+   topbar. Colour and shape set them apart from the bold content under them,
+   so they do not have to compete in size. */
+.preview-heading {
+  margin: 24px 0 0;
+  padding: 8px 12px;
+  background: var(--operator-ink);
+  color: white;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+/* The route is why a scenario matters, so it is the second-loudest text: the
+   guide's 22px bold heading size, with the 4px bar of the Begrundelse block. */
+.scenario-preview .preview-route {
+  margin: 12px 0 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--operator-option-border);
+  border-bottom: 1px solid var(--operator-option-border);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+  text-align: center;
+  color: var(--operator-ink);
+}
+.preview-stations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.preview-stations > li {
+  border-bottom: 1px solid var(--operator-option-border);
+}
+/* Header and rows share three columns (name | stewards needed | chevron), so
+   the "Kræver" cells always sit in the same place whatever the name length. */
+.preview-heading--stations,
+.scenario-preview .preview-station {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px 16px;
+  column-gap: 8px;
+}
+.preview-heading--stations {
+  padding: 8px 8px 8px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.preview-heading--stations > span + span {
+  padding-left: 12px;
+  border-left: 1px solid rgb(255 255 255 / 0.35);
+}
+.scenario-preview .preview-station {
+  box-sizing: border-box;
+  align-items: stretch;
+  width: 100%;
+  padding: 0 8px 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--operator-ink);
+  font-size: 15px;
+  text-align: left;
+}
+.preview-station::after {
+  align-self: center;
+}
+.preview-station:hover {
+  background: var(--operator-well);
+}
+.preview-station-name {
+  align-self: center;
+  min-width: 0;
+  padding: 12px 0;
+  font-size: 17px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+/* Red is the guide's "missing" colour; the text uses the darker #B3100C. */
+.preview-station-need {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 1px solid var(--operator-option-border);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #b3100c;
+}
+.preview-station-need i {
+  width: 12px;
+  height: 12px;
+  background: var(--operator-red);
+}
+/* A chevron that turns when the row is open, so rows read as pressable. */
+.preview-station::after {
+  content: "";
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  border-right: 2px solid var(--operator-ink);
+  border-bottom: 2px solid var(--operator-ink);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 150ms ease-out;
+}
+.preview-station[aria-expanded="true"]::after {
+  transform: rotate(-135deg);
+}
+/* Open row: the guide's selected-row mark, a black bar and a grey ground. */
+.preview-stations > li.is-open {
+  background: var(--operator-well);
+  box-shadow: inset 6px 0 0 var(--operator-ink);
+}
+.preview-stations > li.is-open .preview-station {
+  padding-left: 16px;
+}
+/* Room on the right so the turned chevron stays inside the row. */
+.preview-stations > li.is-open .preview-station,
+.preview-stations .preview-station {
+  padding-right: 8px;
+}
+.preview-station-details {
+  padding: 0 0 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--operator-ink);
+}
+.preview-station-details p {
+  margin: 0 0 8px;
+  color: var(--operator-muted);
+}
+.preview-station-details h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.preview-station-details ol {
+  margin: 0;
+  padding-left: 20px;
+}
+.preview-station-details li {
+  margin-bottom: 4px;
+}
+.operator-coverage-panel [role="button"] {
+  padding: 14px 11px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  transition: background 0.15s;
+}
+.operator-coverage-panel [role="button"]:hover {
+  background: #f8f8f8;
+}
+.operator-coverage-panel [role="button"]:focus-visible {
+  outline: 3px solid var(--operator-blue);
+  outline-offset: -3px;
+}
+.operator-coverage-content > div + .scenario-preview {
+  margin-top: 22px;
+  border-top: 3px solid var(--operator-ink);
+  padding-top: 18px;
+}
+.scenario-picker [role="alert"],
+.scenario-selection > [role="alert"],
+.operator-coverage-panel [role="alert"] {
+  color: #a30e0b;
+  line-height: 1.6;
+}
+.operator-confirm {
+  width: min(370px, calc(100vw - 32px));
+  padding: 26px;
+  border: 0;
+  border-radius: 15px;
+  background: var(--operator-blue);
+  color: white;
+  box-shadow: 0 15px 45px #0005;
+  font:
+    14px "Metro",
+    Arial,
+    sans-serif;
+}
+.operator-confirm::backdrop {
+  background: #0009;
+  backdrop-filter: blur(3px);
+}
+.operator-confirm h3 {
+  margin: 0 0 18px;
+  text-align: center;
+  font-size: 20px;
+  line-height: 1.4;
+}
+.operator-confirm p {
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+}
+.operator-confirm .confirm-warning {
+  color: white;
+}
+.operator-confirm button {
+  padding: 12px;
+  border: 1px solid white;
+  border-radius: 9px;
+  background: transparent;
+  color: white;
+  font:
+    bold 13px "Metro",
+    Arial,
+    sans-serif;
+  cursor: pointer;
+}
+.operator-confirm button:hover {
+  background: #ffffff25;
+}
+.operator-confirm .confirm-actions {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 22px;
+}
+.operator-confirm .confirm-actions button {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--operator-ink);
+}
+.operator-confirm .confirm-actions .confirm-cancel {
+  background: var(--operator-red);
+}
+.operator-confirm .confirm-actions button.confirm-accept,
+.operator-confirm[aria-labelledby="confirm-stand-down-heading"]
+  .confirm-actions
+  > button:last-child {
+  background: var(--operator-green);
+}
+.operator-confirm .confirm-actions button:hover {
+  filter: brightness(0.9);
+}
+.operator-confirm button:focus-visible {
+  outline: 3px solid white;
+  outline-offset: 3px;
+}
+.status-popup {
+  position: fixed;
+  bottom: 36px;
+  right: 40px;
+  z-index: 30;
+  width: min(420px, calc(100vw - 48px));
+  pointer-events: none;
+}
+.operator-status-footer .status-popup {
+  position: static;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+}
+.operator-status-footer [data-testid="steward-status"] {
+  /* React Native Web views are position: relative; the status window is placed
+     against the column panel instead, so this wrapper must not be the anchor. */
+  position: static !important;
+  height: 100%;
+  gap: 0 !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+.operator-status-footer [data-testid="status-launcher"] {
+  border-radius: 7px !important;
+  height: 44px;
+  padding: 0 !important;
+  margin: 0 !important;
+  align-items: center;
+  align-self: center;
+  width: 100%;
+  justify-content: center;
+}
+/* The status window floats above the footer as before. OperatorSections measures
+   it into --status-window-h, and the footer's top margin grows by that much, so
+   the content and the start/stop card above move up instead of being covered. */
+.operator-status-footer {
+  margin-top: calc(12px + var(--status-window-h, 0px));
+}
+.operator-status-footer [data-testid="status-window"] {
+  position: absolute !important;
+  right: 0;
+  /* Footer height (68px) plus the 12px gap: it sits in the room the column
+     made, flush with the column's right edge. Same width as before, so it
+     reaches out over the map's corner. */
+  bottom: 80px;
+  margin-bottom: 0 !important;
+  width: min(420px, calc(100vw - 48px)) !important;
+}
+/* Hooks style the existing status component without changing its live data. */
+.operator-dashboard [data-testid="steward-status"] {
+  gap: 12px;
+}
+.operator-dashboard [data-testid="status-window"] {
+  width: 100%;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px #0005;
+  pointer-events: auto;
+  animation: status-enter 0.18s ease-out;
+}
+.operator-dashboard [data-testid="status-window-header"] {
+  padding: 16px 18px;
+}
+.operator-dashboard [data-testid="status-window-header"] > div {
+  font-size: 16px;
+}
+.operator-dashboard [data-testid="status-window-header"] [role="button"] {
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.operator-dashboard [data-testid="status-window-header"] [role="button"]:hover {
+  background: #ffffff25;
+}
+.operator-dashboard [data-testid="status-messages"] {
+  padding: 0 18px;
+  max-height: min(400px, calc(100dvh - 240px));
+}
+.operator-dashboard [data-testid="status-message"] {
+  padding: 17px 0;
+  gap: 12px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.operator-dashboard [data-testid="status-message"]:last-child {
+  border-bottom: 0;
+}
+.operator-dashboard [data-testid="status-message"] > div:first-child {
+  flex: 1;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.operator-dashboard
+  [data-testid="status-message"]
+  > div:first-child
+  > div:last-child {
+  font-size: 14px;
+  flex-shrink: 1;
+  line-height: 1.8;
+}
+.operator-dashboard [data-testid="status-message-time"] {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  gap: 3px;
+}
+.operator-dashboard [data-testid="status-message-time"] > div:last-child {
+  color: var(--operator-muted);
+}
+.operator-dashboard [data-testid="status-launcher"] {
+  padding: 15px 22px;
+  border-radius: 30px;
+  box-shadow: 0 5px 24px #0003;
+  pointer-events: auto;
+}
+.operator-dashboard [data-testid="status-launcher"] > div {
+  font-size: 14px;
+  font-weight: 700;
+}
+.operator-dashboard [data-testid="status-launcher"]:hover {
+  background: #0088a2;
+}
+.scenario-selection--switching > :is(.scenario-picker, .scenario-actions) {
+  animation: scenario-picker-in 0.28s ease-out both;
+}
+.scenario-selection--switching.is-closing
+  > :is(.scenario-picker, .scenario-actions) {
+  animation: scenario-picker-out 0.28s ease-in both;
+  pointer-events: none;
+}
+@keyframes scenario-picker-in {
+  from {
+    transform: translateX(-110%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes scenario-picker-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-110%);
+    opacity: 0;
+  }
+}
+@keyframes summary-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes status-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (min-width: 1700px) {
+  .operator-sections {
+    grid-template-columns: 290px minmax(0, 1fr) 330px;
+  }
+  .operator-map-panel {
+    padding: 22px;
+  }
+  .map-heading h1 {
+    font-size: 24px;
+  }
+}
+@media (max-width: 1150px) {
+  .operator-sections {
+    grid-template-columns: 220px minmax(0, 1fr);
+    height: auto;
+    min-height: calc(100dvh - 88px);
+  }
+  .operator-sidebar,
+  .operator-map-panel {
+    height: 680px;
+  }
+  .operator-coverage-panel {
+    grid-column: 1 / -1;
+    max-height: 480px;
+  }
+  .operator-topbar {
+    gap: 18px;
+  }
+  .operator-map-panel {
+    padding: 16px;
+  }
+}
+@media (max-width: 760px) {
+  .operator-topbar {
+    padding: 16px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .operator-brand > strong {
+    font-size: 16px;
+  }
+  .operator-profile {
+    gap: 8px;
+    margin-left: auto;
+  }
+  .operator-profile > strong {
+    display: none;
+  }
+  .active-scenario-banner {
+    order: 3;
+    width: 100%;
+    padding-top: 14px;
+    border-top: 1px solid #444;
+  }
+  .operator-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+  .operator-sidebar {
+    height: auto;
+  }
+  .scenario-selection {
+    height: auto;
+  }
+  .scenario-picker {
+    flex: auto;
+    height: 340px;
+  }
+  .operator-summaries {
+    max-height: none;
+    overflow: visible;
+  }
+  .operator-map-panel {
+    height: 560px;
+  }
+  .operator-coverage-panel {
+    max-height: none;
+  }
+  .operator-coverage-content {
+    flex: auto;
+    overflow: visible;
+  }
+  .status-popup {
+    right: 24px;
+    bottom: 28px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .operator-dashboard *,
+  .operator-dashboard *::before,
+  .operator-dashboard *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .scenario-orbit::after {
+    offset-distance: 0%;
+  }
+}
+/* Scenario suggestion box (#357). Design notes are in ScenarioSuggestions.tsx. */
+
+/* A light grey well groups "describe the incident" into one step and lets
+   the white field stand out. */
+.scenario-suggestions {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 12px;
+  border-radius: var(--operator-radius-card);
+  background: var(--operator-well);
+}
+.suggest-field {
+  display: flex;
+  align-items: flex-start;
+  border: 1px solid var(--operator-muted);
+  border-radius: var(--operator-radius-control);
+  background: white;
+  overflow: hidden;
+}
+.suggest-field:has(textarea:focus-visible) {
+  outline: 3px solid var(--operator-focus);
+  outline-offset: 2px;
+}
+/* The field grows with its text up to about seven lines, then scrolls. No
+   resize handle: browsers draw it themselves and it cannot be styled.
+   Browsers without field-sizing keep the three-row height. */
+.scenario-picker .suggest-field textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 76px;
+  max-height: 168px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  resize: none;
+  field-sizing: content;
+  line-height: 1.5;
+}
+.suggest-clear {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: 2px 2px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--operator-ink);
+}
+.suggest-clear > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--operator-pressed);
+}
+.suggest-clear:hover > span {
+  background: var(--operator-pressed-border);
+}
+/* Dark bold text with a red icon. Red text on the grey well is only 4.2:1,
+   under WCAG's 4.5:1, and harder to read at a glance. */
+.scenario-picker .suggest-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1.4;
+  color: var(--operator-ink);
+}
+.suggest-error .suggest-icon {
+  flex-shrink: 0;
+  color: var(--operator-red);
+}
+.suggest-field:has(textarea[aria-invalid="true"]) {
+  border-color: var(--operator-red);
+  box-shadow: 0 0 0 1px var(--operator-red);
+}
+.suggest-help {
+  margin: 6px 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--operator-muted);
+}
+.suggest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.suggest-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--operator-option-border);
+  border-radius: var(--operator-radius-control);
+  background: white;
+  color: var(--operator-ink);
+  font-size: 14px;
+  /* 600: chips are options, not headings, so they sit a step below names. */
+  font-weight: 600;
+  transition:
+    background-color 180ms ease-out,
+    border-color 180ms ease-out;
+}
+.suggest-chip:not(:disabled):hover {
+  border-color: var(--operator-ink);
+}
+/* Pressed: a light ink tint plus a check, so the state is shape and tone,
+   never colour alone, and not yellow (read as an alarm). */
+.suggest-chip[aria-pressed="true"] {
+  background: var(--operator-pressed);
+  border-color: var(--operator-pressed-border);
+}
+.suggest-chip-check {
+  animation: suggest-chip-check 180ms ease-out;
+}
+@keyframes suggest-chip-check {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/* Dark, not green: green is kept for "Aktivér valgt scenarie", so the column
+   has one primary action. */
+.suggest-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  background: var(--operator-ink);
+  color: white;
+  font-size: 14px;
+}
+.suggest-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffffff40;
+  border-top-color: white;
+  border-radius: 50%;
+  animation: suggest-spin 0.8s linear infinite;
+}
+@keyframes suggest-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.suggest-status {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--operator-muted);
+}
+.suggest-status:empty {
+  display: none;
+}
+.scenario-suggestions section {
+  margin-top: 12px;
+}
+.scenario-suggestions .operator-eyebrow {
+  margin-bottom: 8px;
+}
+.suggest-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 3px solid var(--operator-ink);
+}
+.suggest-results > li {
+  border-bottom: 1px solid var(--operator-ink);
+}
+.scenario-option.suggest-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  font-weight: normal;
+}
+.suggest-result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: bold;
+}
+/* Names break only when a word is too long for the narrow column; the score
+   always stays on one line. */
+.suggest-result-head strong {
+  min-width: 0;
+  font-size: 16px;
+  overflow-wrap: break-word;
+}
+.suggest-result-head > span {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+/* Second line of a card: route text, then the matched stations as small pills,
+   all in one wrapping row so the card stays two lines tall. */
+.suggest-reason {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--operator-ink);
+}
+/* Dark text on the selected row, where grey would lose contrast. */
+.suggest-result[aria-pressed="true"] .suggest-reason {
+  color: var(--operator-ink);
+}
+.suggest-tag {
+  padding: 2px 6px;
+  border-radius: var(--operator-radius-control);
+  background: var(--operator-pressed);
+  color: var(--operator-ink);
+  font-weight: 600;
+}
+/* Message box for "no confident candidate" and errors: white ground, dark
+   text, bold title. The tone is in the icon and the edge only. */
+.suggest-notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--operator-option-border);
+  border-radius: var(--operator-radius-card);
+  background: white;
+  color: var(--operator-ink);
+}
+.suggest-notice--error {
+  border-color: var(--operator-red);
+}
+.suggest-notice > .suggest-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--operator-muted);
+}
+.suggest-notice--error > .suggest-icon {
+  color: var(--operator-red);
+}
+.suggest-notice strong {
+  font-size: 13px;
+}
+.suggest-notice p {
+  margin: 4px 0 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--operator-ink);
+}
+.suggest-goto {
+  min-height: 36px;
+  padding: 0 12px;
+  background: white;
+  color: var(--operator-ink);
+  font-size: 14px;
+}
+/* Two-way switch under the heading. It reuses the M1 / M2 line switcher's look
+   (.operator-line-switcher); this only makes it fill the column. */
+.scenario-mode {
+  margin-bottom: 16px;
+}
+.scenario-mode button {
+  flex: 1;
+  font-size: 14px;
+}
+.scenario-search {
+  position: relative;
+  margin-bottom: 12px;
+}
+.scenario-search svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--operator-muted);
+}
+.scenario-picker .scenario-search input {
+  min-height: 44px;
+  padding-left: 36px;
+}
+.scenario-picker .operator-eyebrow {
+  margin-bottom: 4px;
+}
+.scenario-route {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: normal;
+  color: var(--operator-ink);
+}
+.scenario-count {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--operator-muted);
+}
+.scenario-notice {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--operator-radius-card);
+  background: var(--operator-well);
+  font-size: 14px;
+  color: var(--operator-muted);
+}
