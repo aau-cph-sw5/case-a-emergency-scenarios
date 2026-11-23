@@ -70,7 +70,7 @@ type RequestOptions = { body?: unknown; signals?: AbortSignal[] };
 // vite.config forwards /api to the server. A failed request or an unreadable
 // body is reported the same way for every method.
 async function requestJson<T>(
-  method: "GET" | "POST" | "PATCH",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
   token: string,
   isValid: (data: unknown) => data is T,
@@ -101,9 +101,10 @@ export function getJson<T>(
 }
 
 // body is sent as JSON when given; without it the request has no body.
-// signal aborts the request, e.g. when the component unmounts.
+// signal aborts the request, e.g. when the component unmounts. An answer
+// without a body, such as 204, reaches isValid as null.
 export function sendJson<T>(
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "DELETE",
   path: string,
   token: string,
   isValid: (data: unknown) => data is T,

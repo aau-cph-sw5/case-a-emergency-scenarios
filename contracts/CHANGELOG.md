@@ -1,8 +1,13 @@
 # Scenario State Contract Changelog
 
-## 8.11.2 - 2026-11-23
+## 8.12.0 - 2026-11-23
 
-No change to the shape. After an admin edits a user with `PATCH /api/v1/users/{userId}`, the user's sessions are ended and their sockets disconnected, so they sign in again with the new values (MET-A-030, #426).
+Additive. Admins can disable and delete user accounts, and an edit signs the user out (MET-A-030, #426).
+
+- After an admin edits a user with `PATCH /api/v1/users/{userId}`, the user's sessions are ended and their sockets disconnected, so they sign in again with the new values.
+- `user.schema.json` has a required `disabled` field, and `user-update.schema.json` accepts `disabled`. A disabled account cannot sign in until an admin enables it again, and it is still in the list.
+- New `DELETE /api/v1/users/{userId}` soft-deletes an account: it cannot sign in and is left out of the list, but stays in the database so activations and log events keep their user. It returns 204, 404 for an unknown or already deleted account, and 409 when admins try to delete themselves.
+- Admins cannot disable or delete their own account.
 
 ## 8.11.1 - 2026-11-22
 

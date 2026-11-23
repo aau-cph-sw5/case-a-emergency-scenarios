@@ -28,12 +28,14 @@ const admin: User = {
   username: "admin",
   role: "ADMIN",
   lineGroup: "M1_M2",
+  disabled: false,
 };
 const operator: User = {
   userId: 2,
   username: "operator",
   role: "OPERATOR",
   lineGroup: "M1_M2",
+  disabled: false,
 };
 
 const fetchMock = jest.fn<typeof fetch>();
@@ -147,6 +149,17 @@ beforeEach(() => {
         user.userId === Number(match[1]) ? { ...user, ...changes } : user,
       );
       return response(users.find((user) => user.userId === Number(match[1])));
+    }
+    if (match && method === "DELETE") {
+      users = users.filter((user) => user.userId !== Number(match[1]));
+      // 204 has no body, so reading it as JSON fails, as in a browser.
+      return {
+        ok: true,
+        status: 204,
+        json: async () => {
+          throw new SyntaxError("Unexpected end of JSON input");
+        },
+      } as unknown as Response;
     }
     throw new Error(`Unexpected request: ${method} ${path}`);
   });
@@ -354,6 +367,50 @@ describe("the Brugere page (MET-A-030)", () => {
 
     expect(status()).toBe("operator er gemt.");
     expect(onLogout).not.toHaveBeenCalled();
+  });
+
+  it("disables an account, fades its row and enables it again", async () => {
+    await mount();
+    const row = () => container.querySelectorAll("tbody tr")[1];
+    expect(row().className).toBe("");
+    expect(row().textContent).toContain("Aktiv");
+
+    await click("Deaktivér");
+    expect(sentBody("PATCH")).toEqual({ disabled: true });
+    expect(status()).toBe("operator er deaktiveret.");
+    expect(row().className).toBe("user-disabled");
+    expect(row().textContent).toContain("Deaktiveret");
+
+    await click("Aktivér");
+    expect(sentBody("PATCH")).toEqual({ disabled: false });
+    expect(status()).toBe("operator er aktiveret igen.");
+    expect(row().className).toBe("");
+  });
+
+  it("deletes an account only after the admin confirms", async () => {
+    const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
+    await mount();
+    await click("Slet");
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(requests("DELETE")).toHaveLength(0);
+
+    confirm.mockReturnValue(true);
+    await click("Slet");
+    const [path] = requests("DELETE")[0];
+    expect(path).toBe("/api/v1/users/2");
+    expect(status()).toBe("operator er slettet.");
+    expect(container.querySelector("tbody")?.textContent).not.toContain(
+      "operator",
+    );
+  });
+
+  it("offers no disable or delete on the admin's own account", async () => {
+    await mount();
+    const ownRow = container.querySelectorAll("tbody tr")[0];
+    const labels = [...ownRow.querySelectorAll("button")].map(
+      (element) => element.textContent,
+    );
+    expect(labels).toEqual(["Rediger"]);
   });
 
   it("shows a message when the list cannot be fetched", async () => {

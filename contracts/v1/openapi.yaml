@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.11.2
+  version: 8.12.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -965,8 +965,9 @@ paths:
     get:
       summary: List the user accounts
       description: >
-        Requires the ADMIN role (MET-A-030). Returns every account, ordered
-        by username. A password or its hash is never returned.
+        Requires the ADMIN role (MET-A-030). Returns every account that is
+        not deleted, ordered by username, including disabled ones. A password
+        or its hash is never returned.
       security:
         - bearerAuth: []
       responses:
@@ -1039,9 +1040,12 @@ paths:
       description: >
         Requires the ADMIN role (MET-A-030). Changes the password, the role
         and/or the line group; a field that is left out stays as it is. The
-        username cannot be changed. An admin cannot change their own role.
-        After an edit, the user's sessions are ended and their sockets
-        disconnected, so they sign in again with the new values.
+        username cannot be changed. `disabled: true` disables the account so
+        it cannot sign in, and `disabled: false` enables it again. An admin
+        cannot change their own role or disable their own account. A deleted
+        account cannot be edited. After an edit, the user's sessions are ended
+        and their sockets disconnected, so they sign in again with the new
+        values.
       security:
         - bearerAuth: []
       parameters:
@@ -1091,7 +1095,7 @@ paths:
                   code: "E0004"
                   message: "No user with id '42' exists"
         "409":
-          description: An admin tried to change their own role
+          description: An admin tried to change their own role, or to disable their own account
           content:
             application/json:
               schema:
@@ -1100,6 +1104,50 @@ paths:
                 error:
                   code: "E0007"
                   message: "An admin cannot change their own role"
+    delete:
+      summary: Delete a user account
+      description: >
+        Requires the ADMIN role (MET-A-030). A soft delete: the account can no
+        longer sign in and is left out of the list, but it stays in the
+        database so the activations and log events that point to it keep their
+        user. The user's sessions are ended and their sockets disconnected. An
+        admin cannot delete their own account.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: The account is deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: No account with this id, or it is already deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0004"
+                  message: "No user with id '42' exists"
+        "409":
+          description: An admin tried to delete their own account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0007"
+                  message: "An admin cannot delete their own account"
 
 components:
   responses:
