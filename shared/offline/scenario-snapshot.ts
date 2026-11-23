@@ -5,6 +5,7 @@ import { FormatError } from "../api/http";
 import { isLineGroup } from "../auth/line-groups";
 import {
   isPassengerInformation,
+  isRecord,
   isScenarioState,
   isSnapshotOperatingPattern,
   isStationRequirement,
@@ -104,11 +105,8 @@ export function buildSnapshot(
   };
 }
 
-const isObject = (data: unknown): data is Record<string, unknown> =>
-  typeof data === "object" && data !== null && !Array.isArray(data);
-
 function isSnapshotScenario(data: unknown): data is SnapshotScenario {
-  if (!isObject(data)) return false;
+  if (!isRecord(data)) return false;
   return (
     typeof data.scenarioId === "string" &&
     typeof data.name === "string" &&
@@ -117,7 +115,7 @@ function isSnapshotScenario(data: unknown): data is SnapshotScenario {
     Array.isArray(data.covers) &&
     data.covers.every(
       (segment) =>
-        isObject(segment) &&
+        isRecord(segment) &&
         Number.isInteger(segment.trackNumber) &&
         typeof segment.stationA === "string" &&
         typeof segment.stationB === "string",
@@ -126,9 +124,9 @@ function isSnapshotScenario(data: unknown): data is SnapshotScenario {
     data.versions.length === 1 &&
     data.versions.every(
       (version) =>
-        isObject(version) &&
+        isRecord(version) &&
         typeof version.version === "string" &&
-        isObject(version.operatingPlan) &&
+        isRecord(version.operatingPlan) &&
         Array.isArray(version.operatingPlan.patterns) &&
         version.operatingPlan.patterns.every(isSnapshotOperatingPattern) &&
         Array.isArray(version.stationRequirements) &&
@@ -141,7 +139,7 @@ function isSnapshotScenario(data: unknown): data is SnapshotScenario {
 }
 
 function isSnapshot(data: unknown): data is ScenarioSnapshot {
-  if (!isObject(data)) return false;
+  if (!isRecord(data)) return false;
   return (
     typeof data.savedAt === "string" &&
     !Number.isNaN(Date.parse(data.savedAt)) &&

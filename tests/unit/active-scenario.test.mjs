@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { FormatError, HttpError } from "../../shared/api/http.ts";
 import {
+  isScenarioDefinition,
   isScenarioState,
   loadActiveScenario,
 } from "../../shared/scenario/active-scenario.ts";
@@ -201,6 +202,27 @@ test("rejects a scenario whose operating-plan patterns are malformed", async () 
     loadActiveScenario(API, "abc", fetchImpl),
     /unexpected format/,
   );
+});
+
+test("isScenarioDefinition accepts zero maximumTrains and rejects missing, non-integer, or negative maximumTrains", () => {
+  const zeroTrains = structuredClone(scenario);
+  zeroTrains.versions[0].operatingPlan.patterns[0].maximumTrains = 0;
+  assert.equal(isScenarioDefinition(zeroTrains), true);
+
+  const missingMaximumTrains = structuredClone(scenario);
+  delete missingMaximumTrains.versions[0].operatingPlan.patterns[0]
+    .maximumTrains;
+  assert.equal(isScenarioDefinition(missingMaximumTrains), false);
+
+  for (const invalid of [1.5, -1, "2", null, Number.NaN]) {
+    const broken = structuredClone(scenario);
+    broken.versions[0].operatingPlan.patterns[0].maximumTrains = invalid;
+    assert.equal(
+      isScenarioDefinition(broken),
+      false,
+      `Expected maximumTrains=${String(invalid)} to be rejected`,
+    );
+  }
 });
 
 test("accepts a scenario with passenger information", async () => {
