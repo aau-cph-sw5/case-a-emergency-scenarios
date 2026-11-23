@@ -191,13 +191,11 @@ export function edgeAllowed(
   );
 }
 
-// Resolve stops through normal-line edges.
-export function resolveStops(
-  stops: string[],
+function availableEdges(
   lines: MapNetwork["lines"],
   segments: MapNetwork["segments"],
   tracks: number[],
-): { connections: Pair[]; incomplete: boolean } {
+): Pair[] {
   const edges: Pair[] = [];
   for (const line of lines) {
     for (const [a, b] of line.connections) {
@@ -213,6 +211,85 @@ export function resolveStops(
         ? 1
         : 0,
   );
+  return edges;
+}
+
+// Find the shortest non-repeating path that visits every selected stop.
+export function resolveSelectedStops(
+  stops: string[],
+  lines: MapNetwork["lines"],
+  segments: MapNetwork["segments"],
+  tracks: number[],
+): string[] | undefined {
+  if (stops.length === 0) return [];
+  const selected = new Set(stops);
+  const edges = availableEdges(lines, segments, tracks);
+  const queue = [...selected].map((station) => [station]);
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    const path = queue[cursor];
+    if (
+      path.filter((station) => selected.has(station)).length === selected.size
+    )
+      return path;
+    const current = path[path.length - 1];
+    for (const [a, b] of edges) {
+      const next = a === current ? b : b === current ? a : undefined;
+      if (next && !path.includes(next)) queue.push([...path, next]);
+    }
+  }
+  return undefined;
+}
+
+// Find the shortest complete route through the ordered stops without doubling back.
+export function resolveSimpleStops(
+  stops: string[],
+  lines: MapNetwork["lines"],
+  segments: MapNetwork["segments"],
+  tracks: number[],
+): { connections: Pair[]; incomplete: boolean } {
+  if (stops.length < 2) return { connections: [], incomplete: false };
+  const edges = availableEdges(lines, segments, tracks);
+  const queue = [{ path: [stops[0]], nextStop: 1 }];
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    const { path, nextStop } = queue[cursor];
+    const current = path[path.length - 1];
+    for (const [a, b] of edges) {
+      const next = a === current ? b : b === current ? a : undefined;
+      if (!next) continue;
+      const closingRing =
+        next === path[0] &&
+        nextStop === stops.length - 1 &&
+        next === stops[nextStop] &&
+        path.length > 2;
+      if (path.includes(next) && !closingRing) continue;
+      if (next !== stops[nextStop] && stops.slice(nextStop + 1).includes(next))
+        continue;
+      const updated = [...path, next];
+      const followingStop = next === stops[nextStop] ? nextStop + 1 : nextStop;
+      if (followingStop === stops.length) {
+        return {
+          connections: updated
+            .slice(1)
+            .map((station, index) => [updated[index], station]),
+          incomplete: false,
+        };
+      }
+      queue.push({ path: updated, nextStop: followingStop });
+    }
+  }
+  return { connections: [], incomplete: true };
+}
+
+// Prefer a route that visits stops in order; keep legacy looping routes readable.
+export function resolveStops(
+  stops: string[],
+  lines: MapNetwork["lines"],
+  segments: MapNetwork["segments"],
+  tracks: number[],
+): { connections: Pair[]; incomplete: boolean } {
+  const simple = resolveSimpleStops(stops, lines, segments, tracks);
+  if (!simple.incomplete) return simple;
+  const edges = availableEdges(lines, segments, tracks);
   const connections: Pair[] = [];
   for (let i = 1; i < stops.length; i++) {
     const start = stops[i - 1];

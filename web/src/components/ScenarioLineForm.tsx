@@ -9,9 +9,9 @@ type Props = {
   stationNames?: Readonly<Record<string, string>>;
   updateSelectedStops: (stops: string[]) => void;
   type: "PENDULUM" | "ROUNDTRIP";
-  setManualType: Dispatch<SetStateAction<"PENDULUM" | "ROUNDTRIP" | null>>;
+  setManualType: (operation: "PENDULUM" | "ROUNDTRIP") => void;
   track: 1 | 2;
-  setTrack: Dispatch<SetStateAction<1 | 2>>;
+  setTrack: (track: 1 | 2) => void;
   lineColor: string;
   setLineColor: Dispatch<SetStateAction<string>>;
   did: string;
@@ -22,6 +22,7 @@ type Props = {
   setPathIndex: Dispatch<SetStateAction<number>>;
   choices: string[][];
   path?: string[];
+  routeRepeatsStations: boolean;
   roundtripAllowed: boolean;
   turnbacks: { start: boolean; end: boolean };
   editingRouteId: number | null;
@@ -48,6 +49,7 @@ export function ScenarioLineForm({
   setPathIndex,
   choices,
   path,
+  routeRepeatsStations,
   roundtripAllowed,
   turnbacks,
   editingRouteId,
@@ -56,15 +58,12 @@ export function ScenarioLineForm({
 }: Props) {
   return (
     <form className="admin-line-form" onSubmit={addLine}>
-      <StationSelect
-        label="Fra station"
-        value={from}
-        stations={stations}
-        stationNames={stationNames}
-        onChange={(station) => {
-          updateSelectedStops([station]);
-        }}
-      />
+      <div className="admin-station-select">
+        <span className="admin-station-label">Fra station</span>
+        <output className="admin-station-display" aria-label="Fra station">
+          {from || "Vælges automatisk"}
+        </output>
+      </div>
       <StationSelect
         label="Til station"
         value={to}
@@ -179,7 +178,13 @@ export function ScenarioLineForm({
           .
         </p>
       )}
-      {from && to && choices.length === 0 && (
+      {routeRepeatsStations && (
+        <p className="admin-notice admin-line-wide" role="status">
+          Ruten passerer en station mere end én gang. Vælg en anden kombination
+          af stop.
+        </p>
+      )}
+      {from && to && choices.length === 0 && !routeRepeatsStations && (
         <p className="admin-notice admin-line-wide">
           Vælg to forskellige stationer med en forbindelse.
         </p>

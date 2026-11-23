@@ -141,9 +141,15 @@ describe("scenario line form", () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(select.value).toBe("1");
+    expect(
+      container.querySelector('button[aria-label="Fra station"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('output[aria-label="Fra station"]')?.textContent,
+    ).toContain("VAN");
     await act(async () =>
       container
-        .querySelector<HTMLButtonElement>('button[aria-label="Fra station"]')!
+        .querySelector<HTMLButtonElement>('button[aria-label="Til station"]')!
         .click(),
     );
     await act(async () =>
@@ -152,7 +158,7 @@ describe("scenario line form", () => {
         .click(),
     );
     expect(
-      container.querySelector('button[aria-label="Fra station"]')?.textContent,
+      container.querySelector('button[aria-label="Til station"]')?.textContent,
     ).toContain("LIT");
   });
 });
