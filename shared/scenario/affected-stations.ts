@@ -1,23 +1,47 @@
 import { getStation } from "../../mockData/data";
+import { connectionKey } from "../network/network";
 import type { SnapshotScenario } from "../offline/scenario-snapshot";
+import type { TrackSegment } from "../types/v1/scenario";
 
-//helper function as map draws "lines" made of station pairs
-//turns the affected stations (covers) into the maps "lines"
-//filter keeps only pairs where both stations have a position
+export type StationPair = [string, string];
+
+export type CoveredSegment = Pick<
+  TrackSegment,
+  "trackNumber" | "stationA" | "stationB"
+>;
+
+// Turns covered track segments into a map line with per-track metadata,
+// deduplicating station pairs by connectionKey. When position is provided,
+// only pairs where both endpoints have a map position are kept.
 export function affectedStretchAsMapLine(
-  scenario: SnapshotScenario,
-  position: (station: string) => [number, number] | undefined = getStation,
+  scenario: { name: string; covers?: readonly CoveredSegment[] },
+  position:
+    ((station: string) => [number, number] | undefined) | null = getStation,
 ) {
+  const connections: StationPair[] = [];
+  const connectionTracks: Record<string, number[]> = {};
+  const tracks: number[] = [];
+
+  for (const { stationA, stationB, trackNumber } of scenario.covers ?? []) {
+    if (position && (!position(stationA) || !position(stationB))) continue;
+    const key = connectionKey(stationA, stationB);
+    if (!connectionTracks[key]) {
+      connectionTracks[key] = [];
+      connections.push([stationA, stationB]);
+    }
+    if (!connectionTracks[key].includes(trackNumber)) {
+      connectionTracks[key].push(trackNumber);
+    }
+    if (!tracks.includes(trackNumber)) {
+      tracks.push(trackNumber);
+    }
+  }
+
   return {
     name: scenario.name,
-    tracks: [1, 2],
-    connections: (scenario.covers ?? [])
-      .map(
-        (segment) => [segment.stationA, segment.stationB] as [string, string],
-      )
-      .filter(
-        ([stationA, stationB]) => position(stationA) && position(stationB),
-      ),
+    tracks,
+    connections,
+    connectionTracks,
   };
 }
 
@@ -62,10 +86,8 @@ export function areaAroundStations(
   return `${left} ${top} ${right - left} ${bottom - top}`;
 }
 
-type StationPair = [string, string];
-
-// FOR–KN and KN–FOR are the same piece of track.
-function samePiece([a, b]: StationPair, [c, d]: StationPair) {
+// FOR-KN and KN-FOR are the same piece of track.
+export function samePiece([a, b]: StationPair, [c, d]: StationPair) {
   return (a === c && b === d) || (a === d && b === c);
 }
 

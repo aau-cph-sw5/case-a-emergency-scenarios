@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { connectionKey } from "../../shared/network/network.ts";
 import {
   affectedStations,
   affectedStretchAsMapLine,
@@ -7,6 +8,7 @@ import {
   linesThrough,
   networkWithoutStretch,
   requiredStations,
+  samePiece,
 } from "../../shared/scenario/affected-stations.ts";
 
 const scenario = {
@@ -137,4 +139,62 @@ test("lists no stations when the current version requires none", () => {
     requiredStations({ currentVersion: "1", versions: [{ version: "1" }] }),
     [],
   );
+});
+
+test("builds per-track connectionTracks and deduplicates reversed connections", () => {
+  const stretch = affectedStretchAsMapLine({
+    name: "Single and double track",
+    covers: [
+      { trackNumber: 1, stationA: "FOR", stationB: "KN" },
+      { trackNumber: 2, stationA: "KN", stationB: "FOR" },
+      { trackNumber: 1, stationA: "FOR", stationB: "KN" },
+      { trackNumber: 2, stationA: "KN", stationB: "KGN" },
+    ],
+  });
+
+  assert.deepEqual(stretch, {
+    name: "Single and double track",
+    tracks: [1, 2],
+    connections: [
+      ["FOR", "KN"],
+      ["KN", "KGN"],
+    ],
+    connectionTracks: {
+      [connectionKey("FOR", "KN")]: [1, 2],
+      [connectionKey("KN", "KGN")]: [2],
+    },
+  });
+});
+
+test("returns empty stretch metadata when scenario has no covers", () => {
+  assert.deepEqual(affectedStretchAsMapLine(scenarioWithoutStations), {
+    name: "no covers",
+    tracks: [],
+    connections: [],
+    connectionTracks: {},
+  });
+});
+
+test("keeps synthetic stations when position filtering is disabled", () => {
+  const stretch = affectedStretchAsMapLine(
+    {
+      name: "Synthetic",
+      covers: [{ trackNumber: 2, stationA: "A", stationB: "B" }],
+    },
+    null,
+  );
+  assert.deepEqual(stretch, {
+    name: "Synthetic",
+    tracks: [2],
+    connections: [["A", "B"]],
+    connectionTracks: {
+      [connectionKey("A", "B")]: [2],
+    },
+  });
+});
+
+test("samePiece matches identical and reversed station pairs", () => {
+  assert.equal(samePiece(["FOR", "KN"], ["FOR", "KN"]), true);
+  assert.equal(samePiece(["FOR", "KN"], ["KN", "FOR"]), true);
+  assert.equal(samePiece(["FOR", "KN"], ["KN", "KGN"]), false);
 });
