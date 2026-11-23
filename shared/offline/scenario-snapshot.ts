@@ -22,11 +22,8 @@ export const STALE_AFTER_MS = 60 * 60 * 1000;
 
 export const STORAGE_KEY = "metro-active-scenario-copy";
 
-export type { SnapshotOperatingPattern };
-
-// The scenario as the copy keeps it: lineGroup and only the current version,
-// with its operating-plan pattern fields and without revision,
-// operatingPlan.name, maximumTrains, or description.
+// The scenario as the copy keeps it: only the current version, without its
+// revision and with only the operating-plan pattern fields the map draws.
 export type SnapshotVersion = Pick<
   ScenarioVersion,
   "version" | "stationRequirements" | "passengerInformation"
@@ -57,11 +54,10 @@ export type SnapshotStorage = {
 
 export type SnapshotStore = ReturnType<typeof createSnapshotStore>;
 
-// Keeps only what the steward reads: the activation, lineGroup, and the
-// scenario's current version with the pattern fields needed for the map. One
-// snapshot at a time. loadActiveScenario already rejects a scenario without
-// its current version; this throws too, so no path can save an empty copy over
-// a good one.
+// Keeps only what the steward reads: the activation and the scenario's
+// current version with the pattern fields the map draws. One snapshot at a
+// time. loadActiveScenario already rejects a scenario without its current
+// version; this throws too, so no path can save an empty copy over a good one.
 export function buildSnapshot(
   active: Extract<ActiveScenario, { active: true }>,
   userId: string,

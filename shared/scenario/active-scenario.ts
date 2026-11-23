@@ -85,9 +85,14 @@ export function isSnapshotOperatingPattern(
 }
 
 export function isOperatingPattern(data: unknown): data is OperatingPattern {
-  if (!isSnapshotOperatingPattern(data)) return false;
-  const { maximumTrains } = data as Record<string, unknown>;
-  return Number.isInteger(maximumTrains) && (maximumTrains as number) >= 0;
+  if (!isRecord(data)) return false;
+  const { maximumTrains } = data;
+  return (
+    isSnapshotOperatingPattern(data) &&
+    typeof maximumTrains === "number" &&
+    Number.isInteger(maximumTrains) &&
+    maximumTrains >= 0
+  );
 }
 
 // Checked down to the fields the steward view renders, so a malformed entry
