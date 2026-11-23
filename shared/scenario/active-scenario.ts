@@ -2,6 +2,7 @@
 // The one place the steward app fetches the active scenario (#157), so the
 // offline copy (MET-A-005) can wrap it.
 import { FormatError, HttpError, getJson } from "../api/http";
+import { isLineGroup } from "../auth/line-groups";
 import type { Scenario, TrackSegment } from "../types/v1/scenario";
 import type { ScenarioState } from "../types/v1/scenario-state";
 
@@ -11,6 +12,12 @@ export type { ScenarioState, TrackSegment };
 export type ScenarioDefinition = Scenario;
 export type Deployment = ScenarioState["deployments"][number];
 export type ScenarioVersion = Scenario["versions"][number];
+export type OperatingPattern =
+  ScenarioVersion["operatingPlan"]["patterns"][number];
+export type SnapshotOperatingPattern = Pick<
+  OperatingPattern,
+  "operationType" | "routeCode" | "trackNumber" | "did" | "route" | "color"
+>;
 export type StationRequirement = ScenarioVersion["stationRequirements"][number];
 export type PassengerInformation = NonNullable<
   ScenarioVersion["passengerInformation"]
@@ -52,15 +59,48 @@ export function isScenarioState(data: unknown): data is ScenarioState {
 const isScenarioStateOrNull = (data: unknown): data is ScenarioState | null =>
   data === null || isScenarioState(data);
 
-const isObject = (data: unknown): data is Record<string, unknown> =>
-  typeof data === "object" && data !== null;
+export function isRecord(data: unknown): data is Record<string, unknown> {
+  return typeof data === "object" && data !== null && !Array.isArray(data);
+}
+
+const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
+
+// Checked down to the fields kept in the offline copy and drawn on the map,
+// so a malformed pattern is refused before it is saved or rendered.
+export function isSnapshotOperatingPattern(
+  data: unknown,
+): data is SnapshotOperatingPattern {
+  if (!isRecord(data)) return false;
+  const { operationType, routeCode, trackNumber, did, route, color } = data;
+  return (
+    (operationType === "PENDULUM" || operationType === "ROUNDTRIP") &&
+    typeof routeCode === "string" &&
+    Number.isInteger(trackNumber) &&
+    typeof did === "string" &&
+    Array.isArray(route) &&
+    route.every(isRecord) &&
+    (color === undefined ||
+      (typeof color === "string" && HEX_COLOR.test(color)))
+  );
+}
+
+export function isOperatingPattern(data: unknown): data is OperatingPattern {
+  if (!isRecord(data)) return false;
+  const { maximumTrains } = data;
+  return (
+    isSnapshotOperatingPattern(data) &&
+    typeof maximumTrains === "number" &&
+    Number.isInteger(maximumTrains) &&
+    maximumTrains >= 0
+  );
+}
 
 // Checked down to the fields the steward view renders, so a malformed entry
 // is refused here instead of being saved and crashing the view.
 export function isStationRequirement(
   data: unknown,
 ): data is StationRequirement {
-  if (!isObject(data)) return false;
+  if (!isRecord(data)) return false;
   const { station, placement, minimumStaffing, activeDuring, actions } = data;
   return (
     typeof station === "string" &&
@@ -70,7 +110,7 @@ export function isStationRequirement(
       (Array.isArray(activeDuring) &&
         activeDuring.every(
           (window) =>
-            isObject(window) &&
+            isRecord(window) &&
             typeof window.dayPattern === "string" &&
             typeof window.startTime === "string" &&
             typeof window.endTime === "string",
@@ -79,7 +119,7 @@ export function isStationRequirement(
       (Array.isArray(actions) &&
         actions.every(
           (action) =>
-            isObject(action) &&
+            isRecord(action) &&
             typeof action.sequence === "number" &&
             typeof action.instruction === "string",
         )))
@@ -91,7 +131,7 @@ export function isStationRequirement(
 export function isPassengerInformation(
   data: unknown,
 ): data is PassengerInformation {
-  if (!isObject(data)) return false;
+  if (!isRecord(data)) return false;
   const { channel, language, message } = data;
   return (
     (channel === "PA" || channel === "PID") &&
@@ -101,11 +141,13 @@ export function isPassengerInformation(
 }
 
 function isScenarioVersion(data: unknown): data is ScenarioVersion {
-  if (!isObject(data)) return false;
+  if (!isRecord(data)) return false;
   return (
     typeof data.version === "string" &&
     typeof data.revision === "string" &&
-    isObject(data.operatingPlan) &&
+    isRecord(data.operatingPlan) &&
+    Array.isArray(data.operatingPlan.patterns) &&
+    data.operatingPlan.patterns.every(isOperatingPattern) &&
     Array.isArray(data.stationRequirements) &&
     data.stationRequirements.every(isStationRequirement) &&
     (data.passengerInformation === undefined ||
@@ -117,10 +159,11 @@ function isScenarioVersion(data: unknown): data is ScenarioVersion {
 export function isScenarioDefinition(
   data: unknown,
 ): data is ScenarioDefinition {
-  if (!isObject(data)) return false;
+  if (!isRecord(data)) return false;
   return (
     typeof data.scenarioId === "string" &&
     typeof data.name === "string" &&
+    isLineGroup(data.lineGroup) &&
     typeof data.currentVersion === "string" &&
     Array.isArray(data.versions) &&
     data.versions.every(isScenarioVersion)
