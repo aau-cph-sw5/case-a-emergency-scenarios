@@ -173,11 +173,13 @@ test("station messages are guarded, stored, logged and idempotent", async () => 
   const threads = (await operatorThreads.json()) as {
     station: string;
     state: string;
+    stationMessageIds: number[];
     messages?: unknown[];
   }[];
   const unanswered = threads.find((thread) => thread.station === station);
   assert.equal(unanswered?.state, "UNANSWERED");
   assert.equal(unanswered?.messages, undefined);
+  assert.deepEqual(unanswered?.stationMessageIds, [message.id]);
 
   // The exact same request is acknowledged without creating another message.
   const retry = await api(

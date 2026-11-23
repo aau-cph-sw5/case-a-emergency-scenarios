@@ -144,26 +144,26 @@ test("a pattern belongs to either a normal line or a scenario version", () =>
       VALUES ('SCHEMA-TEST', '1', 'Test') RETURNING id
     `;
     await tx`
-      INSERT INTO operating_patterns (normal_line, operation_type, route_code, track_number, maximum_trains, did)
-      VALUES ('M1', 'ROUNDTRIP', 'NORMAL', 12, 1, '1')
+      INSERT INTO operating_patterns (normal_line, operation_type, route_code, track_number, maximum_trains, did, color)
+      VALUES ('M1', 'ROUNDTRIP', 'NORMAL', 12, 1, '1', '#007D55')
     `;
     await tx`
-      INSERT INTO operating_patterns (scenario_version_id, operation_type, route_code, track_number, maximum_trains, did)
-      VALUES (${version.id}, 'PENDULUM', 'SCENARIO', 1, 1, '1')
+      INSERT INTO operating_patterns (scenario_version_id, operation_type, route_code, track_number, maximum_trains, did, color)
+      VALUES (${version.id}, 'PENDULUM', 'SCENARIO', 1, 1, '1', '#e6140f')
     `;
     await rejected(
       tx,
       (db) => db`
-      INSERT INTO operating_patterns (operation_type, route_code, track_number, maximum_trains, did)
-      VALUES ('PENDULUM', 'NO-OWNER', 1, 1, '1')
+      INSERT INTO operating_patterns (operation_type, route_code, track_number, maximum_trains, did, color)
+      VALUES ('PENDULUM', 'NO-OWNER', 1, 1, '1', '#e6140f')
     `,
       "23514",
     );
     await rejected(
       tx,
       (db) => db`
-      INSERT INTO operating_patterns (scenario_version_id, normal_line, operation_type, route_code, track_number, maximum_trains, did)
-      VALUES (${version.id}, 'M1', 'PENDULUM', 'TWO-OWNERS', 1, 1, '1')
+      INSERT INTO operating_patterns (scenario_version_id, normal_line, operation_type, route_code, track_number, maximum_trains, did, color)
+      VALUES (${version.id}, 'M1', 'PENDULUM', 'TWO-OWNERS', 1, 1, '1', '#e6140f')
     `,
       "23514",
     );

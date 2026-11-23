@@ -1,0 +1,107 @@
+.admin-station-select {
+  position: relative;
+  min-width: 0;
+}
+.admin-station-label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 700;
+}
+.admin-station-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #bdc6c6;
+  border-radius: 8px;
+  background: #fff;
+  text-align: left;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+.admin-station-trigger:hover,
+.admin-station-trigger[aria-expanded="true"] {
+  border-color: #465155;
+}
+.admin-station-trigger[aria-expanded="true"] {
+  box-shadow: 0 0 0 3px #e2e8e7;
+}
+.admin-station-value {
+  font-weight: 700;
+}
+.admin-station-placeholder {
+  color: #657174;
+}
+.admin-station-chevron {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-right: 2px solid #657174;
+  border-bottom: 2px solid #657174;
+  transform: rotate(45deg) translateY(-2px);
+}
+.admin-station-menu {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  width: max(100%, 200px);
+  max-width: min(270px, calc(100vw - 40px));
+  padding: 8px;
+  border: 1px solid #d7dddd;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 25px #15292926;
+}
+.admin-station-select:nth-child(2) .admin-station-menu {
+  right: 0;
+  left: auto;
+}
+.admin-line-form .admin-station-menu input {
+  padding: 8px 10px;
+  background: #f3f5f5;
+  font-size: 13px;
+}
+.admin-station-options {
+  display: grid;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 6px;
+}
+.admin-station-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  font-weight: 700;
+}
+.admin-station-option:hover,
+.admin-station-option[aria-pressed="true"] {
+  background: #eff4f3;
+}
+.admin-station-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border: 2px solid #657174;
+  border-radius: 50%;
+}
+.admin-station-check {
+  margin-left: auto;
+  color: #007d55;
+}
+.admin-station-empty {
+  margin: 0;
+  padding: 12px 8px;
+  color: #657174;
+  font-size: 13px;
+}

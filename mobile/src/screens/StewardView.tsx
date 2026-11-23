@@ -20,18 +20,20 @@ import {
 import type { QueuedPositionReport } from "../../../shared/offline/position-report-queue";
 import type { FlushResult } from "../offline/position-report-delivery";
 import { positionReportDelivery } from "../offline/position-report-delivery-instance";
+import { RETRY_DELAYS_MS } from "../offline/queue-delivery";
 import { queuePositionReport } from "../offline/queue-position-report";
 import { snapshotStore } from "../offline/snapshot-store";
-import {
-  stationMessageDelivery,
-  stationMessageQueueStore,
-} from "../offline/station-message-store";
+import { forgetStationChatRead } from "../offline/station-chat-read";
+import { stationMessageQueueStore } from "../offline/station-message-store";
+import { useStationMessageRetry } from "../offline/useStationMessageRetry";
 import { reportRejection, waitingReport } from "../offline/waiting-report";
 import { socket } from "../socket";
+import { useAppActive } from "../useAppActive";
 import { liveNotices, NoticeStack, stoodDownNotice } from "./Notice";
 import { OfflineBanner } from "./OfflineBanner";
 import { withOwnStatus } from "./own-assignment";
 import { RoleView } from "./RoleView";
+import { StationChat } from "./StationChat";
 import {
   oneRowPerStation,
   ScenarioMap,
@@ -47,8 +49,11 @@ const STATUS_BLOCKED_OFFLINE =
 const STATUS_BLOCKED_WAITING =
   "Din position er ikke sendt endnu. Du kan ændre status, når den er modtaget.";
 
-// Waits before each new try after a send failed while live
-export const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
+// Why the chat is gone, shown in a chat that was open (MET-A-029, #335).
+const CHAT_CLOSED_STOOD_DOWN = "Scenariet er afsluttet.";
+const CHAT_CLOSED_CHECKED_OUT = "Du er ikke længere tjekket ind på stationen.";
+const chatClosedSwitched = (name: string) =>
+  `Scenariet er skiftet til “${name}”.`;
 
 // Tells the steward which queued reports were rejected because the scenario changed.
 export function supersededMessage(
@@ -185,6 +190,13 @@ export function StewardView({
     };
   }, [token, activationId, userId, deployments]);
 
+  const appActive = useAppActive();
+  useStationMessageRetry({
+    token,
+    enabled: online && appActive,
+    onUnauthorized,
+  });
+
   // Sends the queued reports and says what went wrong, null when nothing did.
   // A report that went through says nothing (#376): the status box already
   // shows the new status, so "Position sendt." was noise. delivered tells
@@ -198,13 +210,6 @@ export function StewardView({
     const owner = userIdFromToken(token);
     if (owner === null)
       return { message: null, blocked: false, delivered: false };
-    // Station messages written offline go out at the same time (MET-A-029).
-    // The chat shows how each one went; here a stopped send only makes the
-    // retry below try again.
-    const messagesBlocked = stationMessageDelivery.flush(owner, token).then(
-      (result) => result.blocked,
-      () => true,
-    );
     try {
       const result = await positionReportDelivery.flush(owner, token);
       const refused =
@@ -218,7 +223,7 @@ export function StewardView({
       );
       return {
         message: lines.length > 0 ? lines.join("\n") : null,
-        blocked: result.blockedBy !== undefined || (await messagesBlocked),
+        blocked: result.blockedBy !== undefined,
         delivered: result.acknowledged > 0,
       };
     } catch {
@@ -240,12 +245,14 @@ export function StewardView({
         : undefined;
   // A stood-down scenario's thread is removed, so the messages the server
   // refused for it are forgotten on the phone instead of piling up (MET-A-029).
+  // The chat read marker for ended activations is cleared here too (#446).
   useEffect(() => {
     const owner = userIdFromToken(token);
     if (owner === null || liveActivationId === undefined) return;
     void stationMessageQueueStore
       .discardEndedRejections(owner, liveActivationId)
       .catch(() => undefined);
+    void forgetStationChatRead(owner, liveActivationId).catch(() => undefined);
   }, [token, liveActivationId]);
 
   // Failed sends in a row while online; 0 means no retry is waiting.
@@ -253,6 +260,7 @@ export function StewardView({
   // Also sends after a stop while offline, so the steward learns why reports were rejected.
   const canSend =
     online &&
+    appActive &&
     (view.status === "live" ||
       view.status === "stood-down" ||
       view.status === "none");
@@ -464,8 +472,34 @@ export function StewardView({
 
   const retry = onRetry ?? (() => void refresh());
 
+  // The station's chat is there only while the steward is checked in
+  // (ARRIVED) at it, as the server requires (MET-A-029, #335).
+  const chatStation = own?.status === "MANNED" ? own.station : undefined;
+  // The activation the steward was last checked in for. When the control
+  // room switches scenario, the chat says so, not that the steward checked
+  // out.
+  const [chatActivation, setChatActivation] = useState(activationId);
+  // Only once the status is the new activation's: in the render that sees a
+  // new activation, own is still the old one's.
+  if (
+    chatStation !== undefined &&
+    statusKey === shownStatusKey &&
+    activationId !== chatActivation
+  ) {
+    setChatActivation(activationId);
+  }
+  const chatClosedReason =
+    view.status === "stood-down" || view.status === "none"
+      ? CHAT_CLOSED_STOOD_DOWN
+      : shown !== null && activationId !== chatActivation
+        ? chatClosedSwitched(shown.scenario.name)
+        : CHAT_CLOSED_CHECKED_OUT;
+  const refreshScenario = useCallback(() => void refresh(), [refresh]);
+  // While the chat is open it covers the view, which a screen reader skips.
+  const [chatOpen, setChatOpen] = useState(false);
+
   return (
-    <RoleView title="Steward" onLogout={onLogout}>
+    <RoleView title="Steward" onLogout={onLogout} obscured={chatOpen}>
       {/* Activated and switched show over the screen and move nothing;
           stood down turns the status card (closed, below). */}
       <NoticeStack
@@ -477,7 +511,11 @@ export function StewardView({
       />
       {/* The screen does not scroll (#376): the status card at the top (the
           status, the map and the one control), the station list under it. */}
-      <View style={styles.content}>
+      <View
+        style={styles.content}
+        accessibilityElementsHidden={chatOpen}
+        importantForAccessibility={chatOpen ? "no-hide-descendants" : "auto"}
+      >
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
         )}
@@ -563,6 +601,13 @@ export function StewardView({
               reportStatus && <Text style={styles.report}>{reportStatus}</Text>
             }
           >
+            {/* Part of the list, so it comes and goes with the card's
+                status, not a turn ahead of it (#335). */}
+            {own?.status === "PENDING" && (
+              <Text style={styles.report}>
+                Tjek ind på stationen for at skrive til kontrolrummet.
+              </Text>
+            )}
             {shown && (
               <ScenarioOverview
                 snapshot={counted ?? shown}
@@ -595,6 +640,15 @@ export function StewardView({
           <Text style={styles.report}>{reportStatus}</Text>
         )}
       </View>
+      {/* Over the whole view, header included, so it is the last child. */}
+      <StationChat
+        token={token}
+        station={chatStation}
+        activationId={activationId}
+        closedReason={chatClosedReason}
+        onClosedByServer={refreshScenario}
+        onOpenChange={setChatOpen}
+      />
     </RoleView>
   );
 }

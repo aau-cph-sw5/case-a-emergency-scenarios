@@ -66,6 +66,7 @@ export default defineConfig([
       "shared/auth/**/*.ts",
       "shared/offline/**/*.ts",
       "shared/scenario/**/*.ts",
+      "shared/station-messages/**/*.ts",
       "shared/LoginScreen.tsx",
       "shared/Theme.tsx",
     ],

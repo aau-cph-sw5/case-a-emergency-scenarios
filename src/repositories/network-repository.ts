@@ -22,7 +22,7 @@ export async function getNetwork(): Promise<Network> {
         SELECT json_agg(json_build_object('line', op.normal_line,
                  'routeCode', op.route_code, 'operationType', op.operation_type,
                  'trackNumber', op.track_number, 'maximumTrains', op.maximum_trains,
-                 'did', op.did,
+                 'did', op.did, 'color', op.color,
                  'stops', COALESCE((
                    SELECT json_agg(s.code ORDER BY ls.sequence)
                    FROM line_stops ls JOIN stations s ON s.id = ls.station_id
@@ -33,4 +33,13 @@ export async function getNetwork(): Promise<Network> {
     ) AS network
   `;
   return row.network;
+}
+
+// Every station's code and name, for scenario suggestion (MET-A-019). Ordered
+// by code, so the station list, and with it the tokens, is the same every time.
+export async function getStations(): Promise<{ code: string; name: string }[]> {
+  const sql = getDatabase();
+  return sql<{ code: string; name: string }[]>`
+    SELECT code, name FROM stations ORDER BY code
+  `;
 }

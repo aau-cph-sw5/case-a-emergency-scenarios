@@ -11,11 +11,17 @@ import App from "../../mobile/App";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import { network } from "../helpers/network";
 import { NETWORK_STORAGE_KEY } from "../../shared/network/cache";
+import { STATION_MESSAGE_QUEUE_KEY } from "../../shared/offline/station-message-queue";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
+import {
+  ownMessageIds,
+  rememberOwnMessage,
+} from "../../mobile/src/offline/own-station-messages";
 import {
   STORAGE_KEY,
   buildSnapshot,
 } from "../../shared/offline/scenario-snapshot";
+import { markStationChatRead } from "../../mobile/src/offline/station-chat-read";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
@@ -103,6 +109,20 @@ describe("App", () => {
     await storeSession();
     await storeCopy();
     await AsyncStorage.setItem(NETWORK_STORAGE_KEY, JSON.stringify(network));
+    await AsyncStorage.setItem(
+      STATION_MESSAGE_QUEUE_KEY,
+      JSON.stringify([
+        {
+          clientMessageId: "msg-1",
+          userId: "7",
+          station: "Station B",
+          activationId: 1,
+          text: "Hej",
+          writtenAt: "2026-11-15T20:00:00Z",
+        },
+      ]),
+    );
+    await rememberOwnMessage("7", 1, "Station B", "msg-1");
     jest
       .spyOn(global, "fetch")
       .mockRejectedValue(new TypeError("Network request failed"));
@@ -112,6 +132,12 @@ describe("App", () => {
     expect(await screen.findByText(scenario.name)).toBeTruthy();
     expect(await AsyncStorage.getItem(STORAGE_KEY)).not.toBeNull();
     expect(await AsyncStorage.getItem(NETWORK_STORAGE_KEY)).not.toBeNull();
+    expect(
+      await AsyncStorage.getItem(STATION_MESSAGE_QUEUE_KEY),
+    ).not.toBeNull();
+    expect(await ownMessageIds("7", 1, "Station B")).toEqual(
+      new Set(["msg-1"]),
+    );
 
     fireEvent.press(screen.getByText("Log ud"));
 
@@ -122,11 +148,31 @@ describe("App", () => {
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(NETWORK_STORAGE_KEY)).toBeNull(),
     );
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(STATION_MESSAGE_QUEUE_KEY)).toBeNull(),
+    );
+    await waitFor(async () =>
+      expect(await ownMessageIds("7", 1, "Station B")).toEqual(new Set()),
+    );
   });
 
-  it("removes the copy when the server no longer accepts the session", async () => {
+  it("removes the copy and station messages when the server no longer accepts the session", async () => {
     await storeSession();
     await storeCopy();
+    await AsyncStorage.setItem(
+      STATION_MESSAGE_QUEUE_KEY,
+      JSON.stringify([
+        {
+          clientMessageId: "msg-2",
+          userId: "7",
+          station: "Station B",
+          activationId: 1,
+          text: "Hej",
+          writtenAt: "2026-11-15T20:00:00Z",
+        },
+      ]),
+    );
+    await rememberOwnMessage("7", 1, "Station B", "msg-2");
     jest.spyOn(global, "fetch").mockResolvedValue(response(401));
 
     render(<App />);
@@ -134,6 +180,33 @@ describe("App", () => {
     expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(STORAGE_KEY)).toBeNull(),
+    );
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem(STATION_MESSAGE_QUEUE_KEY)).toBeNull(),
+    );
+    await waitFor(async () =>
+      expect(await ownMessageIds("7", 1, "Station B")).toEqual(new Set()),
+    );
+  });
+
+  it("clears station chat read markers on sign-out (MET-A-029, #446)", async () => {
+    await storeSession();
+    await storeCopy();
+    await markStationChatRead("7", 1, "Station B", 5);
+    jest
+      .spyOn(global, "fetch")
+      .mockRejectedValue(new TypeError("Network request failed"));
+
+    render(<App />);
+
+    expect(await screen.findByText(scenario.name)).toBeTruthy();
+    expect(await AsyncStorage.getItem("station-chat-read/7")).not.toBeNull();
+
+    fireEvent.press(screen.getByText("Log ud"));
+
+    expect(await screen.findByRole("button", { name: "Log ind" })).toBeTruthy();
+    await waitFor(async () =>
+      expect(await AsyncStorage.getItem("station-chat-read/7")).toBeNull(),
     );
   });
 });

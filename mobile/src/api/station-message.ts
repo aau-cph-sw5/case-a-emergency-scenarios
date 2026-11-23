@@ -1,6 +1,11 @@
 import { ERROR_CODES } from "../../../shared/error-codes";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
 import type { QueuedStationMessage } from "../../../shared/offline/station-message-queue";
+import {
+  isSendableText,
+  isStationMessage,
+  isStationMessageRequest,
+} from "../../../shared/station-messages/validate";
 import type { StationMessage } from "../../../shared/types/v1/station-message";
 import type { StationMessageRequest } from "../../../shared/types/v1/station-message-request";
 import { apiBaseUrl } from "../api-base-url";
@@ -9,23 +14,6 @@ export type MessageDeliveryResult =
   | { status: "accepted"; message: StationMessage }
   | { status: "retry" }
   | { status: "rejected"; httpStatus: number; code?: string };
-
-// What the steward reads under a message the server refused for good. 401 and
-// 403 are not here: they keep the message queued, so it is never shown as not sent.
-const MESSAGE_ERRORS: Record<string, string> = {
-  [ERROR_CODES.NO_ACTIVE_SCENARIO]: "Der er ikke noget aktivt scenarie.",
-  [ERROR_CODES.SCENARIO_STOOD_DOWN]:
-    "Scenariet er blevet stoppet eller skiftet. Beskeden blev ikke sendt.",
-  [ERROR_CODES.STATION_NOT_IN_SCENARIO]:
-    "Stationen er ikke en del af det aktive scenarie.",
-  [ERROR_CODES.NOT_CHECKED_IN_AT_STATION]:
-    "Du er ikke tjekket ind på stationen. Beskeden blev ikke sendt.",
-};
-
-// The text shown under a message the server refused.
-export function messageErrorMessage(code?: string): string {
-  return (code && MESSAGE_ERRORS[code]) ?? "Beskeden blev ikke sendt.";
-}
 
 // Sends one queued message to its station's thread. 201 stores it and 200
 // means the server already had it, so both count as delivered.
@@ -39,6 +27,15 @@ export async function deliverStationMessage(
     text: message.text,
     writtenAt: message.writtenAt,
   };
+  if (!isStationMessageRequest(body)) {
+    return {
+      status: "rejected",
+      httpStatus: 400,
+      ...(isSendableText(message.text)
+        ? {}
+        : { code: ERROR_CODES.MISSING_PARAMETER }),
+    };
+  }
   try {
     const response = await fetch(
       `${apiBaseUrl}/api/v1/station-threads/${encodeURIComponent(message.station)}/messages`,
@@ -54,9 +51,16 @@ export async function deliverStationMessage(
     );
 
     if (response.status === 200 || response.status === 201) {
+      const data: unknown = await response.json();
+      // A schema-invalid 2xx body must not return retry: the server already
+      // persisted the row and would return the same body forever, blocking
+      // every later queued message behind it.
+      if (!isStationMessage(data)) {
+        return { status: "rejected", httpStatus: 422 };
+      }
       return {
         status: "accepted",
-        message: (await response.json()) as StationMessage,
+        message: data,
       };
     }
     if (response.status === 429 || response.status >= 500) {

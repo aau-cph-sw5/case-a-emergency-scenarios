@@ -3,8 +3,9 @@
 **Status.** Accepted
 **Date.** 2026-10-27
 **Revised.** 2026-11-04: renumbered from 0010, which ADR 0010 (shared client data layer) already uses, and the socket only triggers a fetch (#257).
+**Revised.** 2026-11-23: keep `lineGroup` and the current version's `operatingPlan.patterns` fields (`operationType`, `routeCode`, `trackNumber`, `did`, `route`, and optional `color`) in the bounded copy so the steward map can draw running routes offline (#463).
 **Deciders.** Andreas Foverskov, Group 7
-**Related backlog items.** MET-A-005 (#5), MET-A-004 (#4), MET-A-010 (#10, #157, #158)
+**Related backlog items.** MET-A-005 (#5), MET-A-004 (#4), MET-A-010 (#10, #157, #158), MET-A-031 (#461, #463)
 
 ## Context
 
@@ -37,12 +38,16 @@ while the socket was disconnected is picked up on reconnect. It is the same
 rule as the control-room web app in ADR 0010.
 
 The copy is bounded. It holds one activation and, of that scenario, only its
-id, name, `covers` and the current version's station requirements and
-passenger information. Other versions and the operating plan are left out.
-It is stamped with the time it was saved and the steward's user id, read from
-the stored token. Another steward's copy, or a damaged one, counts as no copy.
-A response without the scenario's current version is rejected, so it never
-replaces a good copy with an empty one.
+id, name, `lineGroup`, `covers`, and the current version's station
+requirements, passenger information, and `operatingPlan.patterns` fields
+(`operationType`, `routeCode`, `trackNumber`, `did`, `route`, and optional
+`color`). Older versions, `revision`, `operatingPlan.name`, `maximumTrains`,
+and `description` are left out. It is stamped with the time it was saved and
+the steward's user id, read from the stored token. Another steward's copy, an
+older copy missing `lineGroup` or `operatingPlan.patterns`, or a damaged one,
+counts as no copy so the next online fetch replaces it. A response without the
+scenario's current version is rejected, so it never replaces a good copy with
+an empty one.
 
 The copy is shown when the server cannot be reached:
 

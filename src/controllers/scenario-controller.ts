@@ -2,12 +2,14 @@ import type { Server } from "socket.io";
 import type { Request, Response } from "express";
 import { ERROR_CODES, errorBody } from "../../shared/error-codes.js";
 import { roleRoom } from "../realtime/socket-server.js";
+import { emitThreadsClosed } from "../realtime/station-messages.js";
 
 import {
   ACTIVATION_STATUSES,
   findActiveScenarioVersion,
   type ActivationStatus,
   findActiveActivation,
+  findActivation,
   listActivations,
   type StoredActivation,
 } from "../repositories/activation-repository.js";
@@ -198,6 +200,10 @@ export async function activate(
     if (!io) {
       console.warn("Socket.IO not attached; scenario-activated not sent");
     }
+    if (io && replaces !== undefined) {
+      const replaced = await findActivation(replaces);
+      if (replaced) emitThreadsClosed(io, replaced);
+    }
     io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-activated", {
       scenario,
       sentAt: new Date().toISOString(),
@@ -259,11 +265,13 @@ export async function standDown(
   }
 
   const io = request.app.locals.io as Server | undefined;
-  // Stewards refetch the scenario state, operators their activations, in the
-  // stood-down activation's line group only.
+
   const { lineGroup } = result.activation;
   io?.to(roleRoom("STEWARD", lineGroup)).emit("scenario-stood-down");
   io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
+  if (io) {
+    emitThreadsClosed(io, result.activation);
+  }
   void notifyScenarioChange(lineGroup, false, result.activation.scenarioId);
 
   response.json(result.activation);

@@ -79,6 +79,38 @@ const lines: { name: string; connections: [string, string][] }[] = [
   },
 ];
 
+export type Crossover = {
+  lineGroup: "M1/M2" | "M3/M4";
+  between: [string, string];
+};
+
+// Locations supplied on the M1/M2 and M3/M4 infrastructure diagrams.
+// The BUV depot crossover is not shown: the depot is not in this map's network.
+const crossovers: Crossover[] = [
+  ...(
+    [
+      ["VAN", "FL"],
+      ["FB", "FOR"],
+      ["KN", "KGN"],
+      ["LGP", "ØSV"],
+      ["AMS", "FEØ"],
+      ["ISB", "UNI"],
+      ["KHS", "BC"],
+      ["ØRE", "VEA"],
+      ["KSA", "CPH"],
+    ] as [string, string][]
+  ).map((between): Crossover => ({ lineGroup: "M1/M2", between })),
+  ...(
+    [
+      ["NEL", "MOP"],
+      ["EBR", "HOL"],
+      ["NØ", "NØR"],
+      ["TRI", "KK"],
+      ["NHT", "ORK"],
+    ] as [string, string][]
+  ).map((between): Crossover => ({ lineGroup: "M3/M4", between })),
+];
+
 const stationData: Record<string, [number, number]> = {
   ORK: [782, 111],
   NHT: [746, 147],
@@ -128,6 +160,10 @@ const stationData: Record<string, [number, number]> = {
 
 export function getLines() {
   return lines;
+}
+
+export function getCrossovers(): readonly Crossover[] {
+  return crossovers;
 }
 
 export function getStation(name: string): [number, number] {

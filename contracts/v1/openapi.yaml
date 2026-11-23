@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.7.0
+  version: 8.12.0
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -67,6 +67,40 @@ paths:
                 error:
                   code: "E0001"
                   message: "Invalid or expired token"
+
+    post:
+      summary: Create a scenario
+      description: >
+        Admins create a scenario and its first version with operating patterns,
+        station staffing and confirmed unavailable track segments. The entire
+        scenario is saved atomically.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./create-scenario-request.schema.json"
+      responses:
+        "201":
+          description: Scenario created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scenarioId]
+                properties:
+                  scenarioId:
+                    type: string
+        "400":
+          description: Invalid request or network references
+        "401":
+          description: Missing or invalid authentication
+        "403":
+          description: The user is not an admin
+        "409":
+          description: The scenario ID already exists
 
   /api/v1/scenarios/{scenarioId}:
     get:
@@ -576,6 +610,71 @@ paths:
                     error:
                       code: "E0007"
                       message: "'1' is not the active activation"
+
+  /api/v1/scenario-suggestions:
+    post:
+      summary: Suggests scenarios for a free-text incident description
+      description: >
+        MET-A-019. Requires a bearer token with the OPERATOR role. Returns up to 5
+        candidates, best first, when the match is confident, otherwise
+        NO_CONFIDENT_CANDIDATE. Only suggests: it never activates.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "./scenario-suggestion.schema.json#/definitions/ScenarioSuggestionRequest"
+            example:
+              description: "Signalfejl på strækningen mellem Nørreport og Kongens Nytorv"
+      responses:
+        "200":
+          description: Suggestions, or no confident candidate
+          content:
+            application/json:
+              schema:
+                $ref: "./scenario-suggestion.schema.json"
+              examples:
+                confident:
+                  value:
+                    status: "CONFIDENT"
+                    candidates:
+                      - scenarioId: "S1"
+                        score: 0.87
+                noConfidentCandidate:
+                  value:
+                    status: "NO_CONFIDENT_CANDIDATE"
+        "400":
+          description: description is missing, empty or longer than 2000 characters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0006"
+                  message: "description must be 1 to 2000 characters"
+        "401":
+          description: Missing, invalid or expired bearer token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0001"
+                  message: "Invalid or expired token"
+        "403":
+          description: The signed-in role may not ask for suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: "E0002"
+                  message: "Role STEWARD may not ask for scenario suggestions"
 
   /api/v1/activations/{activationId}/stand-down:
     post:

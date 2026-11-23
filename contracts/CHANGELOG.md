@@ -1,11 +1,48 @@
 # Scenario State Contract Changelog
 
-## 8.7.0 - 2026-11-19
+## 8.12.0 - 2026-11-23
 
 Additive. Steward phones register for push notifications (MET-A-018, ADR 0014).
 
 - New `PUT /api/v1/me/push-token` with `push-token-request.schema.json` (`pushToken`), for the STEWARD role. Stores the phone's Firebase Cloud Messaging token on the current login session and answers 204. Other roles get 403 `E0002`. Logging out or logging in again removes the token, and a token another account still holds is moved to this one.
-- `info.version` in `openapi.yaml` is now 8.7.0.
+- `info.version` in `openapi.yaml` is now 8.12.0.
+
+## 8.11.1 - 2026-11-22
+
+No change to the shape. `POST /api/v1/scenario-suggestions` is no longer a draft: the server serves it (#371).
+
+## 8.11.0 - 2026-11-21
+
+Additive. Station inbox summaries expose unread-message metadata (MET-A-029, #337).
+
+- Add optional `stationMessageIds` to `station-thread.schema.json`. The server includes this array of received station-message IDs in HTTP summaries and details, without message text in summaries.
+- Operators count unread IDs against their local read state. A failed history request therefore cannot clear the inbox badge.
+- The operator inbox orders conversations by `lastMessageAt`, newest first, and fetches message history when a conversation is opened.
+- Existing socket event producers may omit the new field.
+
+## 8.10.0 - 2026-11-18
+
+Additive. Scenario suggestions from a free-text incident description (MET-A-019, #357). A draft: the owners of #355 and #356 still have to approve it, and the server does not serve the endpoint yet (#371).
+
+- New `scenario-suggestion.schema.json`: the request `description` (1 to 2000 characters) and the response. `status` is `CONFIDENT` with one to five `candidates` (`scenarioId` and a `score` from 0 to 1, best first), or `NO_CONFIDENT_CANDIDATE` without candidates.
+- New `POST /api/v1/scenario-suggestions`. Only `OPERATOR` may use it; other roles get 403 `E0002`. A missing, empty or too long `description` gets 400 `E0006`, and a missing or expired token gets 401 `E0001`.
+- It only suggests. Activating a scenario still goes through the activation endpoint and its confirmation.
+
+## 8.9.0 - 2026-11-18
+
+Additive. Normal network patterns include their stored display color.
+
+## 8.8.0 - 2026-11-18
+
+Additive. Admins can create a scenario and its first version with operating patterns, staffing, tasks and covered track segments.
+
+- New `POST /api/v1/scenarios` validates the request and saves it atomically.
+- New `create-scenario-request.schema.json` describes the request; non-admins receive 403 and duplicate scenario IDs receive 409.
+- The server emits `scenarios-changed` to operators in the scenario's line group.
+
+## 8.7.0 - 2026-11-18
+
+Additive. Operating patterns store a required display colour, and scenario responses include it. Clients accept responses from older servers without a colour.
 
 ## 8.6.0 - 2026-11-16
 

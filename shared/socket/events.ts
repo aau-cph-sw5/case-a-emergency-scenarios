@@ -1,7 +1,7 @@
-import type { Scenario } from "../types/v1/scenario";
-import type { PositionReport } from "../types/v1/position-report";
-import type { StationMessage } from "../types/v1/station-message";
-import type { StationThread } from "../types/v1/station-thread";
+import type { Scenario } from "../types/v1/scenario.js";
+import type { PositionReport } from "../types/v1/position-report.js";
+import type { StationMessage } from "../types/v1/station-message.js";
+import type { StationThread } from "../types/v1/station-thread.js";
 
 // Events the server pushes: activations to stewards, position reports and the
 // "activations changed" signal to operators, and station messages to both.
@@ -10,6 +10,8 @@ export interface ServerToClientEvents {
   "scenario-activated": (activation: ScenarioActivated) => void;
   // No payload: operators refetch GET /api/v1/activations.
   "activations-changed": () => void;
+  // No payload: operators refetch their line group's scenario list.
+  "scenarios-changed": () => void;
   // No payload: stewards refetch GET /api/v1/scenario-state.
   "scenario-stood-down": () => void;
   "position-report": (

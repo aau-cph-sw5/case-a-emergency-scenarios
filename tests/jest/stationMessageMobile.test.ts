@@ -1,22 +1,11 @@
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import { ERROR_CODES } from "../../shared/error-codes";
+import { deliverStationMessage } from "../../mobile/src/api/station-message";
 import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  jest,
-} from "@jest/globals";
-import * as Crypto from "expo-crypto";
-import {
-  deliverStationMessage,
-  messageErrorMessage,
-} from "../../mobile/src/api/station-message";
-import {
-  MAX_MESSAGE_LENGTH,
   isSendableText,
-  queueStationMessage,
-  writeStationMessage,
-} from "../../mobile/src/offline/queue-station-message";
+  MAX_MESSAGE_LENGTH,
+} from "../../mobile/src/data/station-thread";
+import { queueStationMessage } from "../../mobile/src/offline/queue-station-message";
 import { stationMessageQueueStore } from "../../mobile/src/offline/station-message-store";
 
 jest.mock("@react-native-async-storage/async-storage", () =>
@@ -65,60 +54,6 @@ describe("queueStationMessage", () => {
   it("counts characters, not UTF-16 units, like the server", () => {
     expect(isSendableText("😀".repeat(MAX_MESSAGE_LENGTH))).toBe(true);
     expect(isSendableText("😀".repeat(MAX_MESSAGE_LENGTH + 1))).toBe(false);
-  });
-});
-
-describe("writeStationMessage", () => {
-  // Each message gets its own id, so the tests do not see each other's messages.
-  let next = 0;
-  beforeEach(() => {
-    jest
-      .spyOn(Crypto, "randomUUID")
-      .mockImplementation(
-        () => `33333333-3333-4333-8333-${String(++next).padStart(12, "0")}`,
-      );
-  });
-
-  it("sends the message at once while the phone is online", async () => {
-    jest.spyOn(global, "fetch").mockImplementation(
-      async (_url, init) =>
-        ({
-          status: 201,
-          json: async () => ({
-            ...JSON.parse((init as RequestInit).body as string),
-            id: 1,
-            station: input.station,
-            sender: "STATION",
-            receivedAt: "2026-11-17T10:00:00.000Z",
-          }),
-        }) as Response,
-    );
-
-    const { message, sent } = await writeStationMessage(
-      { ...input, userId: "online" },
-      "token",
-    );
-
-    expect(sent?.delivered.map((item) => item.clientMessageId)).toEqual([
-      message.clientMessageId,
-    ]);
-    expect(await stationMessageQueueStore.getPending("online")).toEqual([]);
-  });
-
-  it("keeps the message queued when there is no connection", async () => {
-    jest
-      .spyOn(global, "fetch")
-      .mockRejectedValue(new TypeError("Network request failed"));
-
-    const { message, sent } = await writeStationMessage(
-      { ...input, userId: "offline" },
-      "token",
-    );
-
-    expect(sent?.blocked).toBe(true);
-    expect(await stationMessageQueueStore.getPending("offline")).toEqual([
-      message,
-    ]);
   });
 });
 
@@ -174,11 +109,15 @@ describe("deliverStationMessage", () => {
     });
   });
 
-  it("asks for a retry on server errors and without connection", async () => {
+  it("asks for a retry on server errors, rate limits, and without connection", async () => {
     jest
       .spyOn(global, "fetch")
       .mockResolvedValueOnce({ status: 503 } as Response)
+      .mockResolvedValueOnce({ status: 429 } as Response)
       .mockRejectedValueOnce(new TypeError("offline"));
+    expect(await deliverStationMessage("token", message)).toEqual({
+      status: "retry",
+    });
     expect(await deliverStationMessage("token", message)).toEqual({
       status: "retry",
     });
@@ -200,13 +139,59 @@ describe("deliverStationMessage", () => {
       code: "E1007",
     });
   });
-});
 
-describe("messageErrorMessage", () => {
-  it("explains a refusal to the steward", () => {
-    expect(messageErrorMessage("E1007")).toMatch(/ikke tjekket ind/);
-    expect(messageErrorMessage("E1003")).toMatch(/stoppet/);
-    expect(messageErrorMessage("unknown")).toBe("Beskeden blev ikke sendt.");
-    expect(messageErrorMessage()).toBe("Beskeden blev ikke sendt.");
+  it("returns HTTP 401 as rejected so the delivery layer can trigger session renewal", async () => {
+    jest.spyOn(global, "fetch").mockResolvedValue({
+      status: 401,
+      json: async () => ({
+        error: { code: "E2001", message: "Expired" },
+      }),
+    } as Response);
+    expect(await deliverStationMessage("token", message)).toEqual({
+      status: "rejected",
+      httpStatus: 401,
+      code: "E2001",
+    });
+  });
+
+  it("rejects schema-invalid requests before sending them over HTTP", async () => {
+    const fetchMock = jest.spyOn(global, "fetch");
+
+    expect(
+      await deliverStationMessage("token", { ...message, text: "   " }),
+    ).toEqual({
+      status: "rejected",
+      httpStatus: 400,
+      code: ERROR_CODES.MISSING_PARAMETER,
+    });
+
+    for (const invalid of [
+      { ...message, clientMessageId: "not-a-uuid" },
+      { ...message, activationId: 0 },
+      { ...message, writtenAt: "2026-11-15T20:00:00" },
+    ]) {
+      expect(await deliverStationMessage("token", invalid)).toEqual({
+        status: "rejected",
+        httpStatus: 400,
+      });
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("terminally rejects schema-invalid 2xx responses without deadlocking the queue", async () => {
+    for (const body of [
+      { ...storedMessage, staff: "7" },
+      { ...storedMessage, clientMessageId: "not-a-uuid" },
+      { ...storedMessage, receivedAt: "2026-11-15T20:05:00" },
+    ]) {
+      jest.spyOn(global, "fetch").mockResolvedValueOnce({
+        status: 201,
+        json: async () => body,
+      } as Response);
+      expect(await deliverStationMessage("token", message)).toEqual({
+        status: "rejected",
+        httpStatus: 422,
+      });
+    }
   });
 });
