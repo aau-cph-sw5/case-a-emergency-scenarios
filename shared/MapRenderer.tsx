@@ -216,6 +216,7 @@ function Station({
   isStop = false,
   ringOnly = false,
   coverage,
+  ownStationRing = false,
   onPress,
 }: {
   name: string;
@@ -228,10 +229,20 @@ function Station({
   ringOnly?: boolean;
   // The live coverage fills the dot instead of the highlight (#310).
   coverage?: { fill: string; text: string };
+  // Concentric Metro Black outer ring separated by a white gap for the own
+  // station when live coverage fills the dot (MET-A-031, #464).
+  ownStationRing?: boolean;
   onPress?: (station: string) => void;
 }) {
   const [hover, setHover] = useState(false);
   const baseRadius = 10;
+  const dotRadius = hover ? baseRadius + 3 : baseRadius;
+  const dotStrokeWidth = 5;
+  const ringGapWidth = 3;
+  const outerRingWidth = 3;
+  const ringGapRadius = dotRadius + dotStrokeWidth / 2 + ringGapWidth / 2;
+  const outerRingRadius =
+    dotRadius + dotStrokeWidth / 2 + ringGapWidth + outerRingWidth / 2;
   // Tilted and placed beside the dot, clear of the tracks. A track rising to
   // the right would lie along the usual label, so those stations mirror it.
   const mirrored =
@@ -242,10 +253,11 @@ function Station({
   const belowRight =
     LABEL_BELOW_RIGHT.includes(name) || (ringOnly && name === "RHP");
   const belowLeft = LABEL_BELOW_LEFT.includes(name);
+  const labelOffset = ownStationRing ? baseRadius + 11 : baseRadius + 6;
   const labelX =
     mirrored || insideRing || belowLeft
-      ? x - baseRadius - 6 - (ringOnly && name === "FB" ? 7 : 0)
-      : x + baseRadius + 6;
+      ? x - labelOffset - (ringOnly && name === "FB" ? 7 : 0)
+      : x + labelOffset;
   const labelY =
     insideRing || outsideRight || horizontalRight
       ? y + 5
@@ -254,13 +266,38 @@ function Station({
         : y - baseRadius - 2 - (name === "NØ" ? 5 : 0);
   return (
     <G>
+      {ownStationRing && (
+        <>
+          <Circle
+            testID={`own-station-gap-${name}`}
+            cx={x}
+            cy={y}
+            r={ringGapRadius}
+            fill="none"
+            stroke={theme.background}
+            strokeWidth={ringGapWidth}
+            pointerEvents="none"
+          />
+          <Circle
+            testID={`own-station-ring-${name}`}
+            cx={x}
+            cy={y}
+            r={outerRingRadius}
+            fill="none"
+            stroke={theme.text}
+            strokeWidth={outerRingWidth}
+            pointerEvents="none"
+          />
+        </>
+      )}
       <Circle
+        testID={`station-dot-${name}`}
         cx={x}
         cy={y}
-        r={hover ? baseRadius + 3 : baseRadius}
+        r={dotRadius}
         fill={coverage?.fill ?? highlightColor ?? theme.background}
         stroke={theme.text}
-        strokeWidth={5}
+        strokeWidth={dotStrokeWidth}
         onPress={onPress ? () => onPress(name) : undefined}
         accessibilityLabel={onPress ? `Vælg station ${name}` : undefined}
         {...({
@@ -273,6 +310,7 @@ function Station({
       )}
       {requiredStaffing !== undefined && (
         <Text
+          testID={`station-staffing-${name}`}
           x={x}
           y={y + 5}
           textAnchor="middle"
@@ -285,6 +323,7 @@ function Station({
       )}
       <Text
         {...text.mapLabel}
+        testID={`station-label-${name}`}
         fontSize={16}
         fontWeight="700"
         x={labelX}
@@ -292,7 +331,7 @@ function Station({
         textAnchor={mirrored || insideRing || belowLeft ? "end" : "start"}
         transform={`rotate(${insideRing || outsideRight || horizontalRight ? 0 : mirrored || belowRight ? 45 : -45} ${labelX} ${labelY})`}
         onPress={onPress ? () => onPress(name) : undefined}
-        {...(highlightColor ? { fill: highlightColor } : {})}
+        fill={highlightColor ?? theme.text}
       >
         {name}
       </Text>
@@ -579,15 +618,14 @@ export default function MapRender({
       : (stationPositions?.[station] ?? getStation(station));
   const displayedCrossovers =
     crossovers ?? (positions ? [] : defaultCrossovers);
-  // Each station once, so a station both marked and highlighted is drawn once.
+  // Each station once, with highlightStation last so its outer ring sits above
+  // neighbouring stations.
   const highlighted = [
-    ...new Set([
-      ...markedStations,
-      ...(highlightStation !== undefined ? [highlightStation] : []),
-    ]),
+    ...new Set(
+      markedStations.filter((station) => station !== highlightStation),
+    ),
+    ...(highlightStation !== undefined ? [highlightStation] : []),
   ];
-  const highlightFor = (station: string) =>
-    highlighted.includes(station) ? highlightColor : undefined;
   const [hidden, setHidden] = useState<string[]>(initiallyHidden);
   const visible = lines.filter((l) => !hidden.includes(l.name));
   const connections = new Map<string, [string, string]>();
@@ -754,37 +792,45 @@ export default function MapRender({
         {/* Stations and labels sit above every track, including shared lines. */}
         {visibleStations
           .filter((station) => !highlighted.includes(station))
-          .map((station) => (
-            <Station
-              key={station}
-              name={station}
-              x={position(station)![0]}
-              y={position(station)![1]}
-              highlightColor={highlightFor(station)}
-              isStop={stopStations.includes(station)}
-              ringOnly={ringOnly}
-              onPress={onStationPress}
-            />
-          ))}
+          .map((station) => {
+            const level = stationCoverage[station];
+            return (
+              <Station
+                key={station}
+                name={station}
+                x={position(station)![0]}
+                y={position(station)![1]}
+                coverage={level ? coverageColors[level] : undefined}
+                requiredStaffing={requiredStaffing[station]}
+                isStop={stopStations.includes(station)}
+                ringOnly={ringOnly}
+                onPress={onStationPress}
+              />
+            );
+          })}
         {highlighted
           .filter((station) => position(station) !== undefined)
-          .map((station) => (
-            <Station
-              key={`highlight-${station}`}
-              name={station}
-              x={position(station)![0]}
-              y={position(station)![1]}
-              {...(station === highlightStation || !stationCoverage[station]
-                ? { highlightColor }
-                : // The coverage colour says it all; the steward's own
-                  // station keeps its own colour.
-                  { coverage: coverageColors[stationCoverage[station]] })}
-              requiredStaffing={requiredStaffing[station]}
-              isStop={stopStations.includes(station)}
-              ringOnly={ringOnly}
-              onPress={onStationPress}
-            />
-          ))}
+          .map((station) => {
+            const level = stationCoverage[station];
+            return (
+              <Station
+                key={`highlight-${station}`}
+                name={station}
+                x={position(station)![0]}
+                y={position(station)![1]}
+                {...(level
+                  ? {
+                      coverage: coverageColors[level],
+                      ownStationRing: station === highlightStation,
+                    }
+                  : { highlightColor })}
+                requiredStaffing={requiredStaffing[station]}
+                isStop={stopStations.includes(station)}
+                ringOnly={ringOnly}
+                onPress={onStationPress}
+              />
+            );
+          })}
       </Svg>
     </View>
   );
