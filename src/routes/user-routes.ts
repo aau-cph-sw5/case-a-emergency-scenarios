@@ -3,6 +3,7 @@ import {
   getUsers,
   editUser,
   postUser,
+  removeUser,
 } from "../controllers/user-controller.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { requireRole } from "../middleware/require-role.js";
@@ -24,4 +25,10 @@ userRouter.patch(
   requireRole("ADMIN"),
   validateBody("user-update.schema.json"),
   editUser,
+);
+userRouter.delete(
+  "/api/v1/users/:userId",
+  requireAuth,
+  requireRole("ADMIN"),
+  removeUser,
 );
