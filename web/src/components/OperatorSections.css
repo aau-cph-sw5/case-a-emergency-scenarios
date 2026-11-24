@@ -1910,3 +1910,10 @@ body {
   font-size: 14px;
   color: var(--operator-muted);
 }
+
+/* Staffing-plan rows are plain rows on a thin ink rule (stationRow.tsx). */
+.operator-coverage-panel [data-testid="station-row"] {
+  margin-bottom: 0;
+  padding: 12px 0;
+  border-radius: 0 !important;
+}
