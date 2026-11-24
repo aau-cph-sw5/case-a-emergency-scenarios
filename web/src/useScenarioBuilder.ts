@@ -770,7 +770,6 @@ export function useScenarioBuilder(token: string) {
     setManualType,
     changeOperationType,
     track,
-    setTrack,
     changeTrack,
     lineColor,
     setLineColor,
