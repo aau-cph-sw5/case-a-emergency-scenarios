@@ -74,7 +74,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 28px;
-  color: white;
+  color: var(--operator-white);
   border-bottom: 1px solid #454545;
 }
 .operator-brand,
@@ -85,7 +85,7 @@ body {
   flex-shrink: 0;
 }
 .operator-brand > strong {
-  font-size: 19px;
+  font-size: var(--operator-text-19);
 }
 .brand-mark {
   display: grid;
@@ -94,53 +94,53 @@ body {
   height: 38px;
   border-radius: 50%;
   background: var(--operator-red);
-  color: white;
-  font-size: 24px;
+  color: var(--operator-white);
+  font-size: var(--operator-text-24);
   font-weight: 900;
 }
 .operator-line-switcher {
   display: flex;
   gap: 4px;
   padding: 4px;
-  border: 1px solid #566167;
-  border-radius: 8px;
+  border: 1px solid var(--operator-muted);
+  border-radius: var(--operator-radius-control);
   background: #252a2c;
 }
 .operator-line-switcher button {
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--operator-radius-control);
   padding: 8px 10px;
   background: transparent;
-  color: #d5dee0;
+  color: var(--operator-option-border);
   font-weight: 700;
 }
 .operator-line-switcher button[aria-pressed="true"] {
-  background: #fff;
-  color: #1e1e1e;
+  background: var(--operator-white);
+  color: var(--operator-ink);
 }
 .operator-line-switcher button:hover:not([aria-pressed="true"]) {
-  background: #465155;
+  background: var(--operator-ink-hover);
 }
 .operator-avatar {
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
-  border: 1px solid #666;
+  border: 1px solid var(--operator-muted);
   border-radius: 50%;
-  font-size: 12px;
+  font-size: var(--operator-text-12);
 }
 .logout-button {
   margin-left: 8px;
   padding: 8px 10px;
   border: 1px solid #555;
-  border-radius: 8px;
+  border-radius: var(--operator-radius-control);
   color: #ddd;
   background: transparent;
 }
 .logout-button:hover {
   background: #ffffff15;
-  color: white;
+  color: var(--operator-white);
 }
 .active-scenario-banner {
   min-width: 0;
@@ -149,7 +149,7 @@ body {
   align-items: center;
   gap: 16px;
   color: #c8c8c8;
-  font-size: 14px;
+  font-size: var(--operator-text-14);
 }
 .active-scenario-banner p {
   margin: 0;
@@ -176,8 +176,8 @@ body {
 }
 .active-scenario-label strong {
   display: block;
-  font-size: 15px;
-  color: white;
+  font-size: var(--operator-text-15);
+  color: var(--operator-white);
   margin-top: 4px;
   overflow-wrap: anywhere;
 }
@@ -186,7 +186,7 @@ body {
   flex-direction: column;
   gap: 4px;
   text-align: right;
-  font-size: 12px;
+  font-size: var(--operator-text-12);
   color: #aaa;
   font-variant-numeric: tabular-nums;
 }
@@ -238,9 +238,9 @@ body {
 .scenario-picker,
 .operator-metric,
 .scenario-actions {
-  background: white;
-  border: 1px solid #1e1e1e;
-  border-radius: 15px;
+  background: var(--operator-white);
+  border: 1px solid var(--operator-ink);
+  border-radius: var(--operator-radius-card);
 }
 .operator-sidebar {
   display: flex;
@@ -270,11 +270,11 @@ body {
   margin: 0;
   /* 11px is the smallest text in the column; it is all caps, so it stays
      readable. */
-  font-size: 12px;
+  font-size: var(--operator-text-12);
   line-height: 1.5;
   letter-spacing: 1px;
   font-weight: 700;
-  color: #656565;
+  color: var(--operator-muted);
 }
 .scenario-picker h2,
 .map-heading h1,
@@ -282,10 +282,10 @@ body {
   display: flex;
   align-items: center;
   min-height: 46px;
-  font-size: 24px;
+  font-size: var(--operator-text-24);
   font-weight: 800;
   line-height: 1.25;
-  letter-spacing: -0.6px;
+  letter-spacing: 0.3px;
   margin: 0;
 }
 .scenario-picker h2 {
@@ -411,27 +411,36 @@ body {
   flex: 1;
   height: 44px;
   padding: 0 8px;
-  color: white;
-  font-size: 14px;
+  color: var(--operator-white);
+  font-size: var(--operator-text-14);
   line-height: 1.4;
 }
 .scenario-actions .scenario-switch {
   flex: 0 0 26%;
   max-width: 76px;
-  font-size: 14px;
+  font-size: var(--operator-text-14);
 }
 .scenario-start {
   background: var(--operator-green);
 }
-.scenario-stop {
-  background: var(--operator-red);
+/* Stop is outlined in red, not filled: white with a heavy red edge and deep
+   red text centred in it, so the only filled button in the card is Start. */
+.scenario-actions .scenario-stop {
+  border: var(--operator-rule-width) solid var(--operator-red);
+  background: var(--operator-white);
+  color: var(--operator-red-text);
+  text-align: center;
+}
+.scenario-actions .scenario-stop:not(:disabled):hover {
+  background: var(--operator-pressed);
+  filter: none;
 }
 /* Red and yellow are kept for stop/errors and selection, so a harmless
    cancel or switch doesn't look like an alarm. White with an ink edge, still
    flat like the other buttons. */
 .scenario-actions .scenario-cancel,
 .scenario-actions .scenario-switch {
-  background: white;
+  background: var(--operator-white);
   color: var(--operator-ink);
 }
 .scenario-actions button:not(:disabled):hover {
@@ -463,6 +472,17 @@ body {
 }
 .scenario-selection--active .operator-metric {
   flex: 1;
+  /* Fill the card: label on top, the figure in the middle, meter or note at
+     the bottom. */
+  display: flex;
+  flex-direction: column;
+}
+.scenario-selection--active .operator-metric .metric-value {
+  margin: auto 0;
+}
+.scenario-selection--active .operator-metric .metric-value strong {
+  font-size: var(--operator-figure-size);
+  line-height: 1;
 }
 .operator-summaries {
   min-height: 0;
@@ -487,13 +507,13 @@ body {
   margin: 8px 0;
 }
 .metric-value strong {
-  font-size: 32px;
+  font-size: var(--operator-text-32);
   letter-spacing: -1px;
   color: var(--metric-color);
 }
 .metric-value > span,
 .metric-note {
-  font-size: 12px;
+  font-size: var(--operator-text-12);
   color: var(--operator-muted);
 }
 .metric-note {
@@ -510,8 +530,8 @@ body {
 }
 .metric-meter {
   height: 5px;
-  background: #e5e5e5;
-  border-radius: 6px;
+  background: var(--operator-option-border);
+  border-radius: var(--operator-radius-control);
   overflow: hidden;
 }
 .metric-meter span {
@@ -521,39 +541,84 @@ body {
   background: var(--metric-color);
   transition: width 0.35s ease;
 }
-.scenario-information-name {
-  display: block;
-  margin-top: 10px;
-  font-size: 13px;
-  font-weight: bold;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
+.operator-tasks-note {
+  margin: 16px 0 0;
+  font-size: var(--operator-text-body);
+  color: var(--operator-muted);
+  opacity: 0.7;
+}
+.operator-tasks .operator-eyebrow {
+  /* Nothing in these cards is smaller than 14 px. */
+  font-size: var(--operator-text-body);
+}
+.scenario-information {
+  /* The clock first and largest, then the rows, then the connection state at
+     the bottom, so the card is filled. */
+  display: flex;
+  flex-direction: column;
+}
+.scenario-information .operator-eyebrow {
+  /* Nothing in this card is smaller than 14 px. */
+  font-size: var(--operator-text-body);
+}
+.scenario-clock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 16px 0 8px;
+  padding-bottom: 16px;
+  border-bottom: var(--operator-rule-width) solid var(--operator-ink);
+}
+.scenario-clock-label {
+  font-size: var(--operator-text-body);
+  color: var(--operator-muted);
+}
+.scenario-clock-time {
+  font-size: var(--operator-figure-size);
+  line-height: 1;
+  letter-spacing: var(--operator-figure-tracking);
+  font-weight: var(--operator-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--operator-ink);
 }
 .scenario-information dl {
-  margin: 12px 0;
+  margin: auto 0;
+  padding: 4px 0;
   color: var(--operator-muted);
-  font-size: 12px;
+  font-size: var(--operator-text-body);
 }
 .scenario-information dl > div {
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 8px 0;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--operator-option-border);
+}
+.scenario-information dl > div:last-child {
+  border-bottom: 0;
+}
+.scenario-information dd * {
+  /* The scenario name sits in a Text, which sets its own weight. */
+  font: inherit;
 }
 .scenario-information dd {
   margin: 0;
-  text-align: right;
+  color: var(--operator-ink);
+  font-size: var(--operator-text-18);
+  font-weight: var(--operator-weight-bold);
+  line-height: 1.3;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 .connection-state {
-  font-size: 12px;
+  font-size: var(--operator-text-15);
   line-height: 1.6;
   color: var(--operator-green);
   margin: 10px 0 0;
 }
 .connection-state.is-offline {
-  color: #a30e0b;
+  color: var(--operator-red-text);
 }
 .operator-map-panel {
   display: flex;
@@ -799,17 +864,21 @@ body {
 .operator-message-panel {
   position: absolute;
   right: 0;
-  bottom: calc(100% + 12px);
+  /* The footer has 10px padding: 12px of gap above the footer, like the status
+     window, in the room the column makes for it. */
+  bottom: calc(
+    100% + 22px
+  ); /* 12px gap + the footer's 10px padding, see above */
   z-index: 31;
   width: min(560px, calc(100vw - 48px));
   overflow: hidden;
   border: 1px solid var(--message-ink);
-  border-radius: 16px;
+  border-radius: var(--operator-radius-card);
   background: var(--message-background);
   color: var(--message-ink);
   box-shadow: 0 12px 40px
     color-mix(in srgb, var(--message-ink) 32%, transparent);
-  font-size: 14px;
+  font-size: var(--operator-text-14);
 }
 .operator-message-panel header {
   display: flex;
@@ -822,13 +891,13 @@ body {
 .operator-message-panel h2,
 .operator-message-panel h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--operator-text-16);
 }
 .operator-message-panel header button {
   min-height: 36px;
   padding: 0 10px;
   border: 1px solid currentColor;
-  border-radius: 7px;
+  border-radius: var(--operator-radius-control);
   background: transparent;
   color: inherit;
 }
@@ -838,7 +907,10 @@ body {
 .operator-message-body {
   display: grid;
   grid-template-columns: minmax(90px, 2fr) minmax(0, 3fr);
-  height: min(400px, 63dvh);
+  height: min(
+    340px,
+    45dvh
+  ); /* tall enough for ~6 messages; never over 45% of the window */
 }
 .operator-thread-list,
 .operator-thread {
@@ -867,7 +939,7 @@ body {
   min-height: 36px;
   padding: 4px 9px;
   border: 1px solid var(--message-ink);
-  border-radius: 7px;
+  border-radius: var(--operator-radius-control);
   background: var(--message-background);
   color: var(--message-ink);
   font-weight: 700;
@@ -909,7 +981,7 @@ body {
 }
 .station-thread-unread {
   padding: 2px 7px;
-  border-radius: 7px;
+  border-radius: var(--operator-radius-control);
   background: var(--message-attention);
   color: var(--message-ink);
   white-space: nowrap;
@@ -949,7 +1021,7 @@ body {
 .operator-chat-message strong,
 .operator-chat-message time {
   padding-inline: 4px;
-  font-size: 12px;
+  font-size: var(--operator-text-12);
 }
 .operator-chat-message time {
   font-variant-numeric: tabular-nums;
@@ -964,7 +1036,7 @@ body {
   min-width: 0;
   margin: 0;
   padding: 8px 11px;
-  border-radius: 12px;
+  border-radius: var(--operator-radius-card);
   background: var(--message-station);
   color: var(--message-background);
   line-height: 1.45;
@@ -976,12 +1048,14 @@ body {
 }
 .operator-message-pin {
   display: grid;
-  flex: 0 0 36px;
+  flex: 0 0 auto;
   place-items: center;
   min-height: 36px;
-  padding: 0;
+  padding: 0 10px;
+  font-size: var(--operator-text-small);
+  font-weight: var(--operator-weight-bold);
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--operator-radius-control);
   background: transparent;
 }
 .operator-message-pin:hover {
@@ -1004,13 +1078,15 @@ body {
 .operator-thread textarea {
   width: 100%;
   min-height: 44px;
-  max-height: 6rem;
+  max-height: 8rem;
   padding: 10px 8px;
   border: 1px solid var(--message-ink);
-  border-radius: 7px;
+  border-radius: var(--operator-radius-control);
   background: var(--message-background);
   color: var(--message-ink);
-  resize: vertical;
+  /* Grows with the text (useAutoGrow) up to max-height, then scrolls. */
+  overflow-y: auto;
+  resize: none;
 }
 .operator-thread form button {
   background: var(--message-action);
@@ -1348,7 +1424,7 @@ body {
   align-items: center !important;
 }
 .operator-status-footer [data-testid="status-launcher"] {
-  border-radius: 7px !important;
+  border-radius: var(--operator-radius-control) !important;
   height: 44px;
   padding: 0 !important;
   margin: 0 !important;
@@ -1379,7 +1455,7 @@ body {
 }
 .operator-dashboard [data-testid="status-window"] {
   width: 100%;
-  border-radius: 16px;
+  border-radius: var(--operator-radius-card);
   box-shadow: 0 12px 40px #0005;
   pointer-events: auto;
   animation: status-enter 0.18s ease-out;
@@ -1388,11 +1464,11 @@ body {
   padding: 16px 18px;
 }
 .operator-dashboard [data-testid="status-window-header"] > div {
-  font-size: 16px;
+  font-size: var(--operator-text-16);
 }
 .operator-dashboard [data-testid="status-window-header"] [role="button"] {
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: var(--operator-radius-control);
 }
 .operator-dashboard [data-testid="status-window-header"] [role="button"]:hover {
   background: #ffffff25;
@@ -1404,7 +1480,7 @@ body {
 .operator-dashboard [data-testid="status-message"] {
   padding: 17px 0;
   gap: 12px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--operator-option-border);
 }
 .operator-dashboard [data-testid="status-message"]:last-child {
   border-bottom: 0;
@@ -1418,7 +1494,7 @@ body {
   [data-testid="status-message"]
   > div:first-child
   > div:last-child {
-  font-size: 14px;
+  font-size: var(--operator-text-14);
   flex-shrink: 1;
   line-height: 1.8;
 }
@@ -1432,12 +1508,12 @@ body {
 }
 .operator-dashboard [data-testid="status-launcher"] {
   padding: 15px 22px;
-  border-radius: 30px;
+  border-radius: var(--operator-radius-card);
   box-shadow: 0 5px 24px #0003;
   pointer-events: auto;
 }
 .operator-dashboard [data-testid="status-launcher"] > div {
-  font-size: 14px;
+  font-size: var(--operator-text-14);
   font-weight: 700;
 }
 .operator-dashboard [data-testid="status-launcher"]:hover {
@@ -1530,7 +1606,7 @@ body {
     gap: 16px;
   }
   .operator-brand > strong {
-    font-size: 16px;
+    font-size: var(--operator-text-16);
   }
   .operator-profile {
     gap: 8px;
@@ -1909,4 +1985,58 @@ body {
   background: var(--operator-well);
   font-size: 14px;
   color: var(--operator-muted);
+}
+/* The two footer buttons share one label size. */
+.operator-status-footer .operator-message-button,
+.operator-status-footer [data-testid="status-launcher"],
+.operator-status-footer [data-testid="status-launcher"] > div {
+  font-size: var(--operator-text-16) !important;
+  font-weight: var(--operator-weight-bold) !important;
+}
+/* While its pop-up is open, a footer button is greyed out. */
+.operator-message-button[aria-expanded="true"],
+.operator-status-footer [data-testid="status-launcher"][aria-expanded="true"] {
+  filter: grayscale(1);
+  opacity: var(--operator-opacity-disabled);
+}
+/* Hover. Every control that can be pressed answers the pointer: filled buttons
+   lighten or darken a little, outlined and light buttons fill with the light
+   grey, and a pressed toggle keeps its own look. */
+.operator-messages .operator-message-button:not(:disabled):hover {
+  background: color-mix(
+    in srgb,
+    var(--message-ink) 82%,
+    var(--message-background)
+  );
+}
+.operator-thread form button:not(:disabled):hover {
+  background: color-mix(in srgb, var(--message-action) 82%, var(--message-ink));
+}
+.operator-message-panel header button:hover {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.operator-saved-toolbar button:not([aria-pressed="true"]):hover {
+  background: var(--message-selected);
+}
+.operator-saved-toolbar button[aria-pressed="true"]:hover {
+  background: color-mix(
+    in srgb,
+    var(--message-ink) 82%,
+    var(--message-background)
+  );
+}
+/* "Prøv igen" after a failed load: a small outlined button. */
+.operator-retry,
+.operator-map-panel [data-testid="map-retry"] {
+  padding: 6px 12px;
+  border: 1px solid var(--operator-muted);
+  border-radius: var(--operator-radius-control);
+  background: var(--operator-white);
+  color: var(--operator-ink);
+  cursor: pointer;
+}
+.operator-retry:hover,
+.operator-map-panel [data-testid="map-retry"]:hover {
+  border-color: var(--operator-ink);
+  background: var(--operator-pressed);
 }
