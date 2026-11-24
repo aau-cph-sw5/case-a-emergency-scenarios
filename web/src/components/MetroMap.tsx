@@ -1,147 +1,42 @@
-﻿import { use, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import MapRender from "../../../shared/MapRenderer";
-import {
-  colors as theme,
-  DIDLineColors,
-  palette,
-  radius,
-  text,
-} from "../../../shared/Theme";
+import { colors as theme } from "../../../shared/Theme";
 import {
   affectedStretchAsMapLine,
   areaAroundStations,
   linesThrough,
   requiredStations,
 } from "../../../shared/scenario/affected-stations";
-import { routeConnections } from "../../../shared/scenario/route-connections";
+import type { LineGroupLabel } from "../../../shared/auth/line-groups";
 import {
   stationCoverage,
   type ActiveDeployments,
 } from "../../../shared/components/stationState";
 import type { Scenario } from "../../../shared/types/v1/scenario";
+import type { MapNetwork } from "../../../shared/network/network";
 import { useScenario } from "../data/useScenario";
 import { useNetwork } from "../data/useNetwork";
-import { ColourSlotContext } from "./colour-slot";
 import {
-  connectionKey,
-  resolveStops,
-  type MapNetwork,
-} from "../../../shared/network/network";
+  buildMapLines,
+  closedStretchLine,
+  legendEntriesFor,
+  routeColorMap,
+  type ColourBy,
+} from "./metroMapModel";
+import { Legend, MapAlerts, ScenarioBanner, ZoomToggle } from "./MetroMapParts";
+import { ZoomFrame } from "./ZoomFrame";
+
+export { closedStretchLine };
+
+// Design rationale: MetroMap only decides what to show. The lines and colours
+// come from metroMapModel.ts (pure), the banner, zoom button, alerts and
+// legend from MetroMapParts.tsx, and the map itself from shared/MapRenderer.
 
 const lineGroups = [
   ["M1", "M2"],
   ["M3", "M4"],
 ] as const;
-
-function scenarioLines(
-  scenario: Scenario,
-  groupLines: MapNetwork["lines"],
-  segments: MapNetwork["segments"],
-) {
-  const expectedLines =
-    scenario.lineGroup === "M1_M2" ? ["M1", "M2"] : ["M3", "M4"];
-  if (!groupLines.some((line) => expectedLines.includes(line.name))) {
-    return { lines: [], missingRoutes: false };
-  }
-
-  const current = scenario.versions.find(
-    (version) => version.version === scenario.currentVersion,
-  );
-
-  let missingRoutes = false;
-  const routes =
-    current?.operatingPlan.patterns
-      .filter((pattern) => pattern.did.trim() !== "")
-      .sort((a, b) => a.did.localeCompare(b.did, undefined, { numeric: true }))
-      .map((pattern) => {
-        const tracks =
-          pattern.trackNumber === 12 ? [1, 2] : [pattern.trackNumber];
-        const stops = routeConnections(pattern.route);
-        const stopList = stops.length
-          ? [stops[0][0], ...stops.map(([, station]) => station)]
-          : [];
-        if (stopList.length < 2 || stops.length !== pattern.route.length - 1) {
-          missingRoutes = true;
-          return {
-            name: pattern.did,
-            color: pattern.color,
-            tracks,
-            connections: [],
-          };
-        }
-        const result = resolveStops(stopList, groupLines, segments, tracks);
-        if (result.incomplete) missingRoutes = true;
-        return {
-          name: pattern.did,
-          color: pattern.color,
-          tracks,
-          connections: result.connections,
-        };
-      }) ?? [];
-  return { lines: routes, missingRoutes: missingRoutes || routes.length === 0 };
-}
-
-const CLOSED_LINE = "Spærret";
-
-// What a scenario's routes are coloured by: the Metro line each runs on, or
-// one colour per destination ID, which tells two routes on one line apart.
-type ColourBy = "line" | "did";
-const COLOUR_MODES: { id: ColourBy; label: string }[] = [
-  { id: "line", label: "Metrolinje" },
-  { id: "did", label: "Destination ID" },
-];
-
-// A route has the colour of the Metro line it runs on (design guide: M1-M4
-// for lines). A route that fits more than one line, or none, is Metro Black.
-function routeColor(
-  route: MapNetwork["lines"][number],
-  lines: MapNetwork["lines"],
-) {
-  const same = ([a, b]: [string, string], [x, y]: [string, string]) =>
-    (a === x && b === y) || (a === y && b === x);
-  const fits = lines.filter((line) =>
-    route.connections.every((connection) =>
-      line.connections.some((other) => same(connection, other)),
-    ),
-  );
-  return fits.length === 1 && fits[0].color ? fits[0].color : theme.text;
-}
-
-// The covered segments that no running route already draws, as one line.
-export function closedStretchLine(
-  covers: Scenario["covers"],
-  running: MapNetwork["lines"],
-): MapNetwork["lines"][number] | null {
-  const drawn = (a: string, b: string) =>
-    running.some((line) =>
-      line.connections.some(
-        ([x, y]) => (x === a && y === b) || (x === b && y === a),
-      ),
-    );
-  const open = (covers ?? []).filter(
-    (cover) => !drawn(cover.stationA, cover.stationB),
-  );
-  if (open.length === 0) return null;
-  const connectionTracks: Record<string, number[]> = {};
-  const connections: [string, string][] = [];
-  for (const { stationA, stationB, trackNumber } of open) {
-    const key = connectionKey(stationA, stationB);
-    if (!connectionTracks[key]) {
-      connectionTracks[key] = [];
-      connections.push([stationA, stationB]);
-    }
-    if (!connectionTracks[key].includes(trackNumber))
-      connectionTracks[key].push(trackNumber);
-  }
-  return {
-    name: CLOSED_LINE,
-    tracks: [...new Set(open.map((cover) => cover.trackNumber))],
-    connections,
-    connectionTracks,
-  };
-}
 
 // Scenario data determines staffing markers and the optional close-up view.
 // The operator chooses the visible line group separately in the header.
@@ -193,6 +88,146 @@ export function mapView(
   };
 }
 
+type MapProps = {
+  scenarioId: string | null;
+  scenario: Scenario | null;
+  lineGroup: LineGroupLabel;
+  deployments: ActiveDeployments | null;
+};
+
+function MapCanvas({
+  scenario,
+  lineGroup,
+  mapNetwork,
+  view,
+  lines,
+  routeColors,
+  groupStations,
+  viewBox,
+}: {
+  scenario: Scenario | null;
+  lineGroup: string;
+  mapNetwork: MapNetwork;
+  view: ReturnType<typeof mapView>;
+  lines: ReturnType<typeof buildMapLines>;
+  routeColors: Record<string, string>;
+  groupStations: Set<string>;
+  viewBox: string | undefined;
+}) {
+  return (
+    <ZoomFrame viewBox={viewBox}>
+      {(shownViewBox) => (
+        <MapRender
+          // Reset map interaction when the scenario or line group changes.
+          key={`${scenario?.scenarioId ?? "none"}-${lineGroup}`}
+          lines={lines.groupLines}
+          colors={routeColors}
+          positions={mapNetwork.positions}
+          ringStations={mapNetwork.ringStations}
+          availableSegments={mapNetwork.segments}
+          showLineButtons={false}
+          viewBox={shownViewBox}
+          markedStations={view.markedStations.filter((station) =>
+            groupStations.has(station),
+          )}
+          requiredStaffing={view.requiredStaffing}
+          mutedStations={lines.mutedStations}
+          stationCoverage={view.stationCoverage}
+          highlightColor={theme.requiredStation}
+          blockedTracks={scenario?.covers ?? []}
+        />
+      )}
+    </ZoomFrame>
+  );
+}
+
+function MapBody({
+  mapNetwork,
+  scenarioId,
+  scenario,
+  lineGroup,
+  deployments,
+  colourBy,
+  onColourBy,
+  zoomedInto,
+  onZoomedInto,
+}: MapProps & {
+  mapNetwork: MapNetwork;
+  colourBy: ColourBy;
+  onColourBy: (mode: ColourBy) => void;
+  zoomedInto: string | null;
+  onZoomedInto: (key: string | null) => void;
+}) {
+  const position = (station: string) => mapNetwork.positions[station];
+  const view = mapView(scenario, deployments, mapNetwork.lines, position);
+  const lines = buildMapLines(scenarioId, scenario, lineGroup, mapNetwork);
+  const { groupNetwork, running, groupLines } = lines;
+  const routeColors = routeColorMap(
+    scenarioId,
+    groupNetwork,
+    running,
+    colourBy,
+  );
+
+  const groupStations = new Set([
+    ...groupNetwork.flatMap((line) => line.connections.flat()),
+    ...groupLines.flatMap((line) => line.connections.flat()),
+  ]);
+  const groupViewBox = areaAroundStations([...groupStations], 90, position);
+  const groupHasScenario = lines.drawn.some(
+    (line) => !view.initiallyHidden.includes(line.name),
+  );
+  const canZoom = view.viewBox !== undefined && groupHasScenario;
+  const zoomKey = `${scenarioId}-${lineGroup}`;
+  const zoomedIn = canZoom && zoomedInto === zoomKey;
+
+  return (
+    <View style={{ flex: 1 }}>
+      {scenario !== null && (
+        <ScenarioBanner
+          scenario={scenario}
+          deployments={deployments}
+          canZoom={canZoom}
+        />
+      )}
+      {canZoom && (
+        <ZoomToggle
+          zoomedIn={zoomedIn}
+          onToggle={() => onZoomedInto(zoomedIn ? null : zoomKey)}
+        />
+      )}
+
+      <MapCanvas
+        scenario={scenario}
+        lineGroup={lineGroup}
+        mapNetwork={mapNetwork}
+        view={view}
+        lines={lines}
+        routeColors={routeColors}
+        groupStations={groupStations}
+        viewBox={(zoomedIn ? view.viewBox : undefined) ?? groupViewBox}
+      />
+
+      <MapAlerts
+        incomplete={Boolean(mapNetwork.incomplete)}
+        missingRoutes={lines.missingRoutes}
+      />
+      {scenarioId !== null && running.length > 0 && (
+        <Legend
+          colourBy={colourBy}
+          onColourBy={onColourBy}
+          entries={legendEntriesFor(
+            running,
+            groupNetwork,
+            routeColors,
+            colourBy,
+          )}
+        />
+      )}
+    </View>
+  );
+}
+
 export function MetroMap({
   token,
   scenarioId,
@@ -203,7 +238,7 @@ export function MetroMap({
   token: string;
   scenarioId: string | null;
   scenario?: Scenario | null;
-  lineGroup?: "M1/M2" | "M3/M4";
+  lineGroup?: LineGroupLabel;
   deployments?: ActiveDeployments | null;
 }) {
   // While a selected scenario loads, or if it cannot be loaded, no map is
@@ -219,209 +254,28 @@ export function MetroMap({
   // Each scenario starts with its whole line group in view.
   const [zoomedInto, setZoomedInto] = useState<string | null>(null);
   const [colourBy, setColourBy] = useState<ColourBy>("line");
-  const colourSlot = use(ColourSlotContext);
   const { network: mapNetwork, error: networkError, retry } = useNetwork(token);
   if (networkError)
     return (
       <View>
         <Text role="alert">{networkError}</Text>
-        <Pressable onPress={retry}>
+        <Pressable testID="map-retry" onPress={retry}>
           <Text>Prøv igen</Text>
         </Pressable>
       </View>
     );
   if (!mapNetwork) return <Text>Indlæser metronetværk…</Text>;
-  const network = mapNetwork.lines;
-  const position = (station: string) => mapNetwork.positions[station];
-  const view = mapView(scenario, deployments, network, position);
-  const groupNetwork = network.filter((line) =>
-    lineGroup.split("/").includes(line.name),
-  );
-  const scenarioLineResult =
-    scenarioId === null || scenario === null
-      ? null
-      : scenarioLines(scenario, groupNetwork, mapNetwork.segments);
-  const runningLines =
-    scenarioId === null
-      ? groupNetwork
-      : scenario === null
-        ? []
-        : (scenarioLineResult?.lines ?? []);
-  // The operating plan only holds the routes that still run, so the stretch
-  // the scenario closes is on no route and would not be drawn at all, leaving
-  // its staffed stations floating. It is drawn as its own line, dashed by
-  // blockedTracks.
-  const closedLine =
-    scenarioId === null ||
-    scenario === null ||
-    scenario.lineGroup.replace("_", "/") !== lineGroup
-      ? null
-      : closedStretchLine(scenario.covers, runningLines);
-  const groupLines = closedLine ? [...runningLines, closedLine] : runningLines;
-  const missingScenarioRoutes = scenarioLineResult?.missingRoutes ?? false;
-  const routeColors =
-    scenarioId === null
-      ? Object.fromEntries(
-          groupNetwork.map((line) => [
-            line.name,
-            line.color ?? palette.networkGrey,
-          ]),
-        )
-      : {
-          ...Object.fromEntries(
-            runningLines.map((route, index) => [
-              route.name,
-              colourBy === "did"
-                ? (route.color ?? DIDLineColors[index % DIDLineColors.length])
-                : routeColor(route, groupNetwork),
-            ]),
-          ),
-          [CLOSED_LINE]: theme.blockedTrack,
-        };
-  const groupStations = new Set([
-    ...groupNetwork.flatMap((line) => line.connections.flat()),
-    ...groupLines.flatMap((line) => line.connections.flat()),
-  ]);
-  const groupViewBox = areaAroundStations([...groupStations], 90, position);
-  const groupHasScenario = groupLines.some(
-    (line) => !view.initiallyHidden.includes(line.name),
-  );
-  const canZoom = view.viewBox !== undefined && groupHasScenario;
-  const zoomKey = `${scenarioId}-${lineGroup}`;
-  const zoomedIn = canZoom && zoomedInto === zoomKey;
-
-  // Same segmented switch as M1 / M2 in the header and the mode tabs in the
-  // scenario picker (.operator-line-switcher), so the three switches look and
-  // behave alike: the pressed option is the white one. It is drawn in the
-  // legend row above the map when the dashboard offers that slot.
-  const colourSwitch = (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <Text style={text.small}>Farver efter:</Text>
-      <div
-        className="operator-line-switcher"
-        role="group"
-        aria-label="Farver efter"
-      >
-        {COLOUR_MODES.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={colourBy === id}
-            onClick={() => setColourBy(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </View>
-  );
-
   return (
-    <View style={{ flex: 1 }}>
-      {scenario !== null && (
-        <Text
-          style={[
-            text.small,
-            {
-              backgroundColor: theme.background,
-              padding: 12,
-              paddingRight: canZoom ? 130 : 12,
-            },
-          ]}
-        >
-          {scenario.name} · Tal på stationerne viser krævede stewards
-          {deployments !== null
-            ? " · Grøn: bemandet, gul: delvist, rød: mangler"
-            : ""}
-        </Text>
-      )}
-
-      {canZoom && (
-        <Pressable
-          testID="map-zoom-toggle"
-          accessibilityRole="button"
-          accessibilityLabel={zoomedIn ? "Zoom ud" : "Zoom ind"}
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 12,
-            zIndex: 10,
-            backgroundColor: palette.metroLineFour,
-            borderColor: theme.text,
-            borderWidth: 1,
-            borderRadius: Math.max(radius, 8),
-            padding: 8,
-            margin: 4,
-          }}
-          onPress={() => setZoomedInto(zoomedIn ? null : zoomKey)}
-        >
-          <Text
-            style={[text.body, { color: theme.textInverse, fontWeight: "700" }]}
-          >
-            {zoomedIn ? "Zoom ud" : "Zoom ind"}
-          </Text>
-        </Pressable>
-      )}
-
-      {/* Reset map interaction when the scenario or line group changes. */}
-      <div className="operator-map-renderer">
-        <MapRender
-          key={`${scenario?.scenarioId ?? "none"}-${lineGroup}`}
-          lines={groupLines}
-          colors={routeColors}
-          positions={mapNetwork.positions}
-          ringStations={mapNetwork.ringStations}
-          availableSegments={mapNetwork.segments}
-          showLineButtons={false}
-          viewBox={zoomedIn ? view.viewBox : groupViewBox}
-          markedStations={view.markedStations.filter((station) =>
-            groupStations.has(station),
-          )}
-          requiredStaffing={view.requiredStaffing}
-          stationCoverage={view.stationCoverage}
-          highlightColor={theme.requiredStation}
-          blockedTracks={scenario?.covers ?? []}
-        />
-      </div>
-
-      {mapNetwork.incomplete && (
-        <Text role="alert" style={text.small}>
-          Metronetværket er ufuldstændigt.
-        </Text>
-      )}
-      {missingScenarioRoutes && (
-        <Text role="alert" style={text.small}>
-          En eller flere ruter kan ikke vises på kortet.
-        </Text>
-      )}
-
-      {scenarioId !== null && runningLines.length > 0 && (
-        <View
-          accessibilityLabel="Destination IDs"
-          style={{ marginLeft: 8, flexDirection: "column", gap: 6 }}
-        >
-          {colourSlot ? createPortal(colourSwitch, colourSlot) : colourSwitch}
-          <Text style={text.small}>Destination IDs:</Text>
-          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-            {runningLines.map((line) => (
-              <View
-                key={line.name}
-                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-              >
-                <View
-                  style={{
-                    width: 20,
-                    height: 5,
-                    borderRadius: 2,
-                    backgroundColor: routeColors[line.name],
-                  }}
-                />
-                <Text style={text.small}>{line.name}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-    </View>
+    <MapBody
+      mapNetwork={mapNetwork}
+      scenarioId={scenarioId}
+      scenario={scenario}
+      lineGroup={lineGroup}
+      deployments={deployments}
+      colourBy={colourBy}
+      onColourBy={setColourBy}
+      zoomedInto={zoomedInto}
+      onZoomedInto={setZoomedInto}
+    />
   );
 }

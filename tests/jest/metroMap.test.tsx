@@ -5,8 +5,15 @@ import {
   waitFor,
 } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
-import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
-import { colors, DIDLineColors, lineColors } from "../../shared/Theme";
+import Svg, { Circle, G, Line, Path, Text as SvgText } from "react-native-svg";
+import {
+  colors,
+  DIDLineColors,
+  lineColors,
+  mutedOpacity,
+  palette,
+} from "../../shared/Theme";
+import { DEFAULT_VIEWBOX } from "../../shared/mapViewBox";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
@@ -165,7 +172,7 @@ describe("MetroMap", () => {
     render(withScenario(null, async () => scenario));
     expect(shownLines()).toEqual(["M1", "M2"]);
     expect(markedDots()).toHaveLength(0);
-    expect(viewBox()).not.toBe("0 0 950 700");
+    expect(viewBox()).not.toBe(DEFAULT_VIEWBOX);
     expect(screen.queryByText("M1")).toBeNull();
   });
 
@@ -194,8 +201,7 @@ describe("MetroMap", () => {
     expect(strokes).toContain(mapLines[0].color);
     expect(strokes).toContain(mapLines[1].color);
     expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(64);
-    expect(screen.getByText("TEST")).toBeTruthy();
-    expect(screen.getByText("TEST-2")).toBeTruthy();
+    expect(screen.getByText("Metrolinjer:")).toBeTruthy();
     expect(markedDots().length).toBeGreaterThan(0);
     const fullView = viewBox();
     fireEvent.press(screen.getByText("Zoom ind"));
@@ -237,6 +243,9 @@ describe("MetroMap", () => {
       ...screen.UNSAFE_queryAllByType(Path),
     ].map((strip) => strip.props.stroke);
     expect(strokes).toEqual(expect.arrayContaining(savedColors));
+    // Coloured by destination ID, the legend lists the IDs, not the lines.
+    expect(screen.getByText("Destination IDs:")).toBeTruthy();
+    expect(screen.getByText("TEST")).toBeTruthy();
   });
 
   it("colours a route by its Metro line, and a route on several lines black", () => {
@@ -348,7 +357,12 @@ describe("MetroMap", () => {
     expect(shownLines()).toEqual([]);
     expect(viewBox()).not.toBe(areaAroundStations(["ISB", "UNI"], 160));
     expect(markedDots()).toHaveLength(0);
-    expect(screen.UNSAFE_queryAllByType(Path)).toHaveLength(0);
+    // The scenario runs nothing in this group, so its network is only drawn faded.
+    expect(
+      screen
+        .UNSAFE_queryAllByType(Path)
+        .every((path) => path.props.stroke === palette.networkGrey),
+    ).toBe(true);
     view.rerender(
       withScenario(
         scenario.scenarioId,
@@ -358,6 +372,37 @@ describe("MetroMap", () => {
       ),
     );
     expect(screen.getByText("Zoom ud")).toBeTruthy();
+  });
+
+  it("draws the rest of the line group faded, stations included", () => {
+    const patterns = [
+      {
+        ...scenario.versions[0].operatingPlan.patterns[0],
+        did: "ONLY-ISB",
+        route: ["KHC", "ISB", "UNI"].map((station, i) => ({
+          sequence: i + 1,
+          station,
+        })),
+      },
+    ];
+    const short = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        operatingPlan: { ...version.operatingPlan, patterns },
+      })),
+    };
+    render(withScenario(scenario.scenarioId, async () => short, short));
+    const strokes = [
+      ...screen.UNSAFE_queryAllByType(Line),
+      ...screen.UNSAFE_queryAllByType(Path),
+    ].map((segment) => segment.props.stroke);
+    expect(strokes).toContain(palette.networkGrey);
+    expect(
+      screen
+        .UNSAFE_queryAllByType(G)
+        .some((group) => group.props.opacity === mutedOpacity),
+    ).toBe(true);
   });
 
   it("shows blocked track and the required staffing count", () => {
