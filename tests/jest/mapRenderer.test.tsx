@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
-import { Circle, Line, Path } from "react-native-svg";
+import { Circle, Line, Path, Text } from "react-native-svg";
 import MapRender from "../../shared/MapRenderer";
+import { colors as theme, coverageColors, palette } from "../../shared/Theme";
 import { getLines } from "../../mockData/data";
 
 const colors = { M2: "#00f" };
@@ -12,6 +13,18 @@ function drawnStations() {
   return screen
     .UNSAFE_queryAllByType(Circle)
     .map((dot) => [dot.props.cx, dot.props.cy]);
+}
+
+function circleByTestId(testID: string) {
+  return screen
+    .UNSAFE_queryAllByType(Circle)
+    .find((node) => node.props.testID === testID);
+}
+
+function svgTextByTestId(testID: string) {
+  return screen
+    .UNSAFE_queryAllByType(Text)
+    .find((node) => node.props.testID === testID);
 }
 
 describe("MapRender", () => {
@@ -379,5 +392,149 @@ describe("MapRender", () => {
     );
     expect(fills().size).toBe(2);
     expect(dots().every((dot) => dot.props.r === 10)).toBe(true);
+  });
+
+  it.each(["covered", "partial", "gap"] as const)(
+    "keeps %s coverage fill and draws a Metro Black outer ring with a white gap for the own station",
+    (level) => {
+      render(
+        <MapRender
+          lines={[{ name: "M2", tracks: [1, 2], connections: [["FOR", "KN"]] }]}
+          colors={colors}
+          highlightStation="KN"
+          highlightColor={palette.metroSummerRed}
+          markedStations={["FOR", "KN"]}
+          requiredStaffing={{ FOR: 1, KN: 2 }}
+          stationCoverage={{ FOR: "covered", KN: level }}
+        />,
+      );
+
+      const ownDot = circleByTestId("station-dot-KN")!;
+      const ownGap = circleByTestId("own-station-gap-KN")!;
+      const ownRing = circleByTestId("own-station-ring-KN")!;
+      const ownStaffing = svgTextByTestId("station-staffing-KN")!;
+      const ownLabel = svgTextByTestId("station-label-KN")!;
+
+      expect(ownDot.props.fill).toBe(coverageColors[level].fill);
+      expect(ownDot.props.stroke).toBe(theme.text);
+      expect(ownStaffing.props.fill).toBe(coverageColors[level].text);
+      expect(ownStaffing.props.children).toBe(2);
+
+      // Concentric geometry: white gap sits outside the dot's stroke, and the
+      // Metro Black outer ring sits outside the white gap with no overlap.
+      const dotOuterEdge = ownDot.props.r + ownDot.props.strokeWidth / 2;
+      const gapInnerEdge = ownGap.props.r - ownGap.props.strokeWidth / 2;
+      const gapOuterEdge = ownGap.props.r + ownGap.props.strokeWidth / 2;
+      const ringInnerEdge = ownRing.props.r - ownRing.props.strokeWidth / 2;
+      const ringOuterEdge = ownRing.props.r + ownRing.props.strokeWidth / 2;
+
+      expect(ownGap.props.cx).toBe(ownDot.props.cx);
+      expect(ownGap.props.cy).toBe(ownDot.props.cy);
+      expect(ownGap.props.fill).toBe("none");
+      expect(ownGap.props.stroke).toBe(theme.background);
+      expect(ownGap.props.pointerEvents).toBe("none");
+      expect(gapInnerEdge).toBeGreaterThanOrEqual(dotOuterEdge);
+
+      expect(ownRing.props.cx).toBe(ownDot.props.cx);
+      expect(ownRing.props.cy).toBe(ownDot.props.cy);
+      expect(ownRing.props.fill).toBe("none");
+      expect(ownRing.props.stroke).toBe(theme.text);
+      expect(ownRing.props.pointerEvents).toBe("none");
+      expect(ringInnerEdge).toBeGreaterThanOrEqual(gapOuterEdge);
+
+      expect(ownLabel.props.fill).toBe(theme.text);
+      expect(ownLabel.props.x).toBeGreaterThan(ownDot.props.cx + ringOuterEdge);
+
+      // Other covered stations keep their coverage fill without an outer ring.
+      expect(circleByTestId("station-dot-FOR")?.props.fill).toBe(
+        coverageColors.covered.fill,
+      );
+      expect(svgTextByTestId("station-staffing-FOR")?.props.fill).toBe(
+        coverageColors.covered.text,
+      );
+      expect(svgTextByTestId("station-label-FOR")?.props.fill).toBe(theme.text);
+      expect(circleByTestId("own-station-gap-FOR")).toBeUndefined();
+      expect(circleByTestId("own-station-ring-FOR")).toBeUndefined();
+    },
+  );
+
+  it("renders live coverage without an outer ring on a marked station and keeps unmarked stations plain", () => {
+    render(
+      <MapRender
+        lines={[{ name: "M2", tracks: [1, 2], connections: [["FOR", "KN"]] }]}
+        colors={colors}
+        markedStations={["FOR"]}
+        requiredStaffing={{ FOR: 3, KN: 1 }}
+        stationCoverage={{ FOR: "partial", KN: "gap" }}
+      />,
+    );
+
+    expect(circleByTestId("station-dot-FOR")?.props.fill).toBe(
+      coverageColors.partial.fill,
+    );
+    expect(svgTextByTestId("station-staffing-FOR")?.props.fill).toBe(
+      coverageColors.partial.text,
+    );
+    expect(svgTextByTestId("station-staffing-FOR")?.props.children).toBe(3);
+    expect(svgTextByTestId("station-label-FOR")?.props.fill).toBe(theme.text);
+    expect(circleByTestId("own-station-gap-FOR")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-FOR")).toBeUndefined();
+
+    // Unmarked ordinary stations stay plain without coverage fill, staffing or outer ring.
+    expect(circleByTestId("station-dot-KN")?.props.fill).toBe(theme.background);
+    expect(svgTextByTestId("station-staffing-KN")).toBeUndefined();
+    expect(svgTextByTestId("station-label-KN")?.props.fill).toBe(theme.text);
+    expect(circleByTestId("own-station-gap-KN")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-KN")).toBeUndefined();
+  });
+
+  it("keeps highlightColor fill and label when highlighted or marked stations have no coverage", () => {
+    const view = render(
+      <MapRender
+        lines={[{ name: "M2", tracks: [1, 2], connections: [["FOR", "KN"]] }]}
+        colors={colors}
+        highlightStation="KN"
+        markedStations={["FOR"]}
+        highlightColor={palette.metroSummerRed}
+      />,
+    );
+
+    expect(circleByTestId("station-dot-KN")?.props.fill).toBe(
+      palette.metroSummerRed,
+    );
+    expect(svgTextByTestId("station-label-KN")?.props.fill).toBe(
+      palette.metroSummerRed,
+    );
+    expect(circleByTestId("own-station-gap-KN")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-KN")).toBeUndefined();
+
+    expect(circleByTestId("station-dot-FOR")?.props.fill).toBe(
+      palette.metroSummerRed,
+    );
+    expect(svgTextByTestId("station-label-FOR")?.props.fill).toBe(
+      palette.metroSummerRed,
+    );
+    expect(circleByTestId("own-station-gap-FOR")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-FOR")).toBeUndefined();
+
+    // Inactive operator preview: marked stations without live coverage keep
+    // their requiredStation highlight fill and label colour.
+    view.rerender(
+      <MapRender
+        lines={[{ name: "M2", tracks: [1, 2], connections: [["FOR", "KN"]] }]}
+        colors={colors}
+        markedStations={["KN"]}
+        highlightColor={theme.requiredStation}
+      />,
+    );
+
+    expect(circleByTestId("station-dot-KN")?.props.fill).toBe(
+      theme.requiredStation,
+    );
+    expect(svgTextByTestId("station-label-KN")?.props.fill).toBe(
+      theme.requiredStation,
+    );
+    expect(circleByTestId("own-station-gap-KN")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-KN")).toBeUndefined();
   });
 });
