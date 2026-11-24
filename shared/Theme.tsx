@@ -1,5 +1,6 @@
 // Single source of truth for shared styling.
 import { Platform } from "react-native";
+import type { CSSProperties } from "react";
 import type { ScenarioState } from "./types/v1/scenario-state";
 
 // Raw colours. Nothing outside this object holds a hex value.
@@ -87,7 +88,6 @@ export const colors = {
   blockedTrack: palette.metroDeepRed, // darker than M3's red, and drawn dashed to tell them apart
 };
 
-export const messageSymbols = { pin: "📌" } as const;
 
 // How a steward's status looks, in the control room and the steward app. The
 // word carries the meaning; the symbol and colour only help. Yellow text
@@ -130,6 +130,12 @@ export const DIDLineColors = [
   palette.DIDLineEight,
 ];
 
+// The two corner sizes of the operator and admin web pages (design guide: outer
+// = inner x 3): 4 for things you press or type in, 12 for things that hold
+// content. Circles use 50%.
+export const controlRadius = 4;
+export const containerRadius = 12;
+
 // Controls the corner rounding of every element (the app currently has none).
 export const radius = 0;
 // Cards in the operator view follow the wireframe's rounded corners, without
@@ -137,7 +143,9 @@ export const radius = 0;
 export const cardRadius = 6;
 // The steward app's status and task panels follow the design group's sketch,
 // which is rounder than the operator cards.
-export const panelRadius = 12;
+export const panelRadius = containerRadius;
+
+export const weightBold = "700" as const;
 
 export const text = {
   body: {},
@@ -154,6 +162,16 @@ export const text = {
     fontWeight: "600" as const,
   },
   mapLabel: { fontSize: "18", fontWeight: "bold" as const }, // SVG <Text> props
+  // Operator view sizes: body text is 13 or more (Operator Design Guide,
+  // Typography); 12 of text.small is for a time stamp only.
+  operatorCompactName: { fontSize: 14, fontWeight: "600" as const },
+  // The big covered count.
+  operatorFigureLarge: {
+    fontSize: 56,
+    lineHeight: 60,
+    letterSpacing: -2,
+    fontWeight: weightBold,
+  },
   // A small heading above a figure, e.g. "STATIONS COVERED".
   label: { fontSize: 11, fontWeight: "700" as const, letterSpacing: 1 },
   // The big number in a figure, e.g. the 8 in "8 af 15".
@@ -205,29 +223,71 @@ export const page = {
   flex: 1,
 };
 
+// A heavy rule under a heading or beside a notice, and the focus ring.
+export const ruleWidth = 3;
+
+// Opacity of a control that cannot be used.
+export const disabledOpacity = 0.45;
+
+// Fluid type for the operator and admin web pages. A size is its design-guide
+// size on a small window (never smaller) and grows linearly to 12% larger on a
+// wide one, so a control room monitor reads better without breaking the type
+// scale at laptop width. Web only: the React Native components in shared/ keep
+// the fixed sizes of `text`.
+const fluidFromWidth = 1024;
+const fluidToWidth = 1920;
+const fluidGrowth = 1.12;
+export function fluidSize(min: number): string {
+  const max = Math.round(min * fluidGrowth * 10) / 10;
+  const slope = ((max - min) / (fluidToWidth - fluidFromWidth)) * 100;
+  const base = min - (slope * fluidFromWidth) / 100;
+  return `clamp(${min}px, ${base.toFixed(3)}px + ${slope.toFixed(3)}vw, ${max}px)`;
+}
+// Every size the web CSS uses, written `var(--operator-text-<px>)`.
+const fluidSizes = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 32];
+const fluidTextVars = Object.fromEntries(
+  fluidSizes.map((size) => [`--operator-text-${size}`, fluidSize(size)]),
+);
+
 // The operator web view styles itself in web/src/components/OperatorSections.css.
 // These custom properties hand it the theme, so the colours it shares with the
 // rest of the app are defined once, here. OperatorDashboard sets them on its
 // root element.
+// Typed once here, so the pages can pass it straight to style={}.
 export const operatorCssVars = {
   "--operator-red": palette.metroLineThree,
   "--operator-yellow": palette.metroLineTwo,
   "--operator-green": palette.metroLineOne,
   "--operator-blue": palette.metroLineFour,
   "--operator-ink": palette.metroBlack,
+  "--operator-white": palette.metroWhite,
+  // Red for text and alerts: Metro Deep Red, legible on white at small sizes.
+  "--operator-red-text": palette.metroDeepRed,
+  // Hover of an ink button: ink lightened 18% towards white.
+  "--operator-ink-hover": `color-mix(in srgb, ${palette.metroBlack} 82%, ${palette.metroWhite})`,
   "--operator-muted": palette.mutedGrey,
   "--operator-option-border": palette.optionGrey,
   "--operator-well": palette.wellGrey,
   "--operator-focus": palette.focusTeal,
   // Two corner sizes only (design guide: outer = inner x 3): 4px for things you
   // press or type in, 12px for things that hold content. Circles use 50%.
-  "--operator-radius-control": "4px",
-  "--operator-radius-card": "12px",
+  "--operator-radius-control": `${controlRadius}px`,
+  "--operator-radius-card": `${containerRadius}px`,
   // Pressed toggles are a light tint of ink, not yellow: yellow read as an
   // alarm next to the map's warning colours (design review, #357).
   "--operator-pressed": `${palette.metroBlack}1a`,
   "--operator-pressed-border": `${palette.metroBlack}59`,
-} as const;
+  // Type, weight, rules and opacity the operator CSS repeats.
+  ...fluidTextVars,
+  "--operator-text-small": fluidSize(text.small.fontSize),
+  "--operator-text-body": fluidSize(text.operatorCompactName.fontSize),
+  "--operator-weight-bold": weightBold,
+  "--operator-figure-size": fluidSize(text.operatorFigureLarge.fontSize),
+  "--operator-figure-tracking": `${text.operatorFigureLarge.letterSpacing}px`,
+  "--operator-focus-width": `${ruleWidth}px`,
+  "--operator-rule-width": `${ruleWidth}px`,
+  "--operator-opacity-disabled": `${disabledOpacity}`,
+} as CSSProperties;
 // The steward app's colours and sizes (#375). The status colours match the
 // slide that leads to the status: yellow on the way, green arrived, red
 // checked out. They are the exact line colours from Metro's brand guide (M2
