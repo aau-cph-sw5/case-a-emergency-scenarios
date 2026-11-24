@@ -4,6 +4,7 @@ import { userIdFromToken } from "../../../shared/auth/login";
 import type { User } from "../../../shared/types/v1/user";
 import {
   createUser,
+  deleteUser,
   fetchUsers,
   ROLE_LABELS,
   updateUser,
@@ -16,7 +17,13 @@ import "./UserAdmin.css";
 type OpenForm = { kind: "create" } | { kind: "edit"; user: User } | null;
 
 // The "Brugere" page: every account, and a form to create or edit one.
-export function UserAdmin({ token }: { token: string }) {
+export function UserAdmin({
+  token,
+  onLogout,
+}: {
+  token: string;
+  onLogout: () => void;
+}) {
   const ownId = Number(userIdFromToken(token));
   const [users, setUsers] = useState<User[] | null>(null);
   const [form, setForm] = useState<OpenForm>(null);
@@ -66,9 +73,48 @@ export function UserAdmin({ token }: { token: string }) {
     setFormError(null);
     try {
       await updateUser(token, user.userId, changes);
+      // The server ended the admin's own session with the edit, so sign out
+      // here as the form warned.
+      if (user.userId === ownId) {
+        onLogout();
+        return;
+      }
       saved(`${user.username} er gemt.`);
     } catch (error) {
       setFormError(userAdminMessage(error));
+    }
+  }
+
+  // A disabled user cannot sign in until enabled again; the row stays.
+  async function setDisabled(user: User, disabled: boolean) {
+    setMessage(null);
+    try {
+      await updateUser(token, user.userId, { disabled });
+      saved(
+        disabled
+          ? `${user.username} er deaktiveret.`
+          : `${user.username} er aktiveret igen.`,
+      );
+    } catch (error) {
+      setMessage(userAdminMessage(error));
+    }
+  }
+
+  // Deleting cannot be undone from the page, so it is confirmed first.
+  async function remove(user: User) {
+    if (
+      !window.confirm(
+        `Slet ${user.username}? Brugeren kan ikke logge ind igen og forsvinder fra listen.`,
+      )
+    ) {
+      return;
+    }
+    setMessage(null);
+    try {
+      await deleteUser(token, user.userId);
+      saved(`${user.username} er slettet.`);
+    } catch (error) {
+      setMessage(userAdminMessage(error));
     }
   }
 
@@ -115,6 +161,7 @@ export function UserAdmin({ token }: { token: string }) {
               <th>Brugernavn</th>
               <th>Rolle</th>
               <th>Linjegruppe</th>
+              <th>Status</th>
               <th>
                 <span className="visually-hidden">Handlinger</span>
               </th>
@@ -122,17 +169,36 @@ export function UserAdmin({ token }: { token: string }) {
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.userId}>
+              // A disabled account is faded, and its status says so in words.
+              <tr
+                key={user.userId}
+                className={user.disabled ? "user-disabled" : undefined}
+              >
                 <td>{user.username}</td>
                 <td>{ROLE_LABELS[user.role]}</td>
                 <td>{LINE_GROUP_LABELS[user.lineGroup]}</td>
-                <td>
+                <td>{user.disabled ? "Deaktiveret" : "Aktiv"}</td>
+                <td className="user-actions">
                   <button
                     type="button"
                     onClick={() => open({ kind: "edit", user })}
                   >
                     Rediger
                   </button>
+                  {/* An admin cannot disable or delete their own account. */}
+                  {user.userId !== ownId && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void setDisabled(user, !user.disabled)}
+                      >
+                        {user.disabled ? "Aktivér" : "Deaktivér"}
+                      </button>
+                      <button type="button" onClick={() => void remove(user)}>
+                        Slet
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
