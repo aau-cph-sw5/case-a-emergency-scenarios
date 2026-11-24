@@ -19,6 +19,8 @@ export type ScenarioSuggestion =
 // calibrated scores and its own threshold.
 export interface ConfidenceScorer {
   readonly name: string;
+  /** The threshold on this scorer's scale; a caller can still pass its own. */
+  readonly threshold?: number;
   score(
     description: string,
     ranked: RankedCandidate[],
@@ -27,8 +29,25 @@ export interface ConfidenceScorer {
 
 // Provisional until the evaluation (#421) measures it. Chosen on the
 // measurements in the reference doc, with the Danish tokenizer (#354) and
-// includeUnknownTerms: true.
-export const DEFAULT_CONFIDENCE_THRESHOLD = 0.15;
+// includeUnknownTerms: true. This is the threshold on the ranker's own 0..1
+// score; DEFAULT_CONFIDENCE_THRESHOLD below is the same cut on the lifted scale.
+const RANKER_THRESHOLD = 0.15;
+
+// A right match scores 0.3 to 0.5 from the ranker, because even a short
+// description has a few words that match no scenario and those count towards
+// the best possible score. Shown as a percentage that reads as a poor match.
+// So the confidence is the ranker's score lifted by a curve: it keeps the
+// order and the decisions, and 0 and 1 stay where they are. The threshold
+// moves along with it. Tune the power, not the ranker, if it reads too low or
+// too high.
+// Two knobs fix the same low scores and do different jobs: this curve only
+// rescales the number for display (order and decisions unchanged), while
+// MAX_UNKNOWN_TERMS in bm25ranker.ts changes which descriptions pass at all, by
+// capping how far unmatched words can pull the raw score down.
+export const CONFIDENCE_CURVE_POWER = 3;
+export function liftScore(score: number): number {
+  return 1 - (1 - Math.min(1, Math.max(0, score))) ** CONFIDENCE_CURVE_POWER;
+}
 
 // Clamps to [0, 1] and rounds to four decimals, so float noise cannot flip a
 // decision and the value is stable in JSON.
@@ -37,13 +56,20 @@ export function toConfidence(value: number): number {
   return Math.round(Math.min(1, Math.max(0, value)) * 10_000) / 10_000;
 }
 
+// Only meaningful on rankerScore's lifted scale: another scorer carries its own
+// `threshold`, and suggestScenarios refuses to guess one for it.
+export const DEFAULT_CONFIDENCE_THRESHOLD = toConfidence(
+  liftScore(RANKER_THRESHOLD),
+);
+
 // The default: the ranker's score, which #355 already normalises to 0..1.
 export const rankerScore: ConfidenceScorer = {
   name: "bm25",
+  threshold: DEFAULT_CONFIDENCE_THRESHOLD,
   score: (_description, ranked) =>
     ranked.map(({ scenarioId, score }) => ({
       scenarioId,
-      score: toConfidence(score),
+      score: toConfidence(liftScore(score)),
     })),
 };
 
@@ -81,13 +107,15 @@ export async function suggestScenarios(
   {
     ranker,
     scorer = rankerScore,
-    threshold = DEFAULT_CONFIDENCE_THRESHOLD,
+    threshold = scorer.threshold,
   }: {
     ranker: ScenarioRanker;
     scorer?: ConfidenceScorer;
     threshold?: number;
   },
 ): Promise<ScenarioSuggestion> {
+  if (threshold === undefined)
+    throw new RangeError(`${scorer.name} has no threshold; pass one`);
   const scored = await scorer.score(
     description,
     ranker.rank(description, docs),

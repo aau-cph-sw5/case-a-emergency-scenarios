@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   applyThreshold,
   DEFAULT_CONFIDENCE_THRESHOLD,
+  liftScore,
   rankerScore,
   suggestScenarios,
   toConfidence,
@@ -30,12 +31,22 @@ test("toConfidence clamps, rounds and turns non-numbers into 0", () => {
   );
 });
 
-test("the default confidence is the ranker's score", () => {
+test("the default confidence is the ranker's score, lifted by a curve", () => {
   const ranked = [
     { scenarioId: "A", score: 0.42 },
     { scenarioId: "B", score: 0 },
+    { scenarioId: "C", score: 1 },
   ];
-  assert.deepEqual(rankerScore.score("x", ranked), ranked);
+  // 1 - (1 - 0.42)^3: the order is kept, 0 and 1 stay where they are.
+  assert.deepEqual(rankerScore.score("x", ranked), [
+    { scenarioId: "A", score: 0.8049 },
+    { scenarioId: "B", score: 0 },
+    { scenarioId: "C", score: 1 },
+  ]);
+});
+
+test("the threshold is the ranker's 0.15 on the same curve", () => {
+  assert.equal(DEFAULT_CONFIDENCE_THRESHOLD, 0.3859);
 });
 
 test("keeps candidates above the threshold, best first, at most five", () => {
@@ -109,10 +120,32 @@ test("another scorer can be swapped in without changing the caller", async () =>
 test("rejects a scorer that returns a confidence outside [0, 1]", async () => {
   const broken = {
     name: "uncalibrated",
+    threshold: 0.5,
     score: (_d, ranked) => ranked.map((c) => ({ ...c, score: 3 })),
   };
   await assert.rejects(
     suggestScenarios("kgn", docs, { ranker, scorer: broken }),
     /uncalibrated gave .* a confidence of 3/,
+  );
+});
+
+test("liftScore keeps 0 and 1, rises monotonically and clamps", () => {
+  assert.equal(liftScore(0), 0);
+  assert.equal(liftScore(1), 1);
+  let previous = 0;
+  for (let score = 0.05; score <= 1; score += 0.05) {
+    const lifted = liftScore(score);
+    assert.ok(lifted > previous && lifted >= score);
+    previous = lifted;
+  }
+  assert.equal(liftScore(-0.5), 0);
+  assert.equal(liftScore(1.5), 1);
+});
+
+test("a scorer without a threshold needs one passed in", async () => {
+  const scorer = { name: "bare", score: (_d, ranked) => ranked };
+  await assert.rejects(
+    suggestScenarios("kgn", docs, { ranker, scorer }),
+    /bare has no threshold/,
   );
 });
