@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { operatorCssVars } from "../../shared/Theme";
 import { LoginScreen } from "../../shared/LoginScreen";
 import { useSession } from "../../shared/auth/use-session";
@@ -52,13 +52,13 @@ export function App() {
   useAuthenticatedSocket(socket, token, restore);
 
   if (state.status === "restoring") {
-    return <main>Indlæser session…</main>;
+    return <AuthNotice>Indlæser session…</AuthNotice>;
   }
 
   if (state.status === "signed-out") {
     if (logoutStorageError) {
       return (
-        <main>
+        <AuthNotice>
           <p>
             Den gemte session kunne ikke fjernes. Du kan blive logget ind igen,
             hvis siden genstartes. Prøv at logge ud igen.
@@ -66,7 +66,7 @@ export function App() {
           <button onClick={() => void retryLogout()} type="button">
             Prøv igen
           </button>
-        </main>
+        </AuthNotice>
       );
     }
     return (
@@ -78,15 +78,21 @@ export function App() {
 
   if (state.status === "unavailable") {
     return (
-      <main>
+      <AuthNotice>
         <p>Kan ikke bekræfte din session uden forbindelse.</p>
-        <button onClick={() => void restore()} type="button">
-          Prøv igen
-        </button>
-        <button onClick={() => void signOut()} type="button">
-          Log ud
-        </button>
-      </main>
+        <div className="auth-notice-actions">
+          <button onClick={() => void restore()} type="button">
+            Prøv igen
+          </button>
+          <button
+            className="auth-notice-secondary"
+            onClick={() => void signOut()}
+            type="button"
+          >
+            Log ud
+          </button>
+        </div>
+      </AuthNotice>
     );
   }
 
@@ -108,7 +114,17 @@ export function App() {
     );
   }
 
-  return <main>Denne konto har ikke adgang til webappen.</main>;
+  return <AuthNotice>Denne konto har ikke adgang til webappen.</AuthNotice>;
+}
+
+// The plain screens before and instead of the dashboard (restoring the session,
+// no connection, no access): a white card on the tunnel photo, like the login.
+function AuthNotice({ children }: { children: ReactNode }) {
+  return (
+    <main className="auth-notice" style={operatorCssVars}>
+      <div className="auth-notice-card">{children}</div>
+    </main>
+  );
 }
 
 function ControlRoom({
