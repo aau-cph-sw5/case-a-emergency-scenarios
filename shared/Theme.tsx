@@ -88,7 +88,6 @@ export const colors = {
   blockedTrack: palette.metroDeepRed, // darker than M3's red, and drawn dashed to tell them apart
 };
 
-
 // How a steward's status looks, in the control room and the steward app. The
 // word carries the meaning; the symbol and colour only help. Yellow text
 // uses the darker shade, which reads on white. A status missing
