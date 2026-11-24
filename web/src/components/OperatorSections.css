@@ -74,7 +74,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 28px;
-  color: white;
+  color: var(--operator-white);
   border-bottom: 1px solid #454545;
 }
 .operator-brand,
@@ -85,7 +85,7 @@ body {
   flex-shrink: 0;
 }
 .operator-brand > strong {
-  font-size: 19px;
+  font-size: var(--operator-text-19);
 }
 .brand-mark {
   display: grid;
@@ -94,53 +94,53 @@ body {
   height: 38px;
   border-radius: 50%;
   background: var(--operator-red);
-  color: white;
-  font-size: 24px;
+  color: var(--operator-white);
+  font-size: var(--operator-text-24);
   font-weight: 900;
 }
 .operator-line-switcher {
   display: flex;
   gap: 4px;
   padding: 4px;
-  border: 1px solid #566167;
-  border-radius: 8px;
+  border: 1px solid var(--operator-muted);
+  border-radius: var(--operator-radius-control);
   background: #252a2c;
 }
 .operator-line-switcher button {
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--operator-radius-control);
   padding: 8px 10px;
   background: transparent;
-  color: #d5dee0;
+  color: var(--operator-option-border);
   font-weight: 700;
 }
 .operator-line-switcher button[aria-pressed="true"] {
-  background: #fff;
-  color: #1e1e1e;
+  background: var(--operator-white);
+  color: var(--operator-ink);
 }
 .operator-line-switcher button:hover:not([aria-pressed="true"]) {
-  background: #465155;
+  background: var(--operator-ink-hover);
 }
 .operator-avatar {
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
-  border: 1px solid #666;
+  border: 1px solid var(--operator-muted);
   border-radius: 50%;
-  font-size: 12px;
+  font-size: var(--operator-text-12);
 }
 .logout-button {
   margin-left: 8px;
   padding: 8px 10px;
   border: 1px solid #555;
-  border-radius: 8px;
+  border-radius: var(--operator-radius-control);
   color: #ddd;
   background: transparent;
 }
 .logout-button:hover {
   background: #ffffff15;
-  color: white;
+  color: var(--operator-white);
 }
 .active-scenario-banner {
   min-width: 0;
@@ -1530,7 +1530,7 @@ body {
     gap: 16px;
   }
   .operator-brand > strong {
-    font-size: 16px;
+    font-size: var(--operator-text-16);
   }
   .operator-profile {
     gap: 8px;
