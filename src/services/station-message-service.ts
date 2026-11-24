@@ -21,7 +21,7 @@ import {
 } from "../repositories/station-message-repository.js";
 import type { LineGroup } from "../../shared/auth/line-groups.js";
 import type { AuthUser } from "./auth-service.js";
-import { appendStationMessageEvent } from "./incident-log-service.js";
+import { appendSystemEvent } from "./incident-log-service.js";
 
 type Refusal = { kind: "refused"; code: ErrorCode };
 
@@ -184,9 +184,20 @@ export async function createStationMessage(
       writtenAt: new Date(request.writtenAt),
     });
 
-    await appendStationMessageEvent(tx, {
-      message,
-      lineGroup: activation.lineGroup,
+    await appendSystemEvent(tx, "station-thread", {
+      type: "STATION_MESSAGE_WRITTEN",
+      schemaVersion: 2,
+      subject: { type: "station-message", id: String(message.id) },
+      activationId: String(message.activationId),
+      line: activation.lineGroup,
+      payload: {
+        station: message.station,
+        sender: message.sender,
+        text: message.text,
+        writtenAt: message.writtenAt,
+        receivedAt: message.receivedAt,
+      },
+      clientTime: new Date(message.writtenAt),
     });
 
     const thread = makeThread(
