@@ -1,9 +1,12 @@
 import MapRender from "../../shared/MapRenderer";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { useScenarioBuilder } from "./useScenarioBuilder";
 import { ScenarioStaffing } from "./components/ScenarioStaffing";
 import { ScenarioLineSidebar } from "./components/ScenarioLineSidebar";
 import { ScenarioLineMap } from "./components/ScenarioLineMap";
 import { ScenarioLineForm } from "./components/ScenarioLineForm";
+import { TopBar } from "./components/TopBar";
+import { operatorCssVars } from "../../shared/Theme";
 import "./AdminDashboard.css";
 
 export function ScenarioBuilder({
@@ -75,6 +78,8 @@ export function ScenarioBuilder({
   const {
     discardDraft,
     confirmDiscard,
+    pendingDiscard,
+    answerDiscard,
     navigate,
     selectGroup,
     resetLineDraft,
@@ -87,30 +92,25 @@ export function ScenarioBuilder({
     createAnother,
   } = builder;
   return (
-    <main className="admin-dashboard">
-      <header className="admin-header">
-        <div className="admin-brand">
-          <span className="admin-brand-mark" aria-hidden="true">
-            M
-          </span>
-          <strong>Metro Service</strong>
-        </div>
-        <div className="admin-profile">
-          <strong>Admin</strong>
-          <button
-            className="admin-logout"
-            onClick={() => {
-              if (!confirmDiscard()) return;
-              discardDraft();
-              setView("home");
-              onLogout();
-            }}
-            type="button"
-          >
-            Log ud
-          </button>
-        </div>
-      </header>
+    <main className="admin-dashboard" style={operatorCssVars}>
+      <TopBar
+        name="Admin"
+        onLogout={() => {
+          confirmDiscard(() => {
+            discardDraft();
+            setView("home");
+            onLogout();
+          });
+        }}
+      />
+      {pendingDiscard && (
+        <ConfirmDialog
+          message="Vil du forlade scenariet? Dine ændringer bliver slettet."
+          confirmLabel="Forlad scenariet"
+          onConfirm={() => answerDiscard(true)}
+          onCancel={() => answerDiscard(false)}
+        />
+      )}
       {view === "home" && (
         <div className="admin-content">
           <section className="admin-home">
@@ -235,7 +235,11 @@ export function ScenarioBuilder({
           </button>
           <p>{networkError ?? "Indlæser metronetværk…"}</p>
           {networkError && (
-            <button type="button" onClick={retryNetwork}>
+            <button
+              className="admin-secondary"
+              type="button"
+              onClick={retryNetwork}
+            >
               Prøv igen
             </button>
           )}
@@ -254,7 +258,11 @@ export function ScenarioBuilder({
             Metronetværket er ufuldstændigt. Kontrollér netværksdata og prøv
             igen.
           </p>
-          <button type="button" onClick={retryNetwork}>
+          <button
+            className="admin-secondary"
+            type="button"
+            onClick={retryNetwork}
+          >
             Prøv igen
           </button>
         </div>
