@@ -163,7 +163,7 @@ describe("API-backed scenario preview", () => {
     const columns = container.querySelectorAll(".operator-sections > section");
     expect(columns[0].textContent).toContain("Aktiveret af operator-test");
     expect(columns[0].textContent).toContain(summaries[0].name);
-    expect(columns[2].textContent).toContain("0/7");
+    expect(columns[2].textContent).toContain("af 1 stationer dækket");
     expect(container.querySelector(".scenario-preview")?.textContent).toContain(
       "API-STATION-221",
     );

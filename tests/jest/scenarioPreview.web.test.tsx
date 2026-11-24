@@ -456,14 +456,14 @@ describe("scenario preview and activation", () => {
     await renderList(first.scenarioId, { activations: [activated] });
     expect(button("STOP scenarie").disabled).toBe(false);
     expect(container.querySelector(".scenario-preview")).toBeNull();
-    expect(container.textContent).toContain("0/2");
+    expect(container.textContent).toContain("af 1 stationer dækket");
     await click(second.name);
     expect(
       container
         .querySelector('[data-testid="map-scenario"]')
         ?.getAttribute("data-live-coverage"),
     ).toBe("none");
-    expect(container.textContent).toContain("0/2");
+    expect(container.textContent).toContain("af 1 stationer dækket");
     expect(container.querySelector(".scenario-preview")?.textContent).toContain(
       "Station B",
     );

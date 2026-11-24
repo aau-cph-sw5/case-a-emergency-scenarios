@@ -49,7 +49,9 @@ describe("ScenarioStationList", () => {
     expect(screen.getByText(/Nødvendige stewards:/)).toBeTruthy();
     expect(screen.getByText("2")).toBeTruthy();
     expect(screen.getByText("4")).toBeTruthy();
-    expect(screen.queryByTestId("station-staffing-slots")).toBeNull();
+    // Planning mode has no live coverage overview and no steward cells yet.
+    expect(screen.queryByTestId("coverage-overview")).toBeNull();
+    expect(screen.queryByTestId("station-cells")).toBeNull();
     view.rerender(
       <ScenarioStationList
         scenario={scenario}
@@ -58,9 +60,12 @@ describe("ScenarioStationList", () => {
       />,
     );
     expect(screen.queryByTestId("staffing-plan-summary")).toBeNull();
-    expect(screen.queryByText(/stationer dækket/)).toBeNull();
+    expect(screen.getByTestId("coverage-overview")).toBeTruthy();
+    // The overview: nothing is covered yet, one cell per station.
+    expect(screen.getByText("af 2 stationer dækket")).toBeTruthy();
+    expect(screen.getAllByTestId("coverage-cell-gap")).toHaveLength(2);
     expect(screen.queryByText(/stewards ·/)).toBeNull();
-    expect(screen.queryByText(/Mangler/)).toBeNull();
+    // One cell per steward a station needs: 1 and 3.
     expect(screen.getAllByTestId("station-slot-UNMANNED")).toHaveLength(4);
   });
 
