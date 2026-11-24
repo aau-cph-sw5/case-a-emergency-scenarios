@@ -163,10 +163,27 @@ export const spacing = {
   small: 4,
   medium: 12,
   large: 16,
+  // The other values the operator station components repeat, by pixel size.
+  s3: 3,
+  s5: 5,
+  s6: 6,
+  s8: 8,
+  s9: 9,
+  s14: 14,
+  s18: 18,
 };
 
 // A station that is not in focus is drawn at this opacity (map, list).
 export const mutedOpacity = 0.35;
+
+// Side of the colour square in a legend.
+export const legendSquare = 12;
+
+// The colour bar next to a line name in the map legend.
+export const legendSwatch = { width: 20, height: 5, borderRadius: 2 } as const;
+
+// Room the map card keeps on the right for the zoom buttons.
+export const zoomControlsInset = 130;
 
 export const surface = {
   backgroundColor: colors.background,
