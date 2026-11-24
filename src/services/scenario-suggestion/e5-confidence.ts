@@ -58,6 +58,7 @@ export function createE5Scorer({
 
   return {
     name: "multilingual-e5",
+    threshold: E5_CONFIDENCE_THRESHOLD,
     async score(description, ranked) {
       const [query] = await embed([QUERY_PREFIX + description.trim()]);
       return Promise.all(
