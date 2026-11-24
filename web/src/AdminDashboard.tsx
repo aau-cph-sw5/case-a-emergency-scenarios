@@ -36,7 +36,7 @@ export function AdminDashboard({
         >
           Tilbage
         </button>
-        <UserAdmin token={token} />
+        <UserAdmin token={token} onLogout={onLogout} />
       </div>
     </main>
   );

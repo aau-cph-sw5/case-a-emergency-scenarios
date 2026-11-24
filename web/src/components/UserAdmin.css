@@ -15,6 +15,21 @@
   margin: 0;
   color: var(--operator-red-text);
 }
+.user-form-note {
+  margin: 0;
+  font-weight: 700;
+}
+.user-actions {
+  display: flex;
+  gap: 8px;
+}
+/* A disabled account is faded*/
+.user-disabled td {
+  opacity: 0.5;
+}
+.user-disabled .user-actions {
+  opacity: 1;
+}
 .user-admin table {
   width: 100%;
   border-collapse: collapse;
