@@ -165,6 +165,9 @@ export const spacing = {
   large: 16,
 };
 
+// A station that is not in focus is drawn at this opacity (map, list).
+export const mutedOpacity = 0.35;
+
 export const surface = {
   backgroundColor: colors.background,
   borderRadius: radius,
