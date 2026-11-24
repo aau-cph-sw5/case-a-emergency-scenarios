@@ -10,4 +10,8 @@ export interface User {
   username: string;
   role: "STEWARD" | "OPERATOR" | "ADMIN";
   lineGroup: "M1_M2" | "M3_M4";
+  /**
+   * A disabled account cannot sign in until an admin enables it again.
+   */
+  disabled: boolean;
 }

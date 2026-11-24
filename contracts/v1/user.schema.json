@@ -2,12 +2,16 @@
   "$id": "user.schema.json",
   "title": "User",
   "type": "object",
-  "required": ["userId", "username", "role", "lineGroup"],
+  "required": ["userId", "username", "role", "lineGroup", "disabled"],
   "additionalProperties": false,
   "properties": {
     "userId": { "type": "integer" },
     "username": { "type": "string" },
     "role": { "enum": ["STEWARD", "OPERATOR", "ADMIN"] },
-    "lineGroup": { "enum": ["M1_M2", "M3_M4"] }
+    "lineGroup": { "enum": ["M1_M2", "M3_M4"] },
+    "disabled": {
+      "type": "boolean",
+      "description": "A disabled account cannot sign in until an admin enables it again."
+    }
   }
 }
