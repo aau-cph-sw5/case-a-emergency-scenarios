@@ -1,61 +1,31 @@
-// No react-native or Theme imports here, so unit tests can import this file.
 import { LINE_GROUP_LINES } from "../../../shared/auth/line-groups";
 import type { MapNetwork } from "../../../shared/network/network";
 import type { SnapshotScenario } from "../../../shared/offline/scenario-snapshot";
+import type { CoveredSegment } from "../../../shared/scenario/affected-stations";
 import {
   CLOSED_LINE,
   routeColor,
   scenarioLines,
 } from "../../../shared/scenario/map-lines";
+import { colors as themeColors } from "../../../shared/Theme";
 
-export type StewardMapPalette = {
-  fallbackColor: string;
-  blockedTrackColor: string;
-};
-
-export type StewardMapData = {
+export type StewardMapData = Pick<MapNetwork, "positions" | "ringStations"> & {
   lines: MapNetwork["lines"];
   colors: Record<string, string>;
-  availableSegments: {
-    trackNumber: number;
-    stationA: string;
-    stationB: string;
-  }[];
-  blockedTracks: NonNullable<SnapshotScenario["covers"]>;
+  availableSegments: CoveredSegment[];
+  blockedTracks: CoveredSegment[];
+  // Every station on the line group's network lines and the scenario's
+  // routes, for a view of the whole line group.
+  groupStations: string[];
   missingRoutes: boolean;
   missingStretch: boolean;
 };
 
-// Serializes the scenario fields that affect the steward map, so memoized map
-// rendering skips unchanged refreshes while still updating on route, closure,
-// line-group, or requirement changes.
-export function stewardMapScenarioKey(scenario: SnapshotScenario): string {
-  const current = scenario.versions.find(
-    (version) => version.version === scenario.currentVersion,
-  );
-  const requirements =
-    current?.stationRequirements ??
-    scenario.versions[0]?.stationRequirements ??
-    [];
-  return JSON.stringify({
-    scenarioId: scenario.scenarioId,
-    currentVersion: scenario.currentVersion,
-    lineGroup: scenario.lineGroup,
-    covers: scenario.covers ?? [],
-    patterns: current?.operatingPlan.patterns ?? [],
-    required: requirements.map(({ station, minimumStaffing }) => [
-      station,
-      minimumStaffing,
-    ]),
-  });
-}
-
-// Derives the steward map's scoped running routes, per-track closures, Metro
-// line colours, available segments, and warning flags.
+// The steward map's running routes and closed tracks, scoped to the
+// scenario's line group.
 export function deriveStewardMap(
   scenario: SnapshotScenario,
   network: MapNetwork,
-  palette: StewardMapPalette,
 ): StewardMapData {
   const expectedLines = LINE_GROUP_LINES[scenario.lineGroup];
   const groupNetwork = network.lines.filter((line) =>
@@ -68,29 +38,36 @@ export function deriveStewardMap(
   } = scenarioLines(scenario, groupNetwork, network.segments);
   const covers = scenario.covers ?? [];
   const lines = closedLine ? [...runningLines, closedLine] : runningLines;
-  const colors: Record<string, string> = {
+  const colors = {
     ...Object.fromEntries(
       runningLines.map((route) => [
         route.name,
-        routeColor(route, groupNetwork, palette.fallbackColor),
+        routeColor(route, groupNetwork, themeColors.text),
       ]),
     ),
-    [CLOSED_LINE]: palette.blockedTrackColor,
+    [CLOSED_LINE]: themeColors.blockedTrack,
   };
-  // The scenario's affected tracks may reference a station an older saved
-  // network does not know.
+  const groupStations = [
+    ...new Set(
+      [...groupNetwork, ...lines].flatMap((line) => line.connections.flat()),
+    ),
+  ];
+  // An older saved network may lack a station of the scenario's tracks.
   const missingStretch = covers.some(
     (segment) =>
       !network.positions[segment.stationA] ||
       !network.positions[segment.stationB],
   );
   return {
+    positions: network.positions,
+    ringStations: network.ringStations,
     lines,
     colors,
     // The scenario carries its own affected tracks, even if an offline map is
     // older.
     availableSegments: [...network.segments, ...covers],
     blockedTracks: covers,
+    groupStations,
     missingRoutes,
     missingStretch,
   };

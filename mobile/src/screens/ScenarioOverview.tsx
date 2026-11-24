@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -28,11 +28,7 @@ import {
 } from "../../../shared/components/stationState";
 import { zoomedViewBox } from "./map-zoom";
 import { findOwnAssignment } from "./own-assignment";
-import {
-  deriveStewardMap,
-  stewardMapScenarioKey,
-  type StewardMapData,
-} from "./steward-map-data";
+import { deriveStewardMap, type StewardMapData } from "./steward-map-data";
 
 // One task of the own station. A task that fits on one line is a plain row.
 // A longer one shows its first line and a chevron, and a press opens it to
@@ -169,11 +165,9 @@ export function ScenarioMap({
   const { scenario, state } = snapshot;
   const { fontScale } = useWindowDimensions();
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const currentVersion =
-    scenario.versions.find(
-      (version) => version.version === scenario.currentVersion,
-    ) ?? scenario.versions[0];
-  const rows = oneRowPerStation(currentVersion?.stationRequirements ?? []);
+  const rows = oneRowPerStation(
+    scenario.versions[0]?.stationRequirements ?? [],
+  );
   const { ownStation } = ownStations(
     snapshot,
     assignedStation,
@@ -182,16 +176,8 @@ export function ScenarioMap({
   // The map is drawn again only when what it shows changes (MapCard): the
   // scenario, the coverage level of a station, the own station or its size.
   const levels = stationCoverage(rows, state);
-  const mapData = useMemo(
-    () =>
-      network == null
-        ? null
-        : deriveStewardMap(scenario, network, {
-            fallbackColor: colors.text,
-            blockedTrackColor: colors.blockedTrack,
-          }),
-    [scenario, network],
-  );
+  const mapData = network != null ? deriveStewardMap(scenario, network) : null;
+  const stations = affectedStations(scenario);
   const missingStretch = mapData?.missingStretch ?? false;
   const missingRoutes = mapData?.missingRoutes ?? false;
   const notes = [
@@ -205,16 +191,15 @@ export function ScenarioMap({
       style={styles.fill}
       onLayout={(event) => setSize(event.nativeEvent.layout)}
     >
-      {network != null && mapData != null ? (
+      {mapData !== null ? (
         <MapCard
-          scenario={scenario}
-          scenarioKey={stewardMapScenarioKey(scenario)}
+          stations={stations}
           mapData={mapData}
+          mapKey={JSON.stringify({ mapData, required: rows, stations })}
           required={rows}
           levels={levels}
           levelsKey={JSON.stringify(levels)}
           ownStation={ownStation}
-          network={network}
           width={size.width}
           height={size.height}
           fontScale={fontScale}
@@ -517,18 +502,15 @@ export function ScenarioOverview({
 }
 
 type MapCardProps = {
-  scenario: ScenarioSnapshot["scenario"];
-  // What the map shows, as plain values, so a new copy of the same scenario
-  // or the same coverage does not draw the map again.
-  scenarioKey: string;
+  stations: string[];
   mapData: StewardMapData;
   required: StationRequirement[];
+  // What the map shows, as plain values, so a new copy of the same scenario
+  // or the same coverage does not draw the map again.
+  mapKey: string;
   levels: ReturnType<typeof stationCoverage>;
   levelsKey: string;
   ownStation: string | undefined;
-  // The network the map is drawn from. A new object (a new fetch) draws it
-  // again.
-  network: MapNetwork;
   width: number;
   height: number;
   fontScale: number;
@@ -539,30 +521,23 @@ type MapCardProps = {
 // it is drawn again only when one of the plain values above changes.
 const MapCard = memo(
   function MapCard({
-    scenario,
+    stations,
     mapData,
     required,
     levels,
     ownStation,
-    network,
     width,
     height,
     fontScale,
   }: MapCardProps) {
-    const position = (station: string) => network.positions[station];
+    const position = (station: string) => mapData.positions[station];
     return (
       <MapRender
-        viewBox={zoomedViewBox(
-          affectedStations(scenario),
-          width,
-          height,
-          fontScale,
-          position,
-        )}
+        viewBox={zoomedViewBox(stations, width, height, fontScale, position)}
         lines={mapData.lines}
-        positions={network.positions}
+        positions={mapData.positions}
         availableSegments={mapData.availableSegments}
-        ringStations={network.ringStations}
+        ringStations={mapData.ringStations}
         colors={mapData.colors}
         blockedTracks={mapData.blockedTracks}
         showLineButtons={false}
@@ -578,10 +553,9 @@ const MapCard = memo(
     );
   },
   (a, b) =>
-    a.scenarioKey === b.scenarioKey &&
+    a.mapKey === b.mapKey &&
     a.levelsKey === b.levelsKey &&
     a.ownStation === b.ownStation &&
-    a.network === b.network &&
     a.width === b.width &&
     a.height === b.height &&
     a.fontScale === b.fontScale,

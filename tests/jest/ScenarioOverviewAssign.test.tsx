@@ -6,6 +6,12 @@ import {
   ScenarioOverview,
 } from "../../mobile/src/screens/ScenarioOverview";
 import { Circle, Line, Text as SvgText } from "react-native-svg";
+import {
+  circleByTestId,
+  makeRouteScenario,
+  makeRouteSnapshot,
+  metroMapNetwork,
+} from "../helpers/metro-map";
 import { network as networkFixture } from "../helpers/network";
 import { buildMapNetwork } from "../../shared/network/network";
 import type { Network } from "../../shared/types/v1/network";
@@ -95,168 +101,6 @@ describe("ScenarioMap network (MET-A-030)", () => {
   });
 });
 
-// Four-line test network with distinct M1/M2 and M3/M4 branches and Metro
-// brand colours so line-group scoping and per-track closures are observable.
-const metroNetworkFixture: Network = {
-  stations: [
-    { code: "FOR", name: "Forum", x: 100, y: 200 },
-    { code: "KGN", name: "Kongens Nytorv", x: 200, y: 200 },
-    { code: "ISB", name: "Islands Brygge", x: 300, y: 200 },
-    { code: "KHC", name: "Christianshavn", x: 300, y: 300 },
-    { code: "KBH", name: "København H", x: 100, y: 400 },
-    { code: "RAD", name: "Rådhuspladsen", x: 200, y: 400 },
-    { code: "GLS", name: "Gammel Strand", x: 300, y: 400 },
-    { code: "ORI", name: "Orientkaj", x: 300, y: 500 },
-  ],
-  segments: [
-    { id: 1, trackNumber: 1, stationA: "FOR", stationB: "KGN" },
-    { id: 2, trackNumber: 2, stationA: "FOR", stationB: "KGN" },
-    { id: 3, trackNumber: 1, stationA: "KGN", stationB: "ISB" },
-    { id: 4, trackNumber: 2, stationA: "KGN", stationB: "ISB" },
-    { id: 5, trackNumber: 1, stationA: "KGN", stationB: "KHC" },
-    { id: 6, trackNumber: 2, stationA: "KGN", stationB: "KHC" },
-    { id: 7, trackNumber: 1, stationA: "KBH", stationB: "RAD" },
-    { id: 8, trackNumber: 2, stationA: "KBH", stationB: "RAD" },
-    { id: 9, trackNumber: 1, stationA: "RAD", stationB: "GLS" },
-    { id: 10, trackNumber: 2, stationA: "RAD", stationB: "GLS" },
-    { id: 11, trackNumber: 1, stationA: "RAD", stationB: "ORI" },
-    { id: 12, trackNumber: 2, stationA: "RAD", stationB: "ORI" },
-  ],
-  normalPatterns: [
-    {
-      line: "M1",
-      routeCode: "M1-NORM",
-      operationType: "ROUNDTRIP",
-      trackNumber: 12,
-      maximumTrains: 6,
-      did: "M1",
-      color: palette.metroLineOne,
-      stops: ["FOR", "KGN", "ISB"],
-    },
-    {
-      line: "M2",
-      routeCode: "M2-NORM",
-      operationType: "ROUNDTRIP",
-      trackNumber: 12,
-      maximumTrains: 6,
-      did: "M2",
-      color: palette.metroLineTwo,
-      stops: ["FOR", "KGN", "KHC"],
-    },
-    {
-      line: "M3",
-      routeCode: "M3-NORM",
-      operationType: "ROUNDTRIP",
-      trackNumber: 12,
-      maximumTrains: 6,
-      did: "M3",
-      color: palette.metroLineThree,
-      stops: ["KBH", "RAD", "GLS"],
-    },
-    {
-      line: "M4",
-      routeCode: "M4-NORM",
-      operationType: "ROUNDTRIP",
-      trackNumber: 12,
-      maximumTrains: 6,
-      did: "M4",
-      color: palette.metroLineFour,
-      stops: ["KBH", "RAD", "ORI"],
-    },
-  ],
-};
-
-const metroMapNetwork = buildMapNetwork(metroNetworkFixture);
-
-function makeRouteScenario(overrides: Partial<Scenario> = {}): Scenario {
-  return {
-    ...(scenario as Scenario),
-    scenarioId: "MET-A-031-TEST",
-    name: "Single-track M1 closure",
-    lineGroup: "M1_M2",
-    currentVersion: "1",
-    covers: [{ trackNumber: 2, stationA: "KGN", stationB: "ISB" }],
-    versions: [
-      {
-        version: "1",
-        revision: "Initial",
-        operatingPlan: {
-          name: "Single-track plan",
-          patterns: [
-            {
-              operationType: "PENDULUM",
-              routeCode: "FOR-ISB",
-              trackNumber: 1,
-              maximumTrains: 2,
-              did: "11",
-              description: "M1 single-track pendulum",
-              route: [
-                { sequence: 1, station: "FOR" },
-                { sequence: 2, station: "KGN" },
-                { sequence: 3, station: "ISB" },
-              ],
-            },
-            {
-              operationType: "ROUNDTRIP",
-              routeCode: "FOR-KHC",
-              trackNumber: 12,
-              maximumTrains: 4,
-              did: "22",
-              description: "M2 normal service",
-              route: [
-                { sequence: 1, station: "FOR" },
-                { sequence: 2, station: "KGN" },
-                { sequence: 3, station: "KHC" },
-              ],
-            },
-          ],
-        },
-        stationRequirements: [
-          {
-            station: "KGN",
-            placement: "Platform 1",
-            minimumStaffing: 2,
-            actions: [{ sequence: 1, instruction: "Guide passengers" }],
-          },
-          {
-            station: "ISB",
-            placement: "Platform 2",
-            minimumStaffing: 1,
-            actions: [{ sequence: 1, instruction: "Close track 2" }],
-          },
-        ],
-      },
-    ],
-    ...overrides,
-  };
-}
-
-function makeRouteSnapshot(
-  routeScenario: Scenario,
-  deployments: ScenarioState["deployments"] = [],
-  userId = "9",
-) {
-  return buildSnapshot(
-    {
-      active: true,
-      state: {
-        ...(activeState as ScenarioState),
-        scenarioId: routeScenario.scenarioId,
-        deployments,
-      },
-      scenario: routeScenario,
-    },
-    userId,
-    new Date("2026-11-24T09:00:00Z"),
-  );
-}
-
-function circleByTestId(testID: string) {
-  return screen
-    .UNSAFE_queryAllByType(Circle)
-    .find((node) => node.props.testID === testID);
-}
-
 function svgTextByTestId(testID: string) {
   return screen
     .UNSAFE_queryAllByType(SvgText)
@@ -277,57 +121,51 @@ function memoryStorage(): SnapshotStorage {
 }
 
 describe("ScenarioMap routes and closures (MET-A-031, #466)", () => {
-  it("renders scoped M1/M2 routes in Metro colours both online and from a saved offline snapshot, omitting DIDs and colour switch", async () => {
-    const onlineSnapshot = makeRouteSnapshot(makeRouteScenario());
-    const store = createSnapshotStore(memoryStorage());
-    await store.save(onlineSnapshot);
-    const offlineSnapshot = await store.load("9");
-    expect(offlineSnapshot).not.toBeNull();
-
-    for (const [mode, currentSnapshot, cached] of [
-      ["online", onlineSnapshot, false],
-      ["offline", offlineSnapshot!, true],
-    ] as const) {
-      const view = render(
+  it.each(["online", "offline"] as const)(
+    "draws the scoped M1/M2 routes in Metro colours from an %s snapshot, without DIDs or a colour switch",
+    async (mode) => {
+      let routeSnapshot = makeRouteSnapshot(makeRouteScenario());
+      if (mode === "offline") {
+        const store = createSnapshotStore(memoryStorage());
+        await store.save(routeSnapshot);
+        routeSnapshot = (await store.load("9"))!;
+      }
+      render(
         <ScenarioMap
-          snapshot={currentSnapshot}
+          snapshot={routeSnapshot}
           network={metroMapNetwork}
-          networkIsCached={cached}
+          networkIsCached={mode === "offline"}
           networkStatus="ready"
         />,
       );
 
-      const lines = screen.UNSAFE_queryAllByType(Line);
-      const strokes = new Set(lines.map((line) => line.props.stroke));
-      expect(strokes.has(palette.metroLineOne)).toBe(true);
-      expect(strokes.has(palette.metroLineTwo)).toBe(true);
-      expect(strokes.has(colors.blockedTrack)).toBe(true);
-      // M3 and M4 belong to the other line group and must not be drawn.
-      expect(strokes.has(palette.metroLineThree)).toBe(false);
-      expect(strokes.has(palette.metroLineFour)).toBe(false);
-      expect(circleByTestId("station-dot-KBH")).toBeUndefined();
-      expect(circleByTestId("station-dot-RAD")).toBeUndefined();
-      expect(circleByTestId("station-dot-GLS")).toBeUndefined();
-      expect(circleByTestId("station-dot-ORI")).toBeUndefined();
+      const strokes = new Set(
+        screen.UNSAFE_queryAllByType(Line).map((line) => line.props.stroke),
+      );
+      expect(strokes).toContain(palette.metroLineOne);
+      expect(strokes).toContain(palette.metroLineTwo);
+      expect(strokes).toContain(colors.blockedTrack);
+      // M3 and M4 belong to the other line group.
+      expect(strokes).not.toContain(palette.metroLineThree);
+      expect(strokes).not.toContain(palette.metroLineFour);
+      for (const station of ["KBH", "RAD", "GLS", "ORI"]) {
+        expect(circleByTestId(`station-dot-${station}`)).toBeUndefined();
+      }
 
-      // Destination IDs and colour-mode switcher are omitted on mobile.
-      expect(screen.queryByLabelText("Destination IDs")).toBeNull();
-      expect(screen.queryByText(/Destination ID/)).toBeNull();
-      expect(screen.queryByText(/Farver efter/)).toBeNull();
-      expect(screen.queryByText("Metrolinje")).toBeNull();
+      const svgTexts = screen
+        .UNSAFE_queryAllByType(SvgText)
+        .map((node) => [node.props.children].flat().join(""));
+      expect(svgTexts).not.toContain("11");
+      expect(svgTexts).not.toContain("22");
+      expect(screen.queryByTestId("metro-line-controls")).toBeNull();
       expect(
         screen.queryByText("En eller flere ruter kan ikke vises på kortet."),
       ).toBeNull();
-
-      if (mode === "offline") {
-        expect(screen.getByText("Viser gemt metronetværk.")).toBeTruthy();
-      } else {
-        expect(screen.queryByText("Viser gemt metronetværk.")).toBeNull();
-      }
-
-      view.unmount();
-    }
-  });
+      expect(screen.queryByText("Viser gemt metronetværk.") !== null).toBe(
+        mode === "offline",
+      );
+    },
+  );
 
   it("draws a single-track closure dashed next to a solid running lane on the same segment", () => {
     const routeSnapshot = makeRouteSnapshot(makeRouteScenario());
@@ -365,7 +203,7 @@ describe("ScenarioMap routes and closures (MET-A-031, #466)", () => {
     expect(dashedClosed.every((line) => line.props.y1 > 200)).toBe(true);
   });
 
-  it("draws the own-station outer ring over live coverage without Metro Summer Red and clears it on checkout", () => {
+  it("draws the own-station outer ring over live coverage and clears it on checkout", () => {
     const partialSnapshot = makeRouteSnapshot(makeRouteScenario(), [
       {
         status: "MANNED",
@@ -387,9 +225,6 @@ describe("ScenarioMap routes and closures (MET-A-031, #466)", () => {
 
     expect(circleByTestId("station-dot-KGN")?.props.fill).toBe(
       coverageColors.partial.fill,
-    );
-    expect(circleByTestId("station-dot-KGN")?.props.fill).not.toBe(
-      palette.metroSummerRed,
     );
     expect(circleByTestId("own-station-gap-KGN")?.props.stroke).toBe(
       colors.background,
@@ -470,44 +305,56 @@ describe("ScenarioMap routes and closures (MET-A-031, #466)", () => {
     expect(missingRoutesAlert.props.accessibilityRole).toBe("alert");
   });
 
-  it("re-renders MapCard when covers or patterns change under the same scenarioId and version", () => {
-    const initialScenario = makeRouteScenario({ covers: [] });
-    const updatedScenario = makeRouteScenario({
-      covers: [{ trackNumber: 2, stationA: "KGN", stationB: "ISB" }],
-    });
+  it.each([
+    [
+      "covers",
+      makeRouteScenario({ covers: [] }),
+      makeRouteScenario(),
+      (line: { props: { stroke: string; strokeDasharray?: string } }) =>
+        line.props.stroke === colors.blockedTrack &&
+        line.props.strokeDasharray === "10 6",
+    ],
+    [
+      "operating patterns",
+      makeRouteScenario({
+        versions: [
+          {
+            ...makeRouteScenario().versions[0],
+            operatingPlan: {
+              name: "M1 only",
+              patterns: [
+                makeRouteScenario().versions[0].operatingPlan.patterns[0],
+              ],
+            },
+          },
+        ],
+      }),
+      makeRouteScenario(),
+      (line: { props: { stroke: string } }) =>
+        line.props.stroke === palette.metroLineTwo,
+    ],
+  ])(
+    "draws the map again when the %s change under the same scenario version",
+    (_change, before, after, isNewLine) => {
+      const view = render(
+        <ScenarioMap
+          snapshot={makeRouteSnapshot(before)}
+          network={metroMapNetwork}
+          networkStatus="ready"
+        />,
+      );
+      expect(screen.UNSAFE_queryAllByType(Line).some(isNewLine)).toBe(false);
 
-    const view = render(
-      <ScenarioMap
-        snapshot={makeRouteSnapshot(initialScenario)}
-        network={metroMapNetwork}
-        networkStatus="ready"
-      />,
-    );
-
-    expect(
-      screen
-        .UNSAFE_queryAllByType(Line)
-        .some((line) => line.props.stroke === colors.blockedTrack),
-    ).toBe(false);
-
-    view.rerender(
-      <ScenarioMap
-        snapshot={makeRouteSnapshot(updatedScenario)}
-        network={metroMapNetwork}
-        networkStatus="ready"
-      />,
-    );
-
-    expect(
-      screen
-        .UNSAFE_queryAllByType(Line)
-        .some(
-          (line) =>
-            line.props.stroke === colors.blockedTrack &&
-            line.props.strokeDasharray === "10 6",
-        ),
-    ).toBe(true);
-  });
+      view.rerender(
+        <ScenarioMap
+          snapshot={makeRouteSnapshot(after)}
+          network={metroMapNetwork}
+          networkStatus="ready"
+        />,
+      );
+      expect(screen.UNSAFE_queryAllByType(Line).some(isNewLine)).toBe(true);
+    },
+  );
 });
 
 describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
