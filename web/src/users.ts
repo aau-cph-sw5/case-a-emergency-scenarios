@@ -37,8 +37,16 @@ export function updateUser(token: string, userId: number, body: UserUpdate) {
   return sendJson("PATCH", `/api/v1/users/${userId}`, token, isUser, body);
 }
 
-// The texts for this page. E0007 means a taken username when creating and the
-// admin's own role when editing; the form only allows the first.
+// A soft delete: the account can no longer sign in and leaves the list.
+export async function deleteUser(token: string, userId: number) {
+  await sendJson(
+    "DELETE",
+    `/api/v1/users/${userId}`,
+    token,
+    (data): data is null => data === null,
+  );
+}
+
 export function userAdminMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === ERROR_CODES.CONFLICT) {
