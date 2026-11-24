@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { LineGroupLabel } from "../../../shared/auth/line-groups";
 import { ScenarioList } from "../ScenarioList";
 import { useLiveData } from "../data/liveData";
 import { useScenario } from "../data/useScenario";
@@ -18,7 +19,7 @@ export function ScenarioWorkspace({
 }: {
   token: string;
   selectedId: string | null;
-  lineGroup: "M1/M2" | "M3/M4";
+  lineGroup: LineGroupLabel;
   onSelect: (id: string | null) => void;
   statusBar?: ReactNode;
   statusPopup?: ReactNode;

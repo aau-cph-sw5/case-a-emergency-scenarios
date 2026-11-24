@@ -25,10 +25,10 @@ import {
   roundtripTurnbacks,
   routesBetween,
   usesCrossover,
-  type LineGroup,
   type Route,
 } from "./admin-routes";
 import { routeColors } from "./admin-line-colors";
+import type { LineGroupLabel } from "../../shared/auth/line-groups";
 
 type AdminView = "home" | "group" | "editor" | "staffing" | "complete";
 
@@ -42,7 +42,7 @@ function isCreatedScenario(value: unknown): value is { scenarioId: string } {
 
 function readAdminLocation(): {
   view: AdminView;
-  lineGroup?: LineGroup;
+  lineGroup?: LineGroupLabel;
   editingLine?: boolean;
 } {
   const path = window.location.pathname.replace(/\/$/, "");
@@ -79,7 +79,7 @@ export function useScenarioBuilder(token: string) {
       ? "staffing"
       : location.view;
   });
-  const [lineGroup, setLineGroup] = useState<LineGroup>(
+  const [lineGroup, setLineGroup] = useState<LineGroupLabel>(
     () => readAdminLocation().lineGroup ?? initialDraft?.lineGroup ?? "M1/M2",
   );
   const [scenarioId, setScenarioId] = useState(
@@ -412,7 +412,11 @@ export function useScenarioBuilder(token: string) {
     };
   });
 
-  function navigate(nextView: AdminView, group?: LineGroup, editing = false) {
+  function navigate(
+    nextView: AdminView,
+    group?: LineGroupLabel,
+    editing = false,
+  ) {
     const url = new URL(window.location.href);
     const leavingDraft =
       nextView === "home" ||
@@ -437,7 +441,7 @@ export function useScenarioBuilder(token: string) {
     setEditingLine(editing);
   }
 
-  function selectGroup(group: LineGroup) {
+  function selectGroup(group: LineGroupLabel) {
     if (group !== lineGroup) {
       setRoutes([]);
       setStaffing([]);
