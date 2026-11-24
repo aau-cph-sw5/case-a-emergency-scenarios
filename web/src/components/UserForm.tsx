@@ -134,6 +134,11 @@ export function UserForm({
           ))}
         </select>
       </label>
+      {isSelf && (
+        <p className="user-form-note">
+          Når du gemmer, bliver du logget ud og skal logge ind igen.
+        </p>
+      )}
       {shownError && <p role="alert">{shownError}</p>}
       <div className="user-form-actions">
         <button type="submit" disabled={saving}>

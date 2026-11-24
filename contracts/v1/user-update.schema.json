@@ -13,6 +13,10 @@
       "pattern": "[0-9]"
     },
     "role": { "enum": ["STEWARD", "OPERATOR", "ADMIN"] },
-    "lineGroup": { "enum": ["M1_M2", "M3_M4"] }
+    "lineGroup": { "enum": ["M1_M2", "M3_M4"] },
+    "disabled": {
+      "type": "boolean",
+      "description": "true disables the account so it cannot sign in; false enables it again."
+    }
   }
 }

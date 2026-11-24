@@ -202,24 +202,27 @@ test("station messages are guarded, stored, logged and idempotent", async () => 
     "E0007",
   );
 
-  // The incident event contains the message data, not the steward's identity.
+  // The incident event contains the message data and sender, not the steward's identity.
   const events = await sql<
     {
+      schemaVersion: number;
       actorId: string;
       actorRole: string | null;
       payload: Record<string, unknown>;
     }[]
   >`
-    SELECT actor_id, actor_role, payload
+    SELECT schema_version, actor_id, actor_role, payload
     FROM incident_events
     WHERE type = 'STATION_MESSAGE_WRITTEN'
       AND subject_id = ${String(message.id)}
   `;
 
   assert.equal(events.length, 1);
+  assert.equal(events[0].schemaVersion, 2);
   assert.equal(events[0].actorRole, null);
   assert.notEqual(events[0].actorId, String(stewardId));
   assert.equal(events[0].payload.station, station);
+  assert.equal(events[0].payload.sender, "STATION");
   assert.equal(events[0].payload.text, messageBody.text);
   assert.equal(events[0].payload.writtenAt, message.writtenAt);
   assert.equal(events[0].payload.receivedAt, message.receivedAt);
