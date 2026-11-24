@@ -13,7 +13,7 @@ body {
 }
 .login-page input:focus-visible,
 .login-page [role="button"]:focus-visible {
-  outline: 3px solid #00a4bf;
+  outline: var(--operator-focus-width) solid var(--operator-focus);
   outline-offset: 2px;
 }
 .login-page [role="button"]:not([aria-disabled="true"]):hover {

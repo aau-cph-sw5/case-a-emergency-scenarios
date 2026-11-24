@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { operatorCssVars } from "../../shared/Theme";
 import { LoginScreen } from "../../shared/LoginScreen";
 import { useSession } from "../../shared/auth/use-session";
 import { useAuthenticatedSocket } from "../../shared/socket/useAuthenticatedSocket";
@@ -69,7 +70,7 @@ export function App() {
       );
     }
     return (
-      <div className="login-page">
+      <div className="login-page" style={operatorCssVars}>
         <LoginScreen apiBaseUrl="" client="web" onLoggedIn={completeLogin} />
       </div>
     );
