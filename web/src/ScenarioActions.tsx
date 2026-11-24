@@ -36,10 +36,11 @@ export function ScenarioActions({
         <button
           type="button"
           className="scenario-switch"
+          aria-label="Skift scenarie"
           disabled={busy}
           onClick={onSwitch}
         >
-          Skift scenarie
+          Skift
         </button>
       )}
       {!isActive && (

@@ -186,7 +186,7 @@ describe("scenario preview and activation", () => {
 
   it("opens switching and cancels back to the current scenario without an API call", async () => {
     await renderList(null, { activations: [activated] });
-    await click("Skift scenarie");
+    await click("Skift");
     expect(
       container.querySelector<HTMLElement>(".scenario-picker")?.hidden,
     ).toBe(false);
@@ -214,7 +214,7 @@ describe("scenario preview and activation", () => {
     jest.useFakeTimers();
     try {
       await renderList(null, { activations: [activated] });
-      await click("Skift scenarie");
+      await click("Skift");
       await click("Annuller");
       await act(async () => {
         jest.advanceTimersByTime(350);
@@ -236,7 +236,7 @@ describe("scenario preview and activation", () => {
     };
     jest.mocked(postJson).mockResolvedValue(switched);
     await renderList(null, { activations: [activated] });
-    await click("Skift scenarie");
+    await click("Skift");
     await click(first.name);
     expect(button("START scenarie").disabled).toBe(true);
     await click(second.name);
@@ -277,7 +277,7 @@ describe("scenario preview and activation", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     jest.mocked(postJson).mockRejectedValue(new Error("offline"));
     await renderList(null, { activations: [activated] });
-    await click("Skift scenarie");
+    await click("Skift");
     await click(second.name);
     await click("START scenarie");
     await click("Bekræft");
