@@ -82,10 +82,19 @@ export const colors = {
   statusRed: palette.metroLineThree,
   statusRedBorder: palette.darkRed,
   statusYellowText: palette.darkYellow,
+  statusRedText: palette.metroDeepRed, // 9.2:1 on white, so legible as small text
   subtleBorder: palette.lightGrey, // card outlines that should not compete with the status colour
   requiredStation: palette.signalOrange, // a station the scenario needs staff at; no line on the map uses it
   blockedTrack: palette.metroDeepRed, // darker than M3's red, and drawn dashed to tell them apart
 };
+
+// The three status words, written once: a steward who has arrived, one on the
+// way and a spot still missing. Anything that names them uses these.
+export const statusLabels = {
+  arrived: "Ankommet",
+  onTheWay: "På vej",
+  missing: "Mangler",
+} as const;
 
 export const messageSymbols = { pin: "📌" } as const;
 
@@ -99,8 +108,12 @@ export const stewardStatus: Partial<
     { label: string; symbol?: string; color: string }
   >
 > = {
-  PENDING: { label: "På vej", color: colors.statusYellowText },
-  MANNED: { label: "Ankommet", symbol: "✓", color: colors.statusGreen },
+  PENDING: { label: statusLabels.onTheWay, color: colors.statusYellowText },
+  MANNED: {
+    label: statusLabels.arrived,
+    symbol: "✓",
+    color: colors.statusGreen,
+  },
   TASK_DONE: {
     label: "Opgave udført",
     symbol: "✓✓",
@@ -130,6 +143,12 @@ export const DIDLineColors = [
   palette.DIDLineEight,
 ];
 
+// The two corner sizes of the operator and admin web pages (design guide: outer
+// = inner x 3): 4 for things you press or type in, 12 for things that hold
+// content. Circles use 50%.
+export const controlRadius = 4;
+export const containerRadius = 12;
+
 // Controls the corner rounding of every element (the app currently has none).
 export const radius = 0;
 // Cards in the operator view follow the wireframe's rounded corners, without
@@ -138,6 +157,8 @@ export const cardRadius = 6;
 // The steward app's status and task panels follow the design group's sketch,
 // which is rounder than the operator cards.
 export const panelRadius = 12;
+
+export const weightBold = "700" as const;
 
 export const text = {
   body: {},
@@ -154,6 +175,20 @@ export const text = {
     fontWeight: "600" as const,
   },
   mapLabel: { fontSize: "18", fontWeight: "bold" as const }, // SVG <Text> props
+  // Operator view sizes: body text is 13 or more (Operator Design Guide,
+  // Typography); 12 of text.small is for a time stamp only.
+  operatorBody: { fontSize: 13 }, // detail lines, legend labels
+  operatorCompactName: { fontSize: 14, fontWeight: "600" as const },
+  operatorName: { fontSize: 15 }, // a station name in the operator list
+  operatorLabel: { fontSize: 16 }, // a label next to a figure
+  operatorMarkerCount: { fontSize: 17, fontWeight: weightBold },
+  // The big covered count.
+  operatorFigureLarge: {
+    fontSize: 56,
+    lineHeight: 60,
+    letterSpacing: -2,
+    fontWeight: weightBold,
+  },
   // A small heading above a figure, e.g. "STATIONS COVERED".
   label: { fontSize: 11, fontWeight: "700" as const, letterSpacing: 1 },
   // The big number in a figure, e.g. the 8 in "8 af 15".
@@ -163,7 +198,51 @@ export const spacing = {
   small: 4,
   medium: 12,
   large: 16,
+  // The other values the operator station components repeat, by pixel size.
+  s3: 3,
+  s5: 5,
+  s6: 6,
+  s8: 8,
+  s9: 9,
+  s14: 14,
+  s18: 18,
 };
+
+// Row density in the operator station list: padding and name size.
+export const rowDensity = {
+  roomy: { paddingVertical: spacing.s14, nameSize: 19 },
+  snug: {
+    paddingVertical: spacing.s9,
+    nameSize: text.operatorLabel.fontSize,
+  },
+  tight: {
+    paddingVertical: spacing.small,
+    nameSize: text.operatorBody.fontSize,
+  },
+} as const;
+
+// A station that is not in focus is drawn at this opacity (map, list).
+export const mutedOpacity = 0.35;
+
+// Side of the colour square in a legend.
+export const legendSquare = 12;
+
+// Thick edge that marks a card's status colour.
+export const accentBorderWidth = 4;
+// A heavy rule under a heading or beside a notice.
+export const ruleWidth = 3;
+
+// One steward cell in a station row (kept small so it reads as a person, not a
+// station).
+export const stewardCell = { flex: 1, maxWidth: 16, height: 14 } as const;
+
+// A station's cell in the coverage overview: wide enough to carry the station
+// code, 4 px corners like anything pressed or marked (Operator Design Guide).
+export const coverageCell = {
+  height: 36,
+  maxWidth: 72,
+  borderRadius: controlRadius,
+} as const;
 
 export const surface = {
   backgroundColor: colors.background,
@@ -335,4 +414,16 @@ export const coverageColors = {
   covered: { fill: colors.statusGreen, text: colors.textInverse },
   partial: { fill: colors.statusYellow, text: colors.text },
   gap: { fill: colors.statusRed, text: colors.textInverse },
+} as const;
+
+// One colour per staffing status, for a steward's station (MANNED, PENDING,
+// UNMANNED) and for a station's coverage (covered, partial, gap). Both sets use
+// the same green, yellow and red.
+export const statusColors = {
+  MANNED: colors.statusGreen,
+  PENDING: colors.statusYellow,
+  UNMANNED: colors.statusRed,
+  covered: coverageColors.covered.fill,
+  partial: coverageColors.partial.fill,
+  gap: coverageColors.gap.fill,
 } as const;
