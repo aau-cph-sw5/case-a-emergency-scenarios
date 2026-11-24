@@ -56,16 +56,20 @@ const decisions = [
   ["Passager med akut sygdom i toget", null],
   ["Der er problemer med elevatoren", null],
   ["Spor 2 er lukket", null],
-  // Known misses, kept so a change to them is noticed:
-  // codes only count in capitals, so lowercase "for" and "kn" name nothing.
-  ["tog holder stille mellem for og kn på spor 2", null],
-  // the right segment, but many words that match nothing lower the score.
+  // More detail must not lower the confidence: only the first few words that
+  // match nothing count (MAX_UNKNOWN_TERMS), so a long description of the same
+  // segment still gets it.
   [
     "Hej, vi har lige fået en melding fra føreren om at toget er gået i stå og ikke kan køre videre, det er mellem Christianshavn og Amagerbro på spor 1",
-    null,
+    "KHC-AMB-1",
   ],
-  // one station and many other words: the right station, below the threshold.
-  ["Nødbremse aktiveret på Forum, toget holder ved perronen spor 1", null],
+  [
+    "Nødbremse aktiveret på Forum, toget holder ved perronen spor 1",
+    "FB-FOR-1",
+  ],
+  // Known miss, kept so a change to it is noticed:
+  // codes only count in capitals, so lowercase "for" and "kn" name nothing.
+  ["tog holder stille mellem for og kn på spor 2", null],
   // only the station matches, so a lexical score cannot tell it apart.
   ["Elevatoren på Nørreport er i stykker", "FOR-KN-1"],
   // every word matches, so it scores 1 although 21 scenarios tie.
