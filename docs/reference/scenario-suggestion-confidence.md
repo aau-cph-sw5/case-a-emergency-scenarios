@@ -38,7 +38,13 @@ rejected.
 
 ## Threshold
 
-`DEFAULT_CONFIDENCE_THRESHOLD = 0.15`, provisional until the evaluation (#421)
+There are two values for the same cut. On the ranker's own score it is 0.15; on
+the lifted confidence the endpoint returns it is
+`DEFAULT_CONFIDENCE_THRESHOLD = toConfidence(liftScore(0.15)) = 0.3859`, with
+`liftScore(s) = 1 - (1 - s)^3`. `rankerScore` carries the 0.3859, so only the
+default ranker scorer gets it; any other scorer carries its own `threshold` (e5
+has `E5_CONFIDENCE_THRESHOLD`) or is passed one, and `suggestScenarios` throws
+if it has none. The 0.15 is provisional until the evaluation (#421)
 measures it on real descriptions. It was chosen on an invented catalogue of one
 scenario per M1/M2 segment and track (42 scenarios), with
 `BM25Ranker(createDanishTokenize(stations))` and `includeUnknownTerms: true`.
@@ -57,17 +63,47 @@ scenario per M1/M2 segment and track (42 scenarios), with
 | Der er en person i sporet ved Amagerbro, spor 2 er spærret mod Lergravsparken | 0.280 | 1 | Right segment first |
 | Elevatoren på Nørreport er i stykker | 0.202 | 4 | Shortlist, but no incident on the track |
 | Spor 2 er lukket | 0.135 | 21 | Full list |
-| Nødbremse aktiveret på Forum, toget holder ved perronen spor 1 | 0.117 | 2 | Full list, although the station is right |
-| Hej, vi har lige fået en melding fra føreren … mellem Christianshavn og Amagerbro på spor 1 | 0.090 | 1 | Full list, although the segment is right |
-| tog holder stille mellem for og kn på spor 2 | 0.037 | 21 | Full list: lowercase codes name no station |
+| Nødbremse aktiveret på Forum, toget holder ved perronen spor 1 | 0.181 | 2 | Right station first |
+| Hej, vi har lige fået en melding fra føreren … mellem Christianshavn og Amagerbro på spor 1 | 0.266 | 1 | Right segment first, however long the description |
+| tog holder stille mellem for og kn på spor 2 | 0.049 | 21 | Full list: lowercase codes name no station |
 | Passager med akut sygdom i toget; Der er problemer med elevatoren | 0 | 42 | Full list |
 | Spor 1 | 1.000 | 21 | Shortlist of 5 of the 21 |
 
-Every description that names a segment scored at least 0.280, and every one
-that names no place but a track scored at most 0.135, so 0.15 lies between
-them, closer to the vague side. A threshold between 0.09 and 0.117 would also
-let the last two correct descriptions through, but it would let "Spor 2 er
-lukket" through too, with 21 scenarios tied.
+Every description that names a place scored at least 0.181, and every one that
+names no place but a track scored at most 0.135, so 0.15 lies between them,
+closer to the vague side. A lower threshold would let "Spor 2 er lukket"
+through too, with 21 scenarios tied.
+
+### How the score is shown
+
+The numbers in this table and the threshold are the ranker's own scores. A
+right match only reaches 0.3 to 0.5 there, because even a short description has
+a few words that match no scenario and they count towards the best possible
+score. As a percentage in the suggestion list that read as a poor match. So the
+confidence the endpoint returns is the ranker's score lifted by
+`1 - (1 - score)^3` (`CONFIDENCE_CURVE_POWER` in `confidence.ts`). The order
+and every decision stay the same, 0 and 1 stay where they are, and the
+threshold moves along with it: 0.15 on the ranker's score is 0.3859 as a
+confidence. A match of 0.28 shows as 63 %, 0.40 as 78 %.
+
+### Long descriptions
+
+Two knobs compensate for the same cause, unmatched words pulling the score
+down, but do different jobs. `liftScore` (power 3) only rescales the number for
+display: order and decisions are unchanged. `MAX_UNKNOWN_TERMS = 3` changes the
+raw score, so it decides which descriptions reach the shortlist.
+
+**PO to confirm:** `MAX_UNKNOWN_TERMS` was tuned on 11 phrases (#421). It
+loosens which long, vague descriptions pass, because their extra unmatched
+words no longer lower the score. It needs checking on real descriptions.
+
+Words that match no scenario lower the confidence, which separates a
+description of a segment from one that only mentions a track. Only the first
+three count (`MAX_UNKNOWN_TERMS` in `bm25ranker.ts`). Before that, every extra
+word lowered it, so the more detail an operator gave, the lower it scored: the
+chatty description of the right segment above scored 0.090 and fell to the full
+list. Nothing lowers the confidence further after the third such word, so
+"Spor 2 er lukket" (two such words) still scores 0.135.
 
 ### includeUnknownTerms
 
