@@ -33,8 +33,11 @@ export function OperatorSections({
   const [colourSlot, setColourSlot] = useState<HTMLElement | null>(null);
   const coverageRef = useRef<HTMLElement>(null);
 
-  // Tells the CSS how tall the open status window is, so the column makes room
-  // for it. The window comes and goes, so watch the panel for it.
+  // Tells the CSS how tall the open pop-up (status window or message panel) is,
+  // so the column makes room for it and start/stop stays reachable. The pop-up
+  // comes and goes, so watch the panel for it. (Driving this from the
+  // dashboard's openPopup would need it threaded through ScenarioWorkspace, and
+  // the window also resizes and swaps for the closed notice, so observe.)
   useEffect(() => {
     const panel = coverageRef.current;
     if (!panel) return;
@@ -47,7 +50,7 @@ export function OperatorSections({
       );
     const update = () => {
       const win = panel.querySelector<HTMLElement>(
-        '[data-testid="status-window"]',
+        '[data-testid="status-window"], .operator-message-panel:not([hidden])',
       );
       measure(win);
       // Panel changes are frequent; only re-watch when the window itself
@@ -61,7 +64,12 @@ export function OperatorSections({
       }
     };
     const mutations = new MutationObserver(update);
-    mutations.observe(panel, { childList: true, subtree: true });
+    mutations.observe(panel, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["hidden"],
+    });
     update();
     return () => {
       mutations.disconnect();
