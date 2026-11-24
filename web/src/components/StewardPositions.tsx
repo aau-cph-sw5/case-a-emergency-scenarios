@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useControllableOpen } from "./useControllableOpen";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { colors, palette, stewardStatus, text } from "../../../shared/Theme";
 import type { ActiveDeployments } from "../../../shared/components/stationState";
@@ -115,22 +116,13 @@ function positionKey({ staff, station, status, time }: StewardPosition) {
   return JSON.stringify([staff, station, status, time]);
 }
 
-// The status pop-up in the bottom right corner: a button that opens a list of
-// where each steward is. Stewards are shown by user id, because Metro avoids
-// identifying them by name.
-export function StewardPositions({
-  mock = false,
-  testNotificationCount,
-  onOpen,
-}: {
-  mock?: boolean;
-  testNotificationCount?: number;
-  onOpen?: () => void;
-}) {
-  const { activations, isConnected, error } = useLiveData();
-  const [open, setOpen] = useState(mock);
-  const now = useNow(TICK_MS);
-  const positions = mock ? MOCK_LOG : stewardPositions(activations);
+// Unseen-report counter for the launcher badge: counts reports that arrive
+// while the pop-up is closed, and resets when it opens.
+function useUnseenCount(
+  activations: ActiveDeployments[],
+  positions: StewardPosition[],
+  open: boolean,
+) {
   const [notifications, setNotifications] = useState(() => ({
     activations,
     reports: new Set(positions.map(positionKey)),
@@ -147,12 +139,148 @@ export function StewardPositions({
       count: open ? 0 : notifications.count + arrivals.length,
     });
   }
+  const reset = () => setNotifications({ ...notifications, count: 0 });
+  return [notifications.count, reset] as const;
+}
 
-  const notificationCount = testNotificationCount ?? notifications.count;
+function formatClock(time: string | null | undefined) {
+  if (!time || Number.isNaN(Date.parse(time))) return "—";
+  return new Date(time).toLocaleTimeString("da-DK", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function PositionRow({ p, now }: { p: StewardPosition; now: number }) {
+  return (
+    <View
+      testID="status-message"
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 8,
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <View
+          style={{
+            width: 10,
+            height: 10,
+            marginRight: 8,
+            borderRadius: 5,
+            backgroundColor: stewardStatus[p.status]?.color ?? colors.text,
+          }}
+        />
+        <Text style={{ fontSize: 14 }}>
+          {p.staff} | <StewardStatus status={p.status} /> | {p.station}
+        </Text>
+      </View>
+      <View testID="status-message-time" style={{ alignItems: "flex-end" }}>
+        <Text style={{ fontSize: 12 }}>{formatClock(p.time)}</Text>
+        <Text style={{ fontSize: 10 }}>{formatAge(p.time, now)}</Text>
+      </View>
+    </View>
+  );
+}
+
+function StatusWindow({
+  positions,
+  now,
+  isConnected,
+  error,
+  onClose,
+}: {
+  positions: StewardPosition[];
+  now: number;
+  isConnected: boolean;
+  error: string | null;
+  onClose: () => void;
+}) {
+  return (
+    <View
+      testID="status-window"
+      style={{
+        alignSelf: "stretch",
+        marginBottom: 8,
+        overflow: "hidden",
+        borderRadius: 8,
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: palette.metroLineFour,
+      }}
+    >
+      <View
+        testID="status-window-header"
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: 12,
+          backgroundColor: palette.metroLineFour,
+        }}
+      >
+        <Text style={[text.title, { color: colors.textInverse }]}>Status</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Luk status"
+          onPress={onClose}
+        >
+          <Text style={[text.title, { color: colors.textInverse }]}>✕</Text>
+        </Pressable>
+      </View>
+      <ScrollView
+        testID="status-messages"
+        style={{ padding: 12, maxHeight: 360 }}
+      >
+        {!isConnected && (
+          <Text role="alert">
+            Ingen forbindelse til serveren. Positionerne kan være forældede.
+          </Text>
+        )}
+        {error !== null && (
+          <Text role="alert">Kunne ikke hente positioner: {error}</Text>
+        )}
+        {positions.length === 0 && <Text>Ingen positioner endnu.</Text>}
+        {positions.map((p) => (
+          <PositionRow key={positionKey(p)} p={p} now={now} />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+// The status pop-up in the bottom right corner: a button that opens a list of
+// where each steward is. Stewards are shown by user id, because Metro avoids
+// identifying them by name.
+export function StewardPositions({
+  mock = false,
+  testNotificationCount,
+  onOpen,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  mock?: boolean;
+  testNotificationCount?: number;
+  onOpen?: () => void;
+  // See useControllableOpen.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const { activations, isConnected, error } = useLiveData();
+  const [open, setOpen] = useControllableOpen(
+    mock,
+    controlledOpen,
+    onOpenChange,
+  );
+  const now = useNow(TICK_MS);
+  const positions = mock ? MOCK_LOG : stewardPositions(activations);
+  const [unseen, resetUnseen] = useUnseenCount(activations, positions, open);
+  const notificationCount = testNotificationCount ?? unseen;
 
   function toggle() {
     if (!open) {
-      setNotifications({ ...notifications, count: 0 });
+      resetUnseen();
       onOpen?.();
     }
     setOpen(!open);
@@ -165,102 +293,13 @@ export function StewardPositions({
       style={{ alignItems: "flex-end" }}
     >
       {open && (
-        <View
-          testID="status-window"
-          style={{
-            alignSelf: "stretch",
-            marginBottom: 8,
-            overflow: "hidden",
-            borderRadius: 8,
-            backgroundColor: colors.background,
-            borderWidth: 1,
-            borderColor: palette.metroLineFour,
-          }}
-        >
-          <View
-            testID="status-window-header"
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: 12,
-              backgroundColor: palette.metroLineFour,
-            }}
-          >
-            <Text style={[text.title, { color: colors.textInverse }]}>
-              Status
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Luk status"
-              onPress={() => setOpen(false)}
-            >
-              <Text style={[text.title, { color: colors.textInverse }]}>✕</Text>
-            </Pressable>
-          </View>
-          <ScrollView
-            testID="status-messages"
-            style={{ padding: 12, maxHeight: 360 }}
-          >
-            {!isConnected && (
-              <Text role="alert">
-                Ingen forbindelse til serveren. Positionerne kan være forældede.
-              </Text>
-            )}
-            {error !== null && (
-              <Text role="alert">Kunne ikke hente positioner: {error}</Text>
-            )}
-            {positions.length === 0 ? (
-              <Text>Ingen positioner endnu.</Text>
-            ) : (
-              positions.map((p) => (
-                <View
-                  key={positionKey(p)}
-                  testID="status-message"
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    paddingVertical: 8,
-                  }}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View
-                      style={{
-                        width: 10,
-                        height: 10,
-                        marginRight: 8,
-                        borderRadius: 5,
-                        backgroundColor:
-                          stewardStatus[p.status]?.color ?? colors.text,
-                      }}
-                    />
-                    <Text style={{ fontSize: 14 }}>
-                      {p.staff} | <StewardStatus status={p.status} /> |{" "}
-                      {p.station}
-                    </Text>
-                  </View>
-                  <View
-                    testID="status-message-time"
-                    style={{ alignItems: "flex-end" }}
-                  >
-                    <Text style={{ fontSize: 12 }}>
-                      {p.time && !Number.isNaN(Date.parse(p.time))
-                        ? new Date(p.time).toLocaleTimeString("da-DK", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "—"}
-                    </Text>
-                    <Text style={{ fontSize: 10 }}>
-                      {formatAge(p.time, now)}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            )}
-          </ScrollView>
-        </View>
+        <StatusWindow
+          positions={positions}
+          now={now}
+          isConnected={isConnected}
+          error={error}
+          onClose={() => setOpen(false)}
+        />
       )}
       <Pressable
         accessibilityRole="button"
