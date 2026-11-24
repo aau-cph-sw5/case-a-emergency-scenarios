@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
-import { lineColors, colors, palette, steward } from "../../../shared/Theme";
+import { colors, steward } from "../../../shared/Theme";
 import { staffingWords } from "../components/StatusBox";
 import {
   ListCard,
@@ -21,17 +21,18 @@ import { Swap } from "../components/Swap";
 import MapRender from "../../../shared/MapRenderer";
 import type { MapNetwork } from "../../../shared/network/network";
 import type { NetworkStatus } from "../network/useNetwork";
-import {
-  affectedStations,
-  affectedStretchAsMapLine,
-  networkWithoutStretch,
-} from "../../../shared/scenario/affected-stations";
+import { affectedStations } from "../../../shared/scenario/affected-stations";
 import {
   getStationState,
   stationCoverage,
 } from "../../../shared/components/stationState";
 import { zoomedViewBox } from "./map-zoom";
 import { findOwnAssignment } from "./own-assignment";
+import {
+  deriveStewardMap,
+  stewardMapScenarioKey,
+  type StewardMapData,
+} from "./steward-map-data";
 
 // One task of the own station. A task that fits on one line is a plain row.
 // A longer one shows its first line and a chevron, and a press opens it to
@@ -78,10 +79,6 @@ function TaskRow({
   );
 }
 
-// The colour of the affected stretch on the map.
-const STRETCH_COLOR = lineColors[0];
-// The colour of the steward's own station on the map.
-const OWN_COLOR = palette.metroSummerRed;
 // A station row (#376). When the stations do not all fit, the ordinary rows
 // get lower, all by the same amount, down to ROW_MIN (name and line under it
 // still fit); the own or the chosen row keeps steward.ownRowHeight.
@@ -172,9 +169,11 @@ export function ScenarioMap({
   const { scenario, state } = snapshot;
   const { fontScale } = useWindowDimensions();
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const rows = oneRowPerStation(
-    scenario.versions[0]?.stationRequirements ?? [],
-  );
+  const currentVersion =
+    scenario.versions.find(
+      (version) => version.version === scenario.currentVersion,
+    ) ?? scenario.versions[0];
+  const rows = oneRowPerStation(currentVersion?.stationRequirements ?? []);
   const { ownStation } = ownStations(
     snapshot,
     assignedStation,
@@ -183,15 +182,18 @@ export function ScenarioMap({
   // The map is drawn again only when what it shows changes (MapCard): the
   // scenario, the coverage level of a station, the own station or its size.
   const levels = stationCoverage(rows, state);
-  // The scenario's own affected tracks may lack a station the (older, saved)
-  // network does not know.
-  const missingStretch =
-    network != null &&
-    (scenario.covers ?? []).some(
-      (segment) =>
-        !network.positions[segment.stationA] ||
-        !network.positions[segment.stationB],
-    );
+  const mapData = useMemo(
+    () =>
+      network == null
+        ? null
+        : deriveStewardMap(scenario, network, {
+            fallbackColor: colors.text,
+            blockedTrackColor: colors.blockedTrack,
+          }),
+    [scenario, network],
+  );
+  const missingStretch = mapData?.missingStretch ?? false;
+  const missingRoutes = mapData?.missingRoutes ?? false;
   const notes = [
     networkIsCached && "Viser gemt metronetværk.",
     network != null &&
@@ -203,10 +205,12 @@ export function ScenarioMap({
       style={styles.fill}
       onLayout={(event) => setSize(event.nativeEvent.layout)}
     >
-      {network != null ? (
+      {network != null && mapData != null ? (
         <MapCard
           scenario={scenario}
-          scenarioKey={`${scenario.scenarioId}@${scenario.currentVersion}`}
+          scenarioKey={stewardMapScenarioKey(scenario)}
+          mapData={mapData}
+          required={rows}
           levels={levels}
           levelsKey={JSON.stringify(levels)}
           ownStation={ownStation}
@@ -218,7 +222,7 @@ export function ScenarioMap({
       ) : (
         <Text style={styles.mapMessage}>{NETWORK_MESSAGES[networkStatus]}</Text>
       )}
-      {(notes.length > 0 || missingStretch) && (
+      {(notes.length > 0 || missingStretch || missingRoutes) && (
         <View style={styles.mapNotes} pointerEvents="none">
           {notes.map((note) => (
             <Text key={note} style={styles.mapNote}>
@@ -228,6 +232,11 @@ export function ScenarioMap({
           {missingStretch && (
             <Text accessibilityRole="alert" style={styles.mapNote}>
               Den berørte strækning kan ikke vises fuldt ud på dette kort.
+            </Text>
+          )}
+          {missingRoutes && (
+            <Text accessibilityRole="alert" style={styles.mapNote}>
+              En eller flere ruter kan ikke vises på kortet.
             </Text>
           )}
         </View>
@@ -512,6 +521,8 @@ type MapCardProps = {
   // What the map shows, as plain values, so a new copy of the same scenario
   // or the same coverage does not draw the map again.
   scenarioKey: string;
+  mapData: StewardMapData;
+  required: StationRequirement[];
   levels: ReturnType<typeof stationCoverage>;
   levelsKey: string;
   ownStation: string | undefined;
@@ -529,6 +540,8 @@ type MapCardProps = {
 const MapCard = memo(
   function MapCard({
     scenario,
+    mapData,
+    required,
     levels,
     ownStation,
     network,
@@ -537,17 +550,6 @@ const MapCard = memo(
     fontScale,
   }: MapCardProps) {
     const position = (station: string) => network.positions[station];
-    const stretch = affectedStretchAsMapLine(scenario, position);
-    const networkLines = networkWithoutStretch(
-      network.lines,
-      stretch.connections,
-    );
-    // The scenario carries its own affected tracks, even if an offline map is
-    // older.
-    const availableSegments = [...network.segments, ...(scenario.covers ?? [])];
-    const required = oneRowPerStation(
-      scenario.versions[0]?.stationRequirements ?? [],
-    );
     return (
       <MapRender
         viewBox={zoomedViewBox(
@@ -557,20 +559,14 @@ const MapCard = memo(
           fontScale,
           position,
         )}
-        lines={[...networkLines, stretch]}
+        lines={mapData.lines}
         positions={network.positions}
-        availableSegments={availableSegments}
+        availableSegments={mapData.availableSegments}
         ringStations={network.ringStations}
-        colors={{
-          [scenario.name]: STRETCH_COLOR,
-          M1: palette.networkGrey,
-          M2: palette.networkGrey,
-          M3: palette.networkGrey,
-          M4: palette.networkGrey,
-        }}
+        colors={mapData.colors}
+        blockedTracks={mapData.blockedTracks}
         showLineButtons={false}
         highlightStation={ownStation}
-        highlightColor={OWN_COLOR}
         // Every station the scenario needs staff at, coloured by how far it
         // is covered right now, like the dashboard (MET-A-011).
         markedStations={required.map((row) => row.station)}
