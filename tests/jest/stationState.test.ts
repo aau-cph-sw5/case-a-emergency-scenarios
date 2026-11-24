@@ -134,13 +134,25 @@ describe("stationCoverage", () => {
     const deployments = [
       createDeployment("VAN", "MANNED"),
       createDeployment("FL", "MANNED"),
+    ];
+    expect(stationCoverage(requirements, { deployments })).toEqual({
+      VAN: "covered",
+      FL: "partial",
+      LIT: "gap",
+    });
+  });
+
+  it("lifts an empty station to partial when stewards are on the way", () => {
+    const deployments = [
+      createDeployment("VAN", "MANNED"),
+      createDeployment("FL", "MANNED"),
       createDeployment("FL", "PENDING"),
       createDeployment("LIT", "PENDING"),
     ];
     expect(stationCoverage(requirements, { deployments })).toEqual({
       VAN: "covered",
       FL: "partial",
-      LIT: "gap",
+      LIT: "partial",
     });
   });
 

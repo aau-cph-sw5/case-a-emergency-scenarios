@@ -67,14 +67,37 @@ export function countStewards(
 }
 
 // How far a required station is covered right now (MET-A-011): every
-// steward needed has arrived, some have, or none has. Stewards on the way do
-// not count yet. The coverage cards and the maps both use this rule, so they
-// always agree (#310).
+// steward needed has arrived, or some have, or none has. Arrived stewards are
+// what counts as covered; someone on the way only lifts a red station to
+// yellow. The coverage cards, the overview and the maps all use this rule, so
+// they always agree (#310).
 export type CoverageLevel = "covered" | "partial" | "gap";
 
-export function coverageLevel(arrived: number, needed: number): CoverageLevel {
+// Someone on the way makes an empty station yellow instead of red.
+export function coverageLevel(
+  arrived: number,
+  needed: number,
+  enRoute = 0,
+): CoverageLevel {
   if (arrived >= needed) return "covered";
-  return arrived === 0 ? "gap" : "partial";
+  return arrived === 0 && enRoute === 0 ? "gap" : "partial";
+}
+
+// How tight the operator rows are, so every station fits at once.
+export type Density = "roomy" | "snug" | "tight";
+
+export function densityFor(stationCount: number): Density {
+  if (stationCount <= 8) return "roomy";
+  return stationCount <= 14 ? "snug" : "tight";
+}
+
+export function levelFor(
+  active: ActiveDeployments,
+  station: string,
+  needed: number,
+): CoverageLevel {
+  const { current, enRoute } = getStationState(active, station, needed);
+  return coverageLevel(current, needed, enRoute);
 }
 
 export function stationCoverage(
@@ -84,10 +107,7 @@ export function stationCoverage(
   return Object.fromEntries(
     requirements.map(({ station, minimumStaffing }) => [
       station,
-      coverageLevel(
-        getStationState(active, station, minimumStaffing).current,
-        minimumStaffing,
-      ),
+      levelFor(active, station, minimumStaffing),
     ]),
   );
 }
