@@ -1,58 +1,41 @@
-/* Admin styling. */
-.user-admin-dashboard {
-  --admin-red: #e6140f;
-  --admin-ink: #1e1e1e;
-  --admin-line: #d0d0d0;
-  box-sizing: border-box;
-  min-height: 100dvh;
-  padding: 24px;
-  background: #fff;
-  color: var(--admin-ink);
-  font:
-    14px Arial,
-    sans-serif;
-}
-.user-admin-dashboard .admin-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.admin-menu {
-  display: flex;
-  gap: 12px;
-  margin: 24px 0;
-}
-.admin-menu button {
-  border: 1px solid var(--admin-line);
-  border-left: 4px solid var(--admin-red);
-  padding: 16px 24px;
-  background: #fff;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
+/* User admin ("Brugere"): a white card on the tunnel photo, like the operator
+   view. Colours and corners come from the --operator-* variables that
+   AdminDashboard sets on its root. */
+.user-admin-dashboard .user-admin-card {
+  max-width: 960px;
+  margin: 24px auto;
+  padding: 24px 32px 32px;
+  border-radius: var(--operator-radius-card);
+  background: var(--operator-white);
 }
 .user-admin-dashboard .admin-back {
-  margin: 16px 0;
+  margin: 0 0 16px;
 }
 .user-form [role="alert"] {
   margin: 0;
-  color: var(--admin-red);
+  color: var(--operator-red-text);
 }
 .user-admin table {
+  width: 100%;
   border-collapse: collapse;
-  margin-bottom: 24px;
+  margin-bottom: 8px;
 }
 .user-admin th,
 .user-admin td {
-  border-bottom: 1px solid var(--admin-line);
-  padding: 8px 12px;
+  border-bottom: 1px solid var(--operator-option-border);
+  padding: 10px 12px;
   text-align: left;
+}
+.user-admin th {
+  color: var(--operator-muted);
+  font-size: var(--operator-text-small);
 }
 .user-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
   max-width: 320px;
+  margin: 16px 0 24px;
 }
 .user-form label {
   display: flex;
@@ -62,13 +45,43 @@
 }
 .user-form input,
 .user-form select {
-  padding: 6px 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--operator-muted);
+  border-radius: var(--operator-radius-control);
+  background: var(--operator-white);
   font: inherit;
   font-weight: 400;
 }
 .user-form-actions {
   display: flex;
   gap: 8px;
+}
+/* Buttons: ink for the main action, outlined for the rest. */
+.user-admin-dashboard .user-admin button {
+  padding: 8px 14px;
+  border: 1px solid var(--operator-muted);
+  border-radius: var(--operator-radius-control);
+  background: var(--operator-white);
+  color: var(--operator-ink);
+  font: inherit;
+  font-weight: var(--operator-weight-bold);
+}
+.user-admin-dashboard .user-admin button:hover {
+  background: var(--operator-well);
+}
+.user-admin-dashboard .user-form button[type="submit"],
+.user-admin-dashboard .user-admin > button:first-of-type {
+  border-color: var(--operator-ink);
+  background: var(--operator-ink);
+  color: var(--operator-white);
+}
+.user-admin-dashboard .user-form button[type="submit"]:hover,
+.user-admin-dashboard .user-admin > button:first-of-type:hover {
+  background: var(--operator-ink-hover);
+}
+.user-admin-dashboard .user-admin button:disabled {
+  opacity: var(--operator-opacity-disabled);
+  cursor: default;
 }
 .visually-hidden {
   position: absolute;

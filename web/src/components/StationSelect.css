@@ -15,9 +15,9 @@
   width: 100%;
   min-height: 42px;
   padding: 9px 12px;
-  border: 1px solid #bdc6c6;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--operator-muted);
+  border-radius: var(--operator-radius-control);
+  background: var(--operator-white);
   text-align: left;
   transition:
     border-color 120ms ease,
@@ -25,23 +25,23 @@
 }
 .admin-station-trigger:hover,
 .admin-station-trigger[aria-expanded="true"] {
-  border-color: #465155;
+  border-color: var(--operator-ink);
 }
 .admin-station-trigger[aria-expanded="true"] {
-  box-shadow: 0 0 0 3px #e2e8e7;
+  box-shadow: 0 0 0 3px var(--operator-option-border);
 }
 .admin-station-value {
   font-weight: 700;
 }
 .admin-station-placeholder {
-  color: #657174;
+  color: var(--operator-muted);
 }
 .admin-station-chevron {
   width: 8px;
   height: 8px;
   flex: none;
-  border-right: 2px solid #657174;
-  border-bottom: 2px solid #657174;
+  border-right: 2px solid var(--operator-muted);
+  border-bottom: 2px solid var(--operator-muted);
   transform: rotate(45deg) translateY(-2px);
 }
 .admin-station-menu {
@@ -52,10 +52,10 @@
   width: max(100%, 200px);
   max-width: min(270px, calc(100vw - 40px));
   padding: 8px;
-  border: 1px solid #d7dddd;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 10px 25px #15292926;
+  border: 1px solid var(--operator-option-border);
+  border-radius: var(--operator-radius-card);
+  background: var(--operator-white);
+  box-shadow: var(--operator-shadow);
 }
 .admin-station-select:nth-child(2) .admin-station-menu {
   right: 0;
@@ -63,8 +63,8 @@
 }
 .admin-line-form .admin-station-menu input {
   padding: 8px 10px;
-  background: #f3f5f5;
-  font-size: 13px;
+  background: var(--operator-white);
+  font-size: var(--operator-text-13);
 }
 .admin-station-options {
   display: grid;
@@ -79,29 +79,31 @@
   width: 100%;
   padding: 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--operator-radius-control);
   background: transparent;
   text-align: left;
   font-weight: 700;
 }
-.admin-station-option:hover,
+.admin-station-option:hover {
+  background: var(--operator-well);
+}
 .admin-station-option[aria-pressed="true"] {
-  background: #eff4f3;
+  background: var(--operator-option-border);
 }
 .admin-station-dot {
   width: 9px;
   height: 9px;
   flex: none;
-  border: 2px solid #657174;
+  border: 2px solid var(--operator-muted);
   border-radius: 50%;
 }
 .admin-station-check {
   margin-left: auto;
-  color: #007d55;
+  color: var(--operator-ink);
 }
 .admin-station-empty {
   margin: 0;
   padding: 12px 8px;
-  color: #657174;
-  font-size: 13px;
+  color: var(--operator-muted);
+  font-size: var(--operator-text-13);
 }
