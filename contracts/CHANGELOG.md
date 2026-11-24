@@ -1,11 +1,20 @@
 # Scenario State Contract Changelog
 
-## 8.12.0 - 2026-11-23
+## 8.13.0 - 2026-11-24
 
 Additive. Steward phones register for push notifications (MET-A-018, ADR 0014).
 
 - New `PUT /api/v1/me/push-token` with `push-token-request.schema.json` (`pushToken`), for the STEWARD role. Stores the phone's Firebase Cloud Messaging token on the current login session and answers 204. Other roles get 403 `E0002`. Logging out or logging in again removes the token, and a token another account still holds is moved to this one.
-- `info.version` in `openapi.yaml` is now 8.12.0.
+- `info.version` in `openapi.yaml` is now 8.13.0.
+
+## 8.12.0 - 2026-11-23
+
+Additive. Admins can disable and delete user accounts, and an edit signs the user out (MET-A-030, #426).
+
+- After an admin edits a user with `PATCH /api/v1/users/{userId}`, the user's sessions are ended and their sockets disconnected, so they sign in again with the new values.
+- `user.schema.json` has a required `disabled` field, and `user-update.schema.json` accepts `disabled`. A disabled account cannot sign in until an admin enables it again, and it is still in the list.
+- New `DELETE /api/v1/users/{userId}` soft-deletes an account: it cannot sign in and is left out of the list, but stays in the database so activations and log events keep their user. It returns 204, 404 for an unknown or already deleted account, and 409 when admins try to delete themselves.
+- Admins cannot disable or delete their own account.
 
 ## 8.11.1 - 2026-11-22
 

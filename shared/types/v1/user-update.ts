@@ -15,4 +15,8 @@ export interface UserUpdate {
   password?: string;
   role?: "STEWARD" | "OPERATOR" | "ADMIN";
   lineGroup?: "M1_M2" | "M3_M4";
+  /**
+   * true disables the account so it cannot sign in; false enables it again.
+   */
+  disabled?: boolean;
 }

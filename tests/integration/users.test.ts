@@ -2,8 +2,11 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { Server } from "socket.io";
+import { io as connect, type Socket } from "socket.io-client";
 import { app } from "../../src/app.js";
 import { getDatabase } from "../../src/db/client.js";
+import { attachSocketHandlers } from "../../src/realtime/socket-server.js";
 import { validate } from "../../src/validation/contract-validator.js";
 import { ERROR_CODES } from "../../shared/error-codes.js";
 import { seedTestUsers } from "../../scripts/seed-test-users.js";
@@ -17,6 +20,7 @@ const CREATED = `${PREFIX}created`;
 let server: HttpServer;
 let baseUrl: string;
 let adminId: number;
+const sockets: Socket[] = [];
 
 before(async () => {
   await owner`DELETE FROM users WHERE username LIKE ${`${CREATED}%`}`;
@@ -24,6 +28,9 @@ before(async () => {
   adminId = users.find((user) => user.role === "ADMIN")!.id;
 
   server = createServer(app);
+  const io = new Server(server);
+  app.locals.io = io;
+  attachSocketHandlers(io);
   await new Promise<void>((resolve) =>
     server.listen(0, "127.0.0.1", () => resolve()),
   );
@@ -31,6 +38,10 @@ before(async () => {
 });
 
 after(async () => {
+  sockets.forEach((socket) => socket.disconnect());
+  const io = app.locals.io as Server;
+  delete app.locals.io;
+  await new Promise<void>((resolve) => io.close(() => resolve()));
   await owner`DELETE FROM users WHERE username LIKE ${`${CREATED}%`}`;
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await getDatabase().end();
@@ -66,7 +77,7 @@ async function tokenFor(
 const adminToken = () => tokenFor(`${PREFIX}admin`, "admin123");
 
 function request(
-  method: "GET" | "POST" | "PATCH",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
   token: string,
   body?: unknown,
@@ -87,6 +98,20 @@ function me(token: string) {
   });
 }
 
+// Resolves with the connected socket, or rejects with connect_error.
+function open(token: string) {
+  const socket = connect(baseUrl, {
+    auth: { token },
+    transports: ["websocket"],
+    reconnection: false,
+  });
+  sockets.push(socket);
+  return new Promise<Socket>((resolve, reject) => {
+    socket.once("welcome", () => resolve(socket));
+    socket.once("connect_error", reject);
+  });
+}
+
 async function createAccount(
   token: string,
   username: string,
@@ -103,7 +128,7 @@ async function createAccount(
   return (await response.json()) as { userId: number; username: string };
 }
 
-test("only an admin may list, create or edit users", async () => {
+test("only an admin may list, create, edit or delete users", async () => {
   const tokens = [
     await tokenFor(`${PREFIX}operator`, "operator123"),
     await tokenFor(`${PREFIX}steward`, "steward123", "mobile"),
@@ -119,6 +144,7 @@ test("only an admin may list, create or edit users", async () => {
       }),
       // An invalid body is refused for the role first, so it reveals nothing.
       await request("PATCH", `/api/v1/users/${adminId}`, token, {}),
+      await request("DELETE", `/api/v1/users/${adminId}`, token),
     ]) {
       assert.equal(response.status, 403);
       assert.equal(
@@ -279,6 +305,172 @@ test("an edit that changes only the role keeps the password", async () => {
   assert.equal(response.status, 200);
   assert.equal((await response.json()).role, "ADMIN");
   assert.equal((await login(user.username, "first-password-1")).status, 200);
+});
+
+test("an edit signs the user out and closes their sockets, but no one else's", async () => {
+  const admin = await adminToken();
+  const user = await createAccount(admin, `${CREATED}-signed-out`);
+  const userToken = await tokenFor(user.username, "first-password-1");
+  const userSocket = await open(userToken);
+  const adminSocket = await open(admin);
+  const disconnected = new Promise<string>((resolve) =>
+    userSocket.once("disconnect", resolve),
+  );
+
+  const response = await request(
+    "PATCH",
+    `/api/v1/users/${user.userId}`,
+    admin,
+    { lineGroup: "M3_M4" },
+  );
+  assert.equal(response.status, 200);
+
+  // The old token is refused, and the open socket is closed by the server.
+  assert.equal((await me(userToken)).status, 401);
+  assert.equal(await disconnected, "io server disconnect");
+  await assert.rejects(open(userToken), { message: "E0001" });
+  // The admin who made the edit is not affected.
+  assert.equal((await me(admin)).status, 200);
+  assert.equal(adminSocket.connected, true);
+
+  // Signing in again gives the new line group.
+  const fresh = await tokenFor(user.username, "first-password-1");
+  assert.equal((await (await me(fresh)).json()).lineGroup, "M3_M4");
+});
+
+test("an admin who edits their own account is signed out", async () => {
+  const token = await adminToken();
+  const [before] = await owner<{ lineGroup: string }[]>`
+    SELECT line_group AS "lineGroup" FROM users WHERE id = ${adminId}
+  `;
+  const other = before.lineGroup === "M1_M2" ? "M3_M4" : "M1_M2";
+
+  const response = await request("PATCH", `/api/v1/users/${adminId}`, token, {
+    lineGroup: other,
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await me(token)).status, 401);
+
+  // Put the line group back for the other tests.
+  await owner`UPDATE users SET line_group = ${before.lineGroup} WHERE id = ${adminId}`;
+});
+
+test("a disabled user cannot sign in until an admin enables them again", async () => {
+  const admin = await adminToken();
+  const user = await createAccount(admin, `${CREATED}-disabled`);
+  const userToken = await tokenFor(user.username, "first-password-1");
+  const userSocket = await open(userToken);
+  const disconnected = new Promise<string>((resolve) =>
+    userSocket.once("disconnect", resolve),
+  );
+
+  const response = await request(
+    "PATCH",
+    `/api/v1/users/${user.userId}`,
+    admin,
+    { disabled: true },
+  );
+  assert.equal(response.status, 200);
+  const disabled = await response.json();
+  assert.deepEqual(validate(disabled, "user.schema.json"), []);
+  assert.equal(disabled.disabled, true);
+
+  // Signed out at once, and the right password no longer signs in.
+  assert.equal((await me(userToken)).status, 401);
+  assert.equal(await disconnected, "io server disconnect");
+  assert.equal((await login(user.username, "first-password-1")).status, 401);
+
+  // Still in the list, marked as disabled.
+  const listed = (await (
+    await request("GET", "/api/v1/users", admin)
+  ).json()) as { userId: number; disabled: boolean }[];
+  assert.equal(
+    listed.find((entry) => entry.userId === user.userId)?.disabled,
+    true,
+  );
+
+  const enabled = await request(
+    "PATCH",
+    `/api/v1/users/${user.userId}`,
+    admin,
+    { disabled: false },
+  );
+  assert.equal((await enabled.json()).disabled, false);
+  assert.equal((await login(user.username, "first-password-1")).status, 200);
+});
+
+test("a deleted user cannot sign in, leaves the list and keeps their row", async () => {
+  const admin = await adminToken();
+  const user = await createAccount(admin, `${CREATED}-deleted`);
+  const userToken = await tokenFor(user.username, "first-password-1");
+  const userSocket = await open(userToken);
+  const disconnected = new Promise<string>((resolve) =>
+    userSocket.once("disconnect", resolve),
+  );
+
+  const response = await request(
+    "DELETE",
+    `/api/v1/users/${user.userId}`,
+    admin,
+  );
+  assert.equal(response.status, 204);
+
+  assert.equal((await me(userToken)).status, 401);
+  assert.equal(await disconnected, "io server disconnect");
+  assert.equal((await login(user.username, "first-password-1")).status, 401);
+
+  const listed = (await (
+    await request("GET", "/api/v1/users", admin)
+  ).json()) as { userId: number }[];
+  assert.equal(
+    listed.some((entry) => entry.userId === user.userId),
+    false,
+  );
+
+  // A deleted account cannot be edited or deleted again.
+  for (const again of [
+    await request("PATCH", `/api/v1/users/${user.userId}`, admin, {
+      disabled: false,
+    }),
+    await request("DELETE", `/api/v1/users/${user.userId}`, admin),
+  ]) {
+    assert.equal(again.status, 404);
+  }
+
+  // The row stays, so whatever points to the user keeps pointing to it.
+  const [stored] = await owner<{ deleted: boolean }[]>`
+    SELECT deleted_at IS NOT NULL AS deleted FROM users WHERE id = ${user.userId}
+  `;
+  assert.equal(stored.deleted, true);
+});
+
+test("an admin cannot disable or delete their own account", async () => {
+  const token = await adminToken();
+  for (const response of [
+    await request("PATCH", `/api/v1/users/${adminId}`, token, {
+      disabled: true,
+    }),
+    await request("DELETE", `/api/v1/users/${adminId}`, token),
+  ]) {
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).error.code, ERROR_CODES.CONFLICT);
+  }
+
+  // Refused before anything was written, so the admin is still signed in.
+  assert.equal((await me(token)).status, 200);
+  const [stored] = await owner<{ disabled: boolean; deleted: boolean }[]>`
+    SELECT is_disabled AS disabled, deleted_at IS NOT NULL AS deleted
+    FROM users WHERE id = ${adminId}
+  `;
+  assert.deepEqual({ ...stored }, { disabled: false, deleted: false });
+});
+
+test("an unknown user cannot be deleted", async () => {
+  const token = await adminToken();
+  for (const id of ["2147483647", "not-a-number", "0"]) {
+    const response = await request("DELETE", `/api/v1/users/${id}`, token);
+    assert.equal(response.status, 404, id);
+  }
 });
 
 test("an unknown user cannot be edited", async () => {

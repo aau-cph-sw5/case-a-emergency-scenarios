@@ -1,4 +1,4 @@
-import { getDatabase } from "../db/client.js";
+import { getDatabase, type Db } from "../db/client.js";
 import { RENEWAL_WINDOW_MS } from "../../shared/auth/renewal.js";
 
 export type AuthSession = {
@@ -87,9 +87,11 @@ async function revokeSession(userId: number, jti: string): Promise<void> {
   `;
 }
 
-async function revokeAllSessionsForUser(userId: number): Promise<void> {
-  const sql = getDatabase();
-  await sql`
+async function revokeAllSessionsForUser(
+  userId: number,
+  db: Db = getDatabase(),
+): Promise<void> {
+  await db`
     UPDATE auth_sessions
     SET revoked_at = CURRENT_TIMESTAMP
     WHERE user_id = ${userId} AND revoked_at IS NULL
