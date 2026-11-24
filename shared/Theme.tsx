@@ -1,5 +1,6 @@
 // Single source of truth for shared styling.
 import { Platform } from "react-native";
+import type { CSSProperties } from "react";
 import type { ScenarioState } from "./types/v1/scenario-state";
 
 // Raw colours. Nothing outside this object holds a hex value.
@@ -165,6 +166,10 @@ export const spacing = {
   large: 16,
 };
 
+// A heavy rule under a heading or beside a notice, and the focus ring.
+export const ruleWidth = 3;
+export const focusWidth = ruleWidth;
+
 export const surface = {
   backgroundColor: colors.background,
   borderRadius: radius,
@@ -215,6 +220,9 @@ export const operatorCssVars = {
   "--operator-green": palette.metroLineOne,
   "--operator-blue": palette.metroLineFour,
   "--operator-ink": palette.metroBlack,
+  "--operator-white": palette.metroWhite,
+  // Hover of an ink button: ink lightened 18% towards white.
+  "--operator-ink-hover": `color-mix(in srgb, ${palette.metroBlack} 82%, ${palette.metroWhite})`,
   "--operator-muted": palette.mutedGrey,
   "--operator-option-border": palette.optionGrey,
   "--operator-well": palette.wellGrey,
@@ -227,7 +235,8 @@ export const operatorCssVars = {
   // alarm next to the map's warning colours (design review, #357).
   "--operator-pressed": `${palette.metroBlack}1a`,
   "--operator-pressed-border": `${palette.metroBlack}59`,
-} as const;
+  "--operator-focus-width": `${focusWidth}px`,
+} as CSSProperties;
 // The steward app's colours and sizes (#375). The status colours match the
 // slide that leads to the status: yellow on the way, green arrived, red
 // checked out. They are the exact line colours from Metro's brand guide (M2
