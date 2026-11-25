@@ -1,9 +1,5 @@
 import { getCrossovers, type Crossover } from "../../mockData/data";
-import {
-  connectionKey,
-  edgeAllowed,
-  type MapNetwork,
-} from "../../shared/network/network";
+import { connectionKey, type MapNetwork } from "../../shared/network/network";
 
 export type LineGroup = "M1/M2" | "M3/M4";
 export function groupCrossovers(group: LineGroup) {
@@ -71,45 +67,6 @@ export function groupStations(group: LineGroup, lines: MapNetwork["lines"]) {
       groupLines(group, lines).flatMap((line) => line.connections.flat()),
     ),
   ].sort((a, b) => a.localeCompare(b, "da"));
-}
-
-// Return the shortest routes first, so alternate paths around the ring remain selectable.
-export function routesBetween(
-  group: LineGroup,
-  from: string,
-  to: string,
-  lines: MapNetwork["lines"],
-  segments?: MapNetwork["segments"],
-  trackNumber?: 1 | 2 | 12,
-): string[][] {
-  if (!from || !to || from === to) return [];
-  const neighbours = new Map<string, Set<string>>();
-  const tracks = trackNumber === 12 ? [1, 2] : trackNumber ? [trackNumber] : [];
-  for (const line of groupLines(group, lines)) {
-    for (const [a, b] of line.connections) {
-      if (!edgeAllowed(line, segments, tracks, a, b)) continue;
-      if (!neighbours.has(a)) neighbours.set(a, new Set());
-      if (!neighbours.has(b)) neighbours.set(b, new Set());
-      neighbours.get(a)!.add(b);
-      neighbours.get(b)!.add(a);
-    }
-  }
-  const pending = [[from]];
-  const routes: string[][] = [];
-  while (pending.length && routes.length < 8) {
-    const path = pending.shift()!;
-    const station = path[path.length - 1];
-    if (station === to) {
-      routes.push(path);
-      continue;
-    }
-    for (const next of [...(neighbours.get(station) ?? [])].sort((a, b) =>
-      a.localeCompare(b, "da"),
-    )) {
-      if (!path.includes(next)) pending.push([...path, next]);
-    }
-  }
-  return routes;
 }
 
 export function coverageCandidates(
