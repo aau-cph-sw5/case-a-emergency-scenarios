@@ -1,5 +1,5 @@
-import { screen } from "@testing-library/react-native";
-import { Circle } from "react-native-svg";
+import { screen, within } from "@testing-library/react-native";
+import Svg, { Circle } from "react-native-svg";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
 import { buildMapNetwork } from "../../shared/network/network";
@@ -168,4 +168,30 @@ export function circleByTestId(testID: string) {
   return screen
     .UNSAFE_queryAllByType(Circle)
     .find((node) => node.props.testID === testID);
+}
+
+export function parseViewBox(viewBox: string | undefined) {
+  if (viewBox === undefined) {
+    throw new Error("Expected SVG viewBox to be defined");
+  }
+  const [x, y, width, height] = viewBox.split(" ").map(Number);
+  return { x, y, width, height };
+}
+
+export function containsPoint(
+  box: { x: number; y: number; width: number; height: number },
+  [px, py]: [number, number],
+) {
+  return (
+    px > box.x &&
+    px < box.x + box.width &&
+    py > box.y &&
+    py < box.y + box.height
+  );
+}
+
+export function overlaySvgViewBox(): string | undefined {
+  return within(screen.getByTestId("overlay-map-container")).UNSAFE_getByType(
+    Svg,
+  ).props.viewBox;
 }
