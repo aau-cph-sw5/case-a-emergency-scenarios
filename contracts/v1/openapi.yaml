@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Emergency Scenario State API
-  version: 8.12.0
+  version: 8.12.1
   description: >
     Shared scenario-state contract used by the control-room
     and steward clients.
@@ -847,9 +847,10 @@ paths:
         same clientMessageId and content returns 200 with the stored
         message, without storing another message, writing another
         incident-log event or pushing another socket event. The content is
-        the same when the station, activationId, text and writtenAt are the
-        same; text is stored and compared exactly as sent. Reusing a
-        clientMessageId for different content returns 409 E0007.
+        the same when the sender role, line group, station, activationId,
+        text and writtenAt are the same; text is stored and compared
+        exactly as sent. Reusing a clientMessageId for different content
+        returns 409 E0007.
 
         The checks are made in this order: the body (400 E0006), a repeat
         (200, or 409 E0007), the activation (E1001 or E1003), the station
