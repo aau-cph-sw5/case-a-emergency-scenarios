@@ -17,7 +17,7 @@ import { DEFAULT_VIEWBOX } from "../../shared/mapViewBox";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
-import { closedStretchLine, MetroMap } from "../../web/src/components/MetroMap";
+import { MetroMap } from "../../web/src/components/MetroMap";
 import { LiveDataContext } from "../../web/src/data/liveData";
 import { useNetwork } from "../../web/src/data/useNetwork";
 import { getLines, getStation } from "../../mockData/data";
@@ -495,35 +495,57 @@ describe("MetroMap", () => {
     );
     expect(uniDot()).toBe(colors.statusGreen);
   });
-});
 
-describe("closedStretchLine", () => {
-  const running = [
-    {
-      name: "1",
-      tracks: [1],
-      connections: [["FB", "FOR"]] as [string, string][],
-    },
-  ];
-
-  it("draws a covered segment that no running route draws", () => {
-    const line = closedStretchLine(
-      [
-        { trackNumber: 1, stationA: "VAN", stationB: "FL" },
-        { trackNumber: 1, stationA: "FB", stationB: "FOR" },
+  it("draws both a running track and an adjacent blocked track on the same segment", () => {
+    const singleTrackScenario: Scenario = {
+      ...scenario,
+      covers: [{ trackNumber: 2, stationA: "ISB", stationB: "UNI" }],
+      versions: [
+        {
+          ...scenario.versions[0],
+          operatingPlan: {
+            ...scenario.versions[0].operatingPlan,
+            patterns: [
+              {
+                operationType: "PENDULUM",
+                routeCode: "ISB-UNI",
+                trackNumber: 1,
+                maximumTrains: 1,
+                did: "TEST-SINGLE",
+                route: [
+                  { sequence: 1, station: "ISB" },
+                  { sequence: 2, station: "UNI" },
+                ],
+              },
+            ],
+          },
+        },
       ],
-      running,
-    );
-    expect(line?.connections).toEqual([["VAN", "FL"]]);
-    expect(line?.tracks).toEqual([1]);
-  });
-
-  it("draws nothing when every covered segment is already on a route", () => {
-    expect(
-      closedStretchLine(
-        [{ trackNumber: 1, stationA: "FOR", stationB: "FB" }],
-        running,
+    };
+    render(
+      withScenario(
+        singleTrackScenario.scenarioId,
+        async () => singleTrackScenario,
+        singleTrackScenario,
       ),
-    ).toBeNull();
+    );
+    const lines = screen.UNSAFE_queryAllByType(Line);
+    // The rest of the line group is drawn faded in grey and is not a route.
+    const running = lines.filter(
+      (strip) =>
+        strip.props.strokeDasharray === undefined &&
+        strip.props.stroke !== palette.networkGrey,
+    );
+    const blocked = lines.filter(
+      (strip) => strip.props.strokeDasharray !== undefined,
+    );
+    expect(running).toHaveLength(2);
+    expect(
+      running.every((strip) => strip.props.stroke === mapLines[0].color),
+    ).toBe(true);
+    expect(blocked).toHaveLength(2);
+    expect(
+      blocked.every((strip) => strip.props.stroke === colors.blockedTrack),
+    ).toBe(true);
   });
 });

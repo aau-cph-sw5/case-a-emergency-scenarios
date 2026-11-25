@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import MapRender from "../../../shared/MapRenderer";
 import { colors as theme } from "../../../shared/Theme";
+import { LINE_GROUP_LINES } from "../../../shared/auth/line-groups";
 import {
   affectedStretchAsMapLine,
   areaAroundStations,
@@ -33,11 +34,6 @@ export { closedStretchLine };
 // come from metroMapModel.ts (pure), the banner, zoom button, alerts and
 // legend from MetroMapParts.tsx, and the map itself from shared/MapRenderer.
 
-const lineGroups = [
-  ["M1", "M2"],
-  ["M3", "M4"],
-] as const;
-
 // Scenario data determines staffing markers and the optional close-up view.
 // The operator chooses the visible line group separately in the header.
 export function mapView(
@@ -51,7 +47,7 @@ export function mapView(
       ? []
       : affectedStretchAsMapLine(scenario, position).connections;
   const covered = linesThrough(network, stretch);
-  const enabledLines: readonly string[] = lineGroups
+  const enabledLines: readonly string[] = Object.values(LINE_GROUP_LINES)
     .filter((group) =>
       group.some((name) => covered.some((line) => line.name === name)),
     )
