@@ -20,9 +20,9 @@ import type { CoverageLevel } from "./stationState";
 // - One cell per station, with the station code in it, so the operator reads
 //   which stations are open and not only how many. Few stations get a label;
 //   a long list falls back to plain cells (a label would not fit).
-// - Cells are grouped by status (green, yellow, red): a tight gap inside a group
-//   and a wider one between groups, so the spacing says what belongs together
-//   (Gestalt law of proximity) and the strip reads as three blocks.
+// - Cells are sorted by status (green, yellow, red) and spaced evenly, so the
+//   colour alone groups them (Gestalt law of similarity). They fill the width
+//   of the column, at most 5 to a row, and wrap to a new row beyond that.
 // - The status is written, not only coloured: each group has its word and
 //   count in the legend (Ankommet, På vej, Mangler), and the strip has one
 //   spoken summary. Colour only repeats it (WCAG 2.2 SC 1.4.1, Use of Color).
@@ -49,6 +49,8 @@ const LEVEL_LABEL: Record<CoverageLevel, string> = {
 
 // Up to this many stations the cells carry the station code.
 const MAX_LABELLED = 12;
+// At most this many cells per row; more stations wrap onto a new row.
+const MAX_PER_ROW = 5;
 
 export type CoverageStation = { name: string; level: CoverageLevel };
 
@@ -65,6 +67,12 @@ export function CoverageOverview({
     (a, b) => LEVEL_RANK[a.level] - LEVEL_RANK[b.level],
   );
   const labelled = stations.length <= MAX_LABELLED;
+  // Balanced rows (6 -> 3+3, not 5+1) so the cells stay about the same width.
+  const rowCount = Math.ceil(cells.length / MAX_PER_ROW);
+  const perRow = Math.ceil(cells.length / rowCount) || 1;
+  const rows = Array.from({ length: rowCount }, (_, r) =>
+    cells.slice(r * perRow, (r + 1) * perRow),
+  );
   return (
     <View testID="coverage-overview" style={styles.overview}>
       <View style={styles.figure}>
@@ -84,32 +92,37 @@ export function CoverageOverview({
         accessibilityLabel={`${covered} dækket, ${count("partial")} ${statusLabels.onTheWay.toLowerCase()}, ${count("gap")} ${statusLabels.missing.toLowerCase()}`}
         style={styles.cells}
       >
-        {cells.map((station, index) => (
-          <View
-            // Anonymous cells in a fixed order, never reordered.
-            // eslint-disable-next-line @eslint-react/no-array-index-key
-            key={index}
-            testID={`coverage-cell-${station.level}`}
-            style={[
-              styles.cell,
-              { backgroundColor: statusColors[station.level] },
-              // A wider gap where the next group starts.
-              index > 0 &&
-                cells[index - 1].level !== station.level &&
-                styles.groupStart,
-            ]}
-          >
-            {labelled && (
-              <Text
-                numberOfLines={1}
+        {rows.map((row, r) => (
+          // Rows are anonymous and fixed in order, never reordered.
+          // eslint-disable-next-line @eslint-react/no-array-index-key
+          <View key={r} style={styles.row}>
+            {row.map((station, index) => (
+              <View
+                // eslint-disable-next-line @eslint-react/no-array-index-key
+                key={index}
+                testID={`coverage-cell-${station.level}`}
                 style={[
-                  styles.cellText,
-                  station.level === "partial" && styles.cellTextOnYellow,
+                  styles.cell,
+                  { backgroundColor: statusColors[station.level] },
                 ]}
               >
-                {station.name}
-              </Text>
-            )}
+                {labelled && (
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.cellText,
+                      station.level === "partial" && styles.cellTextOnYellow,
+                    ]}
+                  >
+                    {station.name}
+                  </Text>
+                )}
+              </View>
+            ))}
+            {/* Empty slots keep a short last row's cells the same width. */}
+            {Array.from({ length: perRow - row.length }, (_, i) => (
+              <View key={`pad-${i}`} style={styles.pad} />
+            ))}
           </View>
         ))}
       </View>
@@ -162,15 +175,10 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   label: { ...text.operatorLabel, color: colors.text, flexShrink: 1 },
-  cells: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: spacing.small,
-    marginTop: spacing.s14,
-  },
+  cells: { gap: spacing.small, marginTop: spacing.s14 },
+  row: { flexDirection: "row", gap: spacing.small },
+  pad: { flex: 1, minWidth: 0 },
   cell: { ...coverageCell, flex: 1, minWidth: 0, justifyContent: "center" },
-  // Gap inside a group is spacing.small (4); between groups spacing.medium (12).
-  groupStart: { marginLeft: spacing.medium - spacing.small },
   cellText: {
     ...text.small,
     fontWeight: weightBold,

@@ -236,11 +236,10 @@ export const ruleWidth = 3;
 // station).
 export const stewardCell = { flex: 1, maxWidth: 16, height: 14 } as const;
 
-// A station's cell in the coverage overview: wide enough to carry the station
-// code, 4 px corners like anything pressed or marked (Operator Design Guide).
+// A station's cell in the coverage overview: fills its row (no max width), 4 px
+// corners like anything pressed or marked (Operator Design Guide).
 export const coverageCell = {
   height: 36,
-  maxWidth: 72,
   borderRadius: controlRadius,
 } as const;
 
