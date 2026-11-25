@@ -51,16 +51,16 @@ export const StewardMap = memo(
 
 // Shared degraded-map notes for both the 21:9 preview and the full-line overlay.
 export function MapNotes({
-  networkIsCached = false,
-  networkIncomplete = false,
-  missingStretch = false,
-  missingRoutes = false,
+  networkIsCached,
+  networkIncomplete,
+  missingStretch,
+  missingRoutes,
   style,
 }: {
-  networkIsCached?: boolean;
-  networkIncomplete?: boolean;
-  missingStretch?: boolean;
-  missingRoutes?: boolean;
+  networkIsCached: boolean;
+  networkIncomplete: boolean;
+  missingStretch: boolean;
+  missingRoutes: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const infoNotes = [
