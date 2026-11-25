@@ -162,14 +162,17 @@ version.
 | `POSITION_REPORTED` | 1 | `position-report` | `stationId` | `savePositionReport` in `src/services/position-report-service.ts`, the worked example of `appendEvent` inside a transaction |
 | `POSITION_REPORTED` | 2 | `position-report` | `stationId`, `taskDone` (true when the steward finished the task, MET-A-015) | `savePositionReport` in `src/services/position-report-service.ts` |
 | `POSITION_REPORTED` | 3 | `position-report` | `stationId`, `taskDone`, `event` (`EN_ROUTE`, `ARRIVED`, `CANCELLED` or `CHECKED_OUT`, as stored with the report, MET-A-015) | `savePositionReport` in `src/services/position-report-service.ts` |
+| `STATION_MESSAGE_WRITTEN` | 1 | `station-message` | `station`, `text`, `writtenAt`, `receivedAt` (MET-A-029) | `createStationMessage` in `src/services/station-message-service.ts` via `appendSystemEvent` (`SYSTEM` actor `"station-thread"` so no steward identity is logged) |
+| `STATION_MESSAGE_WRITTEN` | 2 | `station-message` | `station`, `sender` (`STATION` or `CONTROL_ROOM`), `text`, `writtenAt`, `receivedAt` (MET-A-029) | `createStationMessage` in `src/services/station-message-service.ts` via `appendSystemEvent` |
 
 ## Payload rules
 
 - A JSON object with camelCase keys. The same thing always has the same key,
   e.g. `stationId`, `scenarioId`. Reuse an existing key before inventing one,
   so events can be queried across types and incidents.
-- Ids and fixed codes only, e.g. `"EN_ROUTE"`. No names, no free text, no
-  personal data: an event can never be removed again.
+- Ids and fixed codes only, e.g. `"EN_ROUTE"`, except `STATION_MESSAGE_WRITTEN`
+  which logs station-thread free text by contract (MET-A-029). Never store
+  steward identities or personal metadata: an event can never be removed again.
 - Point to versioned ids when the thing referred to can change.
 - Don't repeat what the columns already hold. In particular, never put an actor
   in the payload: the actor comes from the token.
@@ -184,7 +187,9 @@ version.
 - Stewards have their own accounts, so a steward event identifies the account.
 - A report queued offline keeps the steward who created it. The phone's time
   goes in `client_time`.
-- `SYSTEM` is for actions no user performs. Nothing writes it yet.
+- `SYSTEM` is for actions with no individual user actor, including
+  `STATION_MESSAGE_WRITTEN` (`actor_id = "station-thread"`, `actor_role = null`),
+  so the steward who wrote a message is never recorded in the log.
 - `actor_id` has no foreign key, so user accounts can be anonymised without
   touching the log.
 

@@ -48,41 +48,23 @@ export function listIncidentEvents(
   return listEventsForActivation(db, activationId);
 }
 
-// Log the message without identifying the steward who sent it.
-export async function appendStationMessageEvent(
+// Writes a system-attributed event when no individual user actor should be recorded.
+export async function appendSystemEvent(
   db: Db,
-  input: {
-    message: {
-      id: number;
-      activationId: number;
-      station: string;
-      text: string;
-      writtenAt: string;
-      receivedAt: string;
-    };
-    lineGroup: string;
-  },
+  actorId: string,
+  event: NewIncidentEvent,
 ): Promise<IncidentEvent> {
-  const { message } = input;
-
   return insertEvent(db, {
-    type: "STATION_MESSAGE_WRITTEN",
-    schemaVersion: 1,
-    // Use a fixed system actor instead of the steward's user ID, so it doesn't reveal the sender's identity.
+    type: event.type,
+    schemaVersion: event.schemaVersion,
     actorType: "SYSTEM",
-    actorId: "station-thread",
+    actorId,
     actorRole: null,
-    subjectType: "station-message",
-    subjectId: String(message.id),
-    activationId: String(message.activationId),
-    line: input.lineGroup,
-    payload: {
-      station: message.station,
-      text: message.text,
-      writtenAt: message.writtenAt,
-      receivedAt: message.receivedAt,
-    },
-    // Keep the sender's written time; the database records the event's server time.
-    clientTime: new Date(message.writtenAt),
+    subjectType: event.subject.type,
+    subjectId: event.subject.id,
+    activationId: event.activationId ?? null,
+    line: event.line ?? null,
+    payload: event.payload ?? {},
+    clientTime: event.clientTime ?? null,
   });
 }
