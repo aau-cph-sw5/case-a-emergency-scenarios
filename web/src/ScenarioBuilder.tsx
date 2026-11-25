@@ -41,8 +41,9 @@ export function ScenarioBuilder({
     selectedStops,
     setSelectedStops,
     setManualType,
+    changeOperationType,
     track,
-    setTrack,
+    changeTrack,
     lineColor,
     setLineColor,
     did,
@@ -62,6 +63,7 @@ export function ScenarioBuilder({
     type,
     choices,
     path,
+    routeRepeatsStations,
     ringStations,
     roundtripAllowed,
     backgroundLines,
@@ -81,6 +83,7 @@ export function ScenarioBuilder({
     startLine,
     editLine,
     updateSelectedStops,
+    clearSelectedStops,
     selectStation,
     addLine,
     saveScenario,
@@ -297,12 +300,7 @@ export function ScenarioBuilder({
               setManualType("ROUNDTRIP");
               setPathIndex(0);
             }}
-            onClear={() => {
-              setSelectedStops([]);
-              setFrom("");
-              setTo("");
-              setPathIndex(0);
-            }}
+            onClear={clearSelectedStops}
             backgroundLines={backgroundLines}
             mapLines={mapLines}
             backgroundColors={backgroundColors}
@@ -331,9 +329,9 @@ export function ScenarioBuilder({
                 stationNames={network.stationNames}
                 updateSelectedStops={updateSelectedStops}
                 type={type}
-                setManualType={setManualType}
+                setManualType={changeOperationType}
                 track={track}
-                setTrack={setTrack}
+                setTrack={changeTrack}
                 lineColor={lineColor}
                 setLineColor={setLineColor}
                 did={did}
@@ -344,6 +342,7 @@ export function ScenarioBuilder({
                 setPathIndex={setPathIndex}
                 choices={choices}
                 path={path}
+                routeRepeatsStations={routeRepeatsStations}
                 roundtripAllowed={roundtripAllowed}
                 turnbacks={turnbacks}
                 editingRouteId={editingRouteId}
