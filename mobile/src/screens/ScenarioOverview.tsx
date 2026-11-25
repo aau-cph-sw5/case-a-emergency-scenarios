@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
-import { cardRadius, colors, steward } from "../../../shared/Theme";
+import { cardRadius, colors, spacing, steward } from "../../../shared/Theme";
 import { staffingWords } from "../components/StatusBox";
 import {
   ListCard,
@@ -19,23 +19,18 @@ import {
 } from "../components/ListCard";
 import { MovingRow } from "../components/MovingRow";
 import { Swap } from "../components/Swap";
-import MapRender from "../../../shared/MapRenderer";
 import type { MapNetwork } from "../../../shared/network/network";
 import type { NetworkStatus } from "../network/useNetwork";
-import {
-  getStationState,
-  stationCoverage,
-} from "../../../shared/components/stationState";
+import { getStationState } from "../../../shared/components/stationState";
 import { zoomedViewBox } from "./map-zoom";
+import { MapNotes, StewardMap } from "./StewardMap";
 import {
   deriveStewardMapModel,
   oneRowPerStation,
   ownStations,
   type StationRequirement,
-  type StewardMapData,
+  type StewardMapModel,
 } from "./steward-map-data";
-
-export { oneRowPerStation } from "./steward-map-data";
 
 // One task of the own station. A task that fits on one line is a plain row.
 // A longer one shows its first line and a chevron, and a press opens it to
@@ -98,6 +93,7 @@ const ROW_MIN = 34;
 // network and an affected stretch the map lacks sit at the bottom of the box.
 export function ScenarioMap({
   snapshot,
+  model,
   assignedStation,
   checkedOutStation,
   network,
@@ -106,6 +102,7 @@ export function ScenarioMap({
   onExpand,
 }: {
   snapshot: ScenarioSnapshot;
+  model?: StewardMapModel | null;
   assignedStation?: string;
   checkedOutStation?: string;
   network?: MapNetwork | null;
@@ -115,99 +112,90 @@ export function ScenarioMap({
 }) {
   const { fontScale } = useWindowDimensions();
   const [size, setSize] = useState({ width: 0, height: 0 });
-  // The map is drawn again only when what it shows changes (MapCard): the
-  // scenario, the coverage level of a station, the own station or its size.
-  const model =
-    network != null
-      ? deriveStewardMapModel(
-          snapshot,
-          network,
-          assignedStation,
-          checkedOutStation,
-        )
-      : null;
-  const missingStretch = model?.mapData.missingStretch ?? false;
-  const missingRoutes = model?.mapData.missingRoutes ?? false;
-  const notes = [
-    networkIsCached && "Viser gemt metronetværk.",
-    network != null &&
-      networkStatus === "incomplete" &&
-      "Det hentede metronetværk er ufuldstændigt.",
-  ].filter((note) => typeof note === "string");
-  const mapPreview =
-    model !== null ? (
-      <MapCard
-        stations={model.stations}
-        mapData={model.mapData}
-        mapKey={model.mapKey}
-        required={model.required}
-        levels={model.levels}
-        levelsKey={model.levelsKey}
-        ownStation={model.ownStation}
-        width={size.width}
-        height={size.height}
-        fontScale={fontScale}
-      />
-    ) : null;
+  // Reuse the model derived by StewardView when supplied; fall back to
+  // deriving locally for standalone callers and tests.
+  const resolvedModel =
+    model !== undefined
+      ? model
+      : network != null
+        ? deriveStewardMapModel(
+            snapshot,
+            network,
+            assignedStation,
+            checkedOutStation,
+          )
+        : null;
+
+  const renderContent = () => {
+    if (resolvedModel === null) {
+      return (
+        <Text style={styles.mapMessage}>{NETWORK_MESSAGES[networkStatus]}</Text>
+      );
+    }
+    const viewBox = zoomedViewBox(
+      resolvedModel.stations,
+      size.width,
+      size.height,
+      fontScale,
+      (station) => resolvedModel.mapData.positions[station],
+    );
+    const map = <StewardMap model={resolvedModel} viewBox={viewBox} />;
+    if (onExpand === undefined) return map;
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          styles.fill,
+          pressed && styles.mapPreviewPressed,
+        ]}
+        onPress={onExpand}
+        accessibilityRole="button"
+        accessibilityLabel="Åbn kort over hele linjen"
+      >
+        {map}
+        <ExpandCue />
+      </Pressable>
+    );
+  };
+
   return (
     <View
       style={styles.fill}
       onLayout={(event) => setSize(event.nativeEvent.layout)}
     >
-      {mapPreview !== null ? (
-        onExpand !== undefined ? (
-          <Pressable
-            style={styles.fill}
-            onPress={onExpand}
-            accessibilityRole="button"
-            accessibilityLabel="Åbn kort over hele linjen"
-          >
-            {mapPreview}
-            <View
-              testID="expand-map-cue"
-              style={styles.expandCue}
-              pointerEvents="none"
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-            >
-              <Svg width={12} height={12} viewBox="0 0 24 24">
-                <Path
-                  d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
-                  stroke={colors.text}
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </Svg>
-              <Text style={styles.expandCueText}>Udvid</Text>
-            </View>
-          </Pressable>
-        ) : (
-          mapPreview
-        )
-      ) : (
-        <Text style={styles.mapMessage}>{NETWORK_MESSAGES[networkStatus]}</Text>
-      )}
-      {(notes.length > 0 || missingStretch || missingRoutes) && (
-        <View style={styles.mapNotes} pointerEvents="none">
-          {notes.map((note) => (
-            <Text key={note} style={styles.mapNote}>
-              {note}
-            </Text>
-          ))}
-          {missingStretch && (
-            <Text accessibilityRole="alert" style={styles.mapNote}>
-              Den berørte strækning kan ikke vises fuldt ud på dette kort.
-            </Text>
-          )}
-          {missingRoutes && (
-            <Text accessibilityRole="alert" style={styles.mapNote}>
-              En eller flere ruter kan ikke vises på kortet.
-            </Text>
-          )}
-        </View>
-      )}
+      {renderContent()}
+      <MapNotes
+        networkIsCached={networkIsCached}
+        networkIncomplete={
+          resolvedModel !== null && networkStatus === "incomplete"
+        }
+        missingStretch={resolvedModel?.mapData.missingStretch ?? false}
+        missingRoutes={resolvedModel?.mapData.missingRoutes ?? false}
+        style={styles.mapNotes}
+      />
+    </View>
+  );
+}
+
+function ExpandCue() {
+  return (
+    <View
+      testID="expand-map-cue"
+      style={styles.expandCue}
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Svg width={12} height={12} viewBox="0 0 24 24">
+        <Path
+          d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
+          stroke={colors.text}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </Svg>
+      <Text style={styles.expandCueText}>Udvid</Text>
     </View>
   );
 }
@@ -483,66 +471,6 @@ export function ScenarioOverview({
   );
 }
 
-type MapCardProps = {
-  stations: string[];
-  mapData: StewardMapData;
-  required: StationRequirement[];
-  // What the map shows, as plain values, so a new copy of the same scenario
-  // or the same coverage does not draw the map again.
-  mapKey: string;
-  levels: ReturnType<typeof stationCoverage>;
-  levelsKey: string;
-  ownStation: string | undefined;
-  width: number;
-  height: number;
-  fontScale: number;
-};
-
-// The SVG map of the affected stretch. Drawing it is the most expensive part
-// of the screen, and the screen renders many times for one status change, so
-// it is drawn again only when one of the plain values above changes.
-const MapCard = memo(
-  function MapCard({
-    stations,
-    mapData,
-    required,
-    levels,
-    ownStation,
-    width,
-    height,
-    fontScale,
-  }: MapCardProps) {
-    const position = (station: string) => mapData.positions[station];
-    return (
-      <MapRender
-        viewBox={zoomedViewBox(stations, width, height, fontScale, position)}
-        lines={mapData.lines}
-        positions={mapData.positions}
-        availableSegments={mapData.availableSegments}
-        ringStations={mapData.ringStations}
-        colors={mapData.colors}
-        blockedTracks={mapData.blockedTracks}
-        showLineButtons={false}
-        highlightStation={ownStation}
-        // Every station the scenario needs staff at, coloured by how far it
-        // is covered right now, like the dashboard (MET-A-011).
-        markedStations={required.map((row) => row.station)}
-        requiredStaffing={Object.fromEntries(
-          required.map((row) => [row.station, row.minimumStaffing]),
-        )}
-        stationCoverage={levels}
-      />
-    );
-  },
-  (a, b) =>
-    a.mapKey === b.mapKey &&
-    a.levelsKey === b.levelsKey &&
-    a.ownStation === b.ownStation &&
-    a.width === b.width &&
-    a.height === b.height &&
-    a.fontScale === b.fontScale,
-);
-
 function sortedActions(row: StationRequirement) {
   return [...(row.actions ?? [])].sort((a, b) => a.sequence - b.sequence);
 }
@@ -555,8 +483,11 @@ const styles = StyleSheet.create({
   mapMessage: {
     color: steward.muted,
     fontSize: 14,
-    padding: 16,
+    padding: spacing.large,
     textAlign: "center",
+  },
+  mapPreviewPressed: {
+    opacity: 0.85,
   },
   expandCue: {
     alignItems: "center",
@@ -565,9 +496,9 @@ const styles = StyleSheet.create({
     borderRadius: cardRadius,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 4,
+    gap: spacing.small,
     paddingHorizontal: 6,
-    paddingVertical: 4,
+    paddingVertical: spacing.small,
     position: "absolute",
     right: 6,
     top: 6,
@@ -578,12 +509,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   mapNotes: {
-    bottom: 4,
+    bottom: spacing.small,
     left: 8,
     position: "absolute",
     right: 8,
   },
-  mapNote: { color: steward.muted, fontSize: 11, textAlign: "center" },
   row: {
     alignItems: "center",
     borderTopColor: steward.line,

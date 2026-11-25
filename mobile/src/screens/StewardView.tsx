@@ -35,11 +35,8 @@ import { withOwnStatus } from "./own-assignment";
 import { RoleView } from "./RoleView";
 import { StationChat } from "./StationChat";
 import { StewardMapOverlay } from "./StewardMapOverlay";
-import {
-  oneRowPerStation,
-  ScenarioMap,
-  ScenarioOverview,
-} from "./ScenarioOverview";
+import { ScenarioMap, ScenarioOverview } from "./ScenarioOverview";
+import { deriveStewardMapModel, oneRowPerStation } from "./steward-map-data";
 import { useNetwork } from "../network/useNetwork";
 
 // Shown on the saved copy, where only going on the way can be reported.
@@ -496,14 +493,28 @@ export function StewardView({
         ? chatClosedSwitched(shown.scenario.name)
         : CHAT_CLOSED_CHECKED_OUT;
   const refreshScenario = useCallback(() => void refresh(), [refresh]);
+  const checkedOutStation =
+    own?.status === "CHECKED_OUT" ? own.station : undefined;
+  const mapModel =
+    shown !== null && network !== null
+      ? deriveStewardMapModel(
+          counted ?? shown,
+          network,
+          ownStation,
+          checkedOutStation,
+        )
+      : null;
   // While the chat or full-line map overlay is open it covers the view,
   // which a screen reader skips.
   const [chatOpen, setChatOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
-  const canShowMapOverlay = shown !== null && network !== null;
-  if (mapOpen && !canShowMapOverlay) setMapOpen(false);
-  const mapOverlayOpen = mapOpen && canShowMapOverlay;
-  const obscured = chatOpen || mapOverlayOpen;
+  if (mapOpen && mapModel === null) setMapOpen(false);
+  const closeMap = useCallback(() => setMapOpen(false), []);
+  const handleChatOpenChange = useCallback((open: boolean) => {
+    setChatOpen(open);
+    if (open) setMapOpen(false);
+  }, []);
+  const obscured = chatOpen || mapOpen;
 
   return (
     <RoleView title="Steward" onLogout={onLogout} obscured={obscured}>
@@ -594,13 +605,12 @@ export function StewardView({
               shown && (
                 <ScenarioMap
                   snapshot={counted ?? shown}
+                  model={mapModel}
                   network={network}
                   networkIsCached={usingCached}
                   networkStatus={networkStatus}
                   assignedStation={ownStation}
-                  checkedOutStation={
-                    own?.status === "CHECKED_OUT" ? own.station : undefined
-                  }
+                  checkedOutStation={checkedOutStation}
                   onExpand={() => setMapOpen(true)}
                 />
               )
@@ -648,26 +658,26 @@ export function StewardView({
           <Text style={styles.report}>{reportStatus}</Text>
         )}
       </View>
-      {/* Over the whole view, header included, so overlays are the last children. */}
+      {/* Full-line map sits over the view and under StationChat so the chat
+          tab and incoming control-room notices stay visible and reachable. */}
+      {mapOpen && shown !== null && mapModel !== null && (
+        <StewardMapOverlay
+          key={activationId}
+          snapshot={counted ?? shown}
+          model={mapModel}
+          networkIsCached={usingCached}
+          networkStatus={networkStatus}
+          onClose={closeMap}
+        />
+      )}
       <StationChat
         token={token}
         station={chatStation}
         activationId={activationId}
         closedReason={chatClosedReason}
         onClosedByServer={refreshScenario}
-        onOpenChange={setChatOpen}
+        onOpenChange={handleChatOpenChange}
       />
-      {mapOverlayOpen && (
-        <StewardMapOverlay
-          snapshot={counted ?? shown}
-          network={network}
-          assignedStation={ownStation}
-          checkedOutStation={
-            own?.status === "CHECKED_OUT" ? own.station : undefined
-          }
-          onClose={() => setMapOpen(false)}
-        />
-      )}
     </RoleView>
   );
 }
