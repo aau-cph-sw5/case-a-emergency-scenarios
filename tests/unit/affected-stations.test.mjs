@@ -1,12 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { connectionKey } from "../../shared/network/network.ts";
 import {
   affectedStations,
   affectedStretchAsMapLine,
   areaAroundStations,
+  coversAsMapLine,
   linesThrough,
   networkWithoutStretch,
   requiredStations,
+  samePiece,
 } from "../../shared/scenario/affected-stations.ts";
 
 const scenario = {
@@ -137,4 +140,75 @@ test("lists no stations when the current version requires none", () => {
     requiredStations({ currentVersion: "1", versions: [{ version: "1" }] }),
     [],
   );
+});
+
+test("coversAsMapLine builds per-track connectionTracks and deduplicates reversed connections", () => {
+  const stretch = coversAsMapLine("Single and double track", [
+    { trackNumber: 1, stationA: "FOR", stationB: "KN" },
+    { trackNumber: 2, stationA: "KN", stationB: "FOR" },
+    { trackNumber: 1, stationA: "FOR", stationB: "KN" },
+    { trackNumber: 2, stationA: "KN", stationB: "KGN" },
+  ]);
+
+  assert.deepEqual(stretch, {
+    name: "Single and double track",
+    tracks: [1, 2],
+    connections: [
+      ["FOR", "KN"],
+      ["KN", "KGN"],
+    ],
+    connectionTracks: {
+      [connectionKey("FOR", "KN")]: [1, 2],
+      [connectionKey("KN", "KGN")]: [2],
+    },
+  });
+});
+
+test("coversAsMapLine keeps unpositioned stations and handles empty or missing covers", () => {
+  assert.deepEqual(
+    coversAsMapLine("Synthetic", [
+      { trackNumber: 2, stationA: "A", stationB: "B" },
+    ]),
+    {
+      name: "Synthetic",
+      tracks: [2],
+      connections: [["A", "B"]],
+      connectionTracks: {
+        [connectionKey("A", "B")]: [2],
+      },
+    },
+  );
+  assert.deepEqual(coversAsMapLine("Empty", undefined), {
+    name: "Empty",
+    tracks: [],
+    connections: [],
+    connectionTracks: {},
+  });
+});
+
+test("affectedStretchAsMapLine preserves tracks [1, 2] and deduplicates positioned connections", () => {
+  const stretch = affectedStretchAsMapLine({
+    name: "Single track cover",
+    covers: [
+      { trackNumber: 1, stationA: "FOR", stationB: "KN" },
+      { trackNumber: 1, stationA: "KN", stationB: "FOR" },
+    ],
+  });
+
+  assert.deepEqual(stretch, {
+    name: "Single track cover",
+    tracks: [1, 2],
+    connections: [["FOR", "KN"]],
+  });
+  assert.deepEqual(affectedStretchAsMapLine(scenarioWithoutStations), {
+    name: "no covers",
+    tracks: [1, 2],
+    connections: [],
+  });
+});
+
+test("samePiece matches identical and reversed station pairs", () => {
+  assert.equal(samePiece(["FOR", "KN"], ["FOR", "KN"]), true);
+  assert.equal(samePiece(["FOR", "KN"], ["KN", "FOR"]), true);
+  assert.equal(samePiece(["FOR", "KN"], ["KN", "KGN"]), false);
 });

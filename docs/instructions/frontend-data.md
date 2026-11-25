@@ -49,6 +49,15 @@ rejects incomplete network responses to preserve a usable offline map, while web
 displays the partial network with a warning. Crossovers are not loaded by this
 endpoint.
 
+### Derive scenario map lines with `shared/scenario/map-lines.ts`
+
+Use `scenarioLines` from `shared/scenario/map-lines.ts` to turn a scenario
+into map lines for the selected line group. It returns the running routes,
+the closed stretch from `closedStretchLine`, and whether any route could not
+be resolved. Colour a route by its Metro line with `routeColor`. The web
+`MetroMap` uses this module, and mobile adopts it in #466. The file has no
+`react-native` or `Theme` imports, so Node unit tests import it directly.
+
 ## What things mean
 
 | Issue | Hook | Fields |
