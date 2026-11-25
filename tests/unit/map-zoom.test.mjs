@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { zoomedViewBox } from "../../mobile/src/screens/map-zoom.ts";
+import {
+  DEFAULT_OVERLAY_ASPECT,
+  fitViewBoxToAspect,
+  zoomedViewBox,
+} from "../../mobile/src/screens/map-zoom.ts";
 
 const parse = (viewBox) => viewBox.split(" ").map(Number);
 // The map box on an A52/A55: about 387 x 250 dp.
@@ -51,4 +55,28 @@ test("never zooms out past the whole map", () => {
 test("shows the whole map when nothing can be placed or measured", () => {
   assert.equal(zoomedViewBox(["XYZ"], WIDTH, HEIGHT, 1), undefined);
   assert.equal(zoomedViewBox(["FOR"], 0, 0, 1), undefined);
+});
+
+test("fitViewBoxToAspect expands height to match portrait aspect and keeps area centered", () => {
+  const fitted = fitViewBoxToAspect("10 110 380 280", 0, 0);
+  const [x, y, width, height] = parse(fitted);
+  assert.equal(x, 10);
+  assert.equal(width, 380);
+  assert.ok(Math.abs(width / height - DEFAULT_OVERLAY_ASPECT) < 0.01);
+  assert.ok(y <= 110 && y + height >= 390);
+});
+
+test("fitViewBoxToAspect expands width to match landscape container", () => {
+  const fitted = fitViewBoxToAspect("10 110 380 280", 600, 300);
+  const [x, y, width, height] = parse(fitted);
+  assert.equal(y, 110);
+  assert.equal(height, 280);
+  assert.equal(width, 560);
+  assert.equal(x, -80);
+});
+
+test("fitViewBoxToAspect handles undefined and invalid viewBox strings", () => {
+  assert.equal(fitViewBoxToAspect(undefined, 400, 500), undefined);
+  assert.equal(fitViewBoxToAspect("bad", 400, 500), "bad");
+  assert.equal(fitViewBoxToAspect("0 0 0 100", 400, 500), "0 0 0 100");
 });

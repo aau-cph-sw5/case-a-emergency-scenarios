@@ -7,8 +7,9 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
-import { colors, steward } from "../../../shared/Theme";
+import { cardRadius, colors, steward } from "../../../shared/Theme";
 import { staffingWords } from "../components/StatusBox";
 import {
   ListCard,
@@ -21,14 +22,20 @@ import { Swap } from "../components/Swap";
 import MapRender from "../../../shared/MapRenderer";
 import type { MapNetwork } from "../../../shared/network/network";
 import type { NetworkStatus } from "../network/useNetwork";
-import { affectedStations } from "../../../shared/scenario/affected-stations";
 import {
   getStationState,
   stationCoverage,
 } from "../../../shared/components/stationState";
 import { zoomedViewBox } from "./map-zoom";
-import { findOwnAssignment } from "./own-assignment";
-import { deriveStewardMap, type StewardMapData } from "./steward-map-data";
+import {
+  deriveStewardMapModel,
+  oneRowPerStation,
+  ownStations,
+  type StationRequirement,
+  type StewardMapData,
+} from "./steward-map-data";
+
+export { oneRowPerStation } from "./steward-map-data";
 
 // One task of the own station. A task that fits on one line is a plain row.
 // A longer one shows its first line and a chevron, and a press opens it to
@@ -81,64 +88,6 @@ function TaskRow({
 const ROW_HEIGHT = 48;
 const ROW_MIN = 34;
 
-type StationRequirement = NonNullable<
-  ScenarioSnapshot["scenario"]["versions"][number]["stationRequirements"]
->[number];
-
-// One row per station (#376). A scenario can have several requirement rows
-// for the same station (one per placement), and a station must never be
-// listed twice. The rows are merged in the order the station first appears,
-// and the station needs the stewards of all its rows together: a station
-// that needs 1 on the platform and 1 at the entrance needs 2.
-export function oneRowPerStation(
-  rows: readonly StationRequirement[],
-): StationRequirement[] {
-  const merged = new Map<string, StationRequirement>();
-  for (const row of rows) {
-    const seen = merged.get(row.station);
-    merged.set(
-      row.station,
-      seen
-        ? {
-            ...seen,
-            minimumStaffing: seen.minimumStaffing + row.minimumStaffing,
-          }
-        : row,
-    );
-  }
-  return [...merged.values()];
-}
-
-// The steward's own station and the one they checked out from (#310). The
-// own assignment stands out without interaction (MET-A-010 criterion 2);
-// userId comes from the offline copy, so this works offline. The station the
-// app just assigned comes first, since the server does not record it in the
-// deployments yet (#263). A checked-out deployment keeps the steward as staff,
-// so the control room sees who was there (#289); it is not the steward's own
-// station any more, and after checking out an older copy may still show them
-// there, so the app's own status decides (#310).
-function ownStations(
-  snapshot: ScenarioSnapshot,
-  assignedStation: string | undefined,
-  checkedOutStation: string | undefined,
-) {
-  const ownAssignment = findOwnAssignment(
-    snapshot.state.deployments,
-    snapshot.userId,
-  );
-  const leftStation =
-    checkedOutStation ??
-    (ownAssignment?.status === "CHECKED_OUT"
-      ? ownAssignment.fulfills
-      : undefined);
-  const ownStation =
-    assignedStation ??
-    (checkedOutStation === undefined && ownAssignment?.status !== "CHECKED_OUT"
-      ? ownAssignment?.fulfills
-      : undefined);
-  return { ownStation, leftStation };
-}
-
 // The map of the affected stretch (#376). It sits in the status card under
 // the status and is always shown; its box sets its size, and it zooms in on
 // the stretch until the station names are legible at the phone's font size
@@ -154,6 +103,7 @@ export function ScenarioMap({
   network,
   networkIsCached = false,
   networkStatus = "loading",
+  onExpand,
 }: {
   snapshot: ScenarioSnapshot;
   assignedStation?: string;
@@ -161,49 +111,81 @@ export function ScenarioMap({
   network?: MapNetwork | null;
   networkIsCached?: boolean;
   networkStatus?: NetworkStatus;
+  onExpand?: () => void;
 }) {
-  const { scenario, state } = snapshot;
   const { fontScale } = useWindowDimensions();
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const rows = oneRowPerStation(
-    scenario.versions[0]?.stationRequirements ?? [],
-  );
-  const { ownStation } = ownStations(
-    snapshot,
-    assignedStation,
-    checkedOutStation,
-  );
   // The map is drawn again only when what it shows changes (MapCard): the
   // scenario, the coverage level of a station, the own station or its size.
-  const levels = stationCoverage(rows, state);
-  const mapData = network != null ? deriveStewardMap(scenario, network) : null;
-  const stations = affectedStations(scenario);
-  const missingStretch = mapData?.missingStretch ?? false;
-  const missingRoutes = mapData?.missingRoutes ?? false;
+  const model =
+    network != null
+      ? deriveStewardMapModel(
+          snapshot,
+          network,
+          assignedStation,
+          checkedOutStation,
+        )
+      : null;
+  const missingStretch = model?.mapData.missingStretch ?? false;
+  const missingRoutes = model?.mapData.missingRoutes ?? false;
   const notes = [
     networkIsCached && "Viser gemt metronetværk.",
     network != null &&
       networkStatus === "incomplete" &&
       "Det hentede metronetværk er ufuldstændigt.",
   ].filter((note) => typeof note === "string");
+  const mapPreview =
+    model !== null ? (
+      <MapCard
+        stations={model.stations}
+        mapData={model.mapData}
+        mapKey={model.mapKey}
+        required={model.required}
+        levels={model.levels}
+        levelsKey={model.levelsKey}
+        ownStation={model.ownStation}
+        width={size.width}
+        height={size.height}
+        fontScale={fontScale}
+      />
+    ) : null;
   return (
     <View
       style={styles.fill}
       onLayout={(event) => setSize(event.nativeEvent.layout)}
     >
-      {mapData !== null ? (
-        <MapCard
-          stations={stations}
-          mapData={mapData}
-          mapKey={JSON.stringify({ mapData, required: rows, stations })}
-          required={rows}
-          levels={levels}
-          levelsKey={JSON.stringify(levels)}
-          ownStation={ownStation}
-          width={size.width}
-          height={size.height}
-          fontScale={fontScale}
-        />
+      {mapPreview !== null ? (
+        onExpand !== undefined ? (
+          <Pressable
+            style={styles.fill}
+            onPress={onExpand}
+            accessibilityRole="button"
+            accessibilityLabel="Åbn kort over hele linjen"
+          >
+            {mapPreview}
+            <View
+              testID="expand-map-cue"
+              style={styles.expandCue}
+              pointerEvents="none"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Svg width={12} height={12} viewBox="0 0 24 24">
+                <Path
+                  d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
+                  stroke={colors.text}
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </Svg>
+              <Text style={styles.expandCueText}>Udvid</Text>
+            </View>
+          </Pressable>
+        ) : (
+          mapPreview
+        )
       ) : (
         <Text style={styles.mapMessage}>{NETWORK_MESSAGES[networkStatus]}</Text>
       )}
@@ -575,6 +557,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     padding: 16,
     textAlign: "center",
+  },
+  expandCue: {
+    alignItems: "center",
+    backgroundColor: colors.background,
+    borderColor: steward.line,
+    borderRadius: cardRadius,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    position: "absolute",
+    right: 6,
+    top: 6,
+  },
+  expandCueText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "700",
   },
   mapNotes: {
     bottom: 4,

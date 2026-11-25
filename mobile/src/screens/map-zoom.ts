@@ -60,3 +60,42 @@ export function zoomedViewBox(
   const { round, floor } = Math;
   return `${round(x)} ${round(y)} ${floor(width)} ${floor(height)}`;
 }
+
+// Default width / height ratio of the full-screen map container before
+// onLayout reports its measured size (portrait phone minus header and legend).
+export const DEFAULT_OVERLAY_ASPECT = 3 / 4;
+
+// Expands an SVG viewBox ("x y width height") around its centre to match the
+// container's aspect ratio so the full area stays visible without clipping.
+export function fitViewBoxToAspect(
+  viewBox: string | undefined,
+  width: number,
+  height: number,
+  fallbackAspect = DEFAULT_OVERLAY_ASPECT,
+): string | undefined {
+  if (viewBox === undefined) return undefined;
+  const [x, y, w, h] = viewBox.split(" ").map(Number);
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(w) ||
+    !Number.isFinite(h) ||
+    w <= 0 ||
+    h <= 0
+  ) {
+    return viewBox;
+  }
+  const aspect = width > 0 && height > 0 ? width / height : fallbackAspect;
+  const current = w / h;
+  let nextW = w;
+  let nextH = h;
+  if (current < aspect) {
+    nextW = h * aspect;
+  } else if (current > aspect) {
+    nextH = w / aspect;
+  }
+  const nextX = x - (nextW - w) / 2;
+  const nextY = y - (nextH - h) / 2;
+  const { round } = Math;
+  return `${round(nextX)} ${round(nextY)} ${round(nextW)} ${round(nextH)}`;
+}
