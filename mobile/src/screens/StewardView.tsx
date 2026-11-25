@@ -34,11 +34,8 @@ import { OfflineBanner } from "./OfflineBanner";
 import { withOwnStatus } from "./own-assignment";
 import { RoleView } from "./RoleView";
 import { StationChat } from "./StationChat";
-import {
-  oneRowPerStation,
-  ScenarioMap,
-  ScenarioOverview,
-} from "./ScenarioOverview";
+import { ScenarioMap, ScenarioOverview } from "./ScenarioOverview";
+import { deriveStewardMapModel, oneRowPerStation } from "./steward-map-data";
 import { useNetwork } from "../network/useNetwork";
 
 // Shown on the saved copy, where only going on the way can be reported.
@@ -495,6 +492,17 @@ export function StewardView({
         ? chatClosedSwitched(shown.scenario.name)
         : CHAT_CLOSED_CHECKED_OUT;
   const refreshScenario = useCallback(() => void refresh(), [refresh]);
+  const checkedOutStation =
+    own?.status === "CHECKED_OUT" ? own.station : undefined;
+  const mapModel =
+    shown !== null && network !== null
+      ? deriveStewardMapModel(
+          counted ?? shown,
+          network,
+          ownStation,
+          checkedOutStation,
+        )
+      : null;
   // While the chat is open it covers the view, which a screen reader skips.
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -587,13 +595,12 @@ export function StewardView({
               shown && (
                 <ScenarioMap
                   snapshot={counted ?? shown}
+                  model={mapModel}
                   network={network}
                   networkIsCached={usingCached}
                   networkStatus={networkStatus}
                   assignedStation={ownStation}
-                  checkedOutStation={
-                    own?.status === "CHECKED_OUT" ? own.station : undefined
-                  }
+                  checkedOutStation={checkedOutStation}
                 />
               )
             }
