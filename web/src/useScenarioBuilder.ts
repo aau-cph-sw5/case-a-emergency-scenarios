@@ -6,6 +6,11 @@ import {
   type FormEvent,
 } from "react";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
+import {
+  resolveSelectedStops,
+  resolveSimpleStops,
+  resolveStops,
+} from "../../shared/network/network";
 import { useNetwork } from "./data/useNetwork";
 import {
   clearScenarioDraft,
@@ -23,7 +28,6 @@ import {
   groupCrossovers,
   groupStations,
   roundtripTurnbacks,
-  routesBetween,
   usesCrossover,
   type Route,
 } from "./admin-routes";
@@ -302,22 +306,22 @@ export function useScenarioBuilder(token: string) {
       stops.length > 3 &&
       stops[0] === stops.at(-1) &&
       stops.every((station) => ringOrder.includes(station));
-    const route: string[] = [stops[0]];
-    for (let i = 1; i < stops.length; i++) {
-      const leg = closedRing
-        ? ringLeg(stops[i - 1], stops[i])
-        : routesBetween(
-            lineGroup,
-            stops[i - 1],
-            stops[i],
-            lines,
-            network?.segments,
-            trackNumber,
-          )[0];
-      if (!leg) return undefined;
-      route.push(...leg.slice(1));
+    if (closedRing) {
+      const route: string[] = [stops[0]];
+      for (let i = 1; i < stops.length; i++) {
+        route.push(...ringLeg(stops[i - 1], stops[i]).slice(1));
+      }
+      return route;
     }
-    return route;
+    const result = resolveSimpleStops(
+      stops,
+      baseLines,
+      network?.segments ?? [],
+      trackNumber === 12 ? [1, 2] : [trackNumber],
+    );
+    return result.incomplete
+      ? undefined
+      : [stops[0], ...result.connections.map(([, station]) => station)];
   }
   const roundtripPath = selectedPath(12);
   const isFullRing = (route: string[] | undefined) =>
@@ -362,6 +366,15 @@ export function useScenarioBuilder(token: string) {
     (selectedStops.length < 2 || validRoundtrip ? "ROUNDTRIP" : "PENDULUM");
   const chosenPath = type === "ROUNDTRIP" ? roundtripPath : selectedPath(track);
   const choices = chosenPath ? [chosenPath] : [];
+  const routeRepeatsStations =
+    selectedStops.length > 1 &&
+    !chosenPath &&
+    !resolveStops(
+      selectedStops,
+      baseLines,
+      network?.segments ?? [],
+      type === "ROUNDTRIP" ? [1, 2] : [track],
+    ).incomplete;
   const ringStations =
     lines
       .find((line) => line.name === "M3")
@@ -518,9 +531,20 @@ export function useScenarioBuilder(token: string) {
 
   function editLine(route: Route) {
     setEditingRouteId(route.id);
-    setFrom(route.from);
-    setTo(route.to);
-    setSelectedStops(route.stops ?? route.stations);
+    const stops = route.stops ?? route.stations;
+    const closed = stops.length > 1 && stops[0] === stops.at(-1);
+    const path = closed
+      ? undefined
+      : resolveSelectedStops(
+          stops,
+          baseLines,
+          network?.segments ?? [],
+          route.type === "ROUNDTRIP" ? [1, 2] : [route.track],
+        );
+    const ordered = path ? path.filter((stop) => stops.includes(stop)) : stops;
+    setFrom(ordered[0] ?? "");
+    setTo(ordered.length > 1 ? ordered.at(-1)! : "");
+    setSelectedStops(ordered);
     setManualType(route.type);
     setTrack(route.track === 2 ? 2 : 1);
     setLineColor(route.color);
@@ -530,17 +554,68 @@ export function useScenarioBuilder(token: string) {
     navigate("editor", lineGroup, true);
   }
 
-  function updateSelectedStops(stops: string[]) {
-    const ordered = [...stops].sort((a, b) => {
-      const first = stationPositions[a];
-      const second = stationPositions[b];
-      if (!first || !second) return 0;
-      return first[0] - second[0] || first[1] - second[1];
-    });
-    setSelectedStops(ordered);
-    setFrom(ordered[0] ?? "");
-    setTo(ordered.length > 1 ? ordered.at(-1)! : "");
+  function updateSelectedStops(stops: string[], routeChanged = true) {
+    let orderedStops = stops;
+    if (
+      routeChanged &&
+      manualType === "ROUNDTRIP" &&
+      stops.length > 1 &&
+      (stops.length !== selectedStops.length ||
+        stops.some((stop, index) => stop !== selectedStops[index]))
+    ) {
+      const path = selectedPath(12, stops);
+      const turns = roundtripTurnbacks(lineGroup, path ?? []);
+      if (!path || (!isFullRing(path) && !(turns.start && turns.end))) {
+        setManualType(null);
+        const singleTrackPath = resolveSelectedStops(
+          stops,
+          baseLines,
+          network?.segments ?? [],
+          [track],
+        );
+        if (singleTrackPath)
+          orderedStops = singleTrackPath.filter((stop) => stops.includes(stop));
+      }
+    }
+    setSelectedStops(orderedStops);
+    setFrom(orderedStops[0] ?? "");
+    setTo(orderedStops.length > 1 ? orderedStops.at(-1)! : "");
     setPathIndex(0);
+  }
+
+  function clearSelectedStops() {
+    updateSelectedStops([]);
+  }
+
+  function reorderStopsForTracks(tracks: number[]) {
+    if (selectedStops.length < 2 || selectedStops[0] === selectedStops.at(-1)) {
+      setPathIndex(0);
+      return;
+    }
+    const path = resolveSelectedStops(
+      selectedStops,
+      baseLines,
+      network?.segments ?? [],
+      tracks,
+    );
+    if (path) {
+      updateSelectedStops(
+        path.filter((stop) => selectedStops.includes(stop)),
+        false,
+      );
+    } else {
+      setPathIndex(0);
+    }
+  }
+
+  function changeOperationType(operation: "PENDULUM" | "ROUNDTRIP") {
+    setManualType(operation);
+    reorderStopsForTracks(operation === "ROUNDTRIP" ? [1, 2] : [track]);
+  }
+
+  function changeTrack(nextTrack: 1 | 2) {
+    setTrack(nextTrack);
+    reorderStopsForTracks([nextTrack]);
   }
 
   function selectStation(station: string) {
@@ -568,6 +643,17 @@ export function useScenarioBuilder(token: string) {
         setFrom(closed[0]);
         setTo(closed[0]);
         setPathIndex(0);
+        return;
+      }
+    }
+    if (next.length > 1) {
+      const findPath = (tracks: number[]) =>
+        resolveSelectedStops(next, baseLines, network?.segments ?? [], tracks);
+      const best =
+        findPath(type === "ROUNDTRIP" ? [1, 2] : [track]) ??
+        (manualType === null ? findPath([track]) : undefined);
+      if (best) {
+        updateSelectedStops(best.filter((stop) => next.includes(stop)));
         return;
       }
     }
@@ -731,8 +817,9 @@ export function useScenarioBuilder(token: string) {
     selectedStops,
     setSelectedStops,
     setManualType,
+    changeOperationType,
     track,
-    setTrack,
+    changeTrack,
     lineColor,
     setLineColor,
     did,
@@ -750,6 +837,7 @@ export function useScenarioBuilder(token: string) {
     type,
     choices,
     path,
+    routeRepeatsStations,
     ringStations,
     roundtripAllowed,
     backgroundLines,
@@ -769,6 +857,7 @@ export function useScenarioBuilder(token: string) {
     startLine,
     editLine,
     updateSelectedStops,
+    clearSelectedStops,
     selectStation,
     addLine,
     saveScenario,

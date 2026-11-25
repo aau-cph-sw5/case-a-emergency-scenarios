@@ -251,6 +251,228 @@ describe("scenario editor state", () => {
     expect(state.view).toBe("group");
     expect(state.routes).toHaveLength(0);
   });
+  it("orders stops along the route from the selected start and saves that order", async () => {
+    await act(async () => state.selectGroup("M1/M2"));
+    await act(async () => state.setScenarioId("ORDER"));
+    await act(async () => state.setScenarioName("Order"));
+    await act(async () => state.startLine("LIT"));
+    await act(async () => state.selectStation("VAN"));
+    await act(async () => state.selectStation("FL"));
+    expect(state.selectedStops).toEqual(["LIT", "FL", "VAN"]);
+    expect(state.path).toEqual(["LIT", "FL", "VAN"]);
+    expect(state.from).toBe("LIT");
+    expect(state.to).toBe("VAN");
+    await act(async () => state.setManualType("PENDULUM"));
+    await act(async () => state.setDid("DID"));
+    await act(async () => state.setMaximumTrains("2"));
+    await act(async () => state.addLine(submit()));
+    jest.mocked(postJson).mockResolvedValue({ scenarioId: "ORDER" });
+    await act(async () => state.saveScenario());
+    expect(postJson).toHaveBeenCalledWith(
+      "/api/v1/scenarios",
+      token,
+      expect.any(Function),
+      expect.objectContaining({
+        patterns: [expect.objectContaining({ stops: ["LIT", "FL", "VAN"] })],
+      }),
+    );
+  });
+  it("prevents a route that doubles back through a branch", async () => {
+    await act(async () => state.selectGroup("M1/M2"));
+    await act(async () => state.startLine("VAN"));
+    await act(async () => state.selectStation("VEA"));
+    await act(async () => state.selectStation("CPH"));
+    expect(state.routeRepeatsStations).toBe(true);
+    expect(state.path).toBeUndefined();
+    await act(async () => state.setDid("DID"));
+    await act(async () => state.setMaximumTrains("2"));
+    await act(async () => state.addLine(submit()));
+    expect(state.routes).toHaveLength(0);
+    await act(async () => state.selectStation("CPH"));
+    expect(state.routeRepeatsStations).toBe(false);
+    expect(state.path).toBeDefined();
+  });
+  it("continues around the ring instead of doubling back to the final stop", async () => {
+    await act(async () => state.selectGroup("M3/M4"));
+    await act(async () => state.startLine("NEL"));
+    for (const station of [
+      "MOP",
+      "SLU",
+      "EBR",
+      "HOL",
+      "KH",
+      "RHP",
+      "GLS",
+      "KGN",
+      "MMK",
+      "KK",
+      "TRI",
+      "FBA",
+    ])
+      await act(async () => state.selectStation(station));
+    expect(state.selectedStops.at(-1)).toBe("FBA");
+    expect(state.routeRepeatsStations).toBe(false);
+    expect(state.path).toEqual([
+      "NEL",
+      "MOP",
+      "SLU",
+      "EBR",
+      "HOL",
+      "KH",
+      "RHP",
+      "GLS",
+      "KGN",
+      "MMK",
+      "KK",
+      "TRI",
+      "PHP",
+      "VHR",
+      "SKP",
+      "NØ",
+      "NØR",
+      "NUK",
+      "AMH",
+      "FB",
+      "FBA",
+    ]);
+    await act(async () => state.setManualType("PENDULUM"));
+    await act(async () => state.setDid("DID"));
+    await act(async () => state.setMaximumTrains("2"));
+    await act(async () => state.addLine(submit()));
+    expect(state.routes).toHaveLength(1);
+    expect(state.routes[0].stops?.at(-1)).toBe("FBA");
+  });
+  it("reorders existing ring stops when another direction becomes shorter", async () => {
+    await act(async () => state.selectGroup("M3/M4"));
+    await act(async () => state.startLine("NEL"));
+    for (const station of ["KH", "GLS", "KGN", "MMK", "EHP"])
+      await act(async () => state.selectStation(station));
+    expect(state.selectedStops).toEqual([
+      "NEL",
+      "KH",
+      "EHP",
+      "MMK",
+      "KGN",
+      "GLS",
+    ]);
+    expect(state.path).toEqual([
+      "NEL",
+      "MOP",
+      "SLU",
+      "EBR",
+      "HOL",
+      "KH",
+      "EHP",
+      "FBA",
+      "FB",
+      "AMH",
+      "NUK",
+      "NØR",
+      "NØ",
+      "SKP",
+      "VHR",
+      "PHP",
+      "TRI",
+      "KK",
+      "MMK",
+      "KGN",
+      "GLS",
+    ]);
+    await act(async () => state.selectStation("EHP"));
+    expect(state.selectedStops).toEqual(["NEL", "KH", "GLS", "KGN", "MMK"]);
+  });
+  it("keeps the shortest automatic route across draft reload and line editing", async () => {
+    await act(async () => state.selectGroup("M3/M4"));
+    await act(async () => state.startLine("PHP"));
+    for (const station of ["MMK", "GLS", "FB", "VHR"])
+      await act(async () => state.selectStation(station));
+    expect(state.path).toHaveLength(12);
+    expect(["FB", "VHR"]).toContain(state.from);
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () => root.render(<View />));
+    expect(state.path).toHaveLength(12);
+    expect(["FB", "VHR"]).toContain(state.from);
+    await act(async () => state.changeOperationType("PENDULUM"));
+    await act(async () => state.changeTrack(2));
+    expect(state.path).toHaveLength(12);
+    await act(async () => state.setDid("DID"));
+    await act(async () => state.setMaximumTrains("2"));
+    await act(async () => state.addLine(submit()));
+    await act(async () => state.editLine(state.routes[0]));
+    expect(state.path).toHaveLength(12);
+    expect(["FB", "VHR"]).toContain(state.from);
+    await act(async () => state.selectStation("PHP"));
+    expect(state.selectedStops).not.toContain("PHP");
+  });
+  it("reorders stops when changing tracks and restores the route after changing operation", async () => {
+    const connections: [string, string][] = [
+      ["A", "B"],
+      ["B", "C"],
+      ["C", "D"],
+      ["A", "C"],
+      ["B", "D"],
+    ];
+    const segments = connections.flatMap(([stationA, stationB]) =>
+      (stationA === "B" && stationB === "C"
+        ? ([1, 2] as const)
+        : stationA === "A" && stationB === "C"
+          ? ([2] as const)
+          : stationA === "B" && stationB === "D"
+            ? ([2] as const)
+            : ([1] as const)
+      ).map((trackNumber) => ({ id: 1, stationA, stationB, trackNumber })),
+    );
+    jest.mocked(useNetwork).mockReturnValue({
+      network: {
+        lines: [
+          { name: "M1", tracks: [1], connections: connections.slice(0, 3) },
+          {
+            name: "M2",
+            tracks: [2],
+            connections: [connections[3], connections[1], connections[4]],
+          },
+        ],
+        positions: { A: [0, 0], B: [1, 0], C: [2, 0], D: [3, 0] },
+        segments,
+        incomplete: false,
+      },
+      error: null,
+      retry: jest.fn(),
+    });
+    await act(async () => root.render(<View />));
+    await act(async () => state.selectGroup("M1/M2"));
+    await act(async () => state.startLine("A"));
+    await act(async () => state.changeOperationType("PENDULUM"));
+    for (const station of ["B", "C", "D"])
+      await act(async () => state.selectStation(station));
+    expect(state.selectedStops).toEqual(["A", "B", "C", "D"]);
+    await act(async () => state.changeTrack(2));
+    expect(state.selectedStops).toEqual(["A", "C", "B", "D"]);
+    expect(state.path).toEqual(["A", "C", "B", "D"]);
+    await act(async () => state.changeOperationType("ROUNDTRIP"));
+    expect(state.path).toBeUndefined();
+    expect(state.selectedStops).toEqual(["A", "C", "B", "D"]);
+    await act(async () => state.changeOperationType("PENDULUM"));
+    expect(state.path).toEqual(["A", "C", "B", "D"]);
+    await act(async () => state.changeTrack(1));
+    expect(state.path).toEqual(["A", "B", "C", "D"]);
+  });
+  it("returns to pendulum when changing a two-track route removes an endpoint crossover", async () => {
+    await act(async () => state.selectGroup("M1/M2"));
+    await act(async () => state.startLine("VAN"));
+    await act(async () => state.selectStation("FL"));
+    expect(state.type).toBe("ROUNDTRIP");
+    await act(async () => state.changeOperationType("ROUNDTRIP"));
+    await act(async () => state.selectStation("LIT"));
+    expect(state.type).toBe("PENDULUM");
+    expect(state.path).toEqual(["VAN", "FL", "LIT"]);
+    await act(async () => state.changeOperationType("ROUNDTRIP"));
+    expect(state.type).toBe("ROUNDTRIP");
+    expect(state.roundtripAllowed).toBe(false);
+    await act(async () => state.updateSelectedStops(["VAN", "SOT"]));
+    expect(state.type).toBe("PENDULUM");
+  });
   it("validates tasks and staffing windows before saving", async () => {
     await createLine();
     await act(async () =>
@@ -307,6 +529,12 @@ describe("scenario editor state", () => {
     expect(state.path?.[0]).toBe(state.path?.at(-1));
     await act(async () => state.selectStation(removed));
     expect(state.from).toBe(state.to);
+    await act(async () => state.setDid("DID"));
+    await act(async () => state.setMaximumTrains("2"));
+    await act(async () => state.addLine(submit()));
+    await act(async () => state.editLine(state.routes[0]));
+    expect(state.from).toBe(state.to);
+    expect(state.path?.[0]).toBe(state.path?.at(-1));
     await act(async () => state.selectGroup("M1/M2"));
     await act(async () => state.startLine("VAN"));
     await act(async () => state.selectStation("VAN"));
