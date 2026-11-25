@@ -1,5 +1,9 @@
 # Scenario State Contract Changelog
 
+## 8.12.1 - 2026-11-24
+
+No change to the shape. Clarifies `POST /api/v1/station-threads/{station}/messages` (MET-A-029): an idempotent `clientMessageId` repeat requires matching sender role and line group in addition to station, `activationId`, `text`, and `writtenAt` (`409 E0007` otherwise).
+
 ## 8.12.0 - 2026-11-23
 
 Additive. Admins can disable and delete user accounts, and an edit signs the user out (MET-A-030, #426).
