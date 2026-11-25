@@ -1,12 +1,13 @@
+import type { LineGroup } from "../../shared/auth/line-groups.js";
 import type { StationMessage } from "../../shared/types/v1/station-message.js";
 import type { Db } from "../db/client.js";
 
-export type StoredStationMessage = {
+type StoredStationMessage = {
   id: number;
   clientMessageId: string;
   activationId: number;
   station: string;
-  sender: "STATION" | "CONTROL_ROOM";
+  sender: StationMessage["sender"];
   text: string;
   writtenAt: Date;
   receivedAt: Date;
@@ -15,7 +16,12 @@ export type StoredStationMessage = {
 // The API uses timestamp strings, so convert the database dates here.
 function toMessage(row: StoredStationMessage): StationMessage {
   return {
-    ...row,
+    id: row.id,
+    clientMessageId: row.clientMessageId,
+    activationId: row.activationId,
+    station: row.station,
+    sender: row.sender,
+    text: row.text,
     writtenAt: row.writtenAt.toISOString(),
     receivedAt: row.receivedAt.toISOString(),
   };
@@ -27,21 +33,50 @@ export async function lockClientMessageId(
 ): Promise<void> {
   // Make requests with the same ID wait so a retry can't save twice.
   await db`
-        SELECT pg_advisory_xact_lock(hashtext(${clientMessageId.toLowerCase()}))
-    `;
+    SELECT pg_advisory_xact_lock(hashtext(${clientMessageId.toLowerCase()}))
+  `;
 }
 
-export async function lockActivationForMessage(
+export async function lockActivationForLineGroup(
   db: Db,
   activationId: number,
-): Promise<void> {
-  // Keep the activation from being stood down while this message is saved.
-  await db`
-    SELECT id
+  lineGroup: LineGroup,
+): Promise<{
+  activationId: number;
+  lineGroup: LineGroup;
+  active: boolean;
+} | null> {
+  // Lock the activation row for share so stand-down waits until this message commits.
+  const [row] = await db<
+    { activationId: number; lineGroup: LineGroup; deactivatedAt: Date | null }[]
+  >`
+    SELECT id AS activation_id, line_group, deactivated_at
     FROM incident_activations
     WHERE id = ${activationId}
+      AND line_group = ${lineGroup}
     FOR SHARE
   `;
+  if (!row) return null;
+  return {
+    activationId: row.activationId,
+    lineGroup: row.lineGroup,
+    active: row.deactivatedAt === null,
+  };
+}
+
+export async function hasActiveActivation(
+  db: Db,
+  lineGroup: LineGroup,
+): Promise<boolean> {
+  const [row] = await db<{ exists: boolean }[]>`
+    SELECT EXISTS (
+      SELECT 1
+      FROM incident_activations
+      WHERE line_group = ${lineGroup}
+        AND deactivated_at IS NULL
+    ) AS exists
+  `;
+  return row.exists;
 }
 
 export async function lockStationThread(
@@ -70,14 +105,15 @@ export async function lockStewardPosition(
 export async function findByClientMessageId(
   db: Db,
   clientMessageId: string,
-): Promise<StoredStationMessage | null> {
-  const [row] = await db<StoredStationMessage[]>`
-    SELECT id, client_message_id, activation_id, station, sender,
-           text, written_at, received_at
-    FROM station_messages
-    WHERE client_message_id = ${clientMessageId}
+): Promise<{ message: StationMessage; lineGroup: LineGroup } | null> {
+  const [row] = await db<(StoredStationMessage & { lineGroup: LineGroup })[]>`
+    SELECT m.id, m.client_message_id, m.activation_id, m.station, m.sender,
+           m.text, m.written_at, m.received_at, a.line_group
+    FROM station_messages m
+    JOIN incident_activations a ON a.id = m.activation_id
+    WHERE m.client_message_id = ${clientMessageId}
   `;
-  return row ?? null;
+  return row ? { message: toMessage(row), lineGroup: row.lineGroup } : null;
 }
 
 export async function stationIsRequired(
@@ -135,7 +171,7 @@ export async function insertStationMessage(
     clientMessageId: string;
     activationId: number;
     station: string;
-    sender: "STATION" | "CONTROL_ROOM";
+    sender: StationMessage["sender"];
     text: string;
     writtenAt: Date;
   },
