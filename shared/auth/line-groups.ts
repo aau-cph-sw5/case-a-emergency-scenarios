@@ -17,6 +17,12 @@ export function lineGroupFromLabel(label: LineGroupLabel): LineGroup {
   )!;
 }
 
+// The Metro lines belonging to each line group.
+export const LINE_GROUP_LINES: Record<LineGroup, readonly string[]> = {
+  M1_M2: ["M1", "M2"],
+  M3_M4: ["M3", "M4"],
+};
+
 export function isLineGroup(value: unknown): value is LineGroup {
   return typeof value === "string" && LINE_GROUPS.includes(value as LineGroup);
 }
