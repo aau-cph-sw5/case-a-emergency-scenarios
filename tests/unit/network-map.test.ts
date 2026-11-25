@@ -4,6 +4,8 @@ import {
   buildMapNetwork,
   isNetwork,
   resolveStops,
+  resolveSimpleStops,
+  resolveSelectedStops,
   connectionKey,
 } from "../../shared/network/network.js";
 import {
@@ -89,6 +91,34 @@ test("resolves a non-stop station without inventing a shortcut", () => {
     ],
     incomplete: false,
   });
+  assert.deepEqual(resolveSimpleStops(["A", "C", "B"], lines, segments, [1]), {
+    connections: [],
+    incomplete: true,
+  });
+});
+
+test("allows a closed ring to return to its starting station", () => {
+  const connections: [string, string][] = [
+    ["A", "B"],
+    ["B", "C"],
+    ["C", "A"],
+  ];
+  const lines = [{ name: "M3", tracks: [1], connections }];
+  const segments: Network["segments"] = connections.map(
+    ([stationA, stationB], index) => ({
+      id: index + 1,
+      trackNumber: 1,
+      stationA,
+      stationB,
+    }),
+  );
+  assert.deepEqual(
+    resolveSimpleStops(["A", "B", "C", "A"], lines, segments, [1]),
+    {
+      connections,
+      incomplete: false,
+    },
+  );
 });
 
 test("renders a path when multiple paths are possible", () => {
@@ -119,6 +149,43 @@ test("renders a path when multiple paths are possible", () => {
     ],
     incomplete: false,
   });
+});
+
+test("takes the longer ring path when a shorter leg would revisit stations", () => {
+  const connections: [string, string][] = [
+    ["S", "A"],
+    ["A", "B"],
+    ["B", "C"],
+    ["C", "D"],
+    ["D", "E"],
+    ["E", "F"],
+    ["F", "G"],
+    ["G", "A"],
+  ];
+  const lines = [{ name: "M3", tracks: [1], connections }];
+  const segments: Network["segments"] = connections.map(
+    ([stationA, stationB], id) => ({
+      id: id + 1,
+      trackNumber: 1,
+      stationA,
+      stationB,
+    }),
+  );
+  const stops = ["S", "A", "B", "C", "G"];
+  const expected = {
+    connections: connections.slice(0, 7),
+    incomplete: false,
+  };
+  assert.deepEqual(resolveSimpleStops(stops, lines, segments, [1]), expected);
+  assert.deepEqual(resolveStops(stops, lines, segments, [1]), expected);
+  assert.deepEqual(
+    resolveSelectedStops(["S", "A", "C", "D", "E", "G"], lines, segments, [1]),
+    ["S", "A", "G", "F", "E", "D", "C"],
+  );
+  assert.equal(
+    resolveSimpleStops(stops, lines, segments, [2]).incomplete,
+    true,
+  );
 });
 
 test("network cache preserves a usable map when an empty response arrives", async () => {

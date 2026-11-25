@@ -11,20 +11,18 @@ import {
   groupLines,
   groupStations,
   roundtripTurnbacks,
-  routesBetween,
   usesCrossover,
 } from "../../web/src/admin-routes.ts";
 
-test("finds connected stations and offers alternative routes around M3", () => {
+function testPath(from, to) {
+  const result = resolveStops([from, to], groupLines("M1/M2", lines), [], []);
+  assert.equal(result.incomplete, false);
+  return [from, ...result.connections.map(([, station]) => station)];
+}
+
+test("station lists are limited to their line group", () => {
   assert.ok(groupStations("M1/M2", lines).includes("VAN"));
   assert.ok(!groupStations("M3/M4", lines).includes("VAN"));
-  assert.deepEqual(routesBetween("M1/M2", "VAN", "LIT", lines), [
-    ["VAN", "FL", "LIT"],
-  ]);
-  const paths = routesBetween("M3/M4", "KGN", "KH", lines);
-  assert.ok(paths.length > 1);
-  assert.ok(paths.every((path) => path[0] === "KGN" && path.at(-1) === "KH"));
-  assert.deepEqual(routesBetween("M1/M2", "VAN", "VAN", lines), []);
 });
 
 test("routes and stations come from the supplied network", () => {
@@ -43,10 +41,6 @@ test("routes and stations come from the supplied network", () => {
     "API_B",
     "API_C",
   ]);
-  assert.deepEqual(routesBetween("M1/M2", "API_A", "API_C", supplied), [
-    ["API_A", "API_B", "API_C"],
-  ]);
-  assert.deepEqual(routesBetween("M1/M2", "VAN", "API_A", supplied), []);
 });
 
 test("route options require the selected tracks on every segment", () => {
@@ -65,13 +59,17 @@ test("route options require the selected tracks on every segment", () => {
     { id: 2, trackNumber: 2, stationA: "A", stationB: "B" },
     { id: 3, trackNumber: 1, stationA: "B", stationB: "C" },
   ];
-  assert.deepEqual(routesBetween("M1/M2", "A", "C", supplied, segments, 1), [
-    ["A", "B", "C"],
-  ]);
-  assert.deepEqual(routesBetween("M1/M2", "A", "C", supplied, segments, 2), []);
-  assert.deepEqual(
-    routesBetween("M1/M2", "A", "C", supplied, segments, 12),
-    [],
+  assert.equal(
+    resolveStops(["A", "C"], supplied, segments, [1]).incomplete,
+    false,
+  );
+  assert.equal(
+    resolveStops(["A", "C"], supplied, segments, [2]).incomplete,
+    true,
+  );
+  assert.equal(
+    resolveStops(["A", "C"], supplied, segments, [1, 2]).incomplete,
+    true,
   );
 });
 
@@ -88,14 +86,6 @@ test("routes require the requested tracks on the same normal-line edge", () => {
     { id: 1, trackNumber: 1, stationA: "A", stationB: "B" },
     { id: 2, trackNumber: 2, stationA: "B", stationB: "A" },
   ];
-  assert.deepEqual(routesBetween("M1/M2", "A", "B", supplied, segments, 1), [
-    ["A", "B"],
-  ]);
-  assert.deepEqual(routesBetween("M1/M2", "A", "B", supplied, segments, 2), []);
-  assert.deepEqual(
-    routesBetween("M1/M2", "A", "B", supplied, segments, 12),
-    [],
-  );
   assert.equal(
     resolveStops(["A", "B"], supplied, segments, [1]).incomplete,
     false,
@@ -110,10 +100,6 @@ test("routes require the requested tracks on the same normal-line edge", () => {
     connections: [["A", "B"]],
     connectionTracks: { '["A","B"]': [2] },
   });
-  assert.deepEqual(
-    routesBetween("M1/M2", "A", "B", supplied, segments, 12),
-    [],
-  );
   assert.equal(
     resolveStops(["A", "B"], supplied, segments, [1, 2]).incomplete,
     true,
@@ -173,7 +159,7 @@ test("coverage proposals exclude only tracks used by the created routes", () => 
 });
 
 test("only crossovers at the ends of a roundtrip are used for turning", () => {
-  const path = routesBetween("M1/M2", "VAN", "KGN", lines)[0];
+  const path = testPath("VAN", "KGN");
   assert.equal(usesCrossover(path, { between: ["VAN", "FL"] }), true);
   assert.equal(usesCrossover(path, { between: ["KN", "KGN"] }), true);
   assert.equal(usesCrossover(path, { between: ["FB", "FOR"] }), false);
@@ -213,7 +199,7 @@ test("the additional M1/M2 crossovers allow turning at their endpoints", () => {
   ]) {
     assert.ok(crossoverOnSegment("M1/M2", a, b));
   }
-  const path = routesBetween("M1/M2", "LGP", "FEØ", lines)[0];
+  const path = testPath("LGP", "FEØ");
   assert.deepEqual(roundtripTurnbacks("M1/M2", path), {
     start: true,
     end: true,
@@ -228,7 +214,7 @@ test("crossovers are matched on a track segment in either direction", () => {
 });
 
 test("roundtrip turnbacks must be on the first and last route segments", () => {
-  const valid = routesBetween("M1/M2", "VAN", "KGN", lines)[0];
+  const valid = testPath("VAN", "KGN");
   assert.deepEqual(roundtripTurnbacks("M1/M2", valid), {
     start: true,
     end: true,
