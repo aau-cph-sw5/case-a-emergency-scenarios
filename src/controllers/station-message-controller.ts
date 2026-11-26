@@ -9,6 +9,7 @@ import {
   listStationThreads,
   readStationThread,
 } from "../services/station-message-service.js";
+import { notifyStationMessage } from "../services/push-service.js";
 
 // Role refusals use 403; other refusals mean the current state conflicts (409).
 function refuse(response: Response, code: string) {
@@ -71,6 +72,11 @@ export async function postStationMessage(
     if (io) {
       emitStationMessage(io, result.lineGroup, result.message, result.thread);
     }
+    void notifyStationMessage(
+      result.message.activationId,
+      result.message.station,
+      user.role === "STEWARD" ? user.userId : null,
+    );
   }
 
   return (

@@ -7,6 +7,7 @@ import { apiBaseUrl } from "../api-base-url";
 
 // The server sends scenario pushes on this channel (src/services/push-service.ts)
 const SCENARIO_CHANNEL_ID = "scenarios";
+const STATION_CHANNEL_ID = "station-messages";
 
 // Gives the server this phone's FCM token, so a logged-in steward gets
 // notifications while the app is in the background or closed (ADR 0014).
@@ -24,8 +25,13 @@ export async function registerPush(sessionToken: string): Promise<void> {
       shouldSetBadge: false,
     }),
   });
+ 
   await Notifications.setNotificationChannelAsync(SCENARIO_CHANNEL_ID, {
     name: "Scenarier",
+    importance: Notifications.AndroidImportance.HIGH,
+  });
+  await Notifications.setNotificationChannelAsync(SCENARIO_CHANNEL_ID, {
+    name: "Stationsbeskeder",
     importance: Notifications.AndroidImportance.HIGH,
   });
   // Metro's device management grants this centrally, so stewards are not asked

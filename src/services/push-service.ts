@@ -12,6 +12,7 @@ import { findScenario } from "../repositories/scenario-repository.js";
 // newest scenario message per line group waits for it.
 const TTL_MS = 60 * 60 * 1000;
 export const SCENARIO_CHANNEL_ID = "scenarios";
+export const STATION_CHANNEL_ID = "station-messages";
 
 // FCM's answers for a token no phone will ever accept again
 const DEAD_TOKEN_CODES = new Set([
@@ -36,6 +37,23 @@ export function scenarioMessage(
       ttl: TTL_MS,
       collapseKey: `scenario-${lineGroup}`,
       notification: { channelId: SCENARIO_CHANNEL_ID },
+    },
+  };
+}
+export function stationMessage(
+  tokens: string[],
+  station: string,
+): MulticastMessage {
+  return {
+    tokens,
+    notification: {
+      title: "Stationsmeddelelse",
+      body: station,
+    },
+    android: {
+      priority: "high",
+      ttl: TTL_MS,
+      notification: { channelId: STATION_CHANNEL_ID },
     },
   };
 }
@@ -72,6 +90,31 @@ export async function notifyScenarioChange(
     if (tokens.length === 0) return;
     const result = await getMessaging(app).sendEachForMulticast(
       scenarioMessage(tokens, lineGroup, started, scenarioName),
+    );
+    const deadTokens = tokens.filter((_, index) =>
+      DEAD_TOKEN_CODES.has(result.responses[index].error?.code ?? ""),
+    );
+    await authSessionRepository.clearPushTokens(deadTokens);
+  } catch (error) {
+    console.error("Push notification failed:", error);
+  }
+}
+export async function notifyStationMessage(
+activationId: number,
+station: string,
+senderId: number | null,
+): Promise<void> {
+  const app = firebase();
+  if (!app) return;
+  try {
+    const tokens = await authSessionRepository.findStationStewardPushTokens(
+      activationId,
+      station,
+      senderId,
+    );
+    if (tokens.length === 0) return;
+    const result = await getMessaging(app).sendEachForMulticast(
+      stationMessage(tokens, station),
     );
     const deadTokens = tokens.filter((_, index) =>
       DEAD_TOKEN_CODES.has(result.responses[index].error?.code ?? ""),

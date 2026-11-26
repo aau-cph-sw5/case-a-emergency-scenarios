@@ -2,7 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   SCENARIO_CHANNEL_ID,
+  STATION_CHANNEL_ID,
   scenarioMessage,
+  stationMessage,
 } from "../../src/services/push-service.js";
 
 // ADR 0014: what a phone offline at send time gets
@@ -33,4 +35,22 @@ test("a scenario push says whether the scenario started or ended", () => {
     title: "Scenarie afsluttet",
     body: "Brand",
   });
+});
+test("a station chat push is never collapsed and expires after an hour", () => {
+  const message = stationMessage(["token"], "NOR");
+
+  assert.deepEqual(message.tokens, ["token"]);
+  assert.equal(message.android?.collapseKey, undefined);
+  assert.equal(message.android?.ttl, 60 * 60 * 1000);
+  assert.equal(message.android?.priority, "high");
+  assert.equal(message.android?.notification?.channelId, STATION_CHANNEL_ID);
+});
+test("a station chat push carries only the station, not the sender", () => {
+  const message = stationMessage(["token"], "NOR");
+
+  assert.deepEqual(message.notification, {
+    title: "Stationsmeddelelse",
+    body: "NOR",
+  });
+  assert.equal(message.data, undefined);
 });

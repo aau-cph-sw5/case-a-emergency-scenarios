@@ -136,6 +136,33 @@ async function findStewardPushTokens(lineGroup: string): Promise<string[]> {
   `;
   return rows.map((row) => row.pushToken);
 }
+async function findStationStewardPushTokens(
+  activationId: number,
+  station: string,
+  excludeUserId: number | null,
+): Promise<string[]> {
+  const sql = getDatabase();
+  const rows = await sql<{ pushToken: string }[]>`
+    WITH latest AS (
+      SELECT DISTINCT ON (staff) staff, station, event, task_done
+      FROM position_reports
+      WHERE activation_id = ${activationId}
+      ORDER BY staff, received_at DESC, id DESC
+      )
+    SELECT s.push_token AS "pushToken"
+    FROM latest l
+    JOIN auth_sessions s ON s.user_id = l.staff::int
+    JOIN users u ON u.id = s.user_id
+    WHERE l.station = ${station}
+      AND l.event = 'ARRIVED' AND l.task_done = false
+      AND u.role = 'STEWARD'
+      AND (${excludeUserId}::int IS NULL OR s.user_id <> ${excludeUserId})
+      AND s.push_token IS NOT NULL
+      AND s.revoked_at IS NULL
+      AND s.expires_at > NOW()
+  `;
+  return rows.map((r) => r.pushToken);
+}
 
 // FCM answered that these phones no longer take messages.
 async function clearPushTokens(pushTokens: string[]): Promise<void> {
@@ -157,4 +184,5 @@ export const authSessionRepository = {
   savePushToken,
   findStewardPushTokens,
   clearPushTokens,
+  findStationStewardPushTokens,
 };
