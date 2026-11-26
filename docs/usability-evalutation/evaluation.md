@@ -1,13 +1,12 @@
 # Usability test evaluation
 
-Related issue: MET-A-027 
+Related issue: MET-A-027 (#26)
 
 ## Purpose
 
 We conducted the usability test to see whether the system we have developed makes sense for the people who will actually be using it during fallback scenarios.
 
-The main focus of MET-A-027 was whether stewards could quickly identify which stations require bemanning and what they need to do. 
-We extended the test to cover the rest of the steward workflow and included an operator to evaluate the other side of the system.
+The main focus of MET-A-027 was whether stewards could quickly identify which stations require bemanning and what they need to do. We extended the test to cover the rest of the steward workflow and included an operator to evaluate the other side of the system.
 
 Besides testing the functionality itself, we wanted to gain a better understanding of how Metro Service currently operates and whether some of the assumptions we made during development correspond to their actual way of working.
 
@@ -42,8 +41,9 @@ We did manage to record some approximate timings for S3.
 
 Additional timings were recorded during S3's initial interaction with the application.
 
-Our general observation was that the stewards were quick to understand and perform the basic interactions. 
-The difficulty with collecting timings was largely due to how quickly the interactions happened rather than the participants having difficulties completing them.
+See [raw-observations.md](raw-observations.md) for the available timings and observations.
+
+Our general observation was that the stewards were quick to understand and perform the basic interactions. The difficulty with collecting timings was largely due to how quickly the interactions happened rather than the participants having difficulties completing them.
 
 However, we cannot provide a reliable average or median time to correct station identification because we do not have comparable individual measurements.
 
@@ -83,8 +83,7 @@ We would still need to account for situations where a steward is working outside
 
 The steward should also be able to access the task associated with a station before arriving.
 
-S1 explained that having more information about the task beforehand would allow them to prepare while travelling. 
-Depending on the task, this could involve putting on a safety vest, finding the necessary equipment or making other preparations before reaching the station.
+S1 explained that having more information about the task beforehand would allow them to prepare while travelling. Depending on the task, this could involve putting on a safety vest, finding the necessary equipment or making other preparations before reaching the station.
 
 The station selection workflow should therefore help the steward understand both where they need to go and what they need to prepare for.
 
@@ -386,4 +385,135 @@ There may be a period where the control room and stewards are preparing for the 
 
 It would be useful to distinguish between a scenario being announced and the new operation being established.
 
-S2 also mentioned that stewards may need information about scenarios outside their own area, for example when
+S2 also mentioned that stewards may need information about scenarios outside their own area, for example when passengers ask about other parts of the Metro.
+
+This is relevant to the proposed zone-based overview.
+
+While the main assignment view should prioritise the steward's own area, other scenario information should not necessarily become unavailable.
+
+Some of this functionality is outside our current scope, but it is relevant for future development.
+
+Sources: S2 after-interview; S3 interviews.
+
+### Adoption and trust
+
+The participants were generally positive towards the idea of the application.
+
+At the same time, they raised concerns about relying on it without knowing whether important information would always reach them.
+
+S1 suggested testing the application over a longer period before relying on it in normal operation.
+
+S2 explained that employees may continue using the radio out of habit if the new workflow is not made part of their existing procedures.
+
+The application needs to be reliable and fit into their work before we can expect it to be adopted.
+
+Sources: S1 and S2 after-interviews.
+
+## Evaluation based on ISO 9241-11
+
+### Effectiveness
+
+The stewards were generally able to understand and perform the core actions in the application.
+
+We did find issues with duplicate station reservations, coverage information and some of the feedback provided after actions.
+
+We cannot verify successful completion of every task for every participant.
+
+### Efficiency
+
+The general observation was that the stewards were quick to understand and perform most of the basic interactions.
+
+The available timings support this for some tasks.
+
+The station coverage task took longer and involved confusion about the displayed information.
+
+Filtering the station overview based on staffing requirements and the steward's working zone could potentially improve efficiency further. This would need to be evaluated through another test.
+
+Because of the timing difficulties during the test, we cannot make a reliable quantitative comparison between participants or between our application and the current workflow.
+
+### Satisfaction
+
+The stewards generally responded positively to the concept and the ability to share status information digitally.
+
+They also had several suggestions for how the application could better fit into their work.
+
+The feedback was especially positive regarding the potential to reduce unnecessary radio calls and improve coordination.
+
+We do not have a numerical satisfaction score.
+
+## Research questions
+
+| Research question | Result |
+| --- | --- |
+| Can stewards quickly and correctly identify their station and tasks? | The observed interactions were generally quick. Reliable individual timings are missing. Filtering stations by staffing requirements and working zones could improve the overview further. |
+| Can stewards register and understand their status without help? | Generally positive results, particularly for check-in and checkout. Additional confirmation sounds were suggested. |
+| Is the graphical overview understandable and correct? | Partly. Coverage inconsistencies, duplicate reservations and confusing presentation were observed. |
+| Are changes to an active scenario clear? | Participants could interact with changes, but notification visibility needs improvement. Distinct start and end alarms should be considered. |
+| Is offline information and its freshness understood? | Not sufficiently tested. |
+| Do the workflows fit the stewards' actual work? | Partly. The interviews identified several areas where our assumptions need to be reconsidered. |
+| Does the operator dashboard provide a useful overview? | Cannot be concluded until the operator results are included. |
+
+## Assumptions we need to reconsider
+
+| Initial assumption | What we learned |
+| --- | --- |
+| Stewards frequently have their phones in their hands. | During scenarios, they may be occupied with other work and keep their phones in their pockets. |
+| Ordinary notifications are sufficient. | More noticeable alarms may be needed for scenario activation and termination. |
+| All affected stations are relevant to every steward. | Stewards work within geographical areas and may only need to see stations relevant to their current assignment. |
+| All affected stations should be displayed in the station selection view. | Stations requiring staffing are the primary information needed when selecting an assignment. |
+| Detailed task instructions are always needed. | Experienced stewards may already know the general procedure, but specific preparations and equipment requirements can still be useful. |
+| Task information is primarily needed after arrival. | Having the information beforehand allows stewards to prepare while travelling. |
+| The required staffing number represents a maximum. | Additional staffing may be needed, but unintended duplicate reservations should still be prevented. |
+| Assignments are always associated with stations. | Stewards may also be responsible for shuttle trains or other functions. |
+| All employees can easily type messages. | Some employees are dyslexic and already use speech-to-text. |
+| Visual feedback is sufficient for status changes. | Confirmation sounds may be useful when stewards are occupied with other work. |
+| Knowing that someone is en route is sufficient. | Expected arrival information could also be useful. |
+| Scenario activation means scenario operation has started. | There may be a preparation period before the new operation is established. |
+| Only stewards involved in a scenario need information about it. | Other stewards may need the information when assisting passengers. |
+| Written communication can replace radio communication. | The radio is still preferred for immediate operational communication. |
+
+## Limitations
+
+The main limitation of the test was our data collection.
+
+Although the stewards were generally quick to perform the requested actions, we did not manage to collect reliable individual timings or complete error counts.
+
+The participants had varying degrees of introduction to the application, and help was sometimes provided during the tasks.
+
+The scenarios were simulated and did not necessarily create the same time pressure as an actual fallback scenario.
+
+Some tests took place while the participants were moving between stations. Background noise and interruptions affected the recordings.
+
+The participant sample was small, and the detailed operator results have not yet been included.
+
+There was also no measured comparison against the existing workflow.
+
+We therefore cannot conclude that our solution is faster than the current process or quantify how much time it saves.
+
+Several of the improvements suggested in this evaluation, including zone-based station selection and filtering the assignment overview, have not been implemented or tested. They are suggestions based on what we learned during the test.
+
+## Conclusion
+
+The usability test showed that the stewards generally understood the basic workflow of the application and were able to perform many of the core interactions quickly.
+
+The ability to report status and see station coverage was received positively.
+
+We also found concrete issues with duplicate reservations, station coverage and the presentation of information that should be addressed.
+
+The interviews helped us understand the current Metro workflow better, especially how stewards use the radio, when they have access to their phones and how staffing requirements may change during a scenario.
+
+Based on the test, we consider the following particularly relevant for further development:
+
+- Distinct alarms when a scenario starts and ends.
+- Preventing unintended duplicate station reservations and check-ins.
+- Showing stations that still require staffing in the main assignment view.
+- Investigating whether steward accounts can be associated with working zones to make station selection more relevant.
+- Providing more precise task information before arrival so stewards can prepare.
+- Adding confirmation sounds to check-in and checkout.
+- Supporting speech-to-text in the chat for employees with dyslexia.
+
+Some of these improvements concern existing functionality, while others would extend the current scope and need to be discussed with the Product Owner.
+
+The test gives us useful qualitative results, but the available quantitative data is not sufficient to fully satisfy the timing and error-rate criterion in MET-A-027.
+
+We need to discuss this with the Product Owner and, if necessary, repeat the relevant tasks using a more reliable way of recording timings.
