@@ -4,15 +4,13 @@ import type { StationThread } from "../../shared/types/v1/station-thread.js";
 import type { StationMessageEvent } from "../../shared/socket/events.js";
 import { ERROR_CODES, type ErrorCode } from "../../shared/error-codes.js";
 import { getDatabase, type Db } from "../db/client.js";
-import {
-  findActivation,
-  findActiveActivation,
-} from "../repositories/activation-repository.js";
+import { findActiveActivation } from "../repositories/activation-repository.js";
 import {
   findByClientMessageId,
+  hasActiveActivation,
   insertStationMessage,
   listMessages,
-  lockActivationForMessage,
+  lockActivationForLineGroup,
   lockClientMessageId,
   lockStationThread,
   lockStewardPosition,
@@ -21,7 +19,7 @@ import {
 } from "../repositories/station-message-repository.js";
 import type { LineGroup } from "../../shared/auth/line-groups.js";
 import type { AuthUser } from "./auth-service.js";
-import { appendStationMessageEvent } from "./incident-log-service.js";
+import { appendSystemEvent } from "./incident-log-service.js";
 
 type Refusal = { kind: "refused"; code: ErrorCode };
 
@@ -69,30 +67,23 @@ async function validateActiveActivation(
   user: AuthUser,
   activationId: number,
 ): Promise<
-  | {
-      kind: "ok";
-      activation: NonNullable<Awaited<ReturnType<typeof findActivation>>>;
-    }
+  | { kind: "ok"; activation: { activationId: number; lineGroup: LineGroup } }
   | Refusal
 > {
   // A message can only belong to an active scenario in the user's line group.
-  let activation = await findActivation(activationId, db);
+  const activation = await lockActivationForLineGroup(
+    db,
+    activationId,
+    user.lineGroup,
+  );
 
-  if (!activation || activation.lineGroup !== user.lineGroup) {
-    const active = await findActiveActivation(user.lineGroup, db);
-    return active
+  if (!activation) {
+    return (await hasActiveActivation(db, user.lineGroup))
       ? { kind: "refused", code: ERROR_CODES.SCENARIO_STOOD_DOWN }
       : { kind: "refused", code: ERROR_CODES.NO_ACTIVE_SCENARIO };
   }
 
-  await lockActivationForMessage(db, activationId);
-  activation = await findActivation(activationId, db);
-
-  if (!activation || activation.status !== "ACTIVE") {
-    return { kind: "refused", code: ERROR_CODES.SCENARIO_STOOD_DOWN };
-  }
-
-  if (activation.lineGroup !== user.lineGroup) {
+  if (!activation.active) {
     return { kind: "refused", code: ERROR_CODES.SCENARIO_STOOD_DOWN };
   }
 
@@ -124,24 +115,22 @@ export async function createStationMessage(
     const previous = await findByClientMessageId(tx, clientMessageId);
     if (previous) {
       // Check retries first so an already-saved message still succeeds after stand-down.
+      const expectedSender =
+        user.role === "STEWARD" ? "STATION" : "CONTROL_ROOM";
       const sameContent =
-        previous.activationId === request.activationId &&
-        previous.station === station &&
-        previous.text === request.text &&
-        previous.writtenAt.getTime() === new Date(request.writtenAt).getTime();
+        previous.lineGroup === user.lineGroup &&
+        previous.message.sender === expectedSender &&
+        previous.message.activationId === request.activationId &&
+        previous.message.station === station &&
+        previous.message.text === request.text &&
+        Date.parse(previous.message.writtenAt) ===
+          Date.parse(request.writtenAt);
 
       if (!sameContent) {
         return { kind: "refused", code: ERROR_CODES.CONFLICT };
       }
 
-      const messages = await listMessages(
-        tx,
-        previous.activationId,
-        previous.station,
-      );
-      const saved = messages.find((message) => message.id === previous.id);
-      if (!saved) throw new Error("Stored station message could not be read");
-      return { kind: "repeat", message: saved };
+      return { kind: "repeat", message: previous.message };
     }
 
     const checked = await validateActiveActivation(
@@ -184,9 +173,20 @@ export async function createStationMessage(
       writtenAt: new Date(request.writtenAt),
     });
 
-    await appendStationMessageEvent(tx, {
-      message,
-      lineGroup: activation.lineGroup,
+    await appendSystemEvent(tx, "station-thread", {
+      type: "STATION_MESSAGE_WRITTEN",
+      schemaVersion: 2,
+      subject: { type: "station-message", id: String(message.id) },
+      activationId: String(message.activationId),
+      line: activation.lineGroup,
+      payload: {
+        station: message.station,
+        sender: message.sender,
+        text: message.text,
+        writtenAt: message.writtenAt,
+        receivedAt: message.receivedAt,
+      },
+      clientTime: new Date(message.writtenAt),
     });
 
     const thread = makeThread(

@@ -1,23 +1,60 @@
 import { getStation } from "../../mockData/data";
+import { connectionKey } from "../network/network";
 import type { SnapshotScenario } from "../offline/scenario-snapshot";
+import type { TrackSegment } from "../types/v1/scenario";
 
-//helper function as map draws "lines" made of station pairs
-//turns the affected stations (covers) into the maps "lines"
-//filter keeps only pairs where both stations have a position
+export type StationPair = [string, string];
+
+export type CoveredSegment = Pick<
+  TrackSegment,
+  "trackNumber" | "stationA" | "stationB"
+>;
+
+// One connection per station pair, with the tracks covered on each pair.
+export function coversAsMapLine(
+  name: string,
+  covers: readonly CoveredSegment[] | undefined,
+) {
+  const connections: StationPair[] = [];
+  const connectionTracks: Record<string, number[]> = {};
+  const tracks = new Set<number>();
+
+  for (const segment of covers ?? []) {
+    const key = connectionKey(segment.stationA, segment.stationB);
+    let segmentTracks = connectionTracks[key];
+    if (!segmentTracks) {
+      segmentTracks = [];
+      connectionTracks[key] = segmentTracks;
+      connections.push([segment.stationA, segment.stationB]);
+    }
+    if (!segmentTracks.includes(segment.trackNumber)) {
+      segmentTracks.push(segment.trackNumber);
+    }
+    tracks.add(segment.trackNumber);
+  }
+
+  return {
+    name,
+    tracks: [...tracks],
+    connections,
+    connectionTracks,
+  };
+}
+
+// Turns a scenario's covered segments into a map line for pairs where both
+// stations have map positions. Keeps both tracks so callers pairing this with
+// networkWithoutStretch continue drawing the full affected stretch.
 export function affectedStretchAsMapLine(
-  scenario: SnapshotScenario,
+  scenario: { name: string; covers?: readonly CoveredSegment[] },
   position: (station: string) => [number, number] | undefined = getStation,
 ) {
+  const positioned = (scenario.covers ?? []).filter(
+    (segment) => position(segment.stationA) && position(segment.stationB),
+  );
   return {
     name: scenario.name,
     tracks: [1, 2],
-    connections: (scenario.covers ?? [])
-      .map(
-        (segment) => [segment.stationA, segment.stationB] as [string, string],
-      )
-      .filter(
-        ([stationA, stationB]) => position(stationA) && position(stationB),
-      ),
+    connections: coversAsMapLine(scenario.name, positioned).connections,
   };
 }
 
@@ -62,10 +99,8 @@ export function areaAroundStations(
   return `${left} ${top} ${right - left} ${bottom - top}`;
 }
 
-type StationPair = [string, string];
-
-// FOR–KN and KN–FOR are the same piece of track.
-function samePiece([a, b]: StationPair, [c, d]: StationPair) {
+// FOR-KN and KN-FOR are the same piece of track.
+export function samePiece([a, b]: StationPair, [c, d]: StationPair) {
   return (a === c && b === d) || (a === d && b === c);
 }
 
