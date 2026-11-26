@@ -16,7 +16,7 @@ import {
 import { Profiler } from "react";
 import { sendPositionReport } from "../../mobile/src/api/position-report";
 import { ERROR_CODES } from "../../shared/error-codes";
-import { motion } from "../../shared/Theme";
+import { colors, coverageColors, motion } from "../../shared/Theme";
 import { resetRememberedStatuses } from "../../mobile/src/data/steward-status";
 import { StewardView } from "../../mobile/src/screens/StewardView";
 import { positionReportDelivery } from "../../mobile/src/offline/position-report-delivery-instance";
@@ -28,8 +28,15 @@ import {
 import { socket } from "../../mobile/src/socket";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
+import {
+  circleByTestId,
+  makeRouteScenario,
+  makeRouteSnapshot,
+  metroMapNetwork,
+} from "../helpers/metro-map";
 import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
 import { useActiveScenario } from "../../shared/offline/use-active-scenario";
+import type { MapNetwork } from "../../shared/network/network";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 
@@ -92,8 +99,9 @@ jest.mock("../../shared/socket/useSocketState", () => ({
 jest.mock("../../mobile/src/socket", () => ({
   socket: { on: jest.fn(), off: jest.fn() },
 }));
+let mockNetwork: MapNetwork | null = null;
 jest.mock("../../mobile/src/network/useNetwork", () => ({
-  useNetwork: () => ({ network: null, usingCached: false }),
+  useNetwork: () => ({ network: mockNetwork, usingCached: false }),
 }));
 jest.mock("../../mobile/src/offline/snapshot-store", () => ({
   snapshotStore: {},
@@ -227,6 +235,7 @@ beforeEach(() => {
 afterEach(() => {
   resetRememberedStatuses();
   refresh.mockClear();
+  mockNetwork = null;
 });
 
 describe("StewardView status (MET-A-015, #263, #305)", () => {
@@ -770,5 +779,44 @@ describe("StewardView status (MET-A-015, #263, #305)", () => {
       screen.getByText("Scenariet er skiftet til “Signalfejl”."),
     ).toBeTruthy();
     fetchMock.mockRestore();
+  });
+});
+
+describe("StewardView map (MET-A-031, #466)", () => {
+  jest.setTimeout(20000);
+
+  it("rings the own station only after BEKRÆFT and keeps it after check-in", async () => {
+    mockNetwork = metroMapNetwork;
+    const routeSnapshot = makeRouteSnapshot(makeRouteScenario());
+    showView({ status: "live", notices: [], snapshot: routeSnapshot });
+    queue.mockResolvedValue({
+      ...queuedReport,
+      station: "KGN",
+      scenarioId: routeSnapshot.scenario.scenarioId,
+    });
+    await renderView();
+    expect(await screen.findByText("IKKE VALGT")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Vælg KGN"));
+    });
+    expect(screen.getByLabelText("Vælg KGN")).toBeSelected();
+    expect(circleByTestId("own-station-ring-KGN")).toBeUndefined();
+
+    await slide();
+    expect(await screen.findByText("PÅ VEJ")).toBeTruthy();
+    expect(circleByTestId("own-station-ring-KGN")?.props.stroke).toBe(
+      colors.text,
+    );
+    expect(circleByTestId("own-station-ring-ISB")).toBeUndefined();
+
+    await slide();
+    expect(await screen.findByText(/^ANKOMMET/)).toBeTruthy();
+    expect(circleByTestId("own-station-ring-KGN")?.props.stroke).toBe(
+      colors.text,
+    );
+    expect(circleByTestId("station-dot-KGN")?.props.fill).toBe(
+      coverageColors.partial.fill,
+    );
   });
 });

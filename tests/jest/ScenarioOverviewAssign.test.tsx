@@ -5,16 +5,26 @@ import {
   ScenarioMap,
   ScenarioOverview,
 } from "../../mobile/src/screens/ScenarioOverview";
-import { Circle } from "react-native-svg";
+import { Circle, Line, Text as SvgText } from "react-native-svg";
+import {
+  circleByTestId,
+  makeRouteScenario,
+  makeRouteSnapshot,
+  metroMapNetwork,
+} from "../helpers/metro-map";
 import { network as networkFixture } from "../helpers/network";
 import { buildMapNetwork } from "../../shared/network/network";
 import type { Network } from "../../shared/types/v1/network";
 import activeState from "../../fixtures/v1/scenario-state.json";
 import scenario from "../../fixtures/v1/scenarios/DEMO-001.json";
-import { buildSnapshot } from "../../shared/offline/scenario-snapshot";
+import {
+  buildSnapshot,
+  createSnapshotStore,
+  type SnapshotStorage,
+} from "../../shared/offline/scenario-snapshot";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
-import { colors, steward } from "../../shared/Theme";
+import { colors, coverageColors, palette, steward } from "../../shared/Theme";
 
 // User 9 has no deployment in the fixture, so the steward has no status yet.
 const snapshot = buildSnapshot(
@@ -89,6 +99,262 @@ describe("ScenarioMap network (MET-A-030)", () => {
     ).toBeTruthy();
     expect(screen.UNSAFE_queryAllByType(Circle)).toHaveLength(0);
   });
+});
+
+function svgTextByTestId(testID: string) {
+  return screen
+    .UNSAFE_queryAllByType(SvgText)
+    .find((node) => node.props.testID === testID);
+}
+
+function memoryStorage(): SnapshotStorage {
+  const data = new Map<string, string>();
+  return {
+    getItem: async (key) => data.get(key) ?? null,
+    setItem: async (key, value) => {
+      data.set(key, value);
+    },
+    removeItem: async (key) => {
+      data.delete(key);
+    },
+  };
+}
+
+describe("ScenarioMap routes and closures (MET-A-031, #466)", () => {
+  it.each(["online", "offline"] as const)(
+    "draws the scoped M1/M2 routes in Metro colours from an %s snapshot, without DIDs or a colour switch",
+    async (mode) => {
+      let routeSnapshot = makeRouteSnapshot(makeRouteScenario());
+      if (mode === "offline") {
+        const store = createSnapshotStore(memoryStorage());
+        await store.save(routeSnapshot);
+        routeSnapshot = (await store.load("9"))!;
+      }
+      render(
+        <ScenarioMap
+          snapshot={routeSnapshot}
+          network={metroMapNetwork}
+          networkIsCached={mode === "offline"}
+          networkStatus="ready"
+        />,
+      );
+
+      const strokes = new Set(
+        screen.UNSAFE_queryAllByType(Line).map((line) => line.props.stroke),
+      );
+      expect(strokes).toContain(palette.metroLineOne);
+      expect(strokes).toContain(palette.metroLineTwo);
+      expect(strokes).toContain(colors.blockedTrack);
+      // M3 and M4 belong to the other line group.
+      expect(strokes).not.toContain(palette.metroLineThree);
+      expect(strokes).not.toContain(palette.metroLineFour);
+      for (const station of ["KBH", "RAD", "GLS", "ORI"]) {
+        expect(circleByTestId(`station-dot-${station}`)).toBeUndefined();
+      }
+
+      const svgTexts = screen
+        .UNSAFE_queryAllByType(SvgText)
+        .map((node) => [node.props.children].flat().join(""));
+      expect(svgTexts).not.toContain("11");
+      expect(svgTexts).not.toContain("22");
+      expect(screen.queryByTestId("metro-line-controls")).toBeNull();
+      expect(
+        screen.queryByText("En eller flere ruter kan ikke vises på kortet."),
+      ).toBeNull();
+      expect(screen.queryByText("Viser gemt metronetværk.") !== null).toBe(
+        mode === "offline",
+      );
+    },
+  );
+
+  it("draws a single-track closure dashed next to a solid running lane on the same segment", () => {
+    const routeSnapshot = makeRouteSnapshot(makeRouteScenario());
+    render(
+      <ScenarioMap
+        snapshot={routeSnapshot}
+        network={metroMapNetwork}
+        networkStatus="ready"
+      />,
+    );
+
+    const kgnToIsb = screen
+      .UNSAFE_queryAllByType(Line)
+      .filter(
+        (line) =>
+          Math.min(line.props.x1, line.props.x2) === 200 &&
+          Math.max(line.props.x1, line.props.x2) === 300 &&
+          line.props.y1 === line.props.y2,
+      );
+    const solidRunning = kgnToIsb.filter(
+      (line) =>
+        line.props.stroke === palette.metroLineOne &&
+        line.props.strokeDasharray === undefined,
+    );
+    const dashedClosed = kgnToIsb.filter(
+      (line) =>
+        line.props.stroke === colors.blockedTrack &&
+        line.props.strokeDasharray === "10 6",
+    );
+
+    expect(solidRunning).toHaveLength(2);
+    expect(dashedClosed).toHaveLength(2);
+    // Track 1 and track 2 sit on opposite sides of the station centreline (y=200).
+    expect(solidRunning.every((line) => line.props.y1 < 200)).toBe(true);
+    expect(dashedClosed.every((line) => line.props.y1 > 200)).toBe(true);
+  });
+
+  it("draws the own-station outer ring over live coverage and clears it on checkout", () => {
+    const partialSnapshot = makeRouteSnapshot(makeRouteScenario(), [
+      {
+        status: "MANNED",
+        staff: "9",
+        fulfills: "KGN",
+        reportedAt: "2026-11-24T09:00:00Z",
+        arrivedAt: "2026-11-24T09:00:00Z",
+      },
+    ]);
+
+    const view = render(
+      <ScenarioMap
+        snapshot={partialSnapshot}
+        assignedStation="KGN"
+        network={metroMapNetwork}
+        networkStatus="ready"
+      />,
+    );
+
+    expect(circleByTestId("station-dot-KGN")?.props.fill).toBe(
+      coverageColors.partial.fill,
+    );
+    expect(circleByTestId("own-station-gap-KGN")?.props.stroke).toBe(
+      colors.background,
+    );
+    expect(circleByTestId("own-station-ring-KGN")?.props.stroke).toBe(
+      colors.text,
+    );
+    expect(svgTextByTestId("station-label-KGN")?.props.fill).toBe(colors.text);
+
+    // Other required stations keep coverage fill without an outer ring.
+    expect(circleByTestId("station-dot-ISB")?.props.fill).toBe(
+      coverageColors.gap.fill,
+    );
+    expect(circleByTestId("own-station-gap-ISB")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-ISB")).toBeUndefined();
+
+    // After check-out, no own-station ring is shown.
+    view.rerender(
+      <ScenarioMap
+        snapshot={partialSnapshot}
+        checkedOutStation="KGN"
+        network={metroMapNetwork}
+        networkStatus="ready"
+      />,
+    );
+    expect(circleByTestId("own-station-gap-KGN")).toBeUndefined();
+    expect(circleByTestId("own-station-ring-KGN")).toBeUndefined();
+  });
+
+  it("shows the missing-route alert alongside cached, incomplete, and missing-stretch notes", () => {
+    const brokenScenario = makeRouteScenario({
+      covers: [{ trackNumber: 1, stationA: "KGN", stationB: "UNKNOWN" }],
+      versions: [
+        {
+          ...makeRouteScenario().versions[0],
+          operatingPlan: {
+            name: "Broken plan",
+            patterns: [
+              {
+                operationType: "PENDULUM",
+                routeCode: "KGN-UNKNOWN",
+                trackNumber: 1,
+                maximumTrains: 1,
+                did: "11",
+                description: "Unresolvable route",
+                route: [
+                  { sequence: 1, station: "KGN" },
+                  { sequence: 2, station: "UNKNOWN" },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const brokenSnapshot = makeRouteSnapshot(brokenScenario);
+
+    render(
+      <ScenarioMap
+        snapshot={brokenSnapshot}
+        network={metroMapNetwork}
+        networkIsCached
+        networkStatus="incomplete"
+      />,
+    );
+
+    expect(screen.getByText("Viser gemt metronetværk.")).toBeTruthy();
+    expect(
+      screen.getByText("Det hentede metronetværk er ufuldstændigt."),
+    ).toBeTruthy();
+    const missingStretchAlert = screen.getByText(
+      "Den berørte strækning kan ikke vises fuldt ud på dette kort.",
+    );
+    const missingRoutesAlert = screen.getByText(
+      "En eller flere ruter kan ikke vises på kortet.",
+    );
+    expect(missingStretchAlert.props.accessibilityRole).toBe("alert");
+    expect(missingRoutesAlert.props.accessibilityRole).toBe("alert");
+  });
+
+  it.each([
+    [
+      "covers",
+      makeRouteScenario({ covers: [] }),
+      makeRouteScenario(),
+      (line: { props: { stroke: string; strokeDasharray?: string } }) =>
+        line.props.stroke === colors.blockedTrack &&
+        line.props.strokeDasharray === "10 6",
+    ],
+    [
+      "operating patterns",
+      makeRouteScenario({
+        versions: [
+          {
+            ...makeRouteScenario().versions[0],
+            operatingPlan: {
+              name: "M1 only",
+              patterns: [
+                makeRouteScenario().versions[0].operatingPlan.patterns[0],
+              ],
+            },
+          },
+        ],
+      }),
+      makeRouteScenario(),
+      (line: { props: { stroke: string } }) =>
+        line.props.stroke === palette.metroLineTwo,
+    ],
+  ])(
+    "draws the map again when the %s change under the same scenario version",
+    (_change, before, after, isNewLine) => {
+      const view = render(
+        <ScenarioMap
+          snapshot={makeRouteSnapshot(before)}
+          network={metroMapNetwork}
+          networkStatus="ready"
+        />,
+      );
+      expect(screen.UNSAFE_queryAllByType(Line).some(isNewLine)).toBe(false);
+
+      view.rerender(
+        <ScenarioMap
+          snapshot={makeRouteSnapshot(after)}
+          network={metroMapNetwork}
+          networkStatus="ready"
+        />,
+      );
+      expect(screen.UNSAFE_queryAllByType(Line).some(isNewLine)).toBe(true);
+    },
+  );
 });
 
 describe("ScenarioOverview stations (MET-A-015, #263, #376)", () => {
