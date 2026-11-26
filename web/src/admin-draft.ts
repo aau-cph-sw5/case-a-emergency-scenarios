@@ -1,4 +1,8 @@
-type LineGroup = "M1/M2" | "M3/M4";
+import {
+  LINE_GROUP_LABELS,
+  type LineGroupLabel,
+} from "../../shared/auth/line-groups";
+
 type Route = {
   id: number;
   from: string;
@@ -25,7 +29,7 @@ type StationStaffing = {
 };
 
 export type ScenarioDraft = {
-  lineGroup: LineGroup;
+  lineGroup: LineGroupLabel;
   view: "editor" | "staffing";
   editingLine: boolean;
   editingRouteId?: number | null;
@@ -71,7 +75,9 @@ function validDraft(value: unknown): value is ScenarioDraft {
   const routes = draft.routes;
   const staffing = draft.staffing;
   return (
-    (draft.lineGroup === "M1/M2" || draft.lineGroup === "M3/M4") &&
+    Object.values(LINE_GROUP_LABELS).includes(
+      draft.lineGroup as LineGroupLabel,
+    ) &&
     (draft.view === "editor" || draft.view === "staffing") &&
     typeof draft.editingLine === "boolean" &&
     (draft.editingRouteId === undefined ||

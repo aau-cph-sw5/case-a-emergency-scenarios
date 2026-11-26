@@ -271,16 +271,20 @@ describe("scenario builder integration", () => {
     await act(async () => button("Tilføj linje").click());
     await act(async () => button("Fjern").click());
     expect(container.textContent).toContain("Ingen linjer oprettet endnu");
-    const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
     await act(async () => button("Vælg linjegruppe").click());
+    expect(container.textContent).toContain(
+      "Vil du forlade scenariet? Dine ændringer bliver slettet.",
+    );
+    await act(async () => button("Annuller").click());
+    expect(container.textContent).not.toContain("Vil du forlade scenariet?");
     expect(container.textContent).toContain("Linjegruppe: M1/M2");
     expect(
       [...container.querySelectorAll("label")]
         .find((label) => label.textContent?.includes("Scenarienavn"))
         ?.querySelector("input")?.value,
     ).toBe("Test");
-    confirm.mockReturnValue(true);
     await act(async () => button("Vælg linjegruppe").click());
+    await act(async () => button("Forlad scenariet").click());
     expect(container.textContent).toContain("Vælg linjegruppe");
     await act(async () => button("M1 / M2").click());
     expect(
@@ -288,7 +292,6 @@ describe("scenario builder integration", () => {
         .find((label) => label.textContent?.includes("Scenarienavn"))
         ?.querySelector("input")?.value,
     ).toBe("");
-    confirm.mockRestore();
   });
   it("closes the M3 ring from the map controls", async () => {
     await act(async () =>
@@ -312,6 +315,39 @@ describe("scenario builder integration", () => {
     await act(async () => button("Luk M3-ringen").click());
     expect(container.textContent).toContain(`${ring.length} stationer valgt`);
   });
+  it("closes the M3 ring from a few stations spread around it", async () => {
+    await act(async () =>
+      root.render(
+        <ScenarioBuilder token={token} onUsers={onUsers} onLogout={onLogout} />,
+      ),
+    );
+    await act(async () => button("Opret scenarie").click());
+    await act(async () => button("M3 / M4").click());
+    const ring = getLines()
+      .find((line) => line.name === "M3")!
+      .connections.map(([station]) => station);
+    const pick = [0, 4, 9, 13].map((index) => ring[index]);
+    for (const station of pick.slice(0, 2))
+      await act(async () =>
+        container
+          .querySelector<HTMLButtonElement>(
+            `.admin-map-foreground [aria-label="Vælg station ${station}"]`,
+          )!
+          .click(),
+      );
+    expect(container.textContent).not.toContain("Luk M3-ringen");
+    for (const station of pick.slice(2))
+      await act(async () =>
+        container
+          .querySelector<HTMLButtonElement>(
+            `.admin-map-foreground [aria-label="Vælg station ${station}"]`,
+          )!
+          .click(),
+      );
+    await act(async () => button("Luk M3-ringen").click());
+    expect(container.textContent).toContain("4 stationer valgt");
+    expect(container.textContent).not.toContain("Luk M3-ringen");
+  });
   it("opens user administration from the integrated admin dashboard and returns", async () => {
     await act(async () =>
       root.render(<AdminDashboard token={token} onLogout={onLogout} />),
@@ -322,7 +358,6 @@ describe("scenario builder integration", () => {
     expect(container.textContent).toContain("Opret scenarie");
   });
   it("asks before signing out with an unfinished scenario", async () => {
-    const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
     await act(async () =>
       root.render(
         <ScenarioBuilder token={token} onUsers={onUsers} onLogout={onLogout} />,
@@ -332,12 +367,12 @@ describe("scenario builder integration", () => {
     await act(async () => button("M1 / M2").click());
     await input("Scenarienavn", "Udkast");
     await act(async () => button("Log ud").click());
+    await act(async () => button("Annuller").click());
     expect(onLogout).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Linjegruppe: M1/M2");
-    confirm.mockReturnValue(true);
     await act(async () => button("Log ud").click());
+    await act(async () => button("Forlad scenariet").click());
     expect(onLogout).toHaveBeenCalledTimes(1);
-    confirm.mockRestore();
   });
   it("keeps access to user management and sign out", async () => {
     await act(async () =>

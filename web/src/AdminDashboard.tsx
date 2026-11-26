@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { operatorCssVars } from "../../shared/Theme";
+import { TopBar } from "./components/TopBar";
 import { UserAdmin } from "./components/UserAdmin";
 import { ScenarioBuilder } from "./ScenarioBuilder";
 
@@ -21,14 +23,12 @@ export function AdminDashboard({
       />
     );
   return (
-    <main className="admin-dashboard user-admin-dashboard">
-      <header className="admin-header">
-        <h1>Admin</h1>
-        <button onClick={onLogout} type="button">
-          Log ud
-        </button>
-      </header>
-      <>
+    <main
+      className="admin-dashboard user-admin-dashboard"
+      style={operatorCssVars}
+    >
+      <TopBar name="Admin" onLogout={onLogout} />
+      <div className="user-admin-card">
         <button
           className="admin-back"
           type="button"
@@ -37,7 +37,7 @@ export function AdminDashboard({
           Tilbage
         </button>
         <UserAdmin token={token} onLogout={onLogout} />
-      </>
+      </div>
     </main>
   );
 }

@@ -29,10 +29,10 @@ import {
   groupStations,
   roundtripTurnbacks,
   usesCrossover,
-  type LineGroup,
   type Route,
 } from "./admin-routes";
 import { routeColors } from "./admin-line-colors";
+import type { LineGroupLabel } from "../../shared/auth/line-groups";
 
 type AdminView = "home" | "group" | "editor" | "staffing" | "complete";
 
@@ -46,7 +46,7 @@ function isCreatedScenario(value: unknown): value is { scenarioId: string } {
 
 function readAdminLocation(): {
   view: AdminView;
-  lineGroup?: LineGroup;
+  lineGroup?: LineGroupLabel;
   editingLine?: boolean;
 } {
   const path = window.location.pathname.replace(/\/$/, "");
@@ -83,7 +83,7 @@ export function useScenarioBuilder(token: string) {
       ? "staffing"
       : location.view;
   });
-  const [lineGroup, setLineGroup] = useState<LineGroup>(
+  const [lineGroup, setLineGroup] = useState<LineGroupLabel>(
     () => readAdminLocation().lineGroup ?? initialDraft?.lineGroup ?? "M1/M2",
   );
   const [scenarioId, setScenarioId] = useState(
@@ -153,14 +153,28 @@ export function useScenarioBuilder(token: string) {
       lineColor !== routeColors[0] ||
       pathIndex !== 0,
     );
+  // Leaving a draft asks first, in our own dialog (ConfirmDialog) instead of
+  // the browser's: with no unsaved changes the action just runs.
+  const [pendingDiscard, setPendingDiscard] = useState<{
+    onConfirm: () => void;
+    onCancel?: () => void;
+  } | null>(null);
   const confirmDiscard = useCallback(
-    () =>
-      !hasUnsavedChanges ||
-      window.confirm(
-        "Vil du forlade scenariet? Dine ændringer bliver slettet.",
-      ),
+    (onConfirm: () => void, onCancel?: () => void) => {
+      if (!hasUnsavedChanges) {
+        onConfirm();
+        return;
+      }
+      setPendingDiscard({ onConfirm, onCancel });
+    },
     [hasUnsavedChanges],
   );
+  function answerDiscard(leave: boolean) {
+    const pending = pendingDiscard;
+    setPendingDiscard(null);
+    if (leave) pending?.onConfirm();
+    else pending?.onCancel?.();
+  }
   useEffect(() => {
     if (view !== "editor" && view !== "staffing") return;
     writeScenarioDraft(token, {
@@ -234,23 +248,25 @@ export function useScenarioBuilder(token: string) {
         location.view === "home" ||
         (location.view === "group" &&
           (view === "editor" || view === "staffing"));
-      if (leavingDraft && !confirmDiscard()) {
-        window.history.pushState(null, "", currentUrlRef.current);
-        return;
-      }
-      currentUrlRef.current = window.location.href;
-      if (leavingDraft) discardDraft();
-      if (location.lineGroup && location.lineGroup !== lineGroup) {
-        setLineGroup(location.lineGroup);
-        setRoutes([]);
-        setStaffing([]);
-        setFrom("");
-        setTo("");
-        setSelectedStops([]);
-        setPathIndex(0);
-      }
-      setEditingLine(location.editingLine ?? false);
-      setView(location.view);
+      const proceed = () => {
+        currentUrlRef.current = window.location.href;
+        if (leavingDraft) discardDraft();
+        if (location.lineGroup && location.lineGroup !== lineGroup) {
+          setLineGroup(location.lineGroup);
+          setRoutes([]);
+          setStaffing([]);
+          setFrom("");
+          setTo("");
+          setSelectedStops([]);
+          setPathIndex(0);
+        }
+        setEditingLine(location.editingLine ?? false);
+        setView(location.view);
+      };
+      if (!leavingDraft) return proceed();
+      confirmDiscard(proceed, () =>
+        window.history.pushState(null, "", currentUrlRef.current),
+      );
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -264,11 +280,39 @@ export function useScenarioBuilder(token: string) {
     90,
     (station) => stationPositions[station],
   );
+  const m3Edges = lines.find((line) => line.name === "M3")?.connections ?? [];
+  const ringOrder = m3Edges.map(([station]) => station);
+  // The stations from one ring station to the next, always the way the ring
+  // runs. A shortest route would cut back through the stations already picked
+  // on the last leg back to the start, so a ring picked by a few stations
+  // could never be closed.
+  function ringLeg(from: string, to: string): string[] {
+    const first = ringOrder.indexOf(from);
+    const steps =
+      (ringOrder.indexOf(to) - first + ringOrder.length) % ringOrder.length;
+    return Array.from(
+      { length: steps + 1 },
+      (_, step) => ringOrder[(first + step) % ringOrder.length],
+    );
+  }
   function selectedPath(
     trackNumber: 1 | 2 | 12,
     stops = selectedStops,
   ): string[] | undefined {
     if (stops.length < 2) return undefined;
+    const closedRing =
+      lineGroup === "M3/M4" &&
+      trackNumber === 12 &&
+      stops.length > 3 &&
+      stops[0] === stops.at(-1) &&
+      stops.every((station) => ringOrder.includes(station));
+    if (closedRing) {
+      const route: string[] = [stops[0]];
+      for (let i = 1; i < stops.length; i++) {
+        route.push(...ringLeg(stops[i - 1], stops[i]).slice(1));
+      }
+      return route;
+    }
     const result = resolveSimpleStops(
       stops,
       baseLines,
@@ -280,7 +324,6 @@ export function useScenarioBuilder(token: string) {
       : [stops[0], ...result.connections.map(([, station]) => station)];
   }
   const roundtripPath = selectedPath(12);
-  const m3Edges = lines.find((line) => line.name === "M3")?.connections ?? [];
   const isFullRing = (route: string[] | undefined) =>
     Boolean(
       route &&
@@ -298,7 +341,6 @@ export function useScenarioBuilder(token: string) {
         ),
     );
   const ringClosed = isFullRing(roundtripPath);
-  const ringOrder = m3Edges.map(([station]) => station);
   const ringStart = ringOrder.indexOf(selectedStops[0]);
   const ringSelection =
     ringStart < 0
@@ -314,8 +356,7 @@ export function useScenarioBuilder(token: string) {
     lineGroup === "M3/M4" &&
     selectedStops.length > 2 &&
     selectedStops[0] !== selectedStops.at(-1) &&
-    ringSelection.length === selectedStops.length &&
-    isFullRing(selectedPath(12, ringStops));
+    ringSelection.length === selectedStops.length;
   const roundtripTurn = roundtripTurnbacks(lineGroup, roundtripPath ?? []);
   const validRoundtrip = Boolean(
     roundtripPath && (ringClosed || (roundtripTurn.start && roundtripTurn.end)),
@@ -420,32 +461,40 @@ export function useScenarioBuilder(token: string) {
     };
   });
 
-  function navigate(nextView: AdminView, group?: LineGroup, editing = false) {
+  function navigate(
+    nextView: AdminView,
+    group?: LineGroupLabel,
+    editing = false,
+  ) {
     const url = new URL(window.location.href);
     const leavingDraft =
       nextView === "home" ||
       (nextView === "group" && (view === "editor" || view === "staffing"));
+    const go = () => {
+      url.pathname =
+        nextView === "home"
+          ? "/admin"
+          : nextView === "editor" && group
+            ? `/admin/scenarios/new/${group.replace("/", "_")}`
+            : "/admin/scenarios/new";
+      url.searchParams.delete("admin");
+      url.searchParams.delete("lineGroup");
+      if (nextView === "editor" && editing) url.searchParams.set("line", "new");
+      else url.searchParams.delete("line");
+      window.history.pushState(null, "", url);
+      currentUrlRef.current = url.href;
+      setView(nextView);
+      setEditingLine(editing);
+    };
     if (leavingDraft) {
-      if (!confirmDiscard()) return;
-      discardDraft();
-    }
-    url.pathname =
-      nextView === "home"
-        ? "/admin"
-        : nextView === "editor" && group
-          ? `/admin/scenarios/new/${group.replace("/", "_")}`
-          : "/admin/scenarios/new";
-    url.searchParams.delete("admin");
-    url.searchParams.delete("lineGroup");
-    if (nextView === "editor" && editing) url.searchParams.set("line", "new");
-    else url.searchParams.delete("line");
-    window.history.pushState(null, "", url);
-    currentUrlRef.current = url.href;
-    setView(nextView);
-    setEditingLine(editing);
+      confirmDiscard(() => {
+        discardDraft();
+        go();
+      });
+    } else go();
   }
 
-  function selectGroup(group: LineGroup) {
+  function selectGroup(group: LineGroupLabel) {
     if (group !== lineGroup) {
       setRoutes([]);
       setStaffing([]);
@@ -800,6 +849,8 @@ export function useScenarioBuilder(token: string) {
     turnbacks,
     discardDraft,
     confirmDiscard,
+    pendingDiscard,
+    answerDiscard,
     navigate,
     selectGroup,
     resetLineDraft,

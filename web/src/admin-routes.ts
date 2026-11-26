@@ -1,13 +1,13 @@
+import type { LineGroupLabel } from "../../shared/auth/line-groups";
 import { getCrossovers, type Crossover } from "../../mockData/data";
 import { connectionKey, type MapNetwork } from "../../shared/network/network";
 
-export type LineGroup = "M1/M2" | "M3/M4";
-export function groupCrossovers(group: LineGroup) {
+export function groupCrossovers(group: LineGroupLabel) {
   return getCrossovers().filter((crossover) => crossover.lineGroup === group);
 }
 
 export function crossoverOnSegment(
-  group: LineGroup,
+  group: LineGroupLabel,
   a: string,
   b: string,
 ): Crossover | undefined {
@@ -16,7 +16,10 @@ export function crossoverOnSegment(
   );
 }
 
-export function roundtripTurnbacks(group: LineGroup, path: readonly string[]) {
+export function roundtripTurnbacks(
+  group: LineGroupLabel,
+  path: readonly string[],
+) {
   if (path.length < 2) return { start: false, end: false };
   return {
     start: crossoverOnSegment(group, path[0], path[1]) !== undefined,
@@ -57,11 +60,14 @@ export type Route = {
   stops?: string[];
 };
 
-export function groupLines(group: LineGroup, lines: MapNetwork["lines"]) {
+export function groupLines(group: LineGroupLabel, lines: MapNetwork["lines"]) {
   return lines.filter((line) => group.split("/").includes(line.name));
 }
 
-export function groupStations(group: LineGroup, lines: MapNetwork["lines"]) {
+export function groupStations(
+  group: LineGroupLabel,
+  lines: MapNetwork["lines"],
+) {
   return [
     ...new Set(
       groupLines(group, lines).flatMap((line) => line.connections.flat()),
@@ -70,7 +76,7 @@ export function groupStations(group: LineGroup, lines: MapNetwork["lines"]) {
 }
 
 export function coverageCandidates(
-  group: LineGroup,
+  group: LineGroupLabel,
   lines: MapNetwork["lines"],
   segments: MapNetwork["segments"],
   routes: Route[],

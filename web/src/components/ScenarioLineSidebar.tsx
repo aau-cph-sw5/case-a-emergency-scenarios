@@ -1,6 +1,7 @@
-import type { Route, LineGroup } from "../admin-routes";
+import type { Route } from "../admin-routes";
+import type { LineGroupLabel } from "../../../shared/auth/line-groups";
 type Props = {
-  lineGroup: LineGroup;
+  lineGroup: LineGroupLabel;
   scenarioId: string;
   setScenarioId: (value: string) => void;
   scenarioName: string;

@@ -104,15 +104,15 @@ describe("scenario editor state", () => {
     expect(window.location.pathname).toBe("/admin/scenarios/new/M1_M2");
     await act(async () => state.startLine("VAN"));
     expect(new URLSearchParams(window.location.search).get("line")).toBe("new");
-    const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);
     await act(async () => {
       window.history.replaceState(null, "", "/admin/scenarios/new");
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
+    await act(async () => state.answerDiscard(true));
     expect(state.view).toBe("group");
     await act(async () => state.navigate("home"));
+    await act(async () => state.answerDiscard(true));
     expect(window.location.pathname).toBe("/admin");
-    confirm.mockRestore();
   });
   it("restores the editor and its draft when the line-group URL reloads", async () => {
     await act(async () => state.selectGroup("M1/M2"));
@@ -125,89 +125,83 @@ describe("scenario editor state", () => {
     expect(state.scenarioId).toBe("VAN-FB");
   });
   it("confirms before discarding a draft from the dashboard button", async () => {
-    const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
     await createLine();
     await act(async () => state.navigate("home"));
-    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(state.pendingDiscard).not.toBeNull();
+    await act(async () => state.answerDiscard(false));
     expect(state.view).toBe("editor");
     expect(state.routes).toHaveLength(1);
     expect(window.location.pathname).toBe("/admin/scenarios/new/M1_M2");
-    confirm.mockReturnValue(true);
     await act(async () => state.navigate("home"));
+    await act(async () => state.answerDiscard(true));
     expect(state.view).toBe("home");
     expect(state.routes).toHaveLength(0);
     expect(window.location.pathname).toBe("/admin");
-    confirm.mockRestore();
   });
 
   it("confirms and clears the draft before choosing a line group again", async () => {
-    const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
     await createLine();
     await act(async () => state.navigate("group"));
-    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(state.pendingDiscard).not.toBeNull();
+    await act(async () => state.answerDiscard(false));
     expect(state.view).toBe("editor");
     expect(state.routes).toHaveLength(1);
     expect(state.scenarioId).toBe("SCENARIO");
-    confirm.mockReturnValue(true);
     await act(async () => state.navigate("group"));
+    await act(async () => state.answerDiscard(true));
     expect(state.view).toBe("group");
     expect(state.routes).toHaveLength(0);
     expect(state.scenarioId).toBe("");
     expect(window.location.pathname).toBe("/admin/scenarios/new");
-    confirm.mockRestore();
   });
 
   it("protects the draft when browser back returns to line-group selection", async () => {
-    const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
     await createLine();
     const editorUrl = window.location.href;
     await act(async () => {
       window.history.replaceState(null, "", "/admin/scenarios/new");
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
+    await act(async () => state.answerDiscard(false));
     expect(state.view).toBe("editor");
     expect(state.routes).toHaveLength(1);
     expect(window.location.href).toBe(editorUrl);
-    confirm.mockReturnValue(true);
     await act(async () => {
       window.history.replaceState(null, "", "/admin/scenarios/new");
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
+    await act(async () => state.answerDiscard(true));
     expect(state.view).toBe("group");
     expect(state.routes).toHaveLength(0);
     expect(state.scenarioId).toBe("");
-    confirm.mockRestore();
   });
 
   it("keeps the draft and URL when browser back is cancelled", async () => {
-    const confirm = jest.spyOn(window, "confirm").mockReturnValue(false);
     await createLine();
     const editorUrl = window.location.href;
     await act(async () => {
       window.history.replaceState(null, "", "/admin");
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
-    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(state.pendingDiscard).not.toBeNull();
+    await act(async () => state.answerDiscard(false));
     expect(state.view).toBe("editor");
     expect(state.routes).toHaveLength(1);
     expect(window.location.href).toBe(editorUrl);
-    confirm.mockReturnValue(true);
     await act(async () => {
       window.history.replaceState(null, "", "/admin");
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
+    await act(async () => state.answerDiscard(true));
     expect(state.view).toBe("home");
     expect(state.routes).toHaveLength(0);
-    confirm.mockRestore();
   });
 
   it("leaves an empty scenario without confirmation", async () => {
-    const confirm = jest.spyOn(window, "confirm");
     await act(async () => state.navigate("group"));
     await act(async () => state.navigate("home"));
-    expect(confirm).not.toHaveBeenCalled();
+    expect(state.pendingDiscard).toBeNull();
     expect(state.view).toBe("home");
-    confirm.mockRestore();
   });
 
   it("creates, edits and saves a line without losing its stops or staffing", async () => {
