@@ -10,6 +10,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "dk.aau.casea.steward",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -20,6 +21,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": ["expo-notifications"]
   }
 }

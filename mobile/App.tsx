@@ -21,6 +21,7 @@ import { clearStationChatRead } from "./src/offline/station-chat-read";
 import { stationMessageQueueStore } from "./src/offline/station-message-store";
 import { networkStore } from "./src/network/network-store";
 import { useConnectivity } from "./src/offline/useConnectivity";
+import { usePushRegistration } from "./src/push/usePushRegistration";
 import { StewardView } from "./src/screens/StewardView";
 import { socket } from "./src/socket";
 import { useSessionNetworkRecovery } from "./src/useSessionNetworkRecovery";
@@ -66,6 +67,14 @@ export default function App() {
       void restore();
     }
   }, [online, state.status, restore]);
+
+  // Once the server has confirmed the session, so it can store the phone's
+  // push token on it (ADR 0014). Without it the app still works, only no alerts.
+  usePushRegistration(
+    state.status === "signed-in" ? token : undefined,
+    state.status === "signed-out",
+    online,
+  );
 
   // A signed-out phone keeps no scenario data or station messages, however
   // the session ended: logging out, or a token the server no longer accepts

@@ -140,3 +140,191 @@ test("revokes a user's active session", async () => {
     null,
   );
 });
+
+// Push tokens (ADR 0014, MET-A-018)
+
+async function createOtherUser(role: string, lineGroup: string) {
+  const [other] = await getOwnerDatabase()<CreatedUser[]>`
+    INSERT INTO users (username, password_hash, role, line_group)
+    VALUES (${`repository-test-${randomUUID()}`}, ${"not-a-real-password-hash"}, ${role}, ${lineGroup})
+    RETURNING id, username
+  `;
+  return other;
+}
+
+async function deleteUser(id: number) {
+  await getOwnerDatabase()`DELETE FROM users WHERE id = ${id}`;
+}
+
+test("finds the push token of a logged-in steward in their line group only", async () => {
+  const jti = randomUUID();
+  const pushToken = `token-${randomUUID()}`;
+  await authSessionRepository.startSession(
+    user.id,
+    jti,
+    new Date(Date.now() + 60 * 60 * 1000),
+  );
+
+  assert.equal(
+    await authSessionRepository.savePushToken(user.id, jti, pushToken),
+    true,
+  );
+
+  assert.ok(
+    (await authSessionRepository.findStewardPushTokens("M1_M2")).includes(
+      pushToken,
+    ),
+  );
+  assert.ok(
+    !(await authSessionRepository.findStewardPushTokens("M3_M4")).includes(
+      pushToken,
+    ),
+  );
+});
+
+test("does not find the push token after logout or a new login", async () => {
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  const jti = randomUUID();
+  const pushToken = `token-${randomUUID()}`;
+
+  await authSessionRepository.startSession(user.id, jti, expiresAt);
+  await authSessionRepository.savePushToken(user.id, jti, pushToken);
+  await authSessionRepository.revokeSession(user.id, jti);
+  assert.ok(
+    !(await authSessionRepository.findStewardPushTokens("M1_M2")).includes(
+      pushToken,
+    ),
+  );
+
+  await authSessionRepository.startSession(user.id, randomUUID(), expiresAt);
+  assert.ok(
+    !(await authSessionRepository.findStewardPushTokens("M1_M2")).includes(
+      pushToken,
+    ),
+  );
+});
+
+test("does not save a push token on a session that is no longer active", async () => {
+  const jti = randomUUID();
+  await authSessionRepository.startSession(
+    user.id,
+    jti,
+    new Date(Date.now() + 60 * 60 * 1000),
+  );
+  await authSessionRepository.revokeSession(user.id, jti);
+
+  assert.equal(
+    await authSessionRepository.savePushToken(user.id, jti, "token"),
+    false,
+  );
+});
+
+test("an ended session does not take the push token from the steward logged in on the phone", async () => {
+  const other = await createOtherUser("STEWARD", "M1_M2");
+  try {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const pushToken = `token-${randomUUID()}`;
+    const endedJti = randomUUID();
+    const otherJti = randomUUID();
+    await authSessionRepository.startSession(user.id, endedJti, expiresAt);
+    await authSessionRepository.revokeSession(user.id, endedJti);
+    await authSessionRepository.startSession(other.id, otherJti, expiresAt);
+    await authSessionRepository.savePushToken(other.id, otherJti, pushToken);
+
+    assert.equal(
+      await authSessionRepository.savePushToken(user.id, endedJti, pushToken),
+      false,
+    );
+    assert.ok(
+      (await authSessionRepository.findStewardPushTokens("M1_M2")).includes(
+        pushToken,
+      ),
+    );
+  } finally {
+    await deleteUser(other.id);
+  }
+});
+
+test("does not find the push tokens of disabled or deleted stewards", async () => {
+  const disabled = await createOtherUser("STEWARD", "M1_M2");
+  const deleted = await createOtherUser("STEWARD", "M1_M2");
+  try {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const tokens = [`token-${randomUUID()}`, `token-${randomUUID()}`];
+    for (const [index, steward] of [disabled, deleted].entries()) {
+      const jti = randomUUID();
+      await authSessionRepository.startSession(steward.id, jti, expiresAt);
+      await authSessionRepository.savePushToken(steward.id, jti, tokens[index]);
+    }
+    await getOwnerDatabase()`UPDATE users SET is_disabled = TRUE WHERE id = ${disabled.id}`;
+    await getOwnerDatabase()`UPDATE users SET deleted_at = NOW() WHERE id = ${deleted.id}`;
+
+    const found = await authSessionRepository.findStewardPushTokens("M1_M2");
+    assert.ok(!found.includes(tokens[0]));
+    assert.ok(!found.includes(tokens[1]));
+  } finally {
+    await deleteUser(disabled.id);
+    await deleteUser(deleted.id);
+  }
+});
+
+test("does not find operators' push tokens", async () => {
+  const operator = await createOtherUser("OPERATOR", "M1_M2");
+  try {
+    const jti = randomUUID();
+    const pushToken = `token-${randomUUID()}`;
+    await authSessionRepository.startSession(
+      operator.id,
+      jti,
+      new Date(Date.now() + 60 * 60 * 1000),
+    );
+    await authSessionRepository.savePushToken(operator.id, jti, pushToken);
+
+    assert.ok(
+      !(await authSessionRepository.findStewardPushTokens("M1_M2")).includes(
+        pushToken,
+      ),
+    );
+  } finally {
+    await deleteUser(operator.id);
+  }
+});
+
+test("moves a phone's push token to the steward who logs in on it", async () => {
+  const other = await createOtherUser("STEWARD", "M1_M2");
+  try {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const pushToken = `token-${randomUUID()}`;
+    const jti = randomUUID();
+    const otherJti = randomUUID();
+    await authSessionRepository.startSession(user.id, jti, expiresAt);
+    await authSessionRepository.startSession(other.id, otherJti, expiresAt);
+
+    await authSessionRepository.savePushToken(user.id, jti, pushToken);
+    await authSessionRepository.savePushToken(other.id, otherJti, pushToken);
+
+    const tokens = await authSessionRepository.findStewardPushTokens("M1_M2");
+    assert.equal(tokens.filter((token) => token === pushToken).length, 1);
+  } finally {
+    await deleteUser(other.id);
+  }
+});
+
+test("clears push tokens FCM no longer accepts", async () => {
+  const jti = randomUUID();
+  const pushToken = `token-${randomUUID()}`;
+  await authSessionRepository.startSession(
+    user.id,
+    jti,
+    new Date(Date.now() + 60 * 60 * 1000),
+  );
+  await authSessionRepository.savePushToken(user.id, jti, pushToken);
+
+  await authSessionRepository.clearPushTokens([pushToken]);
+
+  assert.ok(
+    !(await authSessionRepository.findStewardPushTokens("M1_M2")).includes(
+      pushToken,
+    ),
+  );
+});

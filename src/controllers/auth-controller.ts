@@ -10,8 +10,10 @@ import {
   login,
   logout,
   renew,
+  savePushToken,
   type AuthUser,
 } from "../services/auth-service.js";
+import type { PushTokenRequest } from "../../shared/types/v1/push-token-request.js";
 
 type AuthenticatedResponse = Response<unknown, { user: AuthUser }>;
 
@@ -73,5 +75,24 @@ export async function postLogout(
   await logout(response.locals.user);
   const io = request.app.locals.io as Server | undefined;
   if (io) io.in(sessionRoom(response.locals.user)).disconnectSockets();
+  response.status(204).end();
+}
+
+// The phone's FCM token, so the steward gets push notifications (ADR 0014)
+export async function putPushToken(
+  request: Request,
+  response: AuthenticatedResponse,
+) {
+  const { pushToken } = request.body as PushTokenRequest;
+
+  if (!(await savePushToken(response.locals.user, pushToken))) {
+    response
+      .status(401)
+      .json(
+        errorBody(ERROR_CODES.AUTH_TOKEN_INVALID, "Invalid or expired token"),
+      );
+    return;
+  }
+
   response.status(204).end();
 }
