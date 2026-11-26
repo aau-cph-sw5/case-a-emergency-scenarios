@@ -219,6 +219,55 @@ test("does not save a push token on a session that is no longer active", async (
   );
 });
 
+test("an ended session does not take the push token from the steward logged in on the phone", async () => {
+  const other = await createOtherUser("STEWARD", "M1_M2");
+  try {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const pushToken = `token-${randomUUID()}`;
+    const endedJti = randomUUID();
+    const otherJti = randomUUID();
+    await authSessionRepository.startSession(user.id, endedJti, expiresAt);
+    await authSessionRepository.revokeSession(user.id, endedJti);
+    await authSessionRepository.startSession(other.id, otherJti, expiresAt);
+    await authSessionRepository.savePushToken(other.id, otherJti, pushToken);
+
+    assert.equal(
+      await authSessionRepository.savePushToken(user.id, endedJti, pushToken),
+      false,
+    );
+    assert.ok(
+      (await authSessionRepository.findStewardPushTokens("M1_M2")).includes(
+        pushToken,
+      ),
+    );
+  } finally {
+    await deleteUser(other.id);
+  }
+});
+
+test("does not find the push tokens of disabled or deleted stewards", async () => {
+  const disabled = await createOtherUser("STEWARD", "M1_M2");
+  const deleted = await createOtherUser("STEWARD", "M1_M2");
+  try {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const tokens = [`token-${randomUUID()}`, `token-${randomUUID()}`];
+    for (const [index, steward] of [disabled, deleted].entries()) {
+      const jti = randomUUID();
+      await authSessionRepository.startSession(steward.id, jti, expiresAt);
+      await authSessionRepository.savePushToken(steward.id, jti, tokens[index]);
+    }
+    await getOwnerDatabase()`UPDATE users SET is_disabled = TRUE WHERE id = ${disabled.id}`;
+    await getOwnerDatabase()`UPDATE users SET deleted_at = NOW() WHERE id = ${deleted.id}`;
+
+    const found = await authSessionRepository.findStewardPushTokens("M1_M2");
+    assert.ok(!found.includes(tokens[0]));
+    assert.ok(!found.includes(tokens[1]));
+  } finally {
+    await deleteUser(disabled.id);
+    await deleteUser(deleted.id);
+  }
+});
+
 test("does not find operators' push tokens", async () => {
   const operator = await createOtherUser("OPERATOR", "M1_M2");
   try {

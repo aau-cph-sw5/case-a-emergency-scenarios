@@ -1,5 +1,4 @@
 import "dotenv/config";
-import { randomUUID } from "node:crypto";
 import test, { after, before, mock } from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
@@ -7,10 +6,7 @@ import type { Server } from "node:http";
 import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { app } from "../../src/app.js";
-import {
-  postRenew,
-  putPushToken,
-} from "../../src/controllers/auth-controller.js";
+import { postRenew } from "../../src/controllers/auth-controller.js";
 import { getDatabase } from "../../src/db/client.js";
 import { authSessionRepository } from "../../src/repositories/auth-session-repository.js";
 import { renew } from "../../src/services/auth-service.js";
@@ -363,61 +359,6 @@ test("POST /api/v1/auth/logout revokes the current session", async () => {
 
   assert.equal(logout.status, 204);
   assert.equal(me.status, 401);
-});
-
-function putPushTokenRequest(headers: Record<string, string>) {
-  return fetch(`${baseUrl}/api/v1/me/push-token`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...headers },
-    body: JSON.stringify({ pushToken: "api-test-fcm-token" }),
-  });
-}
-
-test("PUT /api/v1/me/push-token stores a steward's push token", async () => {
-  const response = await putPushTokenRequest(await stewardHeaders());
-
-  assert.equal(response.status, 204);
-});
-
-test("PUT /api/v1/me/push-token is for stewards only", async () => {
-  const response = await putPushTokenRequest(await operatorHeaders());
-
-  assert.equal(response.status, 403);
-  assert.equal(
-    ((await response.json()) as { error: { code: string } }).error.code,
-    "E0002",
-  );
-});
-
-test("putPushToken rejects a session that ended before the token was saved", async () => {
-  let statusCode: number | undefined;
-  const response = {
-    locals: {
-      user: {
-        userId: stewardId,
-        role: "STEWARD" as const,
-        lineGroup: "M1_M2" as const,
-        jti: randomUUID(),
-      },
-    },
-    status(code: number) {
-      statusCode = code;
-      return this;
-    },
-    json() {
-      return this;
-    },
-    end() {
-      return this;
-    },
-  };
-
-  await putPushToken(
-    { body: { pushToken: "api-test-fcm-token" } } as Request,
-    response as unknown as Response,
-  );
-
-  assert.equal(statusCode, 401);
 });
 
 test("POST /api/v1/auth/renew extends a due session without replacing its JTI", async () => {

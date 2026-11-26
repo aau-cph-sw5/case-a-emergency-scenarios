@@ -2,18 +2,25 @@ import { isRunningInExpoGo } from "expo";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
+import { SCENARIO_CHANNEL_ID } from "../../../shared/push-channels";
 import type { PushTokenRequest } from "../../../shared/types/v1/push-token-request";
 import { apiBaseUrl } from "../api-base-url";
 
-// The server sends scenario pushes on this channel (src/services/push-service.ts)
-const SCENARIO_CHANNEL_ID = "scenarios";
+// Push needs a development build: Expo Go and the web cannot receive it
+export function canReceivePush(): boolean {
+  return Platform.OS === "android" && !isRunningInExpoGo();
+}
 
 // Gives the server this phone's FCM token, so a logged-in steward gets
 // notifications while the app is in the background or closed (ADR 0014).
-// Run on every login and app start, so a new token reaches the server too.
-export async function registerPush(sessionToken: string): Promise<void> {
-  // Push needs a development build: Expo Go and the web cannot receive it
-  if (Platform.OS !== "android" || isRunningInExpoGo()) return;
+// Returns the token sent, or undefined when nothing was sent. A known token,
+// from FCM's token listener, is sent as it is.
+export async function registerPush(
+  sessionToken: string,
+  signal: AbortSignal,
+  knownToken?: string,
+): Promise<string | undefined> {
+  if (!canReceivePush()) return undefined;
 
   // Also show the notification while the app is open (#413)
   Notifications.setNotificationHandler({
@@ -30,9 +37,17 @@ export async function registerPush(sessionToken: string): Promise<void> {
   });
   // Metro's device management grants this centrally, so stewards are not asked
   const { granted } = await Notifications.requestPermissionsAsync();
-  if (!granted) return;
+  if (!granted) return undefined;
 
-  const { data: pushToken } = await Notifications.getDevicePushTokenAsync();
+  const pushToken =
+    knownToken ?? (await Notifications.getDevicePushTokenAsync()).data;
+  if (typeof pushToken !== "string" || pushToken.length === 0) {
+    throw new Error("FCM returned no push token");
+  }
+  // Signed out or another account while the native calls ran. A request
+  // already sent is safe: the server refuses it for an ended session.
+  if (signal.aborted) return undefined;
+
   const body: PushTokenRequest = { pushToken };
   const response = await fetch(`${apiBaseUrl}/api/v1/me/push-token`, {
     method: "PUT",
@@ -46,4 +61,12 @@ export async function registerPush(sessionToken: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`PUT /api/v1/me/push-token failed with ${response.status}`);
   }
+  return pushToken;
+}
+
+// Deletes this phone's FCM token. FCM then refuses pushes to it, and the
+// server drops it, even when the logout itself never reached the server.
+export async function unregisterPush(): Promise<void> {
+  if (!canReceivePush()) return;
+  await Notifications.unregisterForNotificationsAsync();
 }

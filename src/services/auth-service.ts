@@ -268,3 +268,12 @@ export async function renew(user: AuthUser): Promise<RenewalResult> {
 export async function logout(user: AuthUser): Promise<void> {
   await authSessionRepository.revokeSession(user.userId, user.jti);
 }
+
+// The phone's FCM token on the current session (ADR 0014). False when the
+// session ended before the token was saved.
+export function savePushToken(
+  user: AuthUser,
+  pushToken: string,
+): Promise<boolean> {
+  return authSessionRepository.savePushToken(user.userId, user.jti, pushToken);
+}

@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { setTimeout as delay } from "node:timers/promises";
+import { SCENARIO_CHANNEL_ID } from "../../shared/push-channels.js";
 import {
-  SCENARIO_CHANNEL_ID,
+  inLineGroupOrder,
   scenarioMessage,
 } from "../../src/services/push-service.js";
 
@@ -10,7 +12,7 @@ test("a scenario push replaces an older one for the same line group and expires 
   const message = scenarioMessage(
     ["token"],
     "M3_M4",
-    true,
+    "started",
     "Brand på Nørreport",
   );
 
@@ -22,8 +24,8 @@ test("a scenario push replaces an older one for the same line group and expires 
 });
 
 test("a scenario push says whether the scenario started or ended", () => {
-  const started = scenarioMessage(["token"], "M1_M2", true, "Brand");
-  const ended = scenarioMessage(["token"], "M1_M2", false, "Brand");
+  const started = scenarioMessage(["token"], "M1_M2", "started", "Brand");
+  const ended = scenarioMessage(["token"], "M1_M2", "ended", "Brand");
 
   assert.deepEqual(started.notification, {
     title: "Scenarie startet",
@@ -33,4 +35,20 @@ test("a scenario push says whether the scenario started or ended", () => {
     title: "Scenarie afsluttet",
     body: "Brand",
   });
+});
+
+test("a line group's pushes go out in order, so a slow 'ended' cannot overtake 'started'", async () => {
+  const sent: string[] = [];
+
+  await Promise.all([
+    inLineGroupOrder("M1_M2", async () => {
+      await delay(20);
+      sent.push("ended");
+    }),
+    inLineGroupOrder("M1_M2", async () => {
+      sent.push("started");
+    }),
+  ]);
+
+  assert.deepEqual(sent, ["ended", "started"]);
 });
