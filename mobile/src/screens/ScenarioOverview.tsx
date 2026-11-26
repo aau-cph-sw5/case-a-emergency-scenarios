@@ -7,8 +7,9 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
-import { colors, spacing, steward } from "../../../shared/Theme";
+import { cardRadius, colors, spacing, steward } from "../../../shared/Theme";
 import { staffingWords } from "../components/StatusBox";
 import {
   ListCard,
@@ -98,6 +99,7 @@ export function ScenarioMap({
   network,
   networkIsCached = false,
   networkStatus = "loading",
+  onExpand,
 }: {
   snapshot: ScenarioSnapshot;
   model?: StewardMapModel | null;
@@ -106,6 +108,7 @@ export function ScenarioMap({
   network?: MapNetwork | null;
   networkIsCached?: boolean;
   networkStatus?: NetworkStatus;
+  onExpand?: () => void;
 }) {
   const { fontScale } = useWindowDimensions();
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -123,25 +126,43 @@ export function ScenarioMap({
           )
         : null;
 
+  const renderContent = () => {
+    if (resolvedModel === null) {
+      return (
+        <Text style={styles.mapMessage}>{NETWORK_MESSAGES[networkStatus]}</Text>
+      );
+    }
+    const viewBox = zoomedViewBox(
+      resolvedModel.stations,
+      size.width,
+      size.height,
+      fontScale,
+      (station) => resolvedModel.mapData.positions[station],
+    );
+    const map = <StewardMap model={resolvedModel} viewBox={viewBox} />;
+    if (onExpand === undefined) return map;
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          styles.fill,
+          pressed && styles.mapPreviewPressed,
+        ]}
+        onPress={onExpand}
+        accessibilityRole="button"
+        accessibilityLabel="Åbn kort over hele linjen"
+      >
+        {map}
+        <ExpandCue />
+      </Pressable>
+    );
+  };
+
   return (
     <View
       style={styles.fill}
       onLayout={(event) => setSize(event.nativeEvent.layout)}
     >
-      {resolvedModel !== null ? (
-        <StewardMap
-          model={resolvedModel}
-          viewBox={zoomedViewBox(
-            resolvedModel.stations,
-            size.width,
-            size.height,
-            fontScale,
-            (station) => resolvedModel.mapData.positions[station],
-          )}
-        />
-      ) : (
-        <Text style={styles.mapMessage}>{NETWORK_MESSAGES[networkStatus]}</Text>
-      )}
+      {renderContent()}
       <MapNotes
         networkIsCached={networkIsCached}
         networkIncomplete={
@@ -151,6 +172,30 @@ export function ScenarioMap({
         missingRoutes={resolvedModel?.mapData.missingRoutes ?? false}
         style={styles.mapNotes}
       />
+    </View>
+  );
+}
+
+function ExpandCue() {
+  return (
+    <View
+      testID="expand-map-cue"
+      style={styles.expandCue}
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <Svg width={12} height={12} viewBox="0 0 24 24">
+        <Path
+          d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
+          stroke={colors.text}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </Svg>
+      <Text style={styles.expandCueText}>Udvid</Text>
     </View>
   );
 }
@@ -440,6 +485,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     padding: spacing.large,
     textAlign: "center",
+  },
+  mapPreviewPressed: {
+    opacity: 0.85,
+  },
+  expandCue: {
+    alignItems: "center",
+    backgroundColor: colors.background,
+    borderColor: steward.line,
+    borderRadius: cardRadius,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.small,
+    paddingHorizontal: 6,
+    paddingVertical: spacing.small,
+    position: "absolute",
+    right: 6,
+    top: 6,
+  },
+  expandCueText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "700",
   },
   mapNotes: {
     bottom: spacing.small,
