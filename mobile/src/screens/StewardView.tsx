@@ -34,6 +34,7 @@ import { OfflineBanner } from "./OfflineBanner";
 import { withOwnStatus } from "./own-assignment";
 import { RoleView } from "./RoleView";
 import { StationChat } from "./StationChat";
+import { StewardMapOverlay } from "./StewardMapOverlay";
 import { ScenarioMap, ScenarioOverview } from "./ScenarioOverview";
 import { deriveStewardMapModel, oneRowPerStation } from "./steward-map-data";
 import { useNetwork } from "../network/useNetwork";
@@ -503,11 +504,20 @@ export function StewardView({
           checkedOutStation,
         )
       : null;
-  // While the chat is open it covers the view, which a screen reader skips.
+  // While the chat or full-line map overlay is open it covers the view,
+  // which a screen reader skips.
   const [chatOpen, setChatOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  if (mapOpen && mapModel === null) setMapOpen(false);
+  const closeMap = useCallback(() => setMapOpen(false), []);
+  const handleChatOpenChange = useCallback((open: boolean) => {
+    setChatOpen(open);
+    if (open) setMapOpen(false);
+  }, []);
+  const obscured = chatOpen || mapOpen;
 
   return (
-    <RoleView title="Steward" onLogout={onLogout} obscured={chatOpen}>
+    <RoleView title="Steward" onLogout={onLogout} obscured={obscured}>
       {/* Activated and switched show over the screen and move nothing;
           stood down turns the status card (closed, below). */}
       <NoticeStack
@@ -521,8 +531,8 @@ export function StewardView({
           status, the map and the one control), the station list under it. */}
       <View
         style={styles.content}
-        accessibilityElementsHidden={chatOpen}
-        importantForAccessibility={chatOpen ? "no-hide-descendants" : "auto"}
+        accessibilityElementsHidden={obscured}
+        importantForAccessibility={obscured ? "no-hide-descendants" : "auto"}
       >
         {view.status === "loading" && (
           <Text style={styles.message}>Henter aktiv hændelse…</Text>
@@ -601,6 +611,7 @@ export function StewardView({
                   networkStatus={networkStatus}
                   assignedStation={ownStation}
                   checkedOutStation={checkedOutStation}
+                  onExpand={() => setMapOpen(true)}
                 />
               )
             }
@@ -647,14 +658,25 @@ export function StewardView({
           <Text style={styles.report}>{reportStatus}</Text>
         )}
       </View>
-      {/* Over the whole view, header included, so it is the last child. */}
+      {/* Full-line map sits over the view and under StationChat so the chat
+          tab and incoming control-room notices stay visible and reachable. */}
+      {mapOpen && shown !== null && mapModel !== null && (
+        <StewardMapOverlay
+          key={activationId}
+          snapshot={counted ?? shown}
+          model={mapModel}
+          networkIsCached={usingCached}
+          networkStatus={networkStatus}
+          onClose={closeMap}
+        />
+      )}
       <StationChat
         token={token}
         station={chatStation}
         activationId={activationId}
         closedReason={chatClosedReason}
         onClosedByServer={refreshScenario}
-        onOpenChange={setChatOpen}
+        onOpenChange={handleChatOpenChange}
       />
     </RoleView>
   );
