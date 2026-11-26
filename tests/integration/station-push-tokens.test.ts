@@ -151,3 +151,16 @@ test("skips a checked-in steward who has logged out", async () => {
 
   assert.ok(!(await tokensFor("Station G")).includes(steward.pushToken));
 });
+test("skips a checked-in steward whose account is disabled or deleted", async () => {
+  const disabled = await stewardWithToken();
+  const deleted = await stewardWithToken();
+  await report(disabled.id, "Station G", "ARRIVED");
+  await report(deleted.id, "Station G", "ARRIVED");
+  await owner`UPDATE users SET is_disabled = true WHERE id = ${disabled.id}`;
+  await owner`UPDATE users SET deleted_at = now() WHERE id = ${deleted.id}`;
+
+  const tokens = await tokensFor("Station G");
+
+  assert.ok(!tokens.includes(disabled.pushToken));
+  assert.ok(!tokens.includes(deleted.pushToken));
+});
