@@ -18,18 +18,19 @@ into their existing way of working.
 - 3 stewards
 - 1 operator working with M1/M2
 
-The participants were Metro Service employees. The test took place on 25 November 2026.
+The participants were Metro Service employees. The test took place on
+25 November 2026.
 
 ## Documentation
 
 | Document | Content |
 | --- | --- |
-| [Test protocol](test-protocol.md) | Test setup, procedure and tasks |
-| [Interview guide](interview-guide.md) | Questions used before, during and after the test |
+| [Test protocol](test-guide/test-protocol.md) | Test setup, procedure and tasks |
+| [Interview guide](test-guide/interview-guide.md) | Questions used before, during and after the test |
 | [Raw observations](raw-observations.md) | Available timings and observations from the tests |
 | [Evaluation](evaluation.md) | Analysis of the test results |
 | [Steward feedback](steward-feedback.md) | Feedback and requests from the stewards |
-| [Operator feedback](operator-feedback.md) | Feedback and requests concerning the operator side |
+| [Operator feedback](operator/operator-feedback.md) | Feedback and requests concerning the operator side |
 | [Findings](findings.md) | Defects and suggested backlog items |
 
 ## Acceptance criteria
@@ -43,25 +44,13 @@ The participants were Metro Service employees. The test took place on 25 Novembe
 - [ ] The protocol and raw timings are committed so the test
       can be repeated by the 2027 cohort.
 
-## Timing
+## Measurement limitations
 
-We intended to time the individual tasks during the test.
-However, the stewards often responded correctly or performed
-the requested action almost immediately. In practice, we had
-difficulty starting and stopping the timer between tasks,
-especially when several actions were performed in succession.
+The test provided useful qualitative observations, but reliable aggregate
+timings and error rates could not be calculated.
 
-The operator also began exploring the dashboard independently,
-which meant that several tasks were performed before we could
-introduce and time them separately.
-
-We have included the available timings, but we do not have
-comparable individual timings or complete error counts. We
-therefore cannot calculate an overall time to correct answer
-or a reliable error rate.
-
-The test therefore ended up providing more qualitative data
-than quantitative data.
+See [raw observations](raw-observations.md) for the recorded values and
+[evaluation](evaluation.md) for their interpretation.
 
 ## Data handling
 

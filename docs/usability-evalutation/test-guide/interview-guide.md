@@ -26,6 +26,26 @@ Ask for consent to:
 Encourage the participant to think aloud and let us know if
 anything is unclear or does not behave as expected.
 
+## Supplementary questions (both roles)
+
+These questions are documented in the operator interview
+notes and supplement the role-specific guide.
+
+### Before the test
+
+- What tools and communication methods do you currently use?
+- What works particularly well about the radio?
+- What do you find most difficult about the radio or other tools?
+- What helps when a situation does not follow the usual procedure?
+- What information or functionality do you miss in your current tools?
+
+### After the test
+
+- What is your overall impression of the application?
+- Which parts did you like or dislike?
+- What would you change about the screens or functionality, and why?
+- What did you find most difficult?
+
 ## Steward interview
 
 ### Before the test
@@ -108,6 +128,11 @@ the tasks and any suggestions the participant brings up.
    coordinate the situation?
 4. How do you communicate changes to stewards and make
    sure the information has been received?
+5. How do you determine when a fallback scenario needs
+   to be activated?
+6. When did you last experience a situation where the
+   current tools or procedures did not work as expected?
+7. What happened, and how did you resolve the situation?
 
 Additional topics:
 

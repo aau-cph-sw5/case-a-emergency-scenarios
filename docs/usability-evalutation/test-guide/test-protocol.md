@@ -51,7 +51,11 @@ the employees' normal responsibilities always take priority.
 
 ## Test procedure
 
-The procedure below describes the planned test. Actual deviations, including the operator's exploratory session and incomplete timings, are documented in [raw-observations.md](raw-observations.md).
+The procedure below describes the planned test.
+
+Actual deviations, including the operator's exploratory session
+and incomplete timings, are documented in
+[raw-observations.md](../raw-observations.md).
 
 ### 1. Introduction and before-interview
 
@@ -119,6 +123,9 @@ their experience with the system.
 We also ask follow-up questions about anything we observed
 during the test, and discuss how they think the application
 would fit into their existing way of working.
+
+See [interview-guide.md](interview-guide.md) for the questions
+used during the interviews.
 
 ## Steward tasks
 
@@ -265,12 +272,18 @@ if the system itself prevents the correct action.
 | System blocked | System behaviour prevents completion. |
 | Not observed | Insufficient evidence to classify the outcome. |
 
-Define the expected result for each task before testing. For station
-identification, start timing once the full instruction has been given
-and stop at the first correct station answer, before en-route reporting.
-Define acceptable station choices based on the scenario and its current
-staffing state. Record incorrect first answers separately from later
-corrections, and report the number of scored attempts with any error rate.
+Define the expected result for each task before testing.
+
+For station identification, start timing once the full instruction
+has been given and stop at the first correct station answer,
+before en-route reporting.
+
+Define acceptable station choices based on the scenario and its
+current staffing state.
+
+Record incorrect first answers separately from later corrections,
+and report the number of scored attempts with any error rate.
+
 These are refinements for a repeat test, not measurements recovered
 from the original sessions.
 
@@ -281,8 +294,13 @@ marking the start of each task where recording is permitted.
 This makes it easier to determine the exact task duration
 afterwards.
 
-Make sure to request the relevant phones from the university at the beginning of the semester to ensure you have the correct hardware.
-We had to make do with personal Android phones. This should be taken into consideration when interpreting screen size, notification and background behaviour.
+Make sure to request the relevant phones from the university
+at the beginning of the semester to ensure you have the correct
+hardware.
+
+We had to make do with personal Android phones. This should
+be taken into consideration when interpreting screen size,
+notification and background behaviour.
 
 The expected answers, tested scenario, application version
 and success criteria should be recorded before each session.
@@ -290,6 +308,6 @@ and success criteria should be recorded before each session.
 This is particularly relevant because manual timing turned
 out to be difficult during our test.
 
-See [raw observations](raw-observations.md) for what was
-actually recorded and [evaluation](evaluation.md) for the
+See [raw observations](../raw-observations.md) for what was
+actually recorded and [evaluation](../evaluation.md) for the
 results.
