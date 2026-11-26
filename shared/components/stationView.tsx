@@ -5,9 +5,12 @@ import {
   countManned,
   countStewards,
   coverageShare,
+  densityFor,
+  levelFor,
   type ActiveDeployments,
 } from "./stationState";
 import StationRow from "./stationRow";
+import { CoverageOverview } from "./coverageOverview";
 import metroLineM1 from "../../fixtures/v1/metro-lines/M1.json";
 import metroLineM2 from "../../fixtures/v1/metro-lines/M2.json";
 
@@ -29,19 +32,17 @@ type Props =
       operatorLayout?: boolean;
     };
 
-export default function ScenarioStationList(props: Props) {
-  const { scenario } = props;
-  const version = scenario.versions.find(
-    (item) => item.version === scenario.currentVersion,
-  );
-  const requirements = version?.stationRequirements ?? [];
+type Requirement = NonNullable<
+  Scenario["versions"][number]["stationRequirements"]
+>[number];
 
-  // Worst covered first, so the stations that need help are at the top.
-  // Stations covered equally keep the Metro line order. Each share is
-  // computed once, not on every comparison the sort makes.
+// Worst covered first, so the stations that need help are at the top.
+// Stations covered equally keep the Metro line order. Each share is
+// computed once, not on every comparison the sort makes.
+function sortByNeed(requirements: Requirement[], props: Props): Requirement[] {
   const rank = (station: string) =>
     STATION_RANK.get(station) ?? Number.MAX_SAFE_INTEGER;
-  const stations = requirements
+  return requirements
     .map((r) => ({
       r,
       share:
@@ -51,15 +52,108 @@ export default function ScenarioStationList(props: Props) {
     }))
     .sort((a, b) => a.share - b.share || rank(a.r.station) - rank(b.r.station))
     .map(({ r }) => r);
+}
 
-  const coveredCount =
-    props.mode === "needed-only"
-      ? null
-      : countManned(props.activeDeployments, stations);
-  const stewards =
-    props.mode === "needed-only"
-      ? null
-      : countStewards(props.activeDeployments, stations);
+function PlanSummary({ count, needed }: { count: number; needed: number }) {
+  return (
+    <View testID="staffing-plan-summary" style={styles.planSummary}>
+      <View style={styles.planSummaryRow}>
+        <Text style={styles.planSummaryText}>Påvirkede stationer: </Text>
+        <Text style={styles.planSummaryText}>{count}</Text>
+      </View>
+      <View style={[styles.planSummaryRow, styles.planSummaryDivider]}>
+        <Text style={styles.planSummaryText}>Nødvendige stewards: </Text>
+        <Text style={styles.planSummaryText}>{needed}</Text>
+      </View>
+    </View>
+  );
+}
+
+function StationListHeader({
+  props,
+  stations,
+  needed,
+  operatorLayout,
+}: {
+  props: Props;
+  stations: Requirement[];
+  needed: number;
+  operatorLayout: boolean | undefined;
+}) {
+  if (operatorLayout && props.mode !== "needed-only") {
+    return (
+      <CoverageOverview
+        stations={stations.map((s) => ({
+          name: s.station,
+          level: levelFor(
+            props.activeDeployments,
+            s.station,
+            s.minimumStaffing,
+          ),
+        }))}
+      />
+    );
+  }
+  const neededOnly = props.mode === "needed-only";
+  return (
+    <View style={styles.header}>
+      {operatorLayout ? (
+        <PlanSummary count={stations.length} needed={needed} />
+      ) : (
+        <View style={styles.titleLine}>
+          <Text style={styles.title}>
+            {neededOnly && !props.compact
+              ? "Bemandingsbehov"
+              : "Påvirkede stationer"}
+          </Text>
+          <Text style={styles.badge}>{stations.length}</Text>
+        </View>
+      )}
+      {neededOnly ? (
+        operatorLayout ? null : (
+          <Text style={styles.small}>
+            {stations.length} stationer · {needed} stewards kræves
+          </Text>
+        )
+      ) : (
+        <LiveSummary
+          deployments={props.activeDeployments}
+          stations={stations}
+        />
+      )}
+    </View>
+  );
+}
+
+function LiveSummary({
+  deployments,
+  stations,
+}: {
+  deployments: ActiveDeployments;
+  stations: Requirement[];
+}) {
+  const coveredCount = countManned(deployments, stations);
+  const stewards = countStewards(deployments, stations);
+  return (
+    <>
+      <Text style={styles.small}>
+        {coveredCount}/{stations.length} stationer dækket
+      </Text>
+      <Text style={styles.small}>
+        {stewards.arrived}/{stewards.needed} stewards · {stewards.enRoute} på
+        vej
+      </Text>
+    </>
+  );
+}
+
+export default function ScenarioStationList(props: Props) {
+  const { scenario } = props;
+  const version = scenario.versions.find(
+    (item) => item.version === scenario.currentVersion,
+  );
+  const requirements = version?.stationRequirements ?? [];
+  const stations = sortByNeed(requirements, props);
   const needed = requirements.reduce((sum, r) => sum + r.minimumStaffing, 0);
   const operatorLayout =
     props.mode === "needed-only" ? props.compact : props.operatorLayout;
@@ -73,56 +167,12 @@ export default function ScenarioStationList(props: Props) {
       data={stations}
       keyExtractor={(item) => item.station}
       ListHeaderComponent={
-        operatorLayout && props.mode !== "needed-only" ? undefined : (
-          <View style={styles.header}>
-            {operatorLayout ? (
-              <View testID="staffing-plan-summary" style={styles.planSummary}>
-                <View style={styles.planSummaryRow}>
-                  <Text style={styles.planSummaryText}>
-                    Påvirkede stationer:{" "}
-                  </Text>
-                  <Text style={styles.planSummaryText}>{stations.length}</Text>
-                </View>
-                <View
-                  style={[styles.planSummaryRow, styles.planSummaryDivider]}
-                >
-                  <Text style={styles.planSummaryText}>
-                    Nødvendige stewards:{" "}
-                  </Text>
-                  <Text style={styles.planSummaryText}>{needed}</Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.titleLine}>
-                <Text style={styles.title}>
-                  {props.mode === "needed-only" && !props.compact
-                    ? "Bemandingsbehov"
-                    : "Påvirkede stationer"}
-                </Text>
-                <Text style={styles.badge}>{stations.length}</Text>
-              </View>
-            )}
-            {props.mode === "needed-only" ? (
-              operatorLayout ? null : (
-                <Text style={styles.small}>
-                  {stations.length} stationer · {needed} stewards kræves
-                </Text>
-              )
-            ) : (
-              stewards !== null && (
-                <>
-                  <Text style={styles.small}>
-                    {coveredCount}/{stations.length} stationer dækket
-                  </Text>
-                  <Text style={styles.small}>
-                    {stewards.arrived}/{stewards.needed} stewards ·{" "}
-                    {stewards.enRoute} på vej
-                  </Text>
-                </>
-              )
-            )}
-          </View>
-        )
+        <StationListHeader
+          props={props}
+          stations={stations}
+          needed={needed}
+          operatorLayout={operatorLayout}
+        />
       }
       ListEmptyComponent={
         <Text style={styles.small}>Scenariet kræver ingen stationer.</Text>
@@ -139,6 +189,7 @@ export default function ScenarioStationList(props: Props) {
             requirement={item}
             deployments={props.activeDeployments}
             operatorLayout={props.operatorLayout}
+            density={densityFor(stations.length)}
           />
         )
       }

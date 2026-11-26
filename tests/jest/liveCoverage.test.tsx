@@ -71,8 +71,10 @@ describe("LiveCoverage", () => {
         ],
       }),
     );
-    expect(await screen.findByText("0/2")).toBeTruthy();
-    expect(screen.getByText("1 på vej")).toBeTruthy();
+    // Two needed, one on the way: one yellow cell and one red.
+    expect(await screen.findByText("af 1 stationer dækket")).toBeTruthy();
+    expect(screen.getAllByTestId("station-slot-PENDING")).toHaveLength(1);
+    expect(screen.getAllByTestId("station-slot-UNMANNED")).toHaveLength(1);
 
     view.rerender(
       withLive({
@@ -84,8 +86,8 @@ describe("LiveCoverage", () => {
         ],
       }),
     );
-    expect(await screen.findByText("2/2")).toBeTruthy();
-    expect(screen.getByText("Fuldt bemandet")).toBeTruthy();
+    expect(await screen.findAllByTestId("station-slot-MANNED")).toHaveLength(2);
+    expect(screen.getByTestId("coverage-cell-covered")).toBeTruthy();
   });
 
   it("says that coverage may be out of date while the socket is down", async () => {

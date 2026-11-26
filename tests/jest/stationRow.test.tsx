@@ -56,6 +56,21 @@ describe("StationRow", () => {
     expect(screen.getAllByTestId("station-slot-MANNED")).toHaveLength(3);
   });
 
+  it("falls back to the three counts above ten stewards, with the missing ones in red", () => {
+    render(
+      <StationRow
+        requirement={{ ...requirement, minimumStaffing: 12 }}
+        deployments={deployments("MANNED", "MANNED", "PENDING", "PENDING")}
+        operatorLayout
+      />,
+    );
+    expect(screen.queryByTestId("station-cells")).toBeNull();
+    expect(screen.getByLabelText("2 ankommet")).toBeTruthy();
+    expect(screen.getByLabelText("2 på vej")).toBeTruthy();
+    // 12 needed, 2 arrived and 2 on the way: 8 missing.
+    expect(screen.getByLabelText("8 mangler")).toBeTruthy();
+  });
+
   it("shows only the required number in a compact preview and keeps placement expandable", () => {
     render(<StationRow requirement={requirement} mode="needed-only" compact />);
     expect(
