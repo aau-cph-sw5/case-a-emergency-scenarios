@@ -13,6 +13,7 @@ const user = {
   username: "operator-2",
   role: "OPERATOR",
   lineGroup: "M1_M2",
+  disabled: false,
 };
 const checkCreate = (body) => validate(body, "user-create.schema.json");
 const checkUpdate = (body) => validate(body, "user-update.schema.json");

@@ -211,7 +211,7 @@ export async function activate(
     });
     io?.to(roleRoom("OPERATOR", lineGroup)).emit("activations-changed");
     // Phones where the app is closed or in the background (ADR 0014)
-    void notifyScenarioChange(lineGroup, true, scenario.scenarioId);
+    void notifyScenarioChange(lineGroup, "started", scenario.scenarioId);
     console.log("Scenario activated:", result.activation);
     response.status(201).json(result.activation);
   }
@@ -272,7 +272,7 @@ export async function standDown(
   if (io) {
     emitThreadsClosed(io, result.activation);
   }
-  void notifyScenarioChange(lineGroup, false, result.activation.scenarioId);
+  void notifyScenarioChange(lineGroup, "ended", result.activation.scenarioId);
 
   response.json(result.activation);
 }

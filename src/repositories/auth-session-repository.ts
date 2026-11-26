@@ -1,4 +1,5 @@
-import { getDatabase } from "../db/client.js";
+import { getDatabase, type Db } from "../db/client.js";
+import type { LineGroup } from "../../shared/auth/line-groups.js";
 import { RENEWAL_WINDOW_MS } from "../../shared/auth/renewal.js";
 
 export type AuthSession = {
@@ -80,18 +81,20 @@ async function revokeSession(userId: number, jti: string): Promise<void> {
   const sql = getDatabase();
   await sql`
     UPDATE auth_sessions
-    SET revoked_at = CURRENT_TIMESTAMP
+    SET revoked_at = CURRENT_TIMESTAMP, push_token = NULL
     WHERE user_id = ${userId}
       AND jti = ${jti}
       AND revoked_at IS NULL
   `;
 }
 
-async function revokeAllSessionsForUser(userId: number): Promise<void> {
-  const sql = getDatabase();
-  await sql`
+async function revokeAllSessionsForUser(
+  userId: number,
+  db: Db = getDatabase(),
+): Promise<void> {
+  await db`
     UPDATE auth_sessions
-    SET revoked_at = CURRENT_TIMESTAMP
+    SET revoked_at = CURRENT_TIMESTAMP, push_token = NULL
     WHERE user_id = ${userId} AND revoked_at IS NULL
   `;
 }
@@ -104,12 +107,9 @@ async function savePushToken(
   pushToken: string,
 ): Promise<boolean> {
   return getDatabase().begin(async (tx) => {
-    await tx`
-      UPDATE auth_sessions
-      SET push_token = NULL
-      WHERE push_token = ${pushToken} AND user_id <> ${userId}
-    `;
-    const result = await tx`
+    // Two logins on one phone claim its token one after the other
+    await tx`SELECT pg_advisory_xact_lock(hashtext(${pushToken}))`;
+    const saved = await tx`
       UPDATE auth_sessions
       SET push_token = ${pushToken}
       WHERE user_id = ${userId}
@@ -117,12 +117,19 @@ async function savePushToken(
         AND revoked_at IS NULL
         AND expires_at > NOW()
     `;
-    return result.count === 1;
+    // An ended session takes the token from nobody
+    if (saved.count !== 1) return false;
+    await tx`
+      UPDATE auth_sessions
+      SET push_token = NULL
+      WHERE push_token = ${pushToken} AND user_id <> ${userId}
+    `;
+    return true;
   });
 }
 
 // The phones of the stewards logged in to a line group (ADR 0014).
-async function findStewardPushTokens(lineGroup: string): Promise<string[]> {
+async function findStewardPushTokens(lineGroup: LineGroup): Promise<string[]> {
   const sql = getDatabase();
   const rows = await sql<{ pushToken: string }[]>`
     SELECT s.push_token AS "pushToken"
@@ -130,6 +137,8 @@ async function findStewardPushTokens(lineGroup: string): Promise<string[]> {
     JOIN users u ON u.id = s.user_id
     WHERE u.role = 'STEWARD'
       AND u.line_group = ${lineGroup}
+      AND u.deleted_at IS NULL
+      AND NOT u.is_disabled
       AND s.push_token IS NOT NULL
       AND s.revoked_at IS NULL
       AND s.expires_at > NOW()
