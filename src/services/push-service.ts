@@ -4,7 +4,11 @@ import {
   initializeApp,
   type App,
 } from "firebase-admin/app";
-import { getMessaging, type MulticastMessage } from "firebase-admin/messaging";
+import {
+  getMessaging,
+  type BatchResponse,
+  type MulticastMessage,
+} from "firebase-admin/messaging";
 import type { LineGroup } from "../../shared/auth/line-groups.js";
 import {
   SCENARIO_CHANNEL_ID,
@@ -25,6 +29,18 @@ const DEAD_TOKEN_CODES = new Set([
   "messaging/invalid-argument",
   "messaging/mismatched-credential",
 ]);
+export function deadTokensIn(
+  tokens: string[],
+  result: BatchResponse,
+): string[] {
+  const deadTokens: string[] = [];
+  result.responses.forEach(({ error }, index) => {
+    if (!error) return;
+    if (DEAD_TOKEN_CODES.has(error.code)) deadTokens.push(tokens[index]);
+    else console.error("Push notification failed:", error.code, error.message);
+  });
+  return deadTokens;
+}
 
 export function scenarioMessage(
   tokens: string[],
@@ -149,14 +165,7 @@ export async function notifyStationMessage(
     const result = await getMessaging(app).sendEachForMulticast(
       stationMessage(tokens, station),
     );
-    const deadTokens: string[] = [];
-    result.responses.forEach(({ error }, index) => {
-      if (!error) return;
-      if (DEAD_TOKEN_CODES.has(error.code)) deadTokens.push(tokens[index]);
-      else
-        console.error("Push notification failed:", error.code, error.message);
-    });
-    await authSessionRepository.clearPushTokens(deadTokens);
+    await authSessionRepository.clearPushTokens(deadTokensIn(tokens, result));
   } catch (error) {
     console.error("Push notification failed:", error);
   }

@@ -9,7 +9,10 @@ import {
   inLineGroupOrder,
   scenarioMessage,
   stationMessage,
+  deadTokensIn,
+  notifyStationMessage,
 } from "../../src/services/push-service.js";
+import type { BatchResponse } from "firebase-admin/messaging";
 
 // ADR 0014: what a phone offline at send time gets
 test("a scenario push replaces an older one for the same line group and expires after an hour", () => {
@@ -73,4 +76,34 @@ test("a line group's pushes go out in order, so a slow 'ended' cannot overtake '
   ]);
 
   assert.deepEqual(sent, ["ended", "started"]);
+});
+test("only tokens FCM rejects for good are cleared", (t) => {
+  t.mock.method(console, "error", () => {});
+  const result = {
+    successCount: 1,
+    failureCount: 2,
+    responses: [
+      { success: true },
+      {
+        success: false,
+        error: {
+          code: "messaging/registration-token-not-registered",
+          message: "",
+        },
+      },
+      {
+        success: false,
+        error: { code: "messaging/internal-error", message: "" },
+      },
+    ],
+  } as unknown as BatchResponse;
+
+  assert.deepEqual(deadTokensIn(["a", "b", "c"], result), ["b"]);
+});
+
+test("a station push without Firebase credentials sends nothing and does not throw", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = "";
+
+  await notifyStationMessage(1, "VAN", null);
 });
