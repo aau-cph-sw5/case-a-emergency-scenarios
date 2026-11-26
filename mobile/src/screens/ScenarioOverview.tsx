@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import type { ScenarioSnapshot } from "../../../shared/offline/scenario-snapshot";
-import { colors, steward } from "../../../shared/Theme";
+import { colors, spacing, steward } from "../../../shared/Theme";
 import { staffingWords } from "../components/StatusBox";
 import {
   ListCard,
@@ -18,17 +18,18 @@ import {
 } from "../components/ListCard";
 import { MovingRow } from "../components/MovingRow";
 import { Swap } from "../components/Swap";
-import MapRender from "../../../shared/MapRenderer";
 import type { MapNetwork } from "../../../shared/network/network";
 import type { NetworkStatus } from "../network/useNetwork";
-import { affectedStations } from "../../../shared/scenario/affected-stations";
-import {
-  getStationState,
-  stationCoverage,
-} from "../../../shared/components/stationState";
+import { getStationState } from "../../../shared/components/stationState";
 import { zoomedViewBox } from "./map-zoom";
-import { findOwnAssignment } from "./own-assignment";
-import { deriveStewardMap, type StewardMapData } from "./steward-map-data";
+import { MapNotes, StewardMap } from "./StewardMap";
+import {
+  deriveStewardMapModel,
+  oneRowPerStation,
+  ownStations,
+  type StationRequirement,
+  type StewardMapModel,
+} from "./steward-map-data";
 
 // One task of the own station. A task that fits on one line is a plain row.
 // A longer one shows its first line and a chevron, and a press opens it to
@@ -81,64 +82,6 @@ function TaskRow({
 const ROW_HEIGHT = 48;
 const ROW_MIN = 34;
 
-type StationRequirement = NonNullable<
-  ScenarioSnapshot["scenario"]["versions"][number]["stationRequirements"]
->[number];
-
-// One row per station (#376). A scenario can have several requirement rows
-// for the same station (one per placement), and a station must never be
-// listed twice. The rows are merged in the order the station first appears,
-// and the station needs the stewards of all its rows together: a station
-// that needs 1 on the platform and 1 at the entrance needs 2.
-export function oneRowPerStation(
-  rows: readonly StationRequirement[],
-): StationRequirement[] {
-  const merged = new Map<string, StationRequirement>();
-  for (const row of rows) {
-    const seen = merged.get(row.station);
-    merged.set(
-      row.station,
-      seen
-        ? {
-            ...seen,
-            minimumStaffing: seen.minimumStaffing + row.minimumStaffing,
-          }
-        : row,
-    );
-  }
-  return [...merged.values()];
-}
-
-// The steward's own station and the one they checked out from (#310). The
-// own assignment stands out without interaction (MET-A-010 criterion 2);
-// userId comes from the offline copy, so this works offline. The station the
-// app just assigned comes first, since the server does not record it in the
-// deployments yet (#263). A checked-out deployment keeps the steward as staff,
-// so the control room sees who was there (#289); it is not the steward's own
-// station any more, and after checking out an older copy may still show them
-// there, so the app's own status decides (#310).
-function ownStations(
-  snapshot: ScenarioSnapshot,
-  assignedStation: string | undefined,
-  checkedOutStation: string | undefined,
-) {
-  const ownAssignment = findOwnAssignment(
-    snapshot.state.deployments,
-    snapshot.userId,
-  );
-  const leftStation =
-    checkedOutStation ??
-    (ownAssignment?.status === "CHECKED_OUT"
-      ? ownAssignment.fulfills
-      : undefined);
-  const ownStation =
-    assignedStation ??
-    (checkedOutStation === undefined && ownAssignment?.status !== "CHECKED_OUT"
-      ? ownAssignment?.fulfills
-      : undefined);
-  return { ownStation, leftStation };
-}
-
 // The map of the affected stretch (#376). It sits in the status card under
 // the status and is always shown; its box sets its size, and it zooms in on
 // the stretch until the station names are legible at the phone's font size
@@ -149,6 +92,7 @@ function ownStations(
 // network and an affected stretch the map lacks sit at the bottom of the box.
 export function ScenarioMap({
   snapshot,
+  model,
   assignedStation,
   checkedOutStation,
   network,
@@ -156,76 +100,57 @@ export function ScenarioMap({
   networkStatus = "loading",
 }: {
   snapshot: ScenarioSnapshot;
+  model?: StewardMapModel | null;
   assignedStation?: string;
   checkedOutStation?: string;
   network?: MapNetwork | null;
   networkIsCached?: boolean;
   networkStatus?: NetworkStatus;
 }) {
-  const { scenario, state } = snapshot;
   const { fontScale } = useWindowDimensions();
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const rows = oneRowPerStation(
-    scenario.versions[0]?.stationRequirements ?? [],
-  );
-  const { ownStation } = ownStations(
-    snapshot,
-    assignedStation,
-    checkedOutStation,
-  );
-  // The map is drawn again only when what it shows changes (MapCard): the
-  // scenario, the coverage level of a station, the own station or its size.
-  const levels = stationCoverage(rows, state);
-  const mapData = network != null ? deriveStewardMap(scenario, network) : null;
-  const stations = affectedStations(scenario);
-  const missingStretch = mapData?.missingStretch ?? false;
-  const missingRoutes = mapData?.missingRoutes ?? false;
-  const notes = [
-    networkIsCached && "Viser gemt metronetværk.",
-    network != null &&
-      networkStatus === "incomplete" &&
-      "Det hentede metronetværk er ufuldstændigt.",
-  ].filter((note) => typeof note === "string");
+  // Reuse the model derived by StewardView when supplied; fall back to
+  // deriving locally for standalone callers and tests.
+  const resolvedModel =
+    model !== undefined
+      ? model
+      : network != null
+        ? deriveStewardMapModel(
+            snapshot,
+            network,
+            assignedStation,
+            checkedOutStation,
+          )
+        : null;
+
   return (
     <View
       style={styles.fill}
       onLayout={(event) => setSize(event.nativeEvent.layout)}
     >
-      {mapData !== null ? (
-        <MapCard
-          stations={stations}
-          mapData={mapData}
-          mapKey={JSON.stringify({ mapData, required: rows, stations })}
-          required={rows}
-          levels={levels}
-          levelsKey={JSON.stringify(levels)}
-          ownStation={ownStation}
-          width={size.width}
-          height={size.height}
-          fontScale={fontScale}
+      {resolvedModel !== null ? (
+        <StewardMap
+          model={resolvedModel}
+          viewBox={zoomedViewBox(
+            resolvedModel.stations,
+            size.width,
+            size.height,
+            fontScale,
+            (station) => resolvedModel.mapData.positions[station],
+          )}
         />
       ) : (
         <Text style={styles.mapMessage}>{NETWORK_MESSAGES[networkStatus]}</Text>
       )}
-      {(notes.length > 0 || missingStretch || missingRoutes) && (
-        <View style={styles.mapNotes} pointerEvents="none">
-          {notes.map((note) => (
-            <Text key={note} style={styles.mapNote}>
-              {note}
-            </Text>
-          ))}
-          {missingStretch && (
-            <Text accessibilityRole="alert" style={styles.mapNote}>
-              Den berørte strækning kan ikke vises fuldt ud på dette kort.
-            </Text>
-          )}
-          {missingRoutes && (
-            <Text accessibilityRole="alert" style={styles.mapNote}>
-              En eller flere ruter kan ikke vises på kortet.
-            </Text>
-          )}
-        </View>
-      )}
+      <MapNotes
+        networkIsCached={networkIsCached}
+        networkIncomplete={
+          resolvedModel !== null && networkStatus === "incomplete"
+        }
+        missingStretch={resolvedModel?.mapData.missingStretch ?? false}
+        missingRoutes={resolvedModel?.mapData.missingRoutes ?? false}
+        style={styles.mapNotes}
+      />
     </View>
   );
 }
@@ -501,66 +426,6 @@ export function ScenarioOverview({
   );
 }
 
-type MapCardProps = {
-  stations: string[];
-  mapData: StewardMapData;
-  required: StationRequirement[];
-  // What the map shows, as plain values, so a new copy of the same scenario
-  // or the same coverage does not draw the map again.
-  mapKey: string;
-  levels: ReturnType<typeof stationCoverage>;
-  levelsKey: string;
-  ownStation: string | undefined;
-  width: number;
-  height: number;
-  fontScale: number;
-};
-
-// The SVG map of the affected stretch. Drawing it is the most expensive part
-// of the screen, and the screen renders many times for one status change, so
-// it is drawn again only when one of the plain values above changes.
-const MapCard = memo(
-  function MapCard({
-    stations,
-    mapData,
-    required,
-    levels,
-    ownStation,
-    width,
-    height,
-    fontScale,
-  }: MapCardProps) {
-    const position = (station: string) => mapData.positions[station];
-    return (
-      <MapRender
-        viewBox={zoomedViewBox(stations, width, height, fontScale, position)}
-        lines={mapData.lines}
-        positions={mapData.positions}
-        availableSegments={mapData.availableSegments}
-        ringStations={mapData.ringStations}
-        colors={mapData.colors}
-        blockedTracks={mapData.blockedTracks}
-        showLineButtons={false}
-        highlightStation={ownStation}
-        // Every station the scenario needs staff at, coloured by how far it
-        // is covered right now, like the dashboard (MET-A-011).
-        markedStations={required.map((row) => row.station)}
-        requiredStaffing={Object.fromEntries(
-          required.map((row) => [row.station, row.minimumStaffing]),
-        )}
-        stationCoverage={levels}
-      />
-    );
-  },
-  (a, b) =>
-    a.mapKey === b.mapKey &&
-    a.levelsKey === b.levelsKey &&
-    a.ownStation === b.ownStation &&
-    a.width === b.width &&
-    a.height === b.height &&
-    a.fontScale === b.fontScale,
-);
-
 function sortedActions(row: StationRequirement) {
   return [...(row.actions ?? [])].sort((a, b) => a.sequence - b.sequence);
 }
@@ -573,16 +438,15 @@ const styles = StyleSheet.create({
   mapMessage: {
     color: steward.muted,
     fontSize: 14,
-    padding: 16,
+    padding: spacing.large,
     textAlign: "center",
   },
   mapNotes: {
-    bottom: 4,
+    bottom: spacing.small,
     left: 8,
     position: "absolute",
     right: 8,
   },
-  mapNote: { color: steward.muted, fontSize: 11, textAlign: "center" },
   row: {
     alignItems: "center",
     borderTopColor: steward.line,

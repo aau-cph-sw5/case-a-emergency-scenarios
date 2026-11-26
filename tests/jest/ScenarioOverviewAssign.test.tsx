@@ -1,10 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import {
-  oneRowPerStation,
   ScenarioMap,
   ScenarioOverview,
 } from "../../mobile/src/screens/ScenarioOverview";
+import { oneRowPerStation } from "../../mobile/src/screens/steward-map-data";
 import { Circle, Line, Text as SvgText } from "react-native-svg";
 import {
   circleByTestId,
