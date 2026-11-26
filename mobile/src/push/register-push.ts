@@ -2,7 +2,10 @@ import { isRunningInExpoGo } from "expo";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
-import { STATION_CHANNEL_ID, SCENARIO_CHANNEL_ID } from "../../../shared/push-channels";
+import {
+  SCENARIO_CHANNEL_ID,
+  STATION_CHANNEL_ID,
+} from "../../../shared/push-channels";
 import type { PushTokenRequest } from "../../../shared/types/v1/push-token-request";
 import { apiBaseUrl } from "../api-base-url";
 
@@ -10,7 +13,6 @@ import { apiBaseUrl } from "../api-base-url";
 export function canReceivePush(): boolean {
   return Platform.OS === "android" && !isRunningInExpoGo();
 }
-const STATION_CHANNEL_ID = "station-messages";
 
 // Gives the server this phone's FCM token, so a logged-in steward gets
 // notifications while the app is in the background or closed (ADR 0014).
@@ -32,12 +34,12 @@ export async function registerPush(
       shouldSetBadge: false,
     }),
   });
- 
+
   await Notifications.setNotificationChannelAsync(SCENARIO_CHANNEL_ID, {
     name: "Scenarier",
     importance: Notifications.AndroidImportance.HIGH,
   });
-  await Notifications.setNotificationChannelAsync(SCENARIO_CHANNEL_ID, {
+  await Notifications.setNotificationChannelAsync(STATION_CHANNEL_ID, {
     name: "Stationsbeskeder",
     importance: Notifications.AndroidImportance.HIGH,
   });

@@ -57,7 +57,6 @@ test("a station chat push carries only the station, not the sender", () => {
     body: "NOR",
   });
   assert.equal(message.data, undefined);
-
 });
 
 test("a line group's pushes go out in order, so a slow 'ended' cannot overtake 'started'", async () => {

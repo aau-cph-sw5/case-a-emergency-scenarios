@@ -58,7 +58,6 @@ after(async () => {
   await closeOwnerDatabase();
 });
 
-
 async function stewardWithToken() {
   const [user] = await owner<{ id: number }[]>`
     INSERT INTO users (username, password_hash, role, line_group)

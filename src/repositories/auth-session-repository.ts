@@ -165,6 +165,8 @@ async function findStationStewardPushTokens(
     WHERE l.station = ${station}
       AND l.event = 'ARRIVED' AND l.task_done = false
       AND u.role = 'STEWARD'
+      AND u.deleted_at IS NULL
+      AND NOT u.is_disabled
       AND (${excludeUserId}::int IS NULL OR s.user_id <> ${excludeUserId})
       AND s.push_token IS NOT NULL
       AND s.revoked_at IS NULL

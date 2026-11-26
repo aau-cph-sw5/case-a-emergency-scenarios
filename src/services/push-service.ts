@@ -6,15 +6,16 @@ import {
 } from "firebase-admin/app";
 import { getMessaging, type MulticastMessage } from "firebase-admin/messaging";
 import type { LineGroup } from "../../shared/auth/line-groups.js";
-import { STATION_CHANNEL_ID, SCENARIO_CHANNEL_ID } from "../../shared/push-channels.js";
+import {
+  SCENARIO_CHANNEL_ID,
+  STATION_CHANNEL_ID,
+} from "../../shared/push-channels.js";
 import { authSessionRepository } from "../repositories/auth-session-repository.js";
 import { findScenario } from "../repositories/scenario-repository.js";
 
 // ADR 0014: a phone offline for longer than this gets no alert, and only the
 // newest scenario message per line group waits for it.
 const TTL_MS = 60 * 60 * 1000;
-export const SCENARIO_CHANNEL_ID = "scenarios";
-
 
 export type ScenarioChange = "started" | "ended";
 
@@ -132,11 +133,10 @@ async function sendScenarioChange(
   }
 }
 export async function notifyStationMessage(
-activationId: number,
-station: string,
-senderId: number | null,
+  activationId: number,
+  station: string,
+  senderId: number | null,
 ): Promise<void> {
-  const app = firebase();
   try {
     const app = firebase();
     if (!app) return;
