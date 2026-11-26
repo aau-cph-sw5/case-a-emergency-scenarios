@@ -1,6 +1,6 @@
 # Usability test findings
 
-Related issue: MET-A-027 
+Related issue: MET-A-027
 
 ## Purpose
 
@@ -14,6 +14,8 @@ Additional participant feedback can be found in:
 - [Operator feedback](operator-feedback.md)
 
 The findings are based on the available interviews, test observations and notes from the test team.
+
+An observed defect concerns functionality that behaved incorrectly. A usability problem concerns difficulty finding, understanding or using existing functionality. Reported concerns and improvement suggestions are not automatically confirmed defects. The classifications and severities are preliminary.
 
 ## Severity
 
@@ -34,15 +36,141 @@ The severity levels below are our initial assessment and can be changed during b
 
 | ID | Finding | Severity | Source | GitHub issue |
 | --- | --- | --- | --- | --- |
-| D-01 | Multiple stewards can reserve or check in to a station beyond its required staffing. | High | S1, S3 | Pending |
+| D-01 | Multiple stewards can reserve or check in to a station beyond its required staffing. | High | S1, S3; O1 confirmed the expected behaviour | Pending |
 | D-02 | Station coverage colour and status are confusing when excess staffing occurs. | High | S3 | Pending |
 | D-03 | Chat is difficult to find and incoming messages may be overlooked. | Medium | S2, S3 | Pending |
 | D-04 | Active scenario and relevant stations are not sufficiently visible. | Medium | S1, S2 | Pending |
 | D-05 | Confirmation buttons do not clearly describe what is being confirmed. | Medium | S3 | Pending |
 | D-06 | Staffing numbers are not sufficiently readable. | Medium | S3 | Pending |
 | D-07 | Important scenario notifications may be missed during normal work. | High, requires further verification | S1, S3 | Pending |
+| D-08 | Operator map does not show the yellow en-route status. | High | O1, task 3 | Pending |
+| D-09 | Dedicated scenario switch workflow was not used. | Medium | O1, task 6 | Pending |
+| D-10 | Station chats are not logically ordered. | Medium | O1, after-interview question 2 | Pending |
+| D-11 | Message sender assignment is unclear. | Medium | O1, supplementary after-interview question G | Pending |
+| D-12 | Following several station chats requires navigation. | Medium | O1, supplementary after-interview H and I; after-interview question 1 | Pending |
+| D-13 | Staffing indicators on the operator map are too small. | Medium | O1, task 4 | Pending |
 
-### Improvement suggestions
+#### D-08 – Operator map does not show the yellow en-route status
+
+Classification: Observed defect.
+
+#### What happened
+
+O1 identified a steward on the way but pointed out that the map did not show the yellow status.
+
+#### Expected behaviour and follow-up
+
+The map and staffing overview should represent the same reported staffing state. Reproduce with a steward en route and compare both views. Investigate together with D-02; the underlying cause is not yet known.
+
+#### Source
+
+Operator test notes: O1, task 3.
+
+#### Suggested issue title
+
+Correct en-route status on the operator map
+
+### D-09 – Dedicated scenario switch workflow was not used
+
+Classification: Observed usability problem.
+
+#### What happened
+
+O1 stopped the active scenario and started another rather than using the switch button.
+
+#### Expected behaviour and follow-up
+
+Investigate whether the switch action is sufficiently visible and understandable. This observation does not establish that the switch is technically broken.
+
+#### Source
+
+Operator test notes: O1, task 6.
+
+#### Suggested issue title
+
+Investigate scenario switch discoverability
+
+### D-10 – Station chats are not logically ordered
+
+Classification: Reported usability problem.
+
+#### What happened
+
+O1 spent time finding the station chat and explained that the order was not logical to him.
+
+#### Expected behaviour and follow-up
+
+Use an ordering that makes relevant station chats easier to locate. Clarify the preferred ordering with Metro.
+
+#### Source
+
+Operator test notes: O1, after-interview question 2.
+
+#### Suggested issue title
+
+Improve station chat ordering
+
+### D-11 – Message sender assignment is unclear
+
+Classification: Reported usability problem.
+
+#### What happened
+
+O1 found it confusing that employees working on trains could write in the same station chat as employees at the station.
+
+#### Expected behaviour and follow-up
+
+Make the sender and relevant assignment distinguishable without exposing unnecessary personal information.
+
+#### Source
+
+Operator test notes: O1, supplementary after-interview question G.
+
+#### Suggested issue title
+
+Clarify sender assignment in operator chat
+
+### D-12 – Following several station chats requires navigation
+
+Classification: Workflow limitation.
+
+#### What happened
+
+O1 wanted to follow communication from several stations without opening each chat individually.
+
+#### Expected behaviour and follow-up
+
+Reduce navigation during active scenarios; consider the dashboard proposal in I-10 and I-11.
+
+#### Source
+
+Operator test notes: O1, supplementary after-interview H and I; after-interview question 1.
+
+#### Suggested issue title
+
+Improve access to relevant station conversations
+
+### D-13 – Staffing indicators on the operator map are too small
+
+Classification: Reported usability problem.
+
+#### What happened
+
+O1 suggested larger staffing indicators on the map.
+
+#### Expected behaviour and follow-up
+
+Ensure staffing indicators are readable on the intended operator displays. Evaluate alongside the proposed compact map.
+
+#### Source
+
+Operator test notes: O1, task 4.
+
+#### Suggested issue title
+
+Improve operator map staffing readability
+
+## Improvement suggestions
 
 | ID | Suggested improvement | Source |
 | --- | --- | --- |
@@ -55,6 +183,17 @@ The severity levels below are our initial assessment and can be changed during b
 | I-07 | Support additional staffing when required by the operator. | S2 |
 | I-08 | Provide expected arrival information. | S2 |
 | I-09 | Distinguish between scenario activation and established scenario operation. | S3 |
+| I-10 | Active-scenario dashboard layout. | O1: OP-01–OP-03 |
+| I-11 | Simultaneous station chats and task progress. | O1: OP-04, OP-05 |
+| I-12 | One-way broadcast communication. | O1: OP-18, OP-19 |
+| I-13 | Operator-controlled steward redirection. | O1: OP-13 |
+| I-14 | Communication with en-route stewards. | O1: OP-14 |
+| I-15 | Train counts and DID information. | O1: OP-26–OP-28 |
+| I-16 | Order stations by operational relevance. | O1: OP-06, OP-21 |
+| I-17 | Operator dashboard clock. | O1: OP-09 |
+| I-18 | Configurable dashboard components. | O1: OP-02, OP-08 |
+| I-19 | Structured scenario suggestion inputs. | O1: OP-30, OP-31 |
+| I-20 | Individual steward task completion. | O1: OP-05, OP-29 |
 
 The improvements have not been assigned severity levels, as they do not necessarily represent defects in the current implementation.
 
@@ -69,6 +208,8 @@ During the test, multiple stewards were able to select the same station even tho
 This resulted in a station having more stewards assigned than required.
 
 The stewards then had to figure out who should stay assigned to the station.
+
+O1 independently confirmed in the after-interview that only one steward should be able to take an assignment requiring one steward. This is confirmation of the expected behaviour, not a separate observed occurrence.
 
 #### Why it is a problem
 
@@ -87,6 +228,8 @@ This could result in another station remaining without coverage.
 The system should prevent unintended duplicate reservations and check-ins when the configured staffing requirement has already been fulfilled or reserved.
 
 For a station requiring one steward, only one steward should be able to take the available assignment through the normal workflow.
+
+A reserved staffing position is not the same as actual coverage. A steward on the way reserves a position but is not yet counted as arrived.
 
 The system should take into account both:
 
@@ -115,6 +258,7 @@ We should also test what happens when two stewards select the same station at ap
 - S1 Forsøg 1, 05:51–09:44.
 - S3 Nørreport, 08:18–10:59.
 - S2 interview feedback regarding additional staffing.
+- O1 after-interview, questions 4 and 6.
 
 #### Suggested issue title
 
@@ -330,7 +474,7 @@ The notification behaviour should distinguish between important scenario events 
 
 #### Follow-up
 
-Check the existing notification PBI and the version of the implementation used during the usability test.
+Check MET-A-018, the existing notification PBI and the version of the implementation used during the usability test.
 
 Some of the requested functionality may already be planned or under development.
 
@@ -632,15 +776,81 @@ Distinguish scenario activation from operational readiness
 
 SW-35 and OP-S16.
 
+### I-10 – Active-scenario dashboard layout
+
+Adapt the dashboard after activation so the affected area, staffing, messages and task progress are prioritised. Keep the map accessible when needed.
+
+Related feedback: OP-01–OP-03 in [operator-feedback.md](operator-feedback.md).
+
+### I-11 – Simultaneous station chats and task progress
+
+Display relevant station conversations and task progress directly on the dashboard so the operator does not need to open each station separately.
+
+Related feedback: OP-04, OP-05 in [operator-feedback.md](operator-feedback.md).
+
+### I-12 – One-way broadcast communication
+
+Allow the operator to send one announcement to relevant stewards without creating a group reply thread. Clarify recipient scope, including employees not yet assigned.
+
+Related feedback: OP-18, OP-19 in [operator-feedback.md](operator-feedback.md).
+
+### I-13 – Operator-controlled steward redirection
+
+Allow the operator to redirect an en-route steward when needed. Clarify acknowledgement, availability, release of the previous reservation and updates on both clients. Drag-and-drop is a design proposal.
+
+Related feedback: OP-13 in [operator-feedback.md](operator-feedback.md).
+
+### I-14 – Communication with en-route stewards
+
+Allow relevant communication before arrival; clarify how recipients are identified and how this relates to station chat.
+
+Related feedback: OP-14 in [operator-feedback.md](operator-feedback.md).
+
+### I-15 – Train counts and DID information
+
+Display the planned number of trains per Destination ID and the total required for the selected scenario, focusing on the affected area.
+
+Related feedback: OP-26–OP-28 in [operator-feedback.md](operator-feedback.md).
+
+### I-16 – Order stations by operational relevance
+
+Order staffing entries and station chats in a way that reflects operational relevance. Clarify the ordering with Metro.
+
+Related feedback: OP-06, OP-21 in [operator-feedback.md](operator-feedback.md).
+
+### I-17 – Operator dashboard clock
+
+Include a visible clock on the dashboard.
+
+Related feedback: OP-09 in [operator-feedback.md](operator-feedback.md).
+
+### I-18 – Configurable dashboard components
+
+Consider allowing the operator to rearrange, minimise or expand dashboard components without losing access to relevant information.
+
+Related feedback: OP-02, OP-08 in [operator-feedback.md](operator-feedback.md).
+
+### I-19 – Structured scenario suggestion inputs
+
+Investigate structured alternatives to free text in MET-A-019. O1 found the feature less relevant to M1/M2 but suggested possible value for M3/M4. Recommendation accuracy was not evaluated.
+
+Related feedback: OP-30, OP-31 in [operator-feedback.md](operator-feedback.md).
+
+### I-20 – Individual steward task completion
+
+Allow stewards to mark individual tasks as completed and the operator to follow progress. Discuss whether this changes the refined scope of MET-A-021 or requires a separate PBI.
+
+Related feedback: OP-05, OP-29 in [operator-feedback.md](operator-feedback.md).
+
 ## Backlog follow-up
 
 The defects and improvement suggestions should be compared with existing backlog items before creating new issues.
 
 For MET-A-027, at least two defects identified during the usability test need to be registered in the backlog.
 
-D-01 and D-02 should be investigated together as they may be caused by the same underlying issue.
+D-01, D-02 and D-08 should be investigated together as they may be related. D-01 and D-08 are candidates for separate defect reports if reproduction confirms independent defects.
 
-If they are the same defect, D-03 is another independent usability issue that can be registered.
+If they share a root cause, investigate another independently reproducible defect. D-03 is a separate usability problem; agree whether it qualifies for the acceptance criterion before counting it as a defect.
 
 Once the issues have been created, add their issue numbers to the findings overview at the top of this document.
 

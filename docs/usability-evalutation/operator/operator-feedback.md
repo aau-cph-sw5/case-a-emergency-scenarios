@@ -1,8 +1,8 @@
 # Operator feedback
 
-Related issue: MET-A-027 (#26)  
-Test date: 25 November 2026  
-Participant: O1  
+Related issue: MET-A-027 (#26)
+Test date: 25 November 2026
+Participant: O1
 Role: Operator (M1/M2)
 
 ## Purpose
@@ -578,7 +578,7 @@ Sources:
 
 ### Scenario suggestion functionality
 
-Related PBI: MET-A-019.
+Related PBI: MET-A-019. This feedback concerns the relevance and input design of the feature, not the accuracy of its recommendations.
 
 The operator did not consider the current free-text scenario
 suggestion functionality particularly relevant to his own
@@ -618,7 +618,7 @@ The following design proposal was created based on the
 operator's feedback concerning the layout of the dashboard
 during an active scenario.
 
-![Proposed operator dashboard layout during an active scenario](assets/operator-active-scenario-layout.png)
+Design asset: `assets/operator-active-scenario-layout.png` (add after confirming approval for repository use).
 
 ### Layout before scenario activation
 
@@ -699,7 +699,8 @@ employees within an affected area.
 ### Design status
 
 The supplied layout is a design proposal based on the
-operator's feedback.
+operator's feedback. The displayed staffing values are part of
+the proposal and are not additional measured test results.
 
 It is not the version of the interface that was evaluated
 during the usability test.
@@ -723,7 +724,7 @@ The following visualisation illustrates a possible
 interaction for handling redirection from the staffing
 overview.
 
-![Proposed steward redirection interaction](assets/operator-steward-redirection.gif)
+Design asset: `assets/operator-steward-redirection.gif` (add after confirming approval for repository use).
 
 ### Suggested workflow
 
@@ -831,9 +832,9 @@ Sources:
 The duplicate station reservation issue was also identified
 during the steward tests.
 
-The operator's feedback confirms that this is a problem for
-both roles, rather than only an inconvenience in the steward
-application.
+The operator independently confirmed that duplicate reservations
+should be prevented. This supports the steward observations;
+it does not establish another independently observed occurrence.
 
 The scenario switch observation does not necessarily mean
 that the switch functionality is technically broken.
@@ -1415,10 +1416,12 @@ interaction are design proposals based on the feedback.
 They have not been evaluated through a subsequent usability
 test and should not be treated as validated solutions.
 
+The original audio has not been independently checked against the transcripts for this documentation.
+
 The original recordings also contain interruptions from
 the operator's normal work.
 
-The operator's written observation notes have therefore
+The written notes from the operator session have therefore
 been used alongside the available interview transcripts
 when compiling this document.
 

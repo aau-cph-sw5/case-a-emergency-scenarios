@@ -1,6 +1,6 @@
 # Raw observations
 
-Related issue: MET-A-027 (#26)
+Related issue: MET-A-027
 
 ## Participants
 
@@ -12,6 +12,19 @@ Related issue: MET-A-027 (#26)
 | O1 | Operator |
 
 The participants have been anonymised.
+
+## Test environment
+
+| Field | Value |
+| --- | --- |
+| Test date | 25 November 2026 |
+| Location | Metro Service |
+| Operator line group | M1/M2 |
+| Steward devices | Personal Android phones; intended university hardware unavailable |
+| Device models and Android versions | To be confirmed |
+| Backend, steward and operator application versions | To be confirmed |
+| Deployment environment and scenario data | To be confirmed |
+| Notification support in tested build | To be confirmed |
 
 ## Timing during the test
 
@@ -30,6 +43,11 @@ way often happened as part of the same interaction.
 Because of this, we do not have reliable individual timings
 for all participants and tasks.
 
+O1 began exploring the dashboard independently and came across
+several planned tasks before we introduced them. We let the
+operator continue rather than interrupt the exploration. This
+limited the number of separate timings we could record.
+
 The timings below are the ones that were written down during
 the sessions. They should be treated as approximate timings.
 
@@ -37,7 +55,7 @@ Missing timings have not been estimated afterwards.
 
 ## Recorded timings
 
-### Live test
+### Steward live test
 
 All times are in seconds.
 
@@ -125,10 +143,20 @@ same conditions.
 
 ### Operator
 
-One operator participated in the test.
+| Task | Recorded time | Observation |
+| --- | --- | --- |
+| O1 – Find and understand scenario | 20 seconds | Found the scenario affecting Lindevang and inferred the meaning of the staffing indicators. Focused on the affected area. |
+| O2 – Activate scenario | N/A | Independently found how to activate a scenario. |
+| O3 – Understand coverage | 3 seconds | Identified that a steward was on their way. Noticed the missing yellow en-route status on the map. |
+| O4 – Communication | N/A | Found the incoming message immediately. Requested broadcast communication. |
+| O5 – End scenario | N/A | Quickly found how to stop the scenario correctly. |
+| O6 – Switch scenario | N/A | Stopped the current scenario and activated another instead of using the switch button. |
+| O7 – Discover scenario changes | N/A | No observation recorded. |
 
-The operator's interview transcript, observations and
-timing records still need to be added to this document.
+N/A means that no reliable timing was recorded. The two recorded
+times are individual observations from O1.
+
+Source: `usability_test_operator 25-11.docx`, pages 4–5.
 
 ## Errors and assistance
 
@@ -141,7 +169,7 @@ actions per task and participant.
 A complete user error rate cannot therefore be calculated.
 
 The defects observed in the system are documented separately
-
+in [findings.md](findings.md).
 
 ## Source material
 
@@ -157,6 +185,8 @@ observations:
 - S3 interview and test transcripts.
 - S3 `notes.txt`.
 - S3 `forsøg.txt`.
+- O1 `usability_test_operator 25-11.docx`, pages 1–7.
+- O1 `Ny optagelse 3.html` and `Ny optagelse 4.html` (before-interview).
 - Observations and clarification from the test team.
 
 The original recordings and full transcripts are kept

@@ -1,12 +1,12 @@
 # Usability test evaluation
 
-Related issue: MET-A-027 (#26)
+Related issue: MET-A-027
 
 ## Purpose
 
 We conducted the usability test to see whether the system we have developed makes sense for the people who will actually be using it during fallback scenarios.
 
-The main focus of MET-A-027 was whether stewards could quickly identify which stations require bemanning and what they need to do. We extended the test to cover the rest of the steward workflow and included an operator to evaluate the other side of the system.
+The main focus of MET-A-027 was whether stewards could quickly identify which stations require staffing and what they need to do. We extended the test to cover the rest of the steward workflow and included an operator to evaluate the other side of the system.
 
 Besides testing the functionality itself, we wanted to gain a better understanding of how Metro Service currently operates and whether some of the assumptions we made during development correspond to their actual way of working.
 
@@ -17,7 +17,7 @@ Besides testing the functionality itself, we wanted to gain a better understandi
 
 All participants were Metro Service employees.
 
-The current evaluation primarily covers the three stewards, as the detailed operator interview and observation results have not yet been included.
+The evaluation covers all four participants. The operator worked with M1/M2. The test took place on 25 November 2026.
 
 ## Quantitative results
 
@@ -46,6 +46,16 @@ See [raw-observations.md](raw-observations.md) for the available timings and obs
 Our general observation was that the stewards were quick to understand and perform the basic interactions. The difficulty with collecting timings was largely due to how quickly the interactions happened rather than the participants having difficulties completing them.
 
 However, we cannot provide a reliable average or median time to correct station identification because we do not have comparable individual measurements.
+### Operator timings
+
+O1 began exploring the dashboard independently after the first few tasks. We chose not to interrupt the exploration, as it showed us which information and functions the operator naturally looked for. The following two timings were recorded:
+
+| Task | Recorded time | Participants with a recorded time |
+| --- | --- | --- |
+| Find and understand a scenario | 20 seconds | 1 of 1 |
+| Understand station coverage | 3 seconds | 1 of 1 |
+
+The steward timings above are from S3 only (1 of 3 stewards). The combined station selection and en-route timing is not a standalone time to correct station identification. The operator timings measure different tasks and should not be pooled with the steward timings.
 
 ### Error rate
 
@@ -206,6 +216,22 @@ Offline behaviour was included in the original task sheet, but the revised test 
 During the interviews, stewards mentioned that they sometimes experience problems with radio coverage or miss parts of messages.
 
 This supports the need to retain access to relevant information, but does not verify that our offline implementation works as intended.
+
+## Evaluation of operator tasks
+
+| Task | Result |
+| --- | --- |
+| O1 – Find and understand scenario | Found the relevant scenario intuitively in 20 seconds and inferred the meaning of the staffing indicators. |
+| O2 – Activate scenario | Independently found the activation functionality. |
+| O3 – Understand coverage | Identified an en-route steward in 3 seconds. Pointed out that the map did not show the yellow en-route state. |
+| O4 – Communication | Found the message immediately, but wanted to communicate with several stewards at once. |
+| O5 – End scenario | Quickly found how to stop the scenario correctly. |
+| O6 – Switch scenario | Stopped the current scenario and started another instead of using the dedicated switch button. This suggests a possible discoverability or workflow issue, not a confirmed technical failure. |
+| O7 – Discover scenario changes | No sufficient observation recorded. |
+
+The operator was generally positive about the interface and found it intuitive to navigate. His main concerns were the amount of time spent on individual chats and the information shown during an active scenario. See [operator-feedback.md](operator-feedback.md) for the full feedback.
+
+Source: Operator usability test notes, pages 4–5.
 
 ## Qualitative analysis
 
@@ -409,6 +435,31 @@ The application needs to be reliable and fit into their work before we can expec
 
 Sources: S1 and S2 after-interviews.
 
+### Operator workflow and differences between roles
+
+The operator's feedback supports the value of independent status reporting. He explained that several stewards being able to report back at the same time could remove some of the waiting associated with radio communication. However, writing individual chat messages while working with other systems would require additional attention. He would prefer to retain the radio as the primary communication tool and use the application for status reporting, task progress and non-urgent information.
+
+The operator also confirmed that duplicate reservations should be prevented when a station only requires one steward. He requested the ability to redirect a steward who is on their way if the situation changes. This is separate from our suggestion of filtering assignments by working zone. A zone indicates an expected working area, not the steward's confirmed physical location.
+
+| Steward | Operator |
+| --- | --- |
+| Find stations where their help is needed. | Follow staffing across the affected area. |
+| Read the task and prepare before arrival. | Follow the completion of individual tasks. |
+| Report status quickly and receive confirmation. | Receive simultaneous updates without asking individually. |
+| Receive noticeable changes and alerts. | Broadcast information and redirect stewards when necessary. |
+
+The map is useful to the operator when selecting a scenario, but becomes less important once the scenario is active. The operator would rather use that space for station chats, task progress, staffing information and relevant Destination IDs and train counts. This suggests that the dashboard should adapt to the stage of the scenario. The proposed layout and redirection interaction are documented in [operator-feedback.md](operator-feedback.md)
+
+Sources: Operator before-interview and after-interview, questions 1, 4–6.
+
+### Implications for existing PBIs
+
+- MET-A-018: The steward feedback supports the existing notification requirement. Distinct start and end alarms are a proposed refinement; the tested notification implementation still needs to be confirmed.
+- MET-A-021: Sprint 6 planning focused on displaying task descriptions rather than implementing a checklist. The operator specifically requested individual task completion so he could follow progress without asking over the radio. We should discuss whether this changes the scope of the PBI or should become a separate backlog item.
+- MET-A-019: O1 found the free-text scenario suggestion of limited relevance to his M1/M2 workflow and suggested structured inputs. He thought it might be more useful for M3/M4. This is feedback on usability and relevance, not an evaluation of recommendation accuracy.
+
+Sources: Sprint 6 planning; operator after-interview, questions 4–6; steward feedback.
+
 ## Evaluation based on ISO 9241-11
 
 ### Effectiveness
@@ -416,6 +467,8 @@ Sources: S1 and S2 after-interviews.
 The stewards were generally able to understand and perform the core actions in the application.
 
 We did find issues with duplicate station reservations, coverage information and some of the feedback provided after actions.
+
+The operator independently found several core functions, but coverage inconsistencies and the unused switch button indicate areas for improvement.
 
 We cannot verify successful completion of every task for every participant.
 
@@ -429,6 +482,8 @@ The station coverage task took longer and involved confusion about the displayed
 
 Filtering the station overview based on staffing requirements and the steward's working zone could potentially improve efficiency further. This would need to be evaluated through another test.
 
+The operator also found several functions quickly, but described individual chat navigation and typing as time-consuming.
+
 Because of the timing difficulties during the test, we cannot make a reliable quantitative comparison between participants or between our application and the current workflow.
 
 ### Satisfaction
@@ -438,6 +493,8 @@ The stewards generally responded positively to the concept and the ability to sh
 They also had several suggestions for how the application could better fit into their work.
 
 The feedback was especially positive regarding the potential to reduce unnecessary radio calls and improve coordination.
+
+The operator was positive about the overall structure and interface, but wanted the active dashboard to better support coordination.
 
 We do not have a numerical satisfaction score.
 
@@ -451,7 +508,7 @@ We do not have a numerical satisfaction score.
 | Are changes to an active scenario clear? | Participants could interact with changes, but notification visibility needs improvement. Distinct start and end alarms should be considered. |
 | Is offline information and its freshness understood? | Not sufficiently tested. |
 | Do the workflows fit the stewards' actual work? | Partly. The interviews identified several areas where our assumptions need to be reconsidered. |
-| Does the operator dashboard provide a useful overview? | Cannot be concluded until the operator results are included. |
+| Does the operator dashboard provide a useful overview? | Partly. O1 found the dashboard intuitive and identified staffing quickly, but requested a more focused active-scenario layout, visible chats and task progress. The map status inconsistency also needs investigation. |
 
 ## Assumptions we need to reconsider
 
@@ -484,7 +541,11 @@ The scenarios were simulated and did not necessarily create the same time pressu
 
 Some tests took place while the participants were moving between stations. Background noise and interruptions affected the recordings.
 
-The participant sample was small, and the detailed operator results have not yet been included.
+The participant sample was small: three stewards and one M1/M2 operator. The operator session became exploratory, which limited task-by-task measurements. We cannot generalise his preferences to all operators or to M3/M4.
+
+The operator was interrupted by normal work even on what he described as a quiet day. Although the tests took place in the working environment, we did not reproduce or measure the time pressure of an actual fallback scenario.
+
+We used personal Android phones because the intended university hardware was unavailable. Notification behaviour, screen size and device configuration may therefore differ from the intended deployment. The tested application versions still need to be confirmed.
 
 There was also no measured comparison against the existing workflow.
 
@@ -496,7 +557,7 @@ Several of the improvements suggested in this evaluation, including zone-based s
 
 The usability test showed that the stewards generally understood the basic workflow of the application and were able to perform many of the core interactions quickly.
 
-The ability to report status and see station coverage was received positively.
+The ability to report status and see station coverage was received positively by both roles. The operator found the interface intuitive, but wanted to spend less time navigating chats and more easily follow staffing and task completion.
 
 We also found concrete issues with duplicate reservations, station coverage and the presentation of information that should be addressed.
 
@@ -511,6 +572,9 @@ Based on the test, we consider the following particularly relevant for further d
 - Providing more precise task information before arrival so stewards can prepare.
 - Adding confirmation sounds to check-in and checkout.
 - Supporting speech-to-text in the chat for employees with dyslexia.
+- Adapting the operator dashboard to active scenarios, including station chats and task progress.
+- Supporting broadcast communication and controlled steward redirection.
+- Displaying relevant Destination IDs and train counts.
 
 Some of these improvements concern existing functionality, while others would extend the current scope and need to be discussed with the Product Owner.
 

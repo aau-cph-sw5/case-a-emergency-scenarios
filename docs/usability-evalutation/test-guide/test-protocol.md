@@ -1,6 +1,6 @@
 # Usability test protocol
 
-Related issue: MET-A-027 
+Related issue: MET-A-027
 
 ## Purpose
 
@@ -50,6 +50,8 @@ the employees' normal responsibilities always take priority.
 - Access to the test environment.
 
 ## Test procedure
+
+The procedure below describes the planned test. Actual deviations, including the operator's exploratory session and incomplete timings, are documented in [raw-observations.md](raw-observations.md).
 
 ### 1. Introduction and before-interview
 
@@ -252,6 +254,26 @@ We distinguish between participant errors and system defects.
 A participant should not be marked as having made an error
 if the system itself prevents the correct action.
 
+### Task outcome classification for future tests
+
+| Outcome | Definition |
+| --- | --- |
+| Independent completion | Correct result without assistance. |
+| Assisted completion | Correct result after a hint or help. |
+| Incorrect completion | Task completed with an incorrect result. |
+| Not completed | Participant unable to complete the task. |
+| System blocked | System behaviour prevents completion. |
+| Not observed | Insufficient evidence to classify the outcome. |
+
+Define the expected result for each task before testing. For station
+identification, start timing once the full instruction has been given
+and stop at the first correct station answer, before en-route reporting.
+Define acceptable station choices based on the scenario and its current
+staffing state. Record incorrect first answers separately from later
+corrections, and report the number of scored attempts with any error rate.
+These are refinements for a repeat test, not measurements recovered
+from the original sessions.
+
 ## Repeating the test
 
 For future tests, we recommend recording the screen and
@@ -259,8 +281,8 @@ marking the start of each task where recording is permitted.
 This makes it easier to determine the exact task duration
 afterwards.
 
-Make sure to order the relevant phones from the university at the beginning of the semester to ensure you have the correct hardware. 
-We had to make do with personal android phones.
+Make sure to request the relevant phones from the university at the beginning of the semester to ensure you have the correct hardware.
+We had to make do with personal Android phones. This should be taken into consideration when interpreting screen size, notification and background behaviour.
 
 The expected answers, tested scenario, application version
 and success criteria should be recorded before each session.

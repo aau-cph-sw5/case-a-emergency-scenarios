@@ -1,5 +1,7 @@
 # Usability test – MET-A-027
 
+Related issue: MET-A-027
+
 ## Purpose
 
 We conducted a usability test with Metro Service employees to see how
@@ -14,9 +16,9 @@ into their existing way of working.
 ## Participants
 
 - 3 stewards
-- 1 operator
+- 1 operator working with M1/M2
 
-The participants were actual Metro Service employees.
+The participants were Metro Service employees. The test took place on 25 November 2026.
 
 ## Documentation
 
@@ -49,9 +51,14 @@ the requested action almost immediately. In practice, we had
 difficulty starting and stopping the timer between tasks,
 especially when several actions were performed in succession.
 
-We have included the timings we managed to record, but we do
-not consider them reliable enough to calculate an overall
-average or error rate.
+The operator also began exploring the dashboard independently,
+which meant that several tasks were performed before we could
+introduce and time them separately.
+
+We have included the available timings, but we do not have
+comparable individual timings or complete error counts. We
+therefore cannot calculate an overall time to correct answer
+or a reliable error rate.
 
 The test therefore ended up providing more qualitative data
 than quantitative data.
@@ -69,7 +76,6 @@ paraphrased feedback from the interviews.
 
 ## Remaining work
 
-- Add the operator's interview and observation results.
 - Create or link backlog items based on the findings.
 - Discuss the timing limitation with the Product Owner.
 - Record the tested version of the system.

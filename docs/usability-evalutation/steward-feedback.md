@@ -1,6 +1,6 @@
 # Steward feedback
 
-Related issue: MET-A-027 
+Related issue: MET-A-027
 
 ## Purpose
 
@@ -346,6 +346,23 @@ The interviews also included feedback about other parts of the Metro's existing 
 These are included because they came up during the interviews and provide context for the Metro's working environment.
 
 They should not automatically be added to our development scope.
+
+## Related operator feedback
+
+Several points from the steward tests were also supported by the operator evaluation. These are related needs rather than necessarily identical feature requests.
+
+| Steward feedback | Related operator feedback |
+| --- | --- |
+| SW-15 – See who is on their way | OP-17 – Independent status reporting |
+| SW-16 – Prevent unintended duplicate assignments | OP-11, OP-12 |
+| SW-17 – Flexible staffing | OP-13 – Redirection (related coordination need) |
+| SW-26 – Communication while en route | OP-14 |
+| SW-30 – Shared messages | OP-18, OP-19 |
+| SW-31 – Retain radio communication | OP-23, OP-24 |
+| SW-33 – Task information before arrival | OP-29 – Task completion (different purpose) |
+| SW-35 – Established scenario operation | Operator before-interview |
+
+See [operator-feedback.md](operator-feedback.md) and [evaluation.md](evaluation.md) for the corresponding results.
 
 ## Suggested priorities
 
