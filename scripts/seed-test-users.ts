@@ -4,7 +4,28 @@ import { fileURLToPath } from "node:url";
 import type { LineGroup } from "../shared/auth/line-groups.js";
 import type { Role } from "../shared/auth/roles.js";
 
-const SALT_ROUNDS = 10;
+const DEFAULT_SALT_ROUNDS = 10;
+const MIN_SALT_ROUNDS = 4;
+const MAX_SALT_ROUNDS = 10;
+
+export function resolveSaltRounds(
+  raw: string | undefined = process.env.TEST_BCRYPT_ROUNDS,
+): number {
+  const trimmed = raw?.trim();
+  if (!trimmed) return DEFAULT_SALT_ROUNDS;
+  if (!/^\d+$/.test(trimmed)) {
+    throw new Error(
+      `TEST_BCRYPT_ROUNDS must be an integer between ${MIN_SALT_ROUNDS} and ${MAX_SALT_ROUNDS}.`,
+    );
+  }
+  const parsed = Number.parseInt(trimmed, 10);
+  if (parsed < MIN_SALT_ROUNDS || parsed > MAX_SALT_ROUNDS) {
+    throw new Error(
+      `TEST_BCRYPT_ROUNDS must be between ${MIN_SALT_ROUNDS} and ${MAX_SALT_ROUNDS}.`,
+    );
+  }
+  return parsed;
+}
 
 const m1m2Users = [
   {
@@ -68,13 +89,14 @@ function connectAsOwner() {
 export async function seedTestUsers(
   usernamePrefix = "",
 ): Promise<SeededTestUser[]> {
+  const saltRounds = resolveSaltRounds();
   const sql = connectAsOwner();
   const seededUsers: SeededTestUser[] = [];
 
   try {
     for (const user of users) {
       const username = `${usernamePrefix}${user.username}`;
-      const passwordHash = await bcrypt.hash(user.password, SALT_ROUNDS);
+      const passwordHash = await bcrypt.hash(user.password, saltRounds);
 
       const [seededUser] = await sql<{ id: number }[]>`
           INSERT INTO users (username, password_hash, role, line_group)

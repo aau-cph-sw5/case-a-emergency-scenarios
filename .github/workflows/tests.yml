@@ -28,14 +28,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Set up dependencies
+        uses: ./.github/actions/setup-deps
 
       # Runs under c8 only to collect raw coverage for the Coverage job.
       # Coverage from unit and integration tests is combined in that job.
@@ -99,14 +93,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Set up dependencies
+        uses: ./.github/actions/setup-deps
 
       # The same file the local Docker databases run on first start.
       - name: Create the application role
@@ -160,19 +148,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
+      - name: Set up dependencies
+        uses: ./.github/actions/setup-deps
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Cache Jest transforms
+        uses: actions/cache@v6
+        with:
+          path: .jest-cache
+          key: jest-cache-v1-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('package-lock.json', 'jest.config.cjs', 'tsconfig.json', 'web/tsconfig.json', 'mobile/tsconfig.json') }}
 
       - name: Run Jest tests
         run: |
           mkdir -p test-results
-          npm run test:jest -- --coverage --json --outputFile=test-results/jest.json
+          npm run test:jest -- --cacheDirectory .jest-cache --coverage --json --outputFile=test-results/jest.json
 
       - name: Save Jest test results
         if: ${{ !cancelled() }}
@@ -210,14 +198,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Set up dependencies
+        uses: ./.github/actions/setup-deps
 
       - name: Download unit coverage
         id: unit_coverage
@@ -406,15 +388,9 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
       # The analyser resolves each tsconfig.json, and mobile extends one from expo.
-      - name: Install dependencies
-        run: npm ci
+      - name: Set up dependencies
+        uses: ./.github/actions/setup-deps
 
       - name: Download coverage
         uses: actions/download-artifact@v8

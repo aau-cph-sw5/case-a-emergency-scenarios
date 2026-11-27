@@ -1,0 +1,36 @@
+name: Set up Node.js and cached dependencies
+description: Install Node.js 24 and restore or populate the workspace node_modules cache.
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: 24
+
+    - name: Restore node_modules cache
+      id: cache-deps
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          node_modules
+          web/node_modules
+          mobile/node_modules
+        key: node-modules-v1-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('package-lock.json') }}
+
+    - name: Install dependencies
+      if: steps.cache-deps.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci
+
+    - name: Save node_modules cache
+      if: steps.cache-deps.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      continue-on-error: true
+      with:
+        path: |
+          node_modules
+          web/node_modules
+          mobile/node_modules
+        key: node-modules-v1-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('package-lock.json') }}

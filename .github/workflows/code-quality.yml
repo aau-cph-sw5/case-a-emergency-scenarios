@@ -27,14 +27,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Set up dependencies
+        uses: ./.github/actions/setup-deps
 
       - name: Run ESLint
         run: npm run lint
@@ -48,14 +42,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Set up dependencies
+        uses: ./.github/actions/setup-deps
 
       - name: Run Prettier
         run: npm run format:check
@@ -69,14 +57,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Set up dependencies
+        uses: ./.github/actions/setup-deps
 
       - name: Type-check API
         run: npm run typecheck
