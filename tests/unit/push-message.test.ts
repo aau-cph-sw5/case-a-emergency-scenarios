@@ -1,11 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
-import { SCENARIO_CHANNEL_ID } from "../../shared/push-channels.js";
+import {
+  SCENARIO_CHANNEL_ID,
+  STATION_CHANNEL_ID,
+} from "../../shared/push-channels.js";
 import {
   inLineGroupOrder,
   scenarioMessage,
+  stationMessage,
+  deadTokensIn,
+  notifyStationMessage,
 } from "../../src/services/push-service.js";
+import type { BatchResponse } from "firebase-admin/messaging";
+import { authSessionRepository } from "../../src/repositories/auth-session-repository.js";
 
 // ADR 0014: what a phone offline at send time gets
 test("a scenario push replaces an older one for the same line group and expires after an hour", () => {
@@ -36,6 +44,24 @@ test("a scenario push says whether the scenario started or ended", () => {
     body: "Brand",
   });
 });
+test("a station chat push is never collapsed and expires after an hour", () => {
+  const message = stationMessage(["token"], "NOR");
+
+  assert.deepEqual(message.tokens, ["token"]);
+  assert.equal(message.android?.collapseKey, undefined);
+  assert.equal(message.android?.ttl, 60 * 60 * 1000);
+  assert.equal(message.android?.priority, "high");
+  assert.equal(message.android?.notification?.channelId, STATION_CHANNEL_ID);
+});
+test("a station chat push carries only the station, not the sender", () => {
+  const message = stationMessage(["token"], "NOR");
+
+  assert.deepEqual(message.notification, {
+    title: "Stationsmeddelelse",
+    body: "NOR",
+  });
+  assert.equal(message.data, undefined);
+});
 
 test("a line group's pushes go out in order, so a slow 'ended' cannot overtake 'started'", async () => {
   const sent: string[] = [];
@@ -51,4 +77,46 @@ test("a line group's pushes go out in order, so a slow 'ended' cannot overtake '
   ]);
 
   assert.deepEqual(sent, ["ended", "started"]);
+});
+test("only tokens FCM rejects for good are cleared", (t) => {
+  t.mock.method(console, "error", () => {});
+  const result = {
+    successCount: 1,
+    failureCount: 2,
+    responses: [
+      { success: true },
+      {
+        success: false,
+        error: {
+          code: "messaging/registration-token-not-registered",
+          message: "",
+        },
+      },
+      {
+        success: false,
+        error: { code: "messaging/internal-error", message: "" },
+      },
+    ],
+  } as unknown as BatchResponse;
+
+  assert.deepEqual(deadTokensIn(["a", "b", "c"], result), ["b"]);
+});
+
+test("a station push without Firebase credentials does not even look up recipients", async (t) => {
+  const saved = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  t.after(() => {
+    if (saved === undefined) delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    else process.env.GOOGLE_APPLICATION_CREDENTIALS = saved;
+  });
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = "";
+  t.mock.method(console, "warn", () => {});
+  const lookup = t.mock.method(
+    authSessionRepository,
+    "findStationStewardPushTokens",
+    async () => ["token"],
+  );
+
+  await notifyStationMessage(1, "VAN", null);
+
+  assert.equal(lookup.mock.callCount(), 0);
 });

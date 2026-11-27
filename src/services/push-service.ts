@@ -4,9 +4,16 @@ import {
   initializeApp,
   type App,
 } from "firebase-admin/app";
-import { getMessaging, type MulticastMessage } from "firebase-admin/messaging";
+import {
+  getMessaging,
+  type BatchResponse,
+  type MulticastMessage,
+} from "firebase-admin/messaging";
 import type { LineGroup } from "../../shared/auth/line-groups.js";
-import { SCENARIO_CHANNEL_ID } from "../../shared/push-channels.js";
+import {
+  SCENARIO_CHANNEL_ID,
+  STATION_CHANNEL_ID,
+} from "../../shared/push-channels.js";
 import { authSessionRepository } from "../repositories/auth-session-repository.js";
 import { findScenario } from "../repositories/scenario-repository.js";
 
@@ -22,6 +29,21 @@ const DEAD_TOKEN_CODES = new Set([
   "messaging/invalid-argument",
   "messaging/mismatched-credential",
 ]);
+
+// The tokens FCM rejected for good, so they can be cleared. Other errors are
+// only logged.
+export function deadTokensIn(
+  tokens: string[],
+  result: BatchResponse,
+): string[] {
+  const deadTokens: string[] = [];
+  result.responses.forEach(({ error }, index) => {
+    if (!error) return;
+    if (DEAD_TOKEN_CODES.has(error.code)) deadTokens.push(tokens[index]);
+    else console.error("Push notification failed:", error.code, error.message);
+  });
+  return deadTokens;
+}
 
 export function scenarioMessage(
   tokens: string[],
@@ -40,6 +62,23 @@ export function scenarioMessage(
       ttl: TTL_MS,
       collapseKey: `scenario-${lineGroup}`,
       notification: { channelId: SCENARIO_CHANNEL_ID },
+    },
+  };
+}
+export function stationMessage(
+  tokens: string[],
+  station: string,
+): MulticastMessage {
+  return {
+    tokens,
+    notification: {
+      title: "Stationsmeddelelse",
+      body: station,
+    },
+    android: {
+      priority: "high",
+      ttl: TTL_MS,
+      notification: { channelId: STATION_CHANNEL_ID },
     },
   };
 }
@@ -100,14 +139,29 @@ async function sendScenarioChange(
     const result = await getMessaging(app).sendEachForMulticast(
       scenarioMessage(tokens, lineGroup, change, scenarioName),
     );
-    const deadTokens: string[] = [];
-    result.responses.forEach(({ error }, index) => {
-      if (!error) return;
-      if (DEAD_TOKEN_CODES.has(error.code)) deadTokens.push(tokens[index]);
-      else
-        console.error("Push notification failed:", error.code, error.message);
-    });
-    await authSessionRepository.clearPushTokens(deadTokens);
+    await authSessionRepository.clearPushTokens(deadTokensIn(tokens, result));
+  } catch (error) {
+    console.error("Push notification failed:", error);
+  }
+}
+export async function notifyStationMessage(
+  activationId: number,
+  station: string,
+  senderId: number | null,
+): Promise<void> {
+  try {
+    const app = firebase();
+    if (!app) return;
+    const tokens = await authSessionRepository.findStationStewardPushTokens(
+      activationId,
+      station,
+      senderId,
+    );
+    if (tokens.length === 0) return;
+    const result = await getMessaging(app).sendEachForMulticast(
+      stationMessage(tokens, station),
+    );
+    await authSessionRepository.clearPushTokens(deadTokensIn(tokens, result));
   } catch (error) {
     console.error("Push notification failed:", error);
   }

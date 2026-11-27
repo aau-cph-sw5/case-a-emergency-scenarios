@@ -125,3 +125,15 @@ Your phone and your PC must be on the **same network**.
    the emulator, then opens the app.
 
 Saving a file in `mobile/` updates the emulator straight away.
+
+
+### 6. setting up firebase when testing push notifications
+
+1. fetch the Firebase files from our shared OneDrive
+
+2. add this to your env
+
+   GOOGLE_APPLICATION_CREDENTIALS=/.../.../.../<file-name>.json - this one should be the account file
+   GOOGLE_SERVICES_JSON=/.../.../.../<file-name>.json - this one should be the service file
+
+3. run standard set up 

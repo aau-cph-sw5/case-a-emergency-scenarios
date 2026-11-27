@@ -2,7 +2,10 @@ import { isRunningInExpoGo } from "expo";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { REQUEST_TIMEOUT_MS } from "../../../shared/http";
-import { SCENARIO_CHANNEL_ID } from "../../../shared/push-channels";
+import {
+  SCENARIO_CHANNEL_ID,
+  STATION_CHANNEL_ID,
+} from "../../../shared/push-channels";
 import type { PushTokenRequest } from "../../../shared/types/v1/push-token-request";
 import { apiBaseUrl } from "../api-base-url";
 
@@ -31,8 +34,13 @@ export async function registerPush(
       shouldSetBadge: false,
     }),
   });
+
   await Notifications.setNotificationChannelAsync(SCENARIO_CHANNEL_ID, {
     name: "Scenarier",
+    importance: Notifications.AndroidImportance.HIGH,
+  });
+  await Notifications.setNotificationChannelAsync(STATION_CHANNEL_ID, {
+    name: "Stationsbeskeder",
     importance: Notifications.AndroidImportance.HIGH,
   });
   // Metro's device management grants this centrally, so stewards are not asked

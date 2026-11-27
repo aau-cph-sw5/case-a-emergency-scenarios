@@ -136,6 +136,9 @@ export async function stationIsRequired(
   return row.exists;
 }
 
+// The same "checked in" rule is written in SQL in findStationStewardPushTokens
+// (auth-session-repository.ts), which picks who gets station chat
+// notifications (#414). Change both together.
 export async function findCheckedInStation(
   db: Db,
   userId: number,
