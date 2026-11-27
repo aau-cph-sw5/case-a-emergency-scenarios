@@ -32,7 +32,7 @@ Colour should not be the only indicator of status. Where possible, combine colou
 Use high-contrast colour combinations throughout the interface to maximise readability and accessibility.
 
 - **Steward App:** White background with black primary UI elements.
-- **Metro Control:** Inverse treatment, using a black background with white primary UI elements.
+- **Metro Control:** Inverse treatment: a dark header and white cards on the tunnel photo.
 - Status colours should primarily be reserved for status communication and important actions.
 
 ### Typography
@@ -137,7 +137,7 @@ The Steward App should prioritise **simplicity, task completion, and readability
 
 Metro Control should prioritise **situational awareness and operational information**.
 
-- Use a black background with white UI elements.
+- Use a dark header over the tunnel photo, with white cards (12px corners; 4px for controls) holding the content. Admin pages follow the same look.
 - Display the scenario map as a primary element where relevant.
 - Reveal additional details, such as the station list and chat, only when they become relevant to the controller's task.
 - Keep critical status information immediately visible.
