@@ -46,3 +46,13 @@ a search in the list; a wrong shortlist can lead to the wrong plan.
 - Rejected: `includeUnknownTerms: false`. Every description that matches any
   word then scores 1.0, so the threshold cannot separate good from vague
   matches.
+
+## Amendment (#488)
+
+The 0.15 above is a threshold on the raw BM25 score. The confidence shown to
+the operator is now that score lifted by `liftScore(s) = 1 - (1 - s)^3`, so the
+ranker's threshold on the shown scale is `liftScore(0.15)` = 0.3859. The
+decisions and the order are unchanged. Each scorer carries its own threshold,
+and `suggestScenarios` throws for a scorer without one. Only the first 3 unknown
+terms count against the best possible score. The scales are described in
+[scenario-suggestion-confidence.md](../reference/scenario-suggestion-confidence.md).

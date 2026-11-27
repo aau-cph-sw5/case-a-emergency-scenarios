@@ -8,10 +8,45 @@ import {
 const K1 = 1.2; // caps how much repeating a term helps
 const B = 0.75; // how strongly long documents are pushed down
 
+// Words that match no scenario lower the score, which separates a description
+// of a segment from one that only names a track ("Spor 2 er lukket"). Only the
+// first few count, though: a long description is full of such words ("Hej, vi
+// har lige fået en melding ..."), and the more detail the operator gave, the
+// lower the score would get. The rest are treated as chatter.
+// Not the same knob as liftScore in confidence.ts: that one only rescales the
+// score for display; this one changes which descriptions reach the shortlist.
+// Tuned on 11 phrases (#421), and it loosens which long vague descriptions pass.
+// ponytail: a fixed count, to be tuned with the evaluation (#421).
+export const MAX_UNKNOWN_TERMS = 3;
+
 export type Bm25Options = {
   /** Count query terms found in no document towards the best possible score. */
   includeUnknownTerms?: boolean;
 };
+
+type IndexedDoc = {
+  scenarioId: string;
+  counts: Map<string, number>;
+  length: number;
+};
+
+function scoreDoc(
+  doc: IndexedDoc,
+  queryTerms: string[],
+  idf: Map<string, number>,
+  avgdl: number,
+): number {
+  let score = 0;
+  for (const term of queryTerms) {
+    const tf = doc.counts.get(term) ?? 0;
+    if (tf === 0) continue; // also avoids 0/0 when every document is empty
+    const termIdf = idf.get(term) ?? 0;
+    score +=
+      (termIdf * (tf * (K1 + 1))) /
+      (tf + K1 * (1 - B + B * (doc.length / avgdl)));
+  }
+  return score;
+}
 
 export class BM25Ranker implements ScenarioRanker {
   private readonly tokenize: Tokenize;
@@ -41,32 +76,12 @@ export class BM25Ranker implements ScenarioRanker {
     const avgdl =
       indexed.reduce((sum, doc) => sum + doc.length, 0) / indexed.length;
 
-    // The best possible score is what a document of average length gets when it
-    // contains every counted query term once: the sum of their IDFs.
-    const idf = new Map<string, number>();
-    let bestPossible = 0;
-    for (const term of queryTerms) {
-      const df = indexed.filter((doc) => doc.counts.has(term)).length;
-      const termIdf = Math.log((indexed.length - df + 0.5) / (df + 0.5) + 1);
-      idf.set(term, termIdf);
-      if (df > 0 || this.includeUnknownTerms) {
-        bestPossible += termIdf;
-      }
-    }
+    const { idf, bestPossible } = this.weighTerms(queryTerms, indexed);
 
-    const results: RankedCandidate[] = [];
-    for (const doc of indexed) {
-      let score = 0;
-      for (const term of queryTerms) {
-        const tf = doc.counts.get(term) ?? 0;
-        if (tf === 0) continue; // also avoids 0/0 when every document is empty
-        const termIdf = idf.get(term) ?? 0;
-        score +=
-          (termIdf * (tf * (K1 + 1))) /
-          (tf + K1 * (1 - B + B * (doc.length / avgdl)));
-      }
-      results.push({ scenarioId: doc.scenarioId, score });
-    }
+    const results: RankedCandidate[] = indexed.map((doc) => ({
+      scenarioId: doc.scenarioId,
+      score: scoreDoc(doc, queryTerms, idf, avgdl),
+    }));
 
     // Sort on the raw scores first: clamping can turn two different scores into 1, and the stronger match should still come first.
     results.sort(byScoreThenId);
@@ -81,6 +96,22 @@ export class BM25Ranker implements ScenarioRanker {
       scenarioId: result.scenarioId,
       score: Math.min(1, result.score / bestPossible),
     }));
+  }
+
+  // The best possible score is what a document of average length gets when it
+  // contains every counted query term once: the sum of their IDFs.
+  private weighTerms(queryTerms: string[], indexed: IndexedDoc[]) {
+    const idf = new Map<string, number>();
+    let bestPossible = 0;
+    let unknownLeft = this.includeUnknownTerms ? MAX_UNKNOWN_TERMS : 0;
+    for (const term of queryTerms) {
+      const df = indexed.filter((doc) => doc.counts.has(term)).length;
+      const termIdf = Math.log((indexed.length - df + 0.5) / (df + 0.5) + 1);
+      idf.set(term, termIdf);
+      if (df === 0 && unknownLeft-- <= 0) continue;
+      bestPossible += termIdf;
+    }
+    return { idf, bestPossible };
   }
 }
 
