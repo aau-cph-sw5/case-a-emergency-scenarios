@@ -27,6 +27,7 @@ pnpm-debug.log*
 coverage/
 dist/
 build/
+.jest-cache/
 
 
 docs/scenario-state/SeedDataScenario_*.json

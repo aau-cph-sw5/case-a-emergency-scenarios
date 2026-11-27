@@ -19,3 +19,7 @@ process.env.JWT_SECRET ??= "test-only-jwt-secret-not-for-production";
 // Never send real push notifications from a test, even with Firebase in .env.
 // Empty rather than deleted, so dotenv does not load it back from .env.
 process.env.GOOGLE_APPLICATION_CREDENTIALS = "";
+
+// Lower bcrypt cost for seeded integration test users so password hashing and
+// login checks do not dominate test runtime. Production user creation keeps 10.
+process.env.TEST_BCRYPT_ROUNDS ??= "4";
