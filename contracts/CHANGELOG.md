@@ -1,5 +1,12 @@
 # Scenario State Contract Changelog
 
+## 8.14.0 - 2026-11-27
+
+- Check inferred turnback segments are available when creating roundtrip patterns.
+- Allow administrators to list, delete and restore inactive scenarios. Deleted scenarios are hidden from operators.
+- Allow administrators to save scenario edits as a new version.
+- Allow administrators to list, preview and select existing scenario versions.
+
 ## 8.13.0 - 2026-11-24
 
 Additive. Steward phones register for push notifications (MET-A-018, ADR 0014).

@@ -71,6 +71,7 @@ export function ScenarioBuilder({
     mapLines,
     colors,
     mapCrossovers,
+    mapTurnbackExtensions,
     mapStops,
     turnbacks,
   } = builder;
@@ -209,6 +210,7 @@ export function ScenarioBuilder({
                   ringStations={ringStations}
                   availableSegments={network?.segments}
                   crossovers={mapCrossovers}
+                  turnbackExtensions={mapTurnbackExtensions}
                   markedStations={markedStations}
                   stopStations={mapStops}
                   highlightColor="#b42420"
@@ -310,6 +312,7 @@ export function ScenarioBuilder({
             ringStations={ringStations}
             availableSegments={network.segments}
             mapCrossovers={mapCrossovers}
+            mapTurnbackExtensions={mapTurnbackExtensions}
             mapStops={mapStops}
             selectStation={selectStation}
           />

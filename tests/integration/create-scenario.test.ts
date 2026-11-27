@@ -281,3 +281,82 @@ test("a database error rolls back the entire scenario", async () => {
     await owner`ALTER TABLE actions DROP CONSTRAINT create_test_fail`;
   }
 });
+
+test("a covered track beyond a terminus cannot be used for its inferred turnback", async () => {
+  const addedStations: string[] = [];
+  const addedSegments: number[] = [];
+  let patternId: number | undefined;
+  try {
+    for (const code of ["NEL", "MOP"]) {
+      const inserted = await owner<
+        { id: number }[]
+      >`INSERT INTO stations (code, name) VALUES (${code}, ${code}) ON CONFLICT (code) DO NOTHING RETURNING id`;
+      if (inserted.length) addedStations.push(code);
+    }
+    for (const [a, b] of [
+      ["NEL", "MOP"],
+      ["MOP", "CREATE-A"],
+    ]) {
+      for (const track of [1, 2]) {
+        const inserted = await owner<{ id: number }[]>`
+          INSERT INTO track_segments (track_number, station_a_id, station_b_id)
+          SELECT ${track}, a.id, b.id FROM stations a, stations b WHERE a.code = ${a} AND b.code = ${b}
+          ON CONFLICT DO NOTHING RETURNING id
+        `;
+        if (inserted[0]) addedSegments.push(inserted[0].id);
+      }
+    }
+    const [pattern] = await owner<{ id: number }[]>`
+      INSERT INTO operating_patterns (normal_line, operation_type, route_code, track_number, maximum_trains, did, color)
+      VALUES ('M3', 'ROUNDTRIP', 'CREATE-TURNBACK', 12, 2, 'TEST', '#008D40') RETURNING id
+    `;
+    patternId = pattern.id;
+    for (const [index, code] of ["NEL", "MOP", "CREATE-A"].entries()) {
+      await owner`INSERT INTO line_stops (operating_pattern_id, station_id, sequence) SELECT ${pattern.id}, id, ${index + 1} FROM stations WHERE code = ${code}`;
+    }
+    const [tail] = await owner<{ id: number }[]>`
+      SELECT t.id FROM track_segments t JOIN stations a ON a.id = t.station_a_id JOIN stations b ON b.id = t.station_b_id
+      WHERE t.track_number = 1 AND ((a.code = 'NEL' AND b.code = 'MOP') OR (a.code = 'MOP' AND b.code = 'NEL')) LIMIT 1
+    `;
+    const body = {
+      ...request("CREATE-TEST-TURNBACK"),
+      lineGroup: "M3_M4",
+      patterns: [
+        {
+          operationType: "ROUNDTRIP",
+          trackNumber: 12,
+          did: "D",
+          color: "#724fa3",
+          maximumTrains: 2,
+          stops: ["MOP", "CREATE-A"],
+        },
+      ],
+      stationRequirements: [],
+      coveredSegmentIds: [tail.id],
+    };
+    assert.equal((await post(body, adminToken)).status, 400);
+    assert.equal(
+      (await post({ ...body, coveredSegmentIds: [] }, adminToken)).status,
+      201,
+    );
+    const response = await fetch(
+      `${baseUrl}/api/v1/scenarios/CREATE-TEST-TURNBACK`,
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    const scenario = await response.json();
+    assert.deepEqual(
+      scenario.versions[0].operatingPlan.patterns[0].route.map(
+        (stop: { station: string }) => stop.station,
+      ),
+      ["MOP", "CREATE-A"],
+    );
+  } finally {
+    await owner`DELETE FROM scenarios WHERE scenario_id = 'CREATE-TEST-TURNBACK'`;
+    if (patternId)
+      await owner`DELETE FROM operating_patterns WHERE id = ${patternId}`;
+    for (const id of addedSegments)
+      await owner`DELETE FROM track_segments WHERE id = ${id}`;
+    for (const code of addedStations)
+      await owner`DELETE FROM stations WHERE code = ${code}`;
+  }
+});

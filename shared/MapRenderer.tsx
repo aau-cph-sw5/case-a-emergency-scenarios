@@ -1,7 +1,8 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { View, Pressable, Text as RNText } from "react-native";
 import Svg, { Text, Line, Circle, Path, G } from "react-native-svg";
-import { getCrossovers, getLines, getStation } from "../mockData/data";
+import { getLines, getStation } from "../mockData/data";
+import { getCrossovers } from "./network/crossovers";
 import { text, radius, colors as theme, coverageColors } from "./Theme";
 import type { CoverageLevel } from "./components/stationState";
 import { connectionKey } from "./network/network";
@@ -22,6 +23,12 @@ type BlockedTrack = {
 export type MapCrossover = {
   stationA: string;
   stationB: string;
+  color: string;
+};
+
+export type MapTurnbackExtension = {
+  from: string;
+  toward: string;
   color: string;
 };
 
@@ -590,6 +597,7 @@ export default function MapRender({
   ringStations = defaultRingStations,
   availableSegments,
   crossovers,
+  turnbackExtensions = [],
   onStationPress,
 }: {
   lines: MapLine[];
@@ -621,6 +629,7 @@ export default function MapRender({
   stationPositions?: Readonly<Record<string, [number, number]>>;
   ringStations?: string[];
   crossovers?: readonly MapCrossover[];
+  turnbackExtensions?: readonly MapTurnbackExtension[];
   onStationPress?: (station: string) => void;
   availableSegments?: readonly {
     trackNumber: number;
@@ -679,6 +688,20 @@ export default function MapRender({
     }
     return { kind: "highlight", color: highlightColor };
   };
+  const turnbackGroups = new Map<
+    string,
+    { from: string; toward: string; colors: string[] }
+  >();
+  for (const turn of turnbackExtensions) {
+    const key = JSON.stringify([turn.from, turn.toward]);
+    const group = turnbackGroups.get(key) ?? {
+      from: turn.from,
+      toward: turn.toward,
+      colors: [],
+    };
+    if (!group.colors.includes(turn.color)) group.colors.push(turn.color);
+    turnbackGroups.set(key, group);
+  }
   const lineButtons = showLineButtons ? (
     <LineButtons
       colors={colors}
@@ -762,16 +785,79 @@ export default function MapRender({
               </Fragment>
             );
           })}
+        {[...turnbackGroups.values()].map(({ from, toward, colors }) => {
+          const a = position(from);
+          const b = position(toward);
+          if (!a || !b) return null;
+          return (
+            <G
+              key={`${from}-${toward}`}
+              testID={`turnback-${from}-${toward}`}
+              accessibilityLabel={`Vending fra ${from} mod ${toward}`}
+            >
+              {[-8, -4, 4, 8].map((offset) => {
+                const curve = ringCurve(
+                  from,
+                  toward,
+                  offset,
+                  ringStations,
+                  position,
+                );
+                let points: [number, number][];
+                if (curve) {
+                  const first = curvePoint(curve, 0);
+                  const last = curvePoint(curve, 1);
+                  const start =
+                    Math.hypot(first[0] - a[0], first[1] - a[1]) <=
+                    Math.hypot(last[0] - a[0], last[1] - a[1])
+                      ? 0
+                      : 1;
+                  points = Array.from({ length: 13 }, (_, index) =>
+                    curvePoint(curve, start + ((0.5 - start) * index) / 12),
+                  );
+                } else {
+                  const { ox, oy } = GetOffset(...a, ...b, offset);
+                  points = [
+                    [a[0] + ox, a[1] + oy],
+                    [(a[0] + b[0]) / 2 + ox, (a[1] + b[1]) / 2 + oy],
+                  ];
+                }
+                return (
+                  <Path
+                    key={offset}
+                    d={points
+                      .map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`)
+                      .join(" ")}
+                    fill="none"
+                    stroke={
+                      Math.abs(offset) === 4
+                        ? colors[0]
+                        : (colors[1] ?? colors[0])
+                    }
+                    strokeWidth={4}
+                    pointerEvents="none"
+                  />
+                );
+              })}
+            </G>
+          );
+        })}
         {displayedCrossovers.map(({ stationA, stationB, color }) => {
           const a = position(stationA);
           const b = position(stationB);
-          const visibleSegment = visible.some((line) =>
-            line.connections.some(
-              ([first, second]) =>
-                (first === stationA && second === stationB) ||
-                (first === stationB && second === stationA),
-            ),
-          );
+          const visibleSegment =
+            turnbackExtensions.some(
+              (turn) =>
+                connectionKey(turn.from, turn.toward) ===
+                connectionKey(stationA, stationB),
+            ) ||
+            visible.some((line) =>
+              line.connections.some(
+                ([first, second]) =>
+                  (first === stationA && second === stationB) ||
+                  (first === stationB && second === stationA),
+              ),
+            );
           if (!a || !b || !visibleSegment) return null;
           const dx = b[0] - a[0];
           const dy = b[1] - a[1];

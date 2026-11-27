@@ -13,6 +13,9 @@ module.exports = {
   projects: [
     {
       displayName: "native",
+      moduleNameMapper: {
+        "^\\./(network|crossovers)\\.js$": "<rootDir>/shared/network/$1",
+      },
       preset: "jest-expo",
       testMatch: ["<rootDir>/tests/jest/**/*.test.[jt]s?(x)"],
       testPathIgnorePatterns: ["/node_modules/", "\\.web\\.test\\."],
@@ -21,6 +24,9 @@ module.exports = {
     },
     {
       preset: "jest-expo/web",
+      moduleNameMapper: {
+        "^\\./(network|crossovers)\\.js$": "<rootDir>/shared/network/$1",
+      },
       testMatch: ["<rootDir>/tests/jest/**/*.web.test.[jt]s?(x)"],
       clearMocks: true,
     },

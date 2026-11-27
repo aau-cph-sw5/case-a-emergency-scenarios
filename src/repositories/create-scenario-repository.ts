@@ -1,5 +1,6 @@
 import type { CreateScenarioRequest } from "../../shared/types/v1/create-scenario-request.js";
 import { connectionKey, resolveStops } from "../../shared/network/network.js";
+import { selectTurnbacks } from "../../shared/network/turnbacks.js";
 import { getDatabase } from "../db/client.js";
 
 export class InvalidScenarioData extends Error {}
@@ -17,24 +18,26 @@ export async function createScenario(
       {
         stationA: string;
         stationB: string;
+        normalLine: string;
         trackNumber: 1 | 2;
         segmentId: number;
       }[]
     >`
       WITH ordered_stops AS (
-        SELECT op.normal_line, stop.station_id,
+        SELECT op.normal_line, op.track_number AS normal_track, stop.station_id,
                LEAD(stop.station_id) OVER (PARTITION BY op.id ORDER BY stop.sequence) AS next_station_id
         FROM operating_patterns op
         JOIN line_stops stop ON stop.operating_pattern_id = op.id
         WHERE (op.normal_line IN ('M1', 'M2') AND ${input.lineGroup} = 'M1_M2')
            OR (op.normal_line IN ('M3', 'M4') AND ${input.lineGroup} = 'M3_M4')
       )
-      SELECT a.code AS station_a, b.code AS station_b, t.track_number, t.id AS segment_id
+      SELECT a.code AS station_a, b.code AS station_b, stop.normal_line, t.track_number, t.id AS segment_id
       FROM ordered_stops stop
       JOIN stations a ON a.id = stop.station_id
       JOIN stations b ON b.id = stop.next_station_id
-      JOIN track_segments t ON (t.station_a_id = a.id AND t.station_b_id = b.id)
-                         OR (t.station_a_id = b.id AND t.station_b_id = a.id)
+      JOIN track_segments t ON ((t.station_a_id = a.id AND t.station_b_id = b.id)
+                         OR (t.station_a_id = b.id AND t.station_b_id = a.id))
+                         AND (stop.normal_track = 12 OR stop.normal_track = t.track_number)
     `;
     const stationsInGroup = new Set(
       normalEdges.flatMap((edge) => [edge.stationA, edge.stationB]),
@@ -71,6 +74,33 @@ export async function createScenario(
         "Staffing start and end times must differ.",
       );
     const coveredSegments = new Set(input.coveredSegmentIds);
+    const networkSegments = normalEdges.map(
+      ({ segmentId, stationA, stationB, trackNumber }) => ({
+        id: segmentId,
+        stationA,
+        stationB,
+        trackNumber,
+      }),
+    );
+    const normalLines = [
+      ...new Set(normalEdges.map((edge) => edge.normalLine)),
+    ].map((name) => {
+      const edges = normalEdges.filter((edge) => edge.normalLine === name);
+      const connectionTracks: Record<string, number[]> = {};
+      for (const edge of edges) {
+        const key = connectionKey(edge.stationA, edge.stationB);
+        (connectionTracks[key] ??= []).push(edge.trackNumber);
+      }
+      return {
+        name,
+        tracks: [1, 2],
+        connections: edges.map(({ stationA, stationB }): [string, string] => [
+          stationA,
+          stationB,
+        ]),
+        connectionTracks,
+      };
+    });
     for (const pattern of input.patterns) {
       if (
         (pattern.operationType === "ROUNDTRIP") !==
@@ -89,26 +119,40 @@ export async function createScenario(
         throw new InvalidScenarioData("Consecutive stops must differ.");
       const resolved = resolveStops(
         pattern.stops,
-        [
-          {
-            name: "network",
-            tracks: [1, 2],
-            connections: normalEdges.map(({ stationA, stationB }) => [
-              stationA,
-              stationB,
-            ]),
-          },
-        ],
-        normalEdges.map(({ segmentId, ...segment }) => ({
-          ...segment,
-          id: segmentId,
-        })),
+        normalLines,
+        networkSegments,
         tracks,
       );
       if (resolved.incomplete || resolved.connections.length === 0)
         throw new InvalidScenarioData(
           "A pattern uses a track outside the selected line group.",
         );
+      if (pattern.operationType === "ROUNDTRIP") {
+        const path = [
+          pattern.stops[0],
+          ...resolved.connections.map(([, station]) => station),
+        ];
+        const turns = selectTurnbacks(
+          input.lineGroup === "M1_M2" ? "M1/M2" : "M3/M4",
+          path,
+          normalLines,
+          networkSegments,
+        );
+        for (const turn of [turns.start, turns.end]) {
+          if (!turn?.extension) continue;
+          const key = connectionKey(...turn.extension);
+          if (
+            normalEdges.some(
+              (edge) =>
+                coveredSegments.has(edge.segmentId) &&
+                connectionKey(edge.stationA, edge.stationB) === key,
+            )
+          )
+            throw new InvalidScenarioData(
+              "A turnback uses an unavailable track.",
+            );
+        }
+      }
       for (const [a, b] of resolved.connections) {
         if (
           tracks.some(

@@ -21,6 +21,7 @@ type Props = {
   ringStations: string[];
   availableSegments: MapProps["availableSegments"];
   mapCrossovers: MapProps["crossovers"];
+  mapTurnbackExtensions?: MapProps["turnbackExtensions"];
   mapStops: string[];
   selectStation: (station: string) => void;
 };
@@ -44,6 +45,7 @@ export function ScenarioLineMap({
   ringStations,
   availableSegments,
   mapCrossovers,
+  mapTurnbackExtensions,
   mapStops,
   selectStation,
 }: Props) {
@@ -109,6 +111,7 @@ export function ScenarioLineMap({
             ringStations={ringStations}
             availableSegments={availableSegments}
             crossovers={mapCrossovers}
+            turnbackExtensions={mapTurnbackExtensions}
             markedStations={editingLine ? selectedStops : []}
             stopStations={mapStops}
             highlightColor="#b42420"

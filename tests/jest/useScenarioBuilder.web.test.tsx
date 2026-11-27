@@ -257,6 +257,53 @@ describe("scenario editor state", () => {
     expect(state.view).toBe("group");
     expect(state.routes).toHaveLength(0);
   });
+  it("shows and reserves turnbacks beyond the passenger stops", async () => {
+    await act(async () => state.selectGroup("M3/M4"));
+    await act(async () => state.setScenarioName("Turnback"));
+    await act(async () => state.setScenarioId("TURN"));
+    await act(async () => state.startLine("MOP"));
+    await act(async () => state.selectStation("EBR"));
+    expect(state.type).toBe("ROUNDTRIP");
+    expect(state.roundtripAllowed).toBe(true);
+    expect(
+      state.mapTurnbackExtensions.map(({ from, toward }) => [from, toward]),
+    ).toEqual(
+      expect.arrayContaining([
+        ["MOP", "NEL"],
+        ["EBR", "HOL"],
+      ]),
+    );
+    expect(state.selectedStops).toEqual(["MOP", "EBR"]);
+    await act(async () => state.setDid("D"));
+    await act(async () => state.setMaximumTrains("2"));
+    await act(async () => state.addLine(submit()));
+    expect(state.routes[0].stops).toEqual(["MOP", "EBR"]);
+    expect(state.mapTurnbackExtensions).toHaveLength(2);
+    const network = jest.mocked(useNetwork).mock.results[0].value.network!;
+    const reserved = network.segments
+      .filter((segment) =>
+        [
+          ["NEL", "MOP"],
+          ["EBR", "HOL"],
+        ].some(
+          ([a, b]) =>
+            [a, b].includes(segment.stationA) &&
+            [a, b].includes(segment.stationB),
+        ),
+      )
+      .map((segment) => segment.id);
+    expect(reserved).toHaveLength(4);
+    jest.mocked(postJson).mockResolvedValue({ scenarioId: "TURN" });
+    await act(async () => state.saveScenario());
+    const body = jest.mocked(postJson).mock.calls[0][3] as {
+      coveredSegmentIds: number[];
+      patterns: { stops: string[] }[];
+    };
+    expect(body.patterns[0].stops).toEqual(["MOP", "EBR"]);
+    expect(body.coveredSegmentIds.some((id) => reserved.includes(id))).toBe(
+      false,
+    );
+  });
   it("orders stops along the route from the selected start and saves that order", async () => {
     await act(async () => state.selectGroup("M1/M2"));
     await act(async () => state.setScenarioId("ORDER"));

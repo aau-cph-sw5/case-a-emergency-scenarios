@@ -1,7 +1,8 @@
-﻿import { use, useState } from "react";
+import { use, useState } from "react";
 import { createPortal } from "react-dom";
 import { Pressable, Text, View } from "react-native";
 import MapRender from "../../../shared/MapRenderer";
+import { selectTurnbacks } from "../../../shared/network/turnbacks";
 import {
   colors as theme,
   DIDLineColors,
@@ -33,7 +34,10 @@ import type { Scenario } from "../../../shared/types/v1/scenario";
 import { useScenario } from "../data/useScenario";
 import { useNetwork } from "../data/useNetwork";
 import { ColourSlotContext } from "./colour-slot";
-import type { MapNetwork } from "../../../shared/network/network";
+import {
+  connectionKey,
+  type MapNetwork,
+} from "../../../shared/network/network";
 
 // What a scenario's routes are coloured by: the Metro line each runs on, or
 // one colour per destination ID, which tells two routes on one line apart.
@@ -171,10 +175,6 @@ export function MetroMap({
   const scenario =
     previewScenario === undefined ? loadedScenario : previewScenario;
 
-  // Each scenario starts with its whole line group in view.
-  const [zoomedInto, setZoomedInto] = useState<string | null>(null);
-  const [colourBy, setColourBy] = useState<ColourBy>("line");
-  const colourSlot = use(ColourSlotContext);
   const { network: mapNetwork, error: networkError, retry } = useNetwork(token);
   if (networkError)
     return (
@@ -186,6 +186,33 @@ export function MetroMap({
       </View>
     );
   if (!mapNetwork) return <Text>Indlæser metronetværk…</Text>;
+  return (
+    <ScenarioMapView
+      scenario={scenario}
+      scenarioId={scenarioId}
+      lineGroup={lineGroup}
+      deployments={deployments}
+      mapNetwork={mapNetwork}
+    />
+  );
+}
+
+export function ScenarioMapView({
+  scenario,
+  scenarioId,
+  lineGroup,
+  deployments,
+  mapNetwork,
+}: {
+  scenario: Scenario | null;
+  scenarioId: string | null;
+  lineGroup: "M1/M2" | "M3/M4";
+  deployments: ActiveDeployments | null;
+  mapNetwork: MapNetwork;
+}) {
+  const [zoomedInto, setZoomedInto] = useState<string | null>(null);
+  const [colourBy, setColourBy] = useState<ColourBy>("line");
+  const colourSlot = use(ColourSlotContext);
   const network = mapNetwork.lines;
   const position = (station: string) => mapNetwork.positions[station];
   const view = mapView(scenario, deployments, network, position);
@@ -200,6 +227,66 @@ export function MetroMap({
       ? networkLines(groupNetwork)
       : scenarioMapLines(scenario, groupNetwork, mapNetwork.segments, colourBy);
   const groupLines = closedLine ? [...runningLines, closedLine] : runningLines;
+  const availableTurnbackSegments = mapNetwork.segments.filter(
+    (segment) =>
+      !(scenario?.covers ?? []).some(
+        (cover) =>
+          cover.trackNumber === segment.trackNumber &&
+          connectionKey(cover.stationA, cover.stationB) ===
+            connectionKey(segment.stationA, segment.stationB),
+      ),
+  );
+  const turnbackExtensions: { from: string; toward: string; color: string }[] =
+    [];
+  const turnbackCrossovers: {
+    stationA: string;
+    stationB: string;
+    color: string;
+  }[] = [];
+  const currentPatterns =
+    scenario?.versions.find(
+      (version) => version.version === scenario.currentVersion,
+    )?.operatingPlan.patterns ?? [];
+  for (const line of runningLines) {
+    const pattern = currentPatterns.find((item) => item.did === line.name);
+    if (pattern?.operationType !== "ROUNDTRIP" || !line.connections.length)
+      continue;
+    const path = [
+      line.connections[0][0],
+      ...line.connections.map(([, station]) => station),
+    ];
+    const turns = selectTurnbacks(
+      lineGroup,
+      path,
+      groupNetwork,
+      availableTurnbackSegments,
+    );
+    const color = routeColors[line.name];
+    for (const turn of [turns.start, turns.end]) {
+      if (!turn) continue;
+      const [stationA, stationB] = turn.crossover.between;
+      if (
+        !turnbackCrossovers.some(
+          (item) => item.stationA === stationA && item.stationB === stationB,
+        )
+      )
+        turnbackCrossovers.push({ stationA, stationB, color });
+      if (
+        turn.extension &&
+        !turnbackExtensions.some(
+          (item) =>
+            item.from === turn.extension![0] &&
+            item.toward === turn.extension![1] &&
+            item.color === color,
+        )
+      )
+        turnbackExtensions.push({
+          from: turn.extension[0],
+          toward: turn.extension[1],
+          color,
+        });
+    }
+  }
   const groupStations = new Set([
     ...groupNetwork.flatMap((line) => line.connections.flat()),
     ...groupLines.flatMap((line) => line.connections.flat()),
@@ -303,12 +390,20 @@ export function MetroMap({
           stationCoverage={view.stationCoverage}
           highlightColor={theme.requiredStation}
           blockedTracks={scenario?.covers ?? []}
+          crossovers={turnbackCrossovers}
+          turnbackExtensions={turnbackExtensions}
         />
       </div>
 
       {mapNetwork.incomplete && (
         <Text role="alert" style={text.small}>
           Metronetværket er ufuldstændigt.
+        </Text>
+      )}
+      {turnbackExtensions.length > 0 && (
+        <Text style={text.small}>
+          Vending er beregnet automatisk. Kontrollér, at sporskiftet kan
+          benyttes.
         </Text>
       )}
       {missingScenarioRoutes && (

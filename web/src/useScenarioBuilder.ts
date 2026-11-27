@@ -1,3 +1,4 @@
+import { selectTurnbacks } from "../../shared/network/turnbacks";
 import {
   useCallback,
   useEffect,
@@ -28,7 +29,6 @@ import {
   groupCrossovers,
   groupStations,
   roundtripTurnbacks,
-  usesCrossover,
   type LineGroup,
   type Route,
 } from "./admin-routes";
@@ -316,7 +316,12 @@ export function useScenarioBuilder(token: string) {
     selectedStops[0] !== selectedStops.at(-1) &&
     ringSelection.length === selectedStops.length &&
     isFullRing(selectedPath(12, ringStops));
-  const roundtripTurn = roundtripTurnbacks(lineGroup, roundtripPath ?? []);
+  const roundtripTurn = roundtripTurnbacks(
+    lineGroup,
+    roundtripPath ?? [],
+    baseLines,
+    network?.segments,
+  );
   const validRoundtrip = Boolean(
     roundtripPath && (ringClosed || (roundtripTurn.start && roundtripTurn.end)),
   );
@@ -345,7 +350,12 @@ export function useScenarioBuilder(token: string) {
     network?.segments ?? [],
     routes,
   );
-  const turnbacks = roundtripTurnbacks(lineGroup, path ?? []);
+  const turnbacks = roundtripTurnbacks(
+    lineGroup,
+    path ?? [],
+    baseLines,
+    network?.segments,
+  );
   const roundtripAllowed = ringClosed || (turnbacks.start && turnbacks.end);
   const visibleRoutes = routes.filter(
     (route) => !editingLine || route.id !== editingRouteId,
@@ -400,25 +410,52 @@ export function useScenarioBuilder(token: string) {
     ...visibleRoutes.map((route) => [`route-${route.id}`, route.color]),
     ...(preview ? [["preview", lineColor]] : []),
   ]);
-  const mapCrossovers = groupCrossovers(lineGroup).map((crossover) => {
-    let color = "#252a2c";
-    visibleRoutes.forEach((route) => {
+  const mapTurnbackExtensions: {
+    from: string;
+    toward: string;
+    color: string;
+  }[] = [];
+  const turnbackColors = new Map<string, string>();
+  function markTurnbacks(stations: string[], color: string) {
+    const selected = selectTurnbacks(
+      lineGroup,
+      stations,
+      baseLines,
+      network?.segments,
+    );
+    for (const turn of [selected.start, selected.end]) {
+      if (!turn) continue;
+      turnbackColors.set(
+        JSON.stringify([...turn.crossover.between].sort()),
+        color,
+      );
       if (
-        route.type === "ROUNDTRIP" &&
-        usesCrossover(route.stations, crossover)
-      ) {
-        color = route.color;
-      }
-    });
-    if (preview && type === "ROUNDTRIP" && usesCrossover(preview, crossover)) {
-      color = lineColor;
+        turn.extension &&
+        !mapTurnbackExtensions.some(
+          (item) =>
+            item.from === turn.extension![0] &&
+            item.toward === turn.extension![1] &&
+            item.color === color,
+        )
+      )
+        mapTurnbackExtensions.push({
+          from: turn.extension[0],
+          toward: turn.extension[1],
+          color,
+        });
     }
-    return {
-      stationA: crossover.between[0],
-      stationB: crossover.between[1],
-      color,
-    };
+  }
+  visibleRoutes.forEach((route) => {
+    if (route.type === "ROUNDTRIP") markTurnbacks(route.stations, route.color);
   });
+  if (preview && type === "ROUNDTRIP") markTurnbacks(preview, lineColor);
+  const mapCrossovers = groupCrossovers(lineGroup).map((crossover) => ({
+    stationA: crossover.between[0],
+    stationB: crossover.between[1],
+    color:
+      turnbackColors.get(JSON.stringify([...crossover.between].sort())) ??
+      "#252a2c",
+  }));
 
   function navigate(nextView: AdminView, group?: LineGroup, editing = false) {
     const url = new URL(window.location.href);
@@ -515,7 +552,12 @@ export function useScenarioBuilder(token: string) {
         stops.some((stop, index) => stop !== selectedStops[index]))
     ) {
       const path = selectedPath(12, stops);
-      const turns = roundtripTurnbacks(lineGroup, path ?? []);
+      const turns = roundtripTurnbacks(
+        lineGroup,
+        path ?? [],
+        baseLines,
+        network?.segments,
+      );
       if (!path || (!isFullRing(path) && !(turns.start && turns.end))) {
         setManualType(null);
         const singleTrackPath = resolveSelectedStops(
@@ -796,6 +838,7 @@ export function useScenarioBuilder(token: string) {
     mapLines,
     colors,
     mapCrossovers,
+    mapTurnbackExtensions,
     mapStops,
     turnbacks,
     discardDraft,

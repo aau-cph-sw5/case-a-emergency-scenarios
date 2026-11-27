@@ -5,71 +5,28 @@ import { resolveStops } from "../../shared/network/network.ts";
 
 const lines = getLines();
 import {
-  crossoverOnSegment,
   coverageCandidates,
   groupCrossovers,
   groupLines,
   groupStations,
   roundtripTurnbacks,
-  usesCrossover,
 } from "../../web/src/admin-routes.ts";
 
-function testPath(from, to) {
-  const result = resolveStops([from, to], groupLines("M1/M2", lines), [], []);
-  assert.equal(result.incomplete, false);
-  return [from, ...result.connections.map(([, station]) => station)];
-}
-
-test("station lists are limited to their line group", () => {
+test("stations come from the selected line group", () => {
   assert.ok(groupStations("M1/M2", lines).includes("VAN"));
   assert.ok(!groupStations("M3/M4", lines).includes("VAN"));
-});
-
-test("routes and stations come from the supplied network", () => {
-  const supplied = [
-    {
-      name: "M1",
-      tracks: [1],
-      connections: [
-        ["API_A", "API_B"],
-        ["API_B", "API_C"],
-      ],
-    },
-  ];
-  assert.deepEqual(groupStations("M1/M2", supplied), [
-    "API_A",
-    "API_B",
-    "API_C",
-  ]);
-});
-
-test("route options require the selected tracks on every segment", () => {
-  const supplied = [
-    {
-      name: "M1",
-      tracks: [1, 2],
-      connections: [
-        ["A", "B"],
-        ["B", "C"],
-      ],
-    },
-  ];
-  const segments = [
-    { id: 1, trackNumber: 1, stationA: "A", stationB: "B" },
-    { id: 2, trackNumber: 2, stationA: "A", stationB: "B" },
-    { id: 3, trackNumber: 1, stationA: "B", stationB: "C" },
-  ];
-  assert.equal(
-    resolveStops(["A", "C"], supplied, segments, [1]).incomplete,
-    false,
-  );
-  assert.equal(
-    resolveStops(["A", "C"], supplied, segments, [2]).incomplete,
-    true,
-  );
-  assert.equal(
-    resolveStops(["A", "C"], supplied, segments, [1, 2]).incomplete,
-    true,
+  assert.deepEqual(
+    groupStations("M1/M2", [
+      {
+        name: "M1",
+        tracks: [1],
+        connections: [
+          ["API_A", "API_B"],
+          ["API_B", "API_C"],
+        ],
+      },
+    ]),
+    ["API_A", "API_B", "API_C"],
   );
 });
 
@@ -102,6 +59,36 @@ test("routes require the requested tracks on the same normal-line edge", () => {
   });
   assert.equal(
     resolveStops(["A", "B"], supplied, segments, [1, 2]).incomplete,
+    true,
+  );
+});
+
+test("routes require the selected tracks on every segment", () => {
+  const network = [
+    {
+      name: "M1",
+      tracks: [1, 2],
+      connections: [
+        ["A", "B"],
+        ["B", "C"],
+      ],
+    },
+  ];
+  const segments = [
+    { id: 1, trackNumber: 1, stationA: "A", stationB: "B" },
+    { id: 2, trackNumber: 2, stationA: "A", stationB: "B" },
+    { id: 3, trackNumber: 1, stationA: "B", stationB: "C" },
+  ];
+  assert.equal(
+    resolveStops(["A", "C"], network, segments, [1]).incomplete,
+    false,
+  );
+  assert.equal(
+    resolveStops(["A", "C"], network, segments, [2]).incomplete,
+    true,
+  );
+  assert.equal(
+    resolveStops(["A", "C"], network, segments, [1, 2]).incomplete,
     true,
   );
 });
@@ -158,18 +145,6 @@ test("coverage proposals exclude only tracks used by the created routes", () => 
   );
 });
 
-test("only crossovers at the ends of a roundtrip are used for turning", () => {
-  const path = testPath("VAN", "KGN");
-  assert.equal(usesCrossover(path, { between: ["VAN", "FL"] }), true);
-  assert.equal(usesCrossover(path, { between: ["KN", "KGN"] }), true);
-  assert.equal(usesCrossover(path, { between: ["FB", "FOR"] }), false);
-  assert.equal(
-    usesCrossover([...path].reverse(), { between: ["VAN", "FL"] }),
-    true,
-  );
-  assert.equal(usesCrossover([], { between: ["VAN", "FL"] }), false);
-});
-
 test("diagram crossovers lie on segments in their own line group", () => {
   for (const group of ["M1/M2", "M3/M4"]) {
     const segments = groupLines(group, lines).flatMap(
@@ -190,45 +165,72 @@ test("diagram crossovers lie on segments in their own line group", () => {
   }
 });
 
-test("the additional M1/M2 crossovers allow turning at their endpoints", () => {
-  for (const [a, b] of [
-    ["LGP", "ØSV"],
-    ["AMS", "FEØ"],
-    ["KHS", "BC"],
-    ["ØRE", "VEA"],
-  ]) {
-    assert.ok(crossoverOnSegment("M1/M2", a, b));
-  }
-  const path = testPath("LGP", "FEØ");
-  assert.deepEqual(roundtripTurnbacks("M1/M2", path), {
-    start: true,
-    end: true,
-  });
-});
-
-test("crossovers are matched on a track segment in either direction", () => {
-  assert.ok(crossoverOnSegment("M1/M2", "VAN", "FL"));
-  assert.ok(crossoverOnSegment("M1/M2", "FL", "VAN"));
-  assert.equal(crossoverOnSegment("M1/M2", "FL", "LIT"), undefined);
-  assert.equal(crossoverOnSegment("M3/M4", "VAN", "FL"), undefined);
-});
-
-test("roundtrip turnbacks must be on the first and last route segments", () => {
-  const valid = testPath("VAN", "KGN");
-  assert.deepEqual(roundtripTurnbacks("M1/M2", valid), {
-    start: true,
-    end: true,
-  });
-  assert.deepEqual(roundtripTurnbacks("M1/M2", [...valid].reverse()), {
-    start: true,
-    end: true,
-  });
-  assert.deepEqual(roundtripTurnbacks("M1/M2", ["VAN", "FL", "LIT"]), {
+test("roundtrip turnbacks use crossovers on the line side", () => {
+  const network = lines.map((line) => ({ ...line, tracks: [1, 2] }));
+  assert.deepEqual(roundtripTurnbacks("M1/M2", ["VAN", "FL", "LIT"], network), {
     start: true,
     end: false,
   });
-  assert.deepEqual(roundtripTurnbacks("M1/M2", []), {
+  assert.deepEqual(roundtripTurnbacks("M1/M2", [], network), {
     start: false,
     end: false,
   });
+  assert.deepEqual(
+    roundtripTurnbacks("M1/M2", ["LGP", "ØSV", "AMS", "FEØ"], network),
+    { start: true, end: true },
+  );
+});
+
+test("turnbacks use a crossover beyond an endpoint and reserve both tracks", async () => {
+  const { selectTurnbacks } = await import("../../shared/network/turnbacks.ts");
+  const connections = [
+    ["NEL", "MOP"],
+    ["MOP", "SLU"],
+    ["SLU", "EBR"],
+    ["EBR", "HOL"],
+  ];
+  const network = [{ name: "M3", tracks: [1, 2], connections }];
+  const segments = connections.flatMap(([stationA, stationB], index) =>
+    [1, 2].map((trackNumber) => ({
+      id: index * 2 + trackNumber,
+      stationA,
+      stationB,
+      trackNumber,
+    })),
+  );
+  const path = ["MOP", "SLU", "EBR"];
+  const turns = selectTurnbacks("M3/M4", path, network, segments);
+  assert.deepEqual(turns.start.extension, ["MOP", "NEL"]);
+  assert.deepEqual(turns.end.extension, ["EBR", "HOL"]);
+  assert.deepEqual(roundtripTurnbacks("M3/M4", path, network, segments), {
+    start: true,
+    end: true,
+  });
+  const lineSide = selectTurnbacks("M3/M4", ["NEL", "MOP"], network, segments);
+  assert.equal(lineSide.end.extension, undefined);
+  assert.deepEqual(lineSide.end.crossover.between, ["NEL", "MOP"]);
+  const used = coverageCandidates("M3/M4", network, segments, [
+    {
+      id: 1,
+      from: "MOP",
+      to: "EBR",
+      type: "ROUNDTRIP",
+      track: 12,
+      did: "D",
+      color: "#ff0000",
+      maximumTrains: 1,
+      stations: path,
+      stops: ["MOP", "EBR"],
+    },
+  ]);
+  assert.ok(used.every((segment) => segment.used));
+  const missingTrack = segments.filter((segment) => segment.id !== 2);
+  assert.equal(
+    selectTurnbacks("M3/M4", path, network, missingTrack).start,
+    undefined,
+  );
+  assert.deepEqual(
+    selectTurnbacks("M3/M4", ["NEL", "MOP", "NEL"], network, segments),
+    {},
+  );
 });

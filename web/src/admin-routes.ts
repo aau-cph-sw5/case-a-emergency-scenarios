@@ -1,4 +1,5 @@
-import { getCrossovers, type Crossover } from "../../mockData/data";
+import { getCrossovers } from "../../shared/network/crossovers";
+import { selectTurnbacks } from "../../shared/network/turnbacks";
 import { connectionKey, type MapNetwork } from "../../shared/network/network";
 
 export type LineGroup = "M1/M2" | "M3/M4";
@@ -6,42 +7,19 @@ export function groupCrossovers(group: LineGroup) {
   return getCrossovers().filter((crossover) => crossover.lineGroup === group);
 }
 
-export function crossoverOnSegment(
+export function roundtripTurnbacks(
   group: LineGroup,
-  a: string,
-  b: string,
-): Crossover | undefined {
-  return groupCrossovers(group).find(
-    ({ between }) => between.includes(a) && between.includes(b),
-  );
-}
-
-export function roundtripTurnbacks(group: LineGroup, path: readonly string[]) {
-  if (path.length < 2) return { start: false, end: false };
-  return {
-    start: crossoverOnSegment(group, path[0], path[1]) !== undefined,
-    end:
-      crossoverOnSegment(
-        group,
-        path[path.length - 2],
-        path[path.length - 1],
-      ) !== undefined,
-  };
-}
-
-export function usesCrossover(
   path: readonly string[],
-  crossover: Pick<Crossover, "between">,
+  lines: MapNetwork["lines"],
+  segments?: MapNetwork["segments"],
 ) {
-  if (path.length < 2 || (path.length > 2 && path[0] === path[path.length - 1]))
-    return false;
-  const [a, b] = crossover.between;
-  const matches = (first: string, second: string) =>
-    (first === a && second === b) || (first === b && second === a);
-  return (
-    matches(path[0], path[1]) ||
-    matches(path[path.length - 2], path[path.length - 1])
+  const selected = selectTurnbacks(
+    group,
+    path,
+    groupLines(group, lines),
+    segments,
   );
+  return { start: Boolean(selected.start), end: Boolean(selected.end) };
 }
 
 export type Route = {
@@ -55,6 +33,7 @@ export type Route = {
   maximumTrains: number;
   stations: string[];
   stops?: string[];
+  displayIncomplete?: boolean;
 };
 
 export function groupLines(group: LineGroup, lines: MapNetwork["lines"]) {
@@ -89,6 +68,19 @@ export function coverageCandidates(
         route.stations[index],
       );
       for (const track of tracks) used.add(`${track}:${key}`);
+    }
+    if (route.type === "ROUNDTRIP") {
+      const turns = selectTurnbacks(
+        group,
+        route.stations,
+        groupLines(group, lines),
+        segments,
+      );
+      for (const turn of [turns.start, turns.end]) {
+        if (!turn?.extension) continue;
+        const key = connectionKey(...turn.extension);
+        for (const track of [1, 2]) used.add(`${track}:${key}`);
+      }
     }
   }
   return segments

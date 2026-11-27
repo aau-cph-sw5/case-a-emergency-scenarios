@@ -3,7 +3,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { Circle, Line, Path, Text } from "react-native-svg";
 import MapRender from "../../shared/MapRenderer";
 import { colors as theme, coverageColors, palette } from "../../shared/Theme";
-import { getLines } from "../../mockData/data";
+import { getLines, getStation } from "../../mockData/data";
 
 const colors = { M2: "#00f" };
 
@@ -70,6 +70,73 @@ describe("MapRender", () => {
       expect.arrayContaining([0, 100]),
     );
     expect(markers).toHaveLength(2);
+  });
+
+  it("draws the turnback only halfway beyond the last stop", () => {
+    render(
+      <MapRender
+        lines={[{ name: "M2", tracks: [1, 2], connections: [["A", "B"]] }]}
+        colors={colors}
+        positions={{ A: [0, 0], B: [100, 0] }}
+        crossovers={[]}
+        stopStations={["A"]}
+        turnbackExtensions={[{ from: "A", toward: "B", color: "#f00" }]}
+      />,
+    );
+    const extension = screen.getByTestId("turnback-A-B");
+    const paths = extension.findAllByType(Path);
+    expect(paths).toHaveLength(4);
+    expect(paths.every((item) => item.props.d.includes("L 50 "))).toBe(true);
+    const stops = screen
+      .UNSAFE_queryAllByType(Circle)
+      .filter((dot) => dot.props.r === 3);
+    expect(stops).toHaveLength(1);
+    expect(stops[0].props.cx).toBe(0);
+  });
+
+  it("draws a curved turnback from the endpoint towards the crossover", () => {
+    const m3 = getLines().find((line) => line.name === "M3")!;
+    render(
+      <MapRender
+        lines={[{ ...m3, tracks: [1, 2] }]}
+        colors={{ M3: "#00f" }}
+        crossovers={[]}
+        turnbackExtensions={[{ from: "KK", toward: "TRI", color: "#f00" }]}
+      />,
+    );
+    const paths = screen.getByTestId("turnback-KK-TRI").findAllByType(Path);
+    const [startX, startY] = paths[0].props.d
+      .match(/-?\d+(?:\.\d+)?/g)!
+      .slice(0, 2)
+      .map(Number);
+    const [kkX, kkY] = getStation("KK");
+    const [triX, triY] = getStation("TRI");
+    expect(Math.hypot(startX - kkX, startY - kkY)).toBeLessThan(15);
+    expect(Math.hypot(startX - kkX, startY - kkY)).toBeLessThan(
+      Math.hypot(startX - triX, startY - triY),
+    );
+  });
+
+  it("keeps both line colours when two routes share a turnback", () => {
+    render(
+      <MapRender
+        lines={[{ name: "M2", tracks: [1, 2], connections: [["A", "B"]] }]}
+        colors={colors}
+        positions={{ A: [0, 0], B: [100, 0] }}
+        crossovers={[]}
+        turnbackExtensions={[
+          { from: "A", toward: "B", color: "#f00" },
+          { from: "A", toward: "B", color: "#0a0" },
+        ]}
+      />,
+    );
+    const paths = screen.getByTestId("turnback-A-B").findAllByType(Path);
+    expect(paths.map((item) => item.props.stroke)).toEqual([
+      "#0a0",
+      "#f00",
+      "#f00",
+      "#0a0",
+    ]);
   });
 
   it("draws shared crossovers on visible segments and accepts colour overrides", () => {

@@ -10,7 +10,7 @@ import { colors, DIDLineColors, lineColors } from "../../shared/Theme";
 import type { Scenario } from "../../shared/types/v1/scenario";
 import type { ScenarioState } from "../../shared/types/v1/scenario-state";
 import { areaAroundStations } from "../../shared/scenario/affected-stations";
-import { MetroMap } from "../../web/src/components/MetroMap";
+import { MetroMap, ScenarioMapView } from "../../web/src/components/MetroMap";
 import { LiveDataContext } from "../../web/src/data/liveData";
 import { useNetwork } from "../../web/src/data/useNetwork";
 import { getLines, getStation } from "../../mockData/data";
@@ -161,12 +161,118 @@ const markedDots = () =>
     .filter((dot) => dot.props.fill === colors.requiredStation);
 
 describe("MetroMap", () => {
+  it("uses the same scenario map for version previews", () => {
+    const preview = render(
+      <ScenarioMapView
+        scenario={scenario}
+        scenarioId={scenario.scenarioId}
+        lineGroup="M1/M2"
+        deployments={null}
+        mapNetwork={testNetwork}
+      />,
+    );
+    expect(markedDots()).toHaveLength(1);
+    expect(screen.getByText("TEST")).toBeTruthy();
+    expect(screen.getByText("TEST-2")).toBeTruthy();
+    const strokes = [
+      ...screen.UNSAFE_queryAllByType(Line),
+      ...screen.UNSAFE_queryAllByType(Path),
+    ].map((segment) => segment.props.stroke);
+    expect(strokes).toEqual(
+      expect.arrayContaining(mapLines.slice(0, 2).map((line) => line.color)),
+    );
+    fireEvent(
+      screen
+        .UNSAFE_getAllByType("button" as never)
+        .find((item) => item.props.children === "Destination ID")!,
+      "click",
+    );
+    const updated = {
+      ...scenario,
+      versions: scenario.versions.map((version) => ({
+        ...version,
+        operatingPlan: {
+          ...version.operatingPlan,
+          patterns: version.operatingPlan.patterns.map((pattern) => ({
+            ...pattern,
+            color: "#008D40",
+          })),
+        },
+      })),
+    };
+    preview.rerender(
+      <ScenarioMapView
+        scenario={updated}
+        scenarioId={updated.scenarioId}
+        lineGroup="M1/M2"
+        deployments={null}
+        mapNetwork={testNetwork}
+      />,
+    );
+    expect(
+      [
+        ...screen.UNSAFE_queryAllByType(Line),
+        ...screen.UNSAFE_queryAllByType(Path),
+      ].some((segment) => segment.props.stroke === "#008D40"),
+    ).toBe(true);
+  });
   it("starts with the M1/M2 network fitted to the map", () => {
     render(withScenario(null, async () => scenario));
     expect(shownLines()).toEqual(["M1", "M2"]);
     expect(markedDots()).toHaveLength(0);
     expect(viewBox()).not.toBe("0 0 950 700");
     expect(screen.queryByText("M1")).toBeNull();
+  });
+
+  it("shows inferred turnbacks beyond passenger stops unless the track is covered", () => {
+    const turnbackScenario: Scenario = {
+      ...scenario,
+      lineGroup: "M3_M4",
+      covers: [],
+      versions: [
+        {
+          ...scenario.versions[0],
+          operatingPlan: {
+            name: "Plan",
+            patterns: [
+              {
+                operationType: "ROUNDTRIP",
+                routeCode: "MOP-EBR",
+                trackNumber: 12,
+                maximumTrains: 2,
+                did: "TURN",
+                color: "#008D40",
+                route: [
+                  { sequence: 1, station: "MOP" },
+                  { sequence: 2, station: "EBR" },
+                ],
+              },
+            ],
+          },
+          stationRequirements: [],
+        },
+      ],
+    };
+    const view = render(
+      withScenario(
+        turnbackScenario.scenarioId,
+        async () => turnbackScenario,
+        turnbackScenario,
+        "M3/M4",
+      ),
+    );
+    expect(screen.getByTestId("turnback-MOP-NEL")).toBeTruthy();
+    expect(screen.getByTestId("turnback-EBR-HOL")).toBeTruthy();
+    expect(screen.getByTestId("crossover-NEL-MOP")).toBeTruthy();
+    const blocked = {
+      ...turnbackScenario,
+      covers: [{ trackNumber: 1, stationA: "NEL", stationB: "MOP" }],
+    };
+    view.rerender(
+      withScenario(blocked.scenarioId, async () => blocked, blocked, "M3/M4"),
+    );
+    expect(screen.queryByTestId("turnback-MOP-NEL")).toBeNull();
+    expect(screen.getByTestId("turnback-EBR-HOL")).toBeTruthy();
   });
 
   it("zooms to the affected stretch, excluding distant staffing stations", () => {
@@ -193,7 +299,7 @@ describe("MetroMap", () => {
     ].map((segment) => segment.props.stroke);
     expect(strokes).toContain(mapLines[0].color);
     expect(strokes).toContain(mapLines[1].color);
-    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(64);
+    expect(screen.UNSAFE_queryAllByType(Line)).toHaveLength(68);
     expect(screen.getByText("TEST")).toBeTruthy();
     expect(screen.getByText("TEST-2")).toBeTruthy();
     expect(markedDots().length).toBeGreaterThan(0);
