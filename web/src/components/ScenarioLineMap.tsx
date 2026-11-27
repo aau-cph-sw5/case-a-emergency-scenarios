@@ -1,8 +1,8 @@
 import MapRender from "../../../shared/MapRenderer";
-import type { LineGroup } from "../admin-routes";
+import type { LineGroupLabel } from "../../../shared/auth/line-groups";
 type MapProps = Parameters<typeof MapRender>[0];
 type Props = {
-  lineGroup: LineGroup;
+  lineGroup: LineGroupLabel;
   editingLine: boolean;
   from: string;
   to: string;

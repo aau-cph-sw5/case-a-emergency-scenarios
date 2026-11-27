@@ -574,7 +574,7 @@ body {
   gap: 14px;
   margin: 14px 0 12px;
   color: var(--operator-muted);
-  font-size: 12px;
+  font-size: var(--operator-text-12);
   line-height: 12px;
   min-height: 12px;
 }
@@ -606,9 +606,9 @@ body {
   flex: 1;
   min-height: 350px;
   border: 1px solid var(--operator-ink);
-  border-radius: 15px;
+  border-radius: var(--operator-radius-card);
   overflow: hidden;
-  background: white;
+  background: var(--operator-white);
 }
 .operator-map-frame > div {
   min-width: 0;
@@ -641,7 +641,7 @@ body {
   height: 46px !important;
   align-items: center;
   justify-content: center;
-  border-radius: 10px !important;
+  border-radius: var(--operator-radius-control) !important;
   padding: 3px !important;
   margin: 0 !important;
 }
@@ -649,14 +649,14 @@ body {
   [data-testid="metro-line-controls"]
   [role="button"]
   > div {
-  font-size: 12px;
+  font-size: var(--operator-text-12);
   font-weight: 700;
 }
 .operator-map-panel [data-testid="map-zoom-toggle"] {
   top: 12px;
   right: 12px;
   z-index: 10;
-  border-radius: 8px !important;
+  border-radius: var(--operator-radius-control) !important;
   background: var(--operator-blue) !important;
   border: 0;
   padding: 9px 10px;
@@ -665,15 +665,15 @@ body {
 }
 .operator-map-panel [data-testid="map-zoom-toggle"] > :is(div, span) {
   color: white !important;
-  font-size: 12px;
+  font-size: var(--operator-text-12);
   font-weight: bold;
 }
 .operator-map-caption {
   padding: 12px;
-  background: #f5f5f5;
-  border-top: 1px solid #e5e5e5;
+  background: var(--operator-well);
+  border-top: 1px solid var(--operator-option-border);
   color: var(--operator-muted);
-  font-size: 12px;
+  font-size: var(--operator-text-12);
   line-height: 1.5;
 }
 .operator-coverage-panel {
@@ -1909,4 +1909,55 @@ body {
   background: var(--operator-well);
   font-size: 14px;
   color: var(--operator-muted);
+}
+/* Notices and the destination legend under the map use the operator font and
+   colours; React Native Web's Text would otherwise fall back to the system font. */
+.operator-map-panel [role="alert"],
+.operator-map-panel
+  :is([aria-label="Destination IDs"], [aria-label="Metrolinjer"]),
+.operator-map-panel
+  :is([aria-label="Destination IDs"], [aria-label="Metrolinjer"])
+  * {
+  font-family: inherit !important;
+  font-size: var(--operator-text-13) !important;
+  color: var(--operator-ink) !important;
+}
+.operator-map-panel [role="alert"] {
+  padding: 8px 12px;
+  border-left: var(--operator-rule-width) solid var(--operator-yellow);
+  border-radius: var(--operator-radius-control);
+  background: var(--operator-warning-tint);
+  margin: 0 12px 8px;
+}
+.operator-map-panel
+  :is([aria-label="Destination IDs"], [aria-label="Metrolinjer"]) {
+  margin: 0 !important;
+  padding: 0 12px 12px;
+}
+.operator-map-panel
+  :is([aria-label="Destination IDs"], [aria-label="Metrolinjer"])
+  > div:first-child {
+  margin: 0;
+}
+.operator-map-panel [data-testid="map-zoom-toggle"]:hover {
+  background: color-mix(
+    in srgb,
+    var(--operator-blue) 82%,
+    var(--operator-ink)
+  ) !important;
+}
+/* "Prøv igen" after a failed load: a small outlined button. */
+.operator-retry,
+.operator-map-panel [data-testid="map-retry"] {
+  padding: 6px 12px;
+  border: 1px solid var(--operator-muted);
+  border-radius: var(--operator-radius-control);
+  background: var(--operator-white);
+  color: var(--operator-ink);
+  cursor: pointer;
+}
+.operator-retry:hover,
+.operator-map-panel [data-testid="map-retry"]:hover {
+  border-color: var(--operator-ink);
+  background: var(--operator-pressed);
 }

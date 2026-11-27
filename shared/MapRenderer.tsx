@@ -2,9 +2,16 @@ import { Fragment, useState, type ReactNode } from "react";
 import { View, Pressable, Text as RNText } from "react-native";
 import Svg, { Text, Line, Circle, Path, G } from "react-native-svg";
 import { getCrossovers, getLines, getStation } from "../mockData/data";
-import { text, radius, colors as theme, coverageColors } from "./Theme";
+import {
+  text,
+  radius,
+  colors as theme,
+  coverageColors,
+  mutedOpacity,
+} from "./Theme";
 import type { CoverageLevel } from "./components/stationState";
 import { connectionKey } from "./network/network";
+import { DEFAULT_VIEWBOX } from "./mapViewBox";
 
 type MapLine = {
   name: string;
@@ -573,7 +580,7 @@ function GetColors(
 export default function MapRender({
   lines,
   colors,
-  viewBox = "0 0 950 700",
+  viewBox = DEFAULT_VIEWBOX,
   showLineButtons = true,
   renderLineButtons,
   lineGroups,
@@ -581,6 +588,7 @@ export default function MapRender({
   highlightColor = theme.text,
   markedStations = [],
   stopStations = [],
+  mutedStations = [],
   blockedTracks = [],
   initiallyHidden = [],
   requiredStaffing = {},
@@ -607,6 +615,9 @@ export default function MapRender({
   // scenario needs staff at (#183). Leaving it out draws the map as before.
   markedStations?: readonly string[];
   stopStations?: readonly string[];
+  // Optional: stations that are drawn faded, for example a station no running
+  // route reaches. Leaving it out draws the map as before.
+  mutedStations?: readonly string[];
   // Optional: the tracks a scenario blocks, drawn in their own style (#183).
   blockedTracks?: readonly BlockedTrack[];
   // Optional: lines that start switched off until their button is pressed.
@@ -634,6 +645,7 @@ export default function MapRender({
       : (stationPositions?.[station] ?? getStation(station));
   const displayedCrossovers =
     crossovers ?? (positions ? [] : defaultCrossovers);
+  const muted = new Set(mutedStations);
   // Each station once, with highlightStation last so its outer ring sits above
   // neighbouring stations.
   const highlighted = [
@@ -826,9 +838,8 @@ export default function MapRender({
         {orderedStations.map((station) => {
           const isHighlighted = highlightedSet.has(station);
           const [x, y] = position(station)!;
-          return (
+          const node = (
             <Station
-              key={station}
               name={station}
               x={x}
               y={y}
@@ -840,6 +851,14 @@ export default function MapRender({
               ringOnly={ringOnly}
               onPress={onStationPress}
             />
+          );
+          // A station no route reaches is drawn muted; a marked station never is.
+          return muted.has(station) && !isHighlighted ? (
+            <G key={station} opacity={mutedOpacity}>
+              {node}
+            </G>
+          ) : (
+            <Fragment key={station}>{node}</Fragment>
           );
         })}
       </Svg>
