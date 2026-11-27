@@ -1,9 +1,5 @@
 import { Text } from "react-native";
-import { useEffect, useState, type ReactNode } from "react";
-import {
-  countManned,
-  countStewards,
-} from "../../../shared/components/stationState";
+import { useEffect, useState } from "react";
 import {
   formatDuration,
   formatTime,
@@ -11,46 +7,7 @@ import {
 import { useLiveData } from "../data/liveData";
 import { useScenario } from "../data/useScenario";
 
-function Metric({
-  label,
-  value,
-  total,
-  tone,
-  children,
-}: {
-  label: string;
-  value: number;
-  total: number;
-  tone: string;
-  children?: ReactNode;
-}) {
-  return (
-    <section className={`operator-metric tone-${tone}`}>
-      <h3 className="operator-eyebrow">{label}</h3>
-      <div className="metric-value">
-        <strong>{value}</strong>
-        <span>af {total}</span>
-      </div>
-      <div
-        className="metric-meter"
-        role="meter"
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={Math.max(total, value, 1)}
-        aria-valuenow={value}
-      >
-        <span
-          style={{
-            width: `${total > 0 ? Math.min(value / total, 1) * 100 : 0}%`,
-          }}
-        />
-      </div>
-      {children}
-    </section>
-  );
-}
-
-// Presentation only: the existing coverage helpers determine all live totals.
+// Presentation only: the left column of the active-scenario view (operator tasks, then the scenario info with the running clock).
 export function LiveStatusBar() {
   const {
     activations,
@@ -81,52 +38,46 @@ export function LiveStatusBar() {
         <Text>Scenariets aktuelle version blev ikke fundet.</Text>
       </div>
     );
-  const requirements = version.stationRequirements;
-  const covered = countManned(active, requirements);
-  const stewards = countStewards(active, requirements);
-  const missing = requirements.length - covered;
-  const staffingTone =
-    stewards.arrived >= stewards.needed
-      ? "green"
-      : stewards.arrived >= stewards.needed / 2
-        ? "yellow"
-        : "red";
-  const shortageTone =
-    missing === 0
-      ? "green"
-      : missing > requirements.length / 2
-        ? "red"
-        : "yellow";
   return (
     <div className="active-metrics" key={active.activationId}>
-      <Metric
-        label="STEWARDS PÅ STATIONER"
-        value={stewards.arrived}
-        total={stewards.needed}
-        tone={staffingTone}
+      {/* Design rationale: the two staffing numbers were two cards that the
+          Bemandingsplan header now repeats, so they are gone. The card stays,
+          empty, as the place for the operator's own tasks. */}
+      <section
+        className="operator-metric operator-tasks"
+        aria-label="Operator opgaver"
       >
-        <p className="metric-note">{stewards.enRoute} på vej</p>
-      </Metric>
-      <Metric
-        label="STATIONER DER MANGLER BEMANDING"
-        value={missing}
-        total={requirements.length}
-        tone={shortageTone}
-      />
+        <h3 className="operator-eyebrow">OPERATOR OPGAVER</h3>
+        <p className="operator-tasks-note">Operator opgaver kommer her</p>
+      </section>
+      {/* Design rationale: the running clock is what an operator checks most
+          often, so it comes first and is the largest thing on the card. Then
+          which scenario, who started it and when, then the live state of the
+          connection last, as a quiet footer. Order follows how the questions
+          come up: how long, what, who, when, can I trust it. */}
       <section className="operator-metric scenario-information">
         <h3 className="operator-eyebrow">SCENARIO INFO</h3>
-        <div className="scenario-information-name">
-          <Text>
-            {active.scenarioId} {scenario.name}
-          </Text>
+        <div className="scenario-clock">
+          <span className="scenario-clock-label">Aktiv i</span>
+          <strong className="scenario-clock-time">
+            {formatDuration(active.startedAt, now)}
+          </strong>
         </div>
         <dl>
+          <div>
+            <dt>Scenarie</dt>
+            <dd>
+              <Text>
+                {active.scenarioId} {scenario.name}
+              </Text>
+            </dd>
+          </div>
           <div>
             <dt>Aktiveret af</dt> <dd>{active.actor}</dd>
           </div>
           <div>
-            <dt>Aktiv i</dt>
-            <dd>{formatDuration(active.startedAt, now)}</dd>
+            <dt>Aktiveret kl.</dt>
+            <dd>{formatTime(active.startedAt)}</dd>
           </div>
         </dl>
         <div

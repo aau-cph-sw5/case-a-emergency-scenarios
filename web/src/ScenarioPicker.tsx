@@ -151,7 +151,11 @@ export function ScenarioPicker({
       {scenariosError !== null && (
         <>
           <p role="alert">Kunne ikke hente scenarier: {scenariosError}</p>
-          <button type="button" onClick={reloadScenarios}>
+          <button
+            className="operator-retry"
+            type="button"
+            onClick={reloadScenarios}
+          >
             Prøv igen
           </button>
         </>

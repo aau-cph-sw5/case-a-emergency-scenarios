@@ -7,8 +7,10 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { useAutoGrow } from "./useAutoGrow";
+import { useControllableOpen } from "./useControllableOpen";
 import { FormatError } from "../../../shared/api/http";
-import { colors, messageSymbols, palette } from "../../../shared/Theme";
+import { colors, palette } from "../../../shared/Theme";
 import type { LineGroup } from "../../../shared/auth/line-groups";
 import { userIdFromToken } from "../../../shared/auth/login";
 import {
@@ -53,10 +55,15 @@ export function OperatorMessagePanel({
   token,
   lineGroup,
   testNotificationCount,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   token: string;
   lineGroup: LineGroup | null;
   testNotificationCount?: number;
+  // See useControllableOpen.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const { activations } = useLiveData();
   const activation = activations.find(
@@ -70,7 +77,11 @@ export function OperatorMessagePanel({
 
   // Keep panel open state in the outer shell so stand-down never slams an open
   // panel shut while the operator reads the closed state.
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useControllableOpen(
+    false,
+    controlledOpen,
+    onOpenChange,
+  );
 
   // Clear the closed or replaced activation's sessionStorage entry for the
   // same operator, whether stand-down or a direct scenario switch happened.
@@ -93,7 +104,7 @@ export function OperatorMessagePanel({
 
   const shellProps = {
     open,
-    onToggle: () => setOpen((current) => !current),
+    onToggle: () => setOpen(!open),
     onClose: () => setOpen(false),
   };
 
@@ -193,7 +204,7 @@ function ClosedPanel({ shell, notice }: { shell: ShellProps; notice: string }) {
               aria-pressed={showSaved}
               onClick={() => setShowSaved((current) => !current)}
             >
-              Gemt <span aria-hidden="true">{messageSymbols.pin}</span>
+              Gemt
             </button>
           </div>
           <ul aria-label="Stationssamtaler" />
@@ -428,13 +439,13 @@ function ActiveMessages({
               aria-pressed={showSaved}
               onClick={() => setShowSaved((current) => !current)}
             >
-              Gemt <span aria-hidden="true">{messageSymbols.pin}</span>
+              Gemt
             </button>
           </div>
           {shownListError && (
             <p role="alert">
               Kunne ikke hente samtaler. {shownListError}{" "}
-              <button type="button" onClick={reload}>
+              <button className="operator-retry" type="button" onClick={reload}>
                 Prøv igen
               </button>
             </p>
@@ -482,7 +493,11 @@ function ActiveMessages({
                 <p role="alert">
                   Kunne ikke hente beskeder. {shownThreadError} Luk og åbn
                   samtalen igen for at hente beskederne.{" "}
-                  <button type="button" onClick={reload}>
+                  <button
+                    className="operator-retry"
+                    type="button"
+                    onClick={reload}
+                  >
                     Prøv igen
                   </button>
                 </p>
@@ -569,7 +584,7 @@ function MessageHistory({
                     aria-pressed={isPinned}
                     onClick={() => onPin(message)}
                   >
-                    <span aria-hidden="true">{messageSymbols.pin}</span>
+                    {isPinned ? "Gemt" : "Gem"}
                   </button>
                 )}
               </div>
@@ -604,6 +619,8 @@ function MessageComposer({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastRequestRef = useRef<StationMessageRequest | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useAutoGrow(textareaRef, draft);
   const tooLong = messageLength(draft) > MAX_MESSAGE_LENGTH;
   const ready = canSend && !sending && isSendableText(draft);
 
@@ -639,6 +656,7 @@ function MessageComposer({
   return (
     <form onSubmit={(event) => void submit(event)}>
       <textarea
+        ref={textareaRef}
         aria-label={`Besked til ${station}`}
         aria-invalid={tooLong}
         placeholder={`Skriv til ${station}…`}

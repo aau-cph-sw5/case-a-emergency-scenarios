@@ -7,6 +7,10 @@ jest.mock("../../web/src/local-settings", () => ({
   mockStewardPositions: false,
   notificationTestShortcuts: true,
 }));
+let mockActivations: { lineGroup: string | null }[] = [{ lineGroup: "M1_M2" }];
+jest.mock("../../web/src/data/liveData", () => ({
+  useLiveData: () => ({ activations: mockActivations }),
+}));
 jest.mock("../../web/src/components/StewardPositions", () => ({
   StewardPositions: () => null,
 }));
@@ -23,20 +27,29 @@ jest.mock("../../web/src/components/ScenarioWorkspace", () => ({
     messagePanel,
   }: {
     lineGroup: string;
-    statusPopup: ReactElement<{
-      testNotificationCount?: number;
-      onOpen?: () => void;
-    }>;
-    messagePanel: ReactElement<{ testNotificationCount?: number }>;
+    statusPopup?:
+      | false
+      | ReactElement<{
+          testNotificationCount?: number;
+          onOpen?: () => void;
+        }>;
+    messagePanel?: false | ReactElement<{ testNotificationCount?: number }>;
   }) => (
     <>
       <div data-testid="line-group">{lineGroup}</div>
-      <output>{statusPopup.props.testNotificationCount}</output>
-      <output>{messagePanel.props.testNotificationCount}</output>
+      <output>{statusPopup && statusPopup.props.testNotificationCount}</output>
+      <output>
+        {messagePanel && messagePanel.props.testNotificationCount}
+      </output>
+      <i data-testid="popups">
+        {[statusPopup && "status", messagePanel && "messages"]
+          .filter(Boolean)
+          .join("+") || "none"}
+      </i>
       <button
         type="button"
         data-testid="open-status"
-        onClick={statusPopup.props.onOpen}
+        onClick={statusPopup ? statusPopup.props.onOpen : undefined}
       >
         Open Status
       </button>
@@ -77,7 +90,9 @@ it("adds and clears test notifications on both buttons", async () => {
   const container = document.createElement("div");
   const root = createRoot(container);
   await act(async () =>
-    root.render(<OperatorDashboard token="test" onLogout={() => {}} />),
+    root.render(
+      <OperatorDashboard token={tokenFor("M1_M2")} onLogout={() => {}} />,
+    ),
   );
   const counts = () =>
     [...container.querySelectorAll("output")].map((node) => node.textContent);
@@ -103,4 +118,50 @@ it("adds and clears test notifications on both buttons", async () => {
   await press("m", { altKey: true });
   expect(counts()).toEqual(["0", "0"]);
   await act(async () => root.unmount());
+});
+
+// The dashboard reads the line group from the token's payload.
+const tokenFor = (lineGroup: string) =>
+  `h.${btoa(JSON.stringify({ lineGroup }))}.s`;
+
+async function renderDashboard(token: string) {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  const render = () =>
+    act(async () =>
+      root.render(<OperatorDashboard token={token} onLogout={() => {}} />),
+    );
+  await render();
+  return {
+    container,
+    render,
+    unmount: () => act(async () => root.unmount()),
+    popups: () =>
+      container.querySelector('[data-testid="popups"]')?.textContent,
+  };
+}
+
+it("shows the Status and Beskeder buttons only while a scenario is active", async () => {
+  mockActivations = [];
+  const view = await renderDashboard(tokenFor("M1_M2"));
+  expect(view.popups()).toBe("none");
+  mockActivations = [{ lineGroup: "M1_M2" }];
+  await view.render();
+  expect(view.popups()).toBe("status+messages");
+  await view.unmount();
+});
+
+it("offers Beskeder only on the operator's own line group", async () => {
+  mockActivations = [{ lineGroup: "M3_M4" }];
+  const view = await renderDashboard(tokenFor("M1_M2"));
+  expect(view.popups()).toBe("none");
+  const [, m3m4] = view.container.querySelectorAll<HTMLButtonElement>(
+    ".operator-line-switcher button",
+  );
+  await act(async () => m3m4.click());
+  // Status follows the selected line group; the messages API is scoped to the
+  // token's own group, so Beskeder stays hidden.
+  expect(view.popups()).toBe("status");
+  await view.unmount();
 });

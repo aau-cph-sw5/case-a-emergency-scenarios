@@ -31,7 +31,7 @@ export function ScenarioPreview({
       {error !== null && (
         <>
           <p role="alert">Kunne ikke hente scenariet: {error}</p>
-          <button type="button" onClick={retry}>
+          <button className="operator-retry" type="button" onClick={retry}>
             Prøv igen
           </button>
         </>
