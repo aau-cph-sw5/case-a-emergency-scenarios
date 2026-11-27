@@ -13,6 +13,7 @@ import {
   notifyStationMessage,
 } from "../../src/services/push-service.js";
 import type { BatchResponse } from "firebase-admin/messaging";
+import { authSessionRepository } from "../../src/repositories/auth-session-repository.js";
 
 // ADR 0014: what a phone offline at send time gets
 test("a scenario push replaces an older one for the same line group and expires after an hour", () => {
@@ -101,9 +102,21 @@ test("only tokens FCM rejects for good are cleared", (t) => {
   assert.deepEqual(deadTokensIn(["a", "b", "c"], result), ["b"]);
 });
 
-test("a station push without Firebase credentials sends nothing and does not throw", async (t) => {
-  t.mock.method(console, "warn", () => {});
+test("a station push without Firebase credentials does not even look up recipients", async (t) => {
+  const saved = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  t.after(() => {
+    if (saved === undefined) delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    else process.env.GOOGLE_APPLICATION_CREDENTIALS = saved;
+  });
   process.env.GOOGLE_APPLICATION_CREDENTIALS = "";
+  t.mock.method(console, "warn", () => {});
+  const lookup = t.mock.method(
+    authSessionRepository,
+    "findStationStewardPushTokens",
+    async () => ["token"],
+  );
 
   await notifyStationMessage(1, "VAN", null);
+
+  assert.equal(lookup.mock.callCount(), 0);
 });

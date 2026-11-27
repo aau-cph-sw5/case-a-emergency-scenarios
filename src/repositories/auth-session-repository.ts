@@ -145,6 +145,12 @@ async function findStewardPushTokens(lineGroup: LineGroup): Promise<string[]> {
   `;
   return rows.map((row) => row.pushToken);
 }
+
+// The phones of the stewards checked in at a station, except the sender's
+// (#414). "Checked in" must match findCheckedInStation in
+// station-message-repository.ts, which decides who may read the station chat:
+// the steward's newest position report for the activation is an ARRIVED with
+// the task not done. Change both together.
 async function findStationStewardPushTokens(
   activationId: number,
   station: string,

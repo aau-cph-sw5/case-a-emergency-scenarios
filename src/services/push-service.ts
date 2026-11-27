@@ -29,6 +29,9 @@ const DEAD_TOKEN_CODES = new Set([
   "messaging/invalid-argument",
   "messaging/mismatched-credential",
 ]);
+
+// The tokens FCM rejected for good, so they can be cleared. Other errors are
+// only logged.
 export function deadTokensIn(
   tokens: string[],
   result: BatchResponse,
@@ -136,14 +139,7 @@ async function sendScenarioChange(
     const result = await getMessaging(app).sendEachForMulticast(
       scenarioMessage(tokens, lineGroup, change, scenarioName),
     );
-    const deadTokens: string[] = [];
-    result.responses.forEach(({ error }, index) => {
-      if (!error) return;
-      if (DEAD_TOKEN_CODES.has(error.code)) deadTokens.push(tokens[index]);
-      else
-        console.error("Push notification failed:", error.code, error.message);
-    });
-    await authSessionRepository.clearPushTokens(deadTokens);
+    await authSessionRepository.clearPushTokens(deadTokensIn(tokens, result));
   } catch (error) {
     console.error("Push notification failed:", error);
   }
